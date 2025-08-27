@@ -1,3 +1,4 @@
+import { StackScreenWithSearchBar } from '@/constants/layout';
 import { defaultStyles } from '@/styles';
 import { Stack } from 'expo-router';
 import React from 'react';
@@ -10,8 +11,9 @@ const FavoritesScreenLayout = () => {
 				<Stack.Screen
 					name='index'
 					options={{
+						...StackScreenWithSearchBar,
 						headerTitle: 'Authors',
-						headerTitleAlign: 'center',
+						// headerTitleAlign: 'center',
 					}}
 				/>
 			</Stack>

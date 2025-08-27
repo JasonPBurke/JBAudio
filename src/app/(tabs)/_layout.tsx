@@ -1,8 +1,8 @@
-import { colors, fontSize } from '@/constants/tokens';
 import { Tabs } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { StyleSheet } from 'react-native';
 import { FontAwesome, Ionicons, Octicons, AntDesign } from '@expo/vector-icons';
+import { colors, fontSize } from '@/constants/tokens';
 
 const TabsNavigation = () => {
 	type colorProps = {

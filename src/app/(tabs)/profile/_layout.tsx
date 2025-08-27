@@ -1,3 +1,4 @@
+import { StackScreenWithSearchBar } from '@/constants/layout';
 import { defaultStyles } from '@/styles';
 import { Stack } from 'expo-router';
 import React from 'react';
@@ -10,8 +11,9 @@ const ProfileScreenLayout = () => {
 				<Stack.Screen
 					name='index'
 					options={{
+						...StackScreenWithSearchBar,
 						headerTitle: 'Profile',
-						headerTitleAlign: 'center',
+						// headerTitleAlign: 'center',
 					}}
 				/>
 			</Stack>

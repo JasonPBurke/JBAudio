@@ -1,17 +1,18 @@
-import { defaultStyles } from '@/styles';
+import { StackScreenWithSearchBar } from '@/constants/layout';
+import { defaultStyles } from '@/styles/index';
 import { Stack } from 'expo-router';
-import React from 'react';
 import { View } from 'react-native';
 
-const SongsScreenLayout = () => {
+const LibraryScreenLayout = () => {
 	return (
 		<View style={defaultStyles.container}>
 			<Stack>
 				<Stack.Screen
 					name='index'
 					options={{
-						headerTitle: 'Home',
-						headerTitleAlign: 'center',
+						...StackScreenWithSearchBar,
+						headerTitle: 'Library',
+						// headerTitleAlign: 'center',
 					}}
 				/>
 			</Stack>
@@ -19,4 +20,4 @@ const SongsScreenLayout = () => {
 	);
 };
 
-export default SongsScreenLayout;
+export default LibraryScreenLayout;

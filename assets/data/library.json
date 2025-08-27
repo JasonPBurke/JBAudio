@@ -1,0 +1,109 @@
+[
+  {
+    "url": "https://ia903403.us.archive.org/34/items/greatgatsby_2101_librivox/greatgatsby_01_fitzgerald_128kb.mp3",
+    "title": "The Great Gatsby",
+    "author": "F. Scott Fitzgerald",
+    "artwork": "https://m.media-amazon.com/images/I/71FTb9X6wsL._AC_UF1000,1000_QL80_.jpg",
+    "rating": 1,
+    "playlist": ["Vacation 🌱"]
+  },
+  {
+    "url": "https://ia801600.us.archive.org/35/items/pride_and_prejudice_librivox/prideandprejudice_01-03_austen.mp3",
+    "title": "Pride and Prejudice",
+    "playlist": ["Sleep 🎵"]
+  },
+  {
+    "url": "https://dn720203.ca.archive.org/0/items/adventuressherlockholmes_v4_1501_librivox/adventuresofsherlockholmes_01_doyle_128kb.mp3",
+    "title": "The Adventures of Sherlock Holmes",
+    "author": "Arthur Conan Doyle",
+    "artwork": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Adventures_of_sherlock_holmes.jpg/330px-Adventures_of_sherlock_holmes.jpg",
+    "playlist": ["Vacation 🌱", "Sleep 🎵", "Study 🎤"]
+  },
+  {
+    "url": "https://ia600605.us.archive.org/16/items/frankenstein_1210_librivox/frankenstein_01_shelley.mp3",
+    "title": "Frankenstein",
+    "author": "Mary Shelley",
+    "artwork": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Christie%27s_auction_scan_of_Frankenstein_1818.jpg/330px-Christie%27s_auction_scan_of_Frankenstein_1818.jpg",
+    "rating": 1,
+    "playlist": ["Study 🎤"]
+  },
+  {
+    "url": "https://dn720001.ca.archive.org/0/items/dracula_librivox/dracula_01_stoker.mp3",
+    "title": "Dracula",
+    "author": "Bram Stoker",
+    "artwork": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Dracula_1st_ed_cover_reproduction.jpg/330px-Dracula_1st_ed_cover_reproduction.jpg",
+    "playlist": ["Vacation 🌱"]
+  },
+  {
+    "url": "https://audio.jukehost.co.uk/ZufGK11EtwQWXge8xYo5EQ02RuJqtr4s",
+    "title": "The Picture of Dorian Gray",
+    "author": "Oscar Wilde",
+    "artwork": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Lippincott_doriangray.jpg/330px-Lippincott_doriangray.jpg"
+  },
+  {
+    "url": "https://ia801501.us.archive.org/19/items/lostwarship_2504_librivox/lostwarship_05_williams_128kb.mp3",
+    "title": "Good to Great",
+    "author": "Jim Collins",
+    "artwork": "https://m.media-amazon.com/images/I/51IPJiX34fL.jpg",
+    "rating": 1,
+    "playlist": ["Study 🎤"]
+  },
+  {
+    "url": "https://ia902302.us.archive.org/12/items/adventureshuckleberryfinnv5_1801_librivox/huckleberryfinn_dr_01_twain_128kb.mp3",
+    "title": "The Adventures of Huckleberry Finn",
+    "author": "Mark Twain",
+    "artwork": "https://archive.org/download/huck_finn_librivox/Huck_Finn.jpg?scale=1&rotate=0&scale=1&rotate=0&scale=1&rotate=0"
+  },
+  {
+    "url": "https://ia803208.us.archive.org/28/items/strangecasedrmkjessup_2508_librivox/strangecaseofdrmkjessup_00_barker_128kb.mp3",
+    "title": "The Strange Case of Dr. M. K. Jessup",
+    "author": "Gray Baker",
+    "playlist": ["Sleep 🎵", "Study 🎤"]
+  },
+  {
+    "url": "https://ia601309.us.archive.org/11/items/cb023-_mysteries_puzzles_conundrums_1910_librivox/cb023_07_various_128kb.mp3",
+    "title": "A Fable",
+    "author": "Mark Twain",
+    "artwork": "https://api.ndla.no/image-api/raw/dp47id1Z.jpg?width=1440&cropStartX=100&cropEndX=1.1056740190729748&cropStartY=68.9701321337997&cropEndY=10.255535183908632",
+    "rating": 1
+  },
+  {
+    "url": "https://ia801204.us.archive.org/12/items/aphorisms_wilde_librivox_cm/aphorisms_1_wilde.mp3",
+    "title": "Aphorisms",
+    "author": "Oscar Wilde",
+    "artwork": "https://d28hgpri8am2if.cloudfront.net/book_images/onix/cvr9781633551930/miscellaneous-aphorisms-9781633551930_hr.jpg",
+    "playlist": ["Study 🎤"]
+  },
+  {
+    "url": "https://ia801305.us.archive.org/7/items/selected_stories_fitzgerald_0902_librivox/selectedstories_07_fitzgerald.mp3",
+    "title": "The Curious Case of Benjamin Button",
+    "author": "F. Scott Fitzgerald",
+    "playlist": ["Vacation 🌱", "Sleep 🎵"]
+  },
+  {
+    "url": "https://audio.jukehost.co.uk/KDOr4agGwHHvikLtk9zukiiDpYNzIp8w",
+    "title": "The Adventure of the Copper Beeches",
+    "author": "Arthur Conan Doyle",
+    "artwork": "https://dn720308.ca.archive.org/0/items/adventureofthecopperbeeches_2108_librivox/copperbeeches_2108.jpg",
+    "rating": 1
+  },
+  {
+    "url": "https://dn721502.ca.archive.org/0/items/memoirsherlockholmesver4_2507_librivox/memoirsofsherlockholmes_01_doyle_128kb.mp3",
+    "title": "Silver Blaze",
+    "author": "Arthur Conan Doyle",
+    "artwork": "https://archive.org/download/memoirsherlockholmesver4_2507_librivox/memoirsofsherlockholmes_2507.jpg"
+  },
+  {
+    "url": "https://dn721502.ca.archive.org/0/items/memoirsherlockholmesver4_2507_librivox/memoirsofsherlockholmes_02_doyle_128kb.mp3",
+    "title": "The Adventure of the Cardboard Box",
+    "author": "Arthur Conan Doyle",
+    "artwork": "https://archive.org/download/memoirsherlockholmesver4_2507_librivox/memoirsofsherlockholmes_2507.jpg",
+    "playlist": ["Vacation 🌱"]
+  },
+  {
+    "url": "https://dn721502.ca.archive.org/0/items/memoirsherlockholmesver4_2507_librivox/memoirsofsherlockholmes_03_doyle_128kb.mp3",
+    "title": "The Yellow Face",
+    "author": "Arthur Conan Doyle",
+    "playlist": ["Vacation 🌱"]
+  }
+]

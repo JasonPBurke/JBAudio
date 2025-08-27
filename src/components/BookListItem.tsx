@@ -1,0 +1,77 @@
+import { unknownBookImageUri } from '@/constants/images';
+import { StyleSheet, Text, TouchableHighlight, View } from 'react-native';
+import FastImage from '@d11/react-native-fast-image';
+import { colors, fontSize } from '@/constants/tokens';
+import { defaultStyles } from '@/styles';
+
+export type BookListItemProps = {
+	book: { title: string; image?: string; author?: string };
+};
+
+export const BookListItem = ({ book }: BookListItemProps) => {
+	const isActiveBook = false;
+
+	return (
+		<TouchableHighlight>
+			<View style={styles.bookItemContainer}>
+				<View>
+					<FastImage
+						source={{
+							uri: book.image ?? unknownBookImageUri,
+							priority: FastImage.priority.normal,
+						}}
+						style={{
+							...styles.bookArtworkImage,
+							opacity: isActiveBook ? 0.6 : 1,
+						}}
+					/>
+				</View>
+
+				<View style={{ width: '100%' }}>
+					<Text
+						numberOfLines={1}
+						style={{
+							...styles.bookTitleText,
+							color: isActiveBook ? colors.primary : colors.text,
+						}}
+					>
+						{book.title}
+					</Text>
+
+					{book.author && (
+						<Text numberOfLines={1} style={styles.bookAuthorText}>
+							{book.author}
+						</Text>
+					)}
+				</View>
+			</View>
+		</TouchableHighlight>
+	);
+};
+
+const styles = StyleSheet.create({
+	bookItemContainer: {
+		flexDirection: 'row',
+		columnGap: 14,
+		alignItems: 'center',
+		paddingRight: 20,
+		marginBottom: 12,
+	},
+	bookArtworkImage: {
+		borderRadius: 8,
+		width: 50,
+		height: 50,
+	},
+	bookTitleText: {
+		...defaultStyles.text,
+		fontSize: fontSize.sm,
+		fontWeight: '600',
+		maxWidth: '90%',
+	},
+	bookAuthorText: {
+		...defaultStyles.text,
+		color: colors.textMuted,
+		fontSize: 14,
+		marginTop: 4,
+	},
+});

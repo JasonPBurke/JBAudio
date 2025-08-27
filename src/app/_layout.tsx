@@ -7,7 +7,7 @@ const App = () => {
 		<SafeAreaProvider>
 			<RootNavigation />
 
-			<StatusBar style='auto' />
+			<StatusBar style='light' />
 		</SafeAreaProvider>
 	);
 };
