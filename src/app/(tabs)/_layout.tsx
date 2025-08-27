@@ -16,7 +16,6 @@ const TabsNavigation = () => {
 				tabBarLabelStyle: {
 					fontSize: fontSize.xs,
 					fontWeight: '500',
-					// color: colors.text,
 				},
 				headerShown: false,
 				tabBarStyle: {
@@ -25,16 +24,17 @@ const TabsNavigation = () => {
 					borderTopRightRadius: 20,
 					borderTopWidth: 0,
 					paddingTop: 8,
-					// backgroundColor: '#D8DEE9',
 				},
 				tabBarBackground: () => (
 					<BlurView
-						intensity={15} //95
+						experimentalBlurMethod='dimezisBlurView'
+						intensity={13} //95
 						style={{
 							...StyleSheet.absoluteFillObject,
 							overflow: 'hidden',
 							borderTopLeftRadius: 20,
 							borderTopRightRadius: 20,
+							backgroundColor: 'rgba(19, 19, 23, 0.8)',
 						}}
 					/>
 				),
@@ -51,7 +51,7 @@ const TabsNavigation = () => {
 				}}
 			/>
 			<Tabs.Screen
-				name='(home)'
+				name='(library)'
 				options={{
 					title: 'Library',
 					tabBarIcon: ({ color }: colorProps) => (

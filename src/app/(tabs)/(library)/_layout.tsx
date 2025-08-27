@@ -12,7 +12,7 @@ const LibraryScreenLayout = () => {
 					options={{
 						...StackScreenWithSearchBar,
 						headerTitle: 'Library',
-						// headerTitleAlign: 'center',
+						// headerShown: false,
 					}}
 				/>
 			</Stack>

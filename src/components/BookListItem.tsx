@@ -55,12 +55,15 @@ const styles = StyleSheet.create({
 		columnGap: 14,
 		alignItems: 'center',
 		paddingRight: 20,
-		marginBottom: 12,
+		// marginBottom: 12,
 	},
 	bookArtworkImage: {
-		borderRadius: 8,
-		width: 50,
-		height: 50,
+		borderRadius: 4,
+		//* height and width will need to be variable based on the cover img used
+		height: 75,
+		// width: 55,
+		aspectRatio: 0.75,
+		objectFit: 'contain',
 	},
 	bookTitleText: {
 		...defaultStyles.text,
