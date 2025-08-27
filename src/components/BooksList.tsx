@@ -3,7 +3,9 @@ import library from '@/assets/data/library.json';
 import { BookListItem } from './BookListItem';
 import { utilsStyles } from '@/styles';
 
-export type BookListProps = Partial<FlatListProps<unknown>>;
+export type BookListProps = Partial<FlatListProps<unknown>> & {
+	books: any[];
+};
 
 const ItemDivider = () => (
 	<View
@@ -11,10 +13,12 @@ const ItemDivider = () => (
 	/>
 );
 
-export const BookList = ({ ...flatListProps }: BookListProps) => {
+export const BookList = ({ books, ...flatListProps }: BookListProps) => {
 	return (
 		<FlatList
-			data={library}
+			data={books}
+			contentContainerStyle={{ paddingTop: 64, paddingBottom: 128 }}
+			ListFooterComponent={ItemDivider}
 			ItemSeparatorComponent={ItemDivider}
 			renderItem={({ item: book }) => (
 				<BookListItem
