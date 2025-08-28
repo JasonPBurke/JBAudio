@@ -2,9 +2,10 @@ import { FlatList, FlatListProps, View } from 'react-native';
 import library from '@/assets/data/library.json';
 import { BookListItem } from './BookListItem';
 import { utilsStyles } from '@/styles';
+import { Track } from 'react-native-track-player';
 
-export type BookListProps = Partial<FlatListProps<unknown>> & {
-	books: any[];
+export type BookListProps = Partial<FlatListProps<Track>> & {
+	books: Track[];
 };
 
 const ItemDivider = () => (

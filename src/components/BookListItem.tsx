@@ -3,9 +3,10 @@ import { StyleSheet, Text, TouchableHighlight, View } from 'react-native';
 import FastImage from '@d11/react-native-fast-image';
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
+import { Track } from 'react-native-track-player';
 
 export type BookListItemProps = {
-	book: { title: string; image?: string; author?: string };
+	book: Track;
 };
 
 export const BookListItem = ({ book }: BookListItemProps) => {
@@ -17,7 +18,7 @@ export const BookListItem = ({ book }: BookListItemProps) => {
 				<View>
 					<FastImage
 						source={{
-							uri: book.image ?? unknownBookImageUri,
+							uri: book.artwork ?? unknownBookImageUri,
 							priority: FastImage.priority.normal,
 						}}
 						style={{
