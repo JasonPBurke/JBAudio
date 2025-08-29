@@ -15,6 +15,10 @@ const ItemDivider = () => (
 );
 
 export const BookList = ({ books, ...flatListProps }: BookListProps) => {
+	const handleBookSelect = (track: Track) => {
+		console.log(track);
+	};
+
 	return (
 		<FlatList
 			data={books}
@@ -22,12 +26,7 @@ export const BookList = ({ books, ...flatListProps }: BookListProps) => {
 			ListFooterComponent={ItemDivider}
 			ItemSeparatorComponent={ItemDivider}
 			renderItem={({ item: book }) => (
-				<BookListItem
-					book={{
-						...book,
-						image: book.artwork,
-					}}
-				/>
+				<BookListItem book={book} onBookSelect={handleBookSelect} />
 			)}
 			{...flatListProps}
 		/>

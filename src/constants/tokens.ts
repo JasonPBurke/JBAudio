@@ -3,7 +3,7 @@ export const colors = {
 	background: '#2E3440',
 	text: '#ECEFF4',
 	textMuted: '#d8dee9',
-	icon: '#2E3440',
+	icon: '#E5E9F0',
 	maximumTrackTintColor: 'rgba(129, 161, 193, .4)',
 	minimumTrackTintColor: 'rgba(129, 161, 193, .6)',
 };

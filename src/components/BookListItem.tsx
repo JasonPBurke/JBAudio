@@ -3,17 +3,22 @@ import { StyleSheet, Text, TouchableHighlight, View } from 'react-native';
 import FastImage from '@d11/react-native-fast-image';
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
-import { Track } from 'react-native-track-player';
+import { Track, useActiveTrack } from 'react-native-track-player';
+import { Entypo, Feather } from '@expo/vector-icons';
 
 export type BookListItemProps = {
 	book: Track;
+	onBookSelect: (book: Track) => void;
 };
 
-export const BookListItem = ({ book }: BookListItemProps) => {
-	const isActiveBook = false;
+export const BookListItem = ({
+	book,
+	onBookSelect: handleBookSelect,
+}: BookListItemProps) => {
+	const isActiveBook = useActiveTrack()?.url === book.url;
 
 	return (
-		<TouchableHighlight>
+		<TouchableHighlight onPress={() => handleBookSelect(book)}>
 			<View style={styles.bookItemContainer}>
 				<View>
 					<FastImage
@@ -27,23 +32,28 @@ export const BookListItem = ({ book }: BookListItemProps) => {
 						}}
 					/>
 				</View>
-
-				<View style={{ width: '100%' }}>
-					<Text
-						numberOfLines={1}
-						style={{
-							...styles.bookTitleText,
-							color: isActiveBook ? colors.primary : colors.text,
-						}}
-					>
-						{book.title}
-					</Text>
-
-					{book.author && (
-						<Text numberOfLines={1} style={styles.bookAuthorText}>
-							{book.author}
+				<View style={styles.bookInfoContainer}>
+					<View style={{ width: '100%' }}>
+						<Text
+							numberOfLines={1}
+							style={{
+								...styles.bookTitleText,
+								color: isActiveBook ? colors.primary : colors.text,
+							}}
+						>
+							{book.title}
 						</Text>
-					)}
+
+						{book.author && (
+							<Text numberOfLines={1} style={styles.bookAuthorText}>
+								{book.author}
+							</Text>
+						)}
+					</View>
+					<View style={{ gap: 18 }}>
+						<Entypo name='dots-three-vertical' size={18} color={colors.icon} />
+						<Feather name='headphones' size={18} color={colors.icon} />
+					</View>
 				</View>
 			</View>
 		</TouchableHighlight>
@@ -65,6 +75,12 @@ const styles = StyleSheet.create({
 		// width: 55,
 		aspectRatio: 0.75,
 		objectFit: 'contain',
+	},
+	bookInfoContainer: {
+		flex: 1,
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		alignItems: 'center',
 	},
 	bookTitleText: {
 		...defaultStyles.text,
