@@ -3,8 +3,13 @@ import { StyleSheet, Text, TouchableHighlight, View } from 'react-native';
 import FastImage from '@d11/react-native-fast-image';
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
-import TrackPlayer, { Track, useActiveTrack } from 'react-native-track-player';
+import TrackPlayer, {
+	Track,
+	useActiveTrack,
+	useIsPlaying,
+} from 'react-native-track-player';
 import { Entypo, Feather } from '@expo/vector-icons';
+import LoaderKitView from 'react-native-loader-kit';
 
 export type BookListItemProps = {
 	book: Track;
@@ -16,6 +21,7 @@ export const BookListItem = ({
 	onBookSelect: handleBookSelect,
 }: BookListItemProps) => {
 	const isActiveBook = useActiveTrack()?.url === book.url;
+	const { playing } = useIsPlaying();
 
 	const handlePressPlay = async (track: Track) => {
 		await TrackPlayer.load(track);
@@ -36,6 +42,13 @@ export const BookListItem = ({
 							opacity: isActiveBook ? 0.6 : 1,
 						}}
 					/>
+					{isActiveBook && playing ? (
+						<LoaderKitView
+							style={styles.trackPlayingImageIcon}
+							name={'LineScaleParty'}
+							color={colors.textMuted}
+						/>
+					) : null}
 				</View>
 				<View style={styles.bookInfoContainer}>
 					<View style={{ width: '100%' }}>
@@ -103,5 +116,12 @@ const styles = StyleSheet.create({
 		color: colors.textMuted,
 		fontSize: 14,
 		marginTop: 4,
+	},
+	trackPlayingImageIcon: {
+		position: 'absolute',
+		left: 20,
+		top: 30,
+		width: 20,
+		height: 20,
 	},
 });
