@@ -16,12 +16,12 @@ const ItemDivider = () => (
 
 export const BookList = ({ books, ...flatListProps }: BookListProps) => {
 	// const { playing } = useIsPlaying();
-	const handleBookSelect = async (track: Track) => {
-		//TODO: this is where you will load the book info page instead of
-		//TODO: loading the trackPlayer.
-		await TrackPlayer.load(track);
-		await TrackPlayer.play();
-	};
+	// const handleBookSelect = async (track: Track) => {
+	// 	//TODO: this is where you will load the book info page instead of
+	// 	//TODO: loading the trackPlayer.
+	// 	await TrackPlayer.load(track);
+	// 	await TrackPlayer.play();
+	// };
 
 	return (
 		<FlatList
@@ -36,7 +36,7 @@ export const BookList = ({ books, ...flatListProps }: BookListProps) => {
 			}
 			renderItem={({ item: book }) => (
 				// <BookListItem book={book} onBookSelect={handleBookSelect} />
-				<BookListItem book={book} onBookSelect={handleBookSelect} />
+				<BookListItem book={book} />
 			)}
 			{...flatListProps}
 		/>

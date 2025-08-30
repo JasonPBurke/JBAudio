@@ -33,8 +33,17 @@ const App = () => {
 
 const RootNavigation = () => {
 	return (
-		<Stack>
+		<Stack screenOptions={{ animation: 'fade_from_bottom' }}>
 			<Stack.Screen name='(tabs)' options={{ headerShown: false }} />
+
+			<Stack.Screen
+				name='player'
+				options={{
+					presentation: 'card',
+					headerShown: false,
+					// animation: 'slide_from_bottom',
+				}}
+			/>
 		</Stack>
 	);
 };

@@ -12,15 +12,24 @@ import { defaultStyles } from '@/styles';
 import { PlayPauseButton, SeekBackButton } from '@/components/PlayerControls';
 import { useLastActiveTrack } from '@/hooks/useLastActiveTrack';
 import { MovingText } from '@/components/MovingText';
+import { useRouter } from 'expo-router';
 
 export const FloatingPlayer = ({ style }: ViewProps) => {
+	const router = useRouter();
 	const activeBook = useActiveTrack();
 	const lastActiveBook = useLastActiveTrack();
 	const displayedBook = activeBook ?? lastActiveBook;
 	if (!displayedBook) return null;
 
+	const handlePress = () => {
+		router.navigate('/player');
+	};
+
 	return (
-		<TouchableOpacity style={[styles.parentContainer, style]}>
+		<TouchableOpacity
+			onPress={handlePress}
+			style={[styles.parentContainer, style]}
+		>
 			<>
 				<FastImage
 					source={{
@@ -30,9 +39,6 @@ export const FloatingPlayer = ({ style }: ViewProps) => {
 				/>
 
 				<View style={styles.bookTitleContainer}>
-					{/* <Text numberOfLines={1} style={styles.bookTitle}>
-						{displayedBook.title}
-					</Text> */}
 					<MovingText
 						style={styles.bookTitle}
 						text={displayedBook.title ?? ''}

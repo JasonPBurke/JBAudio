@@ -10,26 +10,34 @@ import TrackPlayer, {
 } from 'react-native-track-player';
 import { Entypo, Feather } from '@expo/vector-icons';
 import LoaderKitView from 'react-native-loader-kit';
+import { useRouter } from 'expo-router';
 
 export type BookListItemProps = {
 	book: Track;
-	onBookSelect: (book: Track) => void;
+	// onBookSelect: (book: Track) => void;
 };
 
 export const BookListItem = ({
 	book,
-	onBookSelect: handleBookSelect,
+	// onBookSelect: handleBookSelect,
 }: BookListItemProps) => {
 	const isActiveBook = useActiveTrack()?.url === book.url;
 	const { playing } = useIsPlaying();
+	const router = useRouter();
 
 	const handlePressPlay = async (track: Track) => {
+		if (isActiveBook && playing) return;
 		await TrackPlayer.load(track);
 		await TrackPlayer.play();
 	};
 
+	const handlePress = () => {
+		router.navigate('/titleDetails');
+	};
+
 	return (
-		<TouchableHighlight onPress={() => handleBookSelect(book)}>
+		// <TouchableHighlight onPress={() => handleBookSelect(book)}>
+		<TouchableHighlight onPress={handlePress}>
 			<View style={styles.bookItemContainer}>
 				<View>
 					<FastImage
@@ -42,13 +50,13 @@ export const BookListItem = ({
 							opacity: isActiveBook ? 0.6 : 1,
 						}}
 					/>
-					{isActiveBook && playing ? (
+					{/* {isActiveBook && playing ? (
 						<LoaderKitView
 							style={styles.trackPlayingImageIcon}
 							name={'LineScaleParty'}
 							color={colors.textMuted}
 						/>
-					) : null}
+					) : null} */}
 				</View>
 				<View style={styles.bookInfoContainer}>
 					<View style={{ width: '100%' }}>
@@ -70,12 +78,21 @@ export const BookListItem = ({
 					</View>
 					<View style={{ gap: 18 }}>
 						<Entypo name='dots-three-vertical' size={18} color={colors.icon} />
-						<Feather
-							name='headphones'
-							size={18}
-							color={colors.icon}
-							onPress={() => handlePressPlay(book)}
-						/>
+						{isActiveBook && playing ? (
+							<LoaderKitView
+								style={styles.trackPlayingImageIcon}
+								name={'LineScaleParty'}
+								color={colors.icon}
+							/>
+						) : (
+							<Feather
+								name='headphones'
+								size={18}
+								color={isActiveBook && playing ? colors.primary : colors.icon}
+								onPress={() => handlePressPlay(book)}
+								// onPress={() => handleBookSelect(book)}
+							/>
+						)}
 					</View>
 				</View>
 			</View>
@@ -117,10 +134,14 @@ const styles = StyleSheet.create({
 		fontSize: 14,
 		marginTop: 4,
 	},
+	// trackPlayingImageIcon: {
+	// 	position: 'absolute',
+	// 	left: 20,
+	// 	top: 30,
+	// 	width: 20,
+	// 	height: 20,
+	// },
 	trackPlayingImageIcon: {
-		position: 'absolute',
-		left: 20,
-		top: 30,
 		width: 20,
 		height: 20,
 	},
