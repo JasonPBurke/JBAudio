@@ -3,7 +3,7 @@ import { StyleSheet, Text, TouchableHighlight, View } from 'react-native';
 import FastImage from '@d11/react-native-fast-image';
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
-import { Track, useActiveTrack } from 'react-native-track-player';
+import TrackPlayer, { Track, useActiveTrack } from 'react-native-track-player';
 import { Entypo, Feather } from '@expo/vector-icons';
 
 export type BookListItemProps = {
@@ -16,6 +16,11 @@ export const BookListItem = ({
 	onBookSelect: handleBookSelect,
 }: BookListItemProps) => {
 	const isActiveBook = useActiveTrack()?.url === book.url;
+
+	const handlePressPlay = async (track: Track) => {
+		await TrackPlayer.load(track);
+		await TrackPlayer.play();
+	};
 
 	return (
 		<TouchableHighlight onPress={() => handleBookSelect(book)}>
@@ -52,7 +57,12 @@ export const BookListItem = ({
 					</View>
 					<View style={{ gap: 18 }}>
 						<Entypo name='dots-three-vertical' size={18} color={colors.icon} />
-						<Feather name='headphones' size={18} color={colors.icon} />
+						<Feather
+							name='headphones'
+							size={18}
+							color={colors.icon}
+							onPress={() => handlePressPlay(book)}
+						/>
 					</View>
 				</View>
 			</View>

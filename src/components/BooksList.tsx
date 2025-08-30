@@ -1,8 +1,8 @@
-import { FlatList, FlatListProps, View } from 'react-native';
-import library from '@/assets/data/library.json';
+import { FlatList, FlatListProps, Text, View } from 'react-native';
+// import library from '@/assets/data/library.json';
 import { BookListItem } from './BookListItem';
 import { utilsStyles } from '@/styles';
-import { Track } from 'react-native-track-player';
+import TrackPlayer, { Track, useIsPlaying } from 'react-native-track-player';
 
 export type BookListProps = Partial<FlatListProps<Track>> & {
 	books: Track[];
@@ -15,17 +15,27 @@ const ItemDivider = () => (
 );
 
 export const BookList = ({ books, ...flatListProps }: BookListProps) => {
-	const handleBookSelect = (track: Track) => {
-		console.log(track);
+	// const { playing } = useIsPlaying();
+	const handleBookSelect = async (track: Track) => {
+		//TODO: this is where you will load the book info page instead of
+		//TODO: loading the trackPlayer.
+		await TrackPlayer.load(track);
+		await TrackPlayer.play();
 	};
 
 	return (
 		<FlatList
 			data={books}
 			contentContainerStyle={{ paddingTop: 64, paddingBottom: 128 }}
-			ListFooterComponent={ItemDivider}
+			ListFooterComponent={books.length > 0 ? ItemDivider : null}
 			ItemSeparatorComponent={ItemDivider}
+			ListEmptyComponent={
+				<View>
+					<Text style={utilsStyles.emptyComponent}>No books found</Text>
+				</View>
+			}
 			renderItem={({ item: book }) => (
+				// <BookListItem book={book} onBookSelect={handleBookSelect} />
 				<BookListItem book={book} onBookSelect={handleBookSelect} />
 			)}
 			{...flatListProps}

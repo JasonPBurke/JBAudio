@@ -18,4 +18,10 @@ export const utilsStyles = StyleSheet.create({
 		borderWidth: StyleSheet.hairlineWidth,
 		opacity: 0.3,
 	},
+	emptyComponent: {
+		...defaultStyles.text,
+		color: colors.textMuted,
+		textAlign: 'center',
+		marginTop: 20,
+	},
 });
