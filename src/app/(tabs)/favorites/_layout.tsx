@@ -13,7 +13,7 @@ const FavoritesScreenLayout = () => {
 					options={{
 						...StackScreenWithSearchBar,
 						headerTitle: 'Favorites',
-						// headerTitleAlign: 'center',
+						headerShown: false,
 					}}
 				/>
 			</Stack>

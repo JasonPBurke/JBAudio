@@ -26,7 +26,7 @@ const App = () => {
 		<SafeAreaProvider>
 			<RootNavigation />
 
-			<StatusBar style='light' />
+			<StatusBar style='light' backgroundColor='#000000ff' />
 		</SafeAreaProvider>
 	);
 };
@@ -41,6 +41,7 @@ const RootNavigation = () => {
 				options={{
 					presentation: 'card',
 					headerShown: false,
+
 					// animation: 'slide_from_bottom',
 				}}
 			/>

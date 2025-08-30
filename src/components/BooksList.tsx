@@ -26,7 +26,7 @@ export const BookList = ({ books, ...flatListProps }: BookListProps) => {
 	return (
 		<FlatList
 			data={books}
-			contentContainerStyle={{ paddingTop: 64, paddingBottom: 128 }}
+			contentContainerStyle={{ paddingTop: 12, paddingBottom: 128 }}
 			ListFooterComponent={books.length > 0 ? ItemDivider : null}
 			ItemSeparatorComponent={ItemDivider}
 			ListEmptyComponent={

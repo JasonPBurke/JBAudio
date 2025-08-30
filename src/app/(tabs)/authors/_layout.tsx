@@ -4,7 +4,7 @@ import { Stack } from 'expo-router';
 import React from 'react';
 import { View } from 'react-native';
 
-const FavoritesScreenLayout = () => {
+const AuthorScreenLayout = () => {
 	return (
 		<View style={defaultStyles.container}>
 			<Stack>
@@ -13,7 +13,7 @@ const FavoritesScreenLayout = () => {
 					options={{
 						...StackScreenWithSearchBar,
 						headerTitle: 'Authors',
-						// headerTitleAlign: 'center',
+						headerShown: false,
 					}}
 				/>
 			</Stack>
@@ -21,4 +21,4 @@ const FavoritesScreenLayout = () => {
 	);
 };
 
-export default FavoritesScreenLayout;
+export default AuthorScreenLayout;

@@ -13,7 +13,7 @@ const ProfileScreenLayout = () => {
 					options={{
 						...StackScreenWithSearchBar,
 						headerTitle: 'Profile',
-						// headerTitleAlign: 'center',
+						headerShown: false,
 					}}
 				/>
 			</Stack>
