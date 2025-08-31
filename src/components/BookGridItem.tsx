@@ -8,7 +8,7 @@ import TrackPlayer, {
 	useActiveTrack,
 	useIsPlaying,
 } from 'react-native-track-player';
-import { Entypo, Feather } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import LoaderKitView from 'react-native-loader-kit';
 import { useRouter } from 'expo-router';
 
@@ -17,7 +17,7 @@ export type BookListItemProps = {
 	// onBookSelect: (book: Track) => void;
 };
 
-export const BookListItem = ({
+export const BookGridItem = ({
 	book,
 	// onBookSelect: handleBookSelect,
 }: BookListItemProps) => {
@@ -50,6 +50,23 @@ export const BookListItem = ({
 							opacity: isActiveBook ? 0.6 : 1,
 						}}
 					/>
+					{isActiveBook && playing ? (
+						<LoaderKitView
+							style={styles.trackPlayingImageIcon}
+							name={'LineScaleParty'}
+							color={colors.icon}
+						/>
+					) : (
+						<Feather
+							style={styles.trackPausedIcon}
+							name='headphones'
+							size={18}
+							color={isActiveBook && playing ? colors.primary : colors.icon}
+							onPress={() => handlePressPlay(book)}
+							// onPress={() => handleBookSelect(book)}
+						/>
+					)}
+					{/* </View> */}
 				</View>
 				<View style={styles.bookInfoContainer}>
 					<View style={{ width: '100%' }}>
@@ -69,24 +86,6 @@ export const BookListItem = ({
 							</Text>
 						)}
 					</View>
-					<View style={{ gap: 18 }}>
-						<Entypo name='dots-three-vertical' size={18} color={colors.icon} />
-						{isActiveBook && playing ? (
-							<LoaderKitView
-								style={styles.trackPlayingImageIcon}
-								name={'LineScaleParty'}
-								color={colors.icon}
-							/>
-						) : (
-							<Feather
-								name='headphones'
-								size={18}
-								color={isActiveBook && playing ? colors.primary : colors.icon}
-								onPress={() => handlePressPlay(book)}
-								// onPress={() => handleBookSelect(book)}
-							/>
-						)}
-					</View>
 				</View>
 			</View>
 		</TouchableHighlight>
@@ -95,16 +94,22 @@ export const BookListItem = ({
 
 const styles = StyleSheet.create({
 	bookItemContainer: {
-		flexDirection: 'row',
-		columnGap: 14,
-		alignItems: 'center',
-		paddingRight: 20,
+		// flexDirection: 'column',
+		gap: 12,
+		maxWidth: 125,
+		// columnGap: 14,
+		// alignItems: 'center',
+		// justifyContent: 'center',
+		// paddingLeft: 20,
 		// marginBottom: 12,
 	},
 	bookArtworkImage: {
-		borderRadius: 4,
+		borderTopLeftRadius: 2,
+		borderTopRightRadius: 4,
+		borderBottomLeftRadius: 2,
+		borderBottomRightRadius: 4,
 		//* height and width will need to be variable based on the cover img used
-		height: 75,
+		height: 150,
 		// width: 55,
 		aspectRatio: 0.75,
 		objectFit: 'contain',
@@ -117,25 +122,26 @@ const styles = StyleSheet.create({
 	},
 	bookTitleText: {
 		...defaultStyles.text,
-		fontSize: fontSize.sm,
+		fontSize: fontSize.xs,
 		fontWeight: '600',
 		maxWidth: '90%',
 	},
 	bookAuthorText: {
 		...defaultStyles.text,
 		color: colors.textMuted,
-		fontSize: 14,
+		fontSize: 10,
 		marginTop: 4,
 	},
-	// trackPlayingImageIcon: {
-	// 	position: 'absolute',
-	// 	left: 20,
-	// 	top: 30,
-	// 	width: 20,
-	// 	height: 20,
-	// },
 	trackPlayingImageIcon: {
+		position: 'absolute',
+		left: 10,
+		bottom: 10,
 		width: 20,
 		height: 20,
+	},
+	trackPausedIcon: {
+		position: 'absolute',
+		bottom: 10,
+		left: 10,
 	},
 });

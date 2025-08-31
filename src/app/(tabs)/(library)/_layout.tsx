@@ -7,7 +7,7 @@ import { View } from 'react-native';
 const LibraryScreenLayout = () => {
 	return (
 		<View style={defaultStyles.container}>
-			<Header />
+			{/* <Header /> */}
 
 			<Stack>
 				<Stack.Screen

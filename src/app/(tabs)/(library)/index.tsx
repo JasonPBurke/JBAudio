@@ -1,4 +1,4 @@
-import { BookList } from '@/components/BooksList';
+import { BooksList } from '@/components/BooksList';
 import { screenPadding } from '@/constants/tokens';
 import { useNavigationSearch } from '@/hooks/useNavigationSearch';
 import { defaultStyles } from '@/styles';
@@ -7,6 +7,8 @@ import { ScrollView, View } from 'react-native';
 import library from '@/assets/data/library.json';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { bookTitleFilter } from '@/helpers/filter';
+import Header from '@/components/Header';
+import { BooksHome } from '@/components/BooksHome';
 
 const LibraryScreen = () => {
 	const search = useNavigationSearch({
@@ -24,11 +26,20 @@ const LibraryScreen = () => {
 		<View style={defaultStyles.container}>
 			<SafeAreaView style={{ flex: 1 }}>
 				<ScrollView
-					style={{
-						paddingHorizontal: screenPadding.horizontal,
-					}}
+				// style={
+				// 	{
+				// 		paddingHorizontal: screenPadding.horizontal,
+				// 	}
+				// }
 				>
-					<BookList books={filteredBooks} scrollEnabled={false} />
+					{/* MOVE HEADER ABOVE SCROLL VIEW TO DOCK IT AT TOP OF SCREEN */}
+					<Header />
+					{/* SWITCH LIBRARY VIEW HERE FROM HOME TO LIST BASED ON <Header> BUTTON CLICK */}
+					{/* <BooksList books={filteredBooks} scrollEnabled={false} /> */}
+					<BooksHome books={filteredBooks} />
+					<BooksHome books={filteredBooks} />
+					<BooksHome books={filteredBooks} />
+					<BooksHome books={filteredBooks} />
 				</ScrollView>
 			</SafeAreaView>
 		</View>

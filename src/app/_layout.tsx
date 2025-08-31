@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useCallback } from 'react';
 import TrackPlayer from 'react-native-track-player';
 import { useLogTrackPlayerState } from '@/hooks/useLogTrackPlayerState';
+import { View } from 'react-native';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -25,8 +26,8 @@ const App = () => {
 	return (
 		<SafeAreaProvider>
 			<RootNavigation />
-
-			<StatusBar style='light' backgroundColor='#000000ff' />
+			{/* StatusBar backgroundColor is not supported with edge-to-edge enabled. Render a view under the status bar to change its background. */}
+			<StatusBar style='light' backgroundColor='#000000' />
 		</SafeAreaProvider>
 	);
 };

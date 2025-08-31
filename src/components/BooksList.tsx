@@ -3,6 +3,7 @@ import { FlatList, FlatListProps, Text, View } from 'react-native';
 import { BookListItem } from './BookListItem';
 import { utilsStyles } from '@/styles';
 import TrackPlayer, { Track, useIsPlaying } from 'react-native-track-player';
+import { screenPadding } from '@/constants/tokens';
 
 export type BookListProps = Partial<FlatListProps<Track>> & {
 	books: Track[];
@@ -14,7 +15,7 @@ const ItemDivider = () => (
 	/>
 );
 
-export const BookList = ({ books, ...flatListProps }: BookListProps) => {
+export const BooksList = ({ books, ...flatListProps }: BookListProps) => {
 	// const { playing } = useIsPlaying();
 	// const handleBookSelect = async (track: Track) => {
 	// 	//TODO: this is where you will load the book info page instead of
@@ -25,6 +26,7 @@ export const BookList = ({ books, ...flatListProps }: BookListProps) => {
 
 	return (
 		<FlatList
+			style={{ paddingHorizontal: screenPadding.horizontal }}
 			data={books}
 			contentContainerStyle={{ paddingTop: 12, paddingBottom: 128 }}
 			ListFooterComponent={books.length > 0 ? ItemDivider : null}

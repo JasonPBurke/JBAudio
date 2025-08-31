@@ -1,11 +1,5 @@
 import { colors } from '@/constants/tokens';
-import {
-	StyleSheet,
-	Text,
-	TouchableHighlight,
-	TouchableOpacity,
-	View,
-} from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import {
 	FontAwesome6,
 	Ionicons,
@@ -30,7 +24,9 @@ const Header = () => {
 					/>
 				</View>
 			</View>
-			<View style={[styles.header, { justifyContent: 'space-around', gap: 8 }]}>
+			<View
+				style={[styles.header, { justifyContent: 'space-between', gap: 8 }]}
+			>
 				<TouchableOpacity>
 					<Text style={styles.bookStatusLinkText}>Not Started(123)</Text>
 				</TouchableOpacity>
@@ -49,14 +45,15 @@ export default Header;
 
 const styles = StyleSheet.create({
 	container: {
-		padding: 4,
+		paddingVertical: 4,
+		marginBottom: 12,
+		gap: 16,
 	},
 	header: {
 		flexDirection: 'row',
 		justifyContent: 'space-between',
 		paddingTop: 12,
 		paddingHorizontal: 16,
-		marginTop: 36,
 	},
 	headerGroup: {
 		flexDirection: 'row',
