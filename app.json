@@ -12,9 +12,13 @@
 			"supportsTablet": true
 		},
 		"android": {
+			"permissions": [
+				"android.permission.READ_MEDIA_AUDIO",
+				"android.permission.MODIFY_AUDIO_SETTINGS"
+			],
 			"adaptiveIcon": {
 				"foregroundImage": "./assets/images/adaptive-icon.png",
-				"backgroundColor": "#000"
+				"backgroundColor": "#ffffff"
 			},
 			"edgeToEdgeEnabled": true,
 			"package": "com.fuzzylogic42.JBAudio"
@@ -39,6 +43,12 @@
 		"experiments": {
 			"typedRoutes": true,
 			"tsconfigPaths": true
+		},
+		"extra": {
+			"router": {},
+			"eas": {
+				"projectId": "38e52e0e-72de-42a8-aa99-4451d81b3bdb"
+			}
 		}
 	}
 }

@@ -3,24 +3,92 @@ import { defaultStyles } from '@/styles';
 import {
 	StyleSheet,
 	View,
-	Text,
-	TouchableOpacity,
 	TouchableHighlight,
+	ActivityIndicator,
+	Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useActiveTrack } from 'react-native-track-player';
+import FastImage from '@d11/react-native-fast-image';
+import { unknownBookImageUri } from '@/constants/images';
+import { MovingText } from '@/components/MovingText';
+import { PlayerControls } from '@/components/PlayerControls';
+import { PlayerProgressBar } from '@/components/PlayerProgressBar';
 
 const PlayerScreen = () => {
-	return <View style={styles.overlayContainer}>{<DismissPlayerSymbol />}</View>;
+	const activeTrack = useActiveTrack();
+	const { top, bottom } = useSafeAreaInsets();
+
+	if (!activeTrack) {
+		return (
+			<View style={[defaultStyles.container, { justifyContent: 'center' }]}>
+				<ActivityIndicator color={colors.icon} />
+			</View>
+		);
+	}
+
+	return (
+		<View style={styles.overlayContainer}>
+			<DismissPlayerSymbol />
+			<View style={{ flex: 1, marginTop: top + 70, marginBottom: bottom }}>
+				<View style={styles.artworkImageContainer}>
+					<FastImage
+						source={{
+							uri: activeTrack.artwork ?? unknownBookImageUri,
+							priority: FastImage.priority.high,
+						}}
+						resizeMode={FastImage.resizeMode.contain}
+						style={styles.artworkImage}
+					/>
+				</View>
+
+				<View style={{ flex: 1 }}>
+					<View style={{ marginTop: 75 }}>
+						<View style={{ height: 60 }}>
+							{/* onPress load chapter list */}
+							<Pressable
+								// onPress={() => console.log('pressed')}
+								style={{
+									flexDirection: 'row',
+									justifyContent: 'center',
+									alignItems: 'center',
+									gap: 4,
+								}}
+							>
+								{/* track title */}
+								<Feather
+									style={{ transform: 'rotate(180deg)' }}
+									name='list'
+									size={24}
+									color={colors.icon}
+								/>
+								<View style={styles.trackTitleContainer}>
+									<MovingText
+										text={activeTrack.title ?? ''}
+										animationThreshold={30}
+										style={styles.trackTitleText}
+									/>
+								</View>
+							</Pressable>
+							<PlayerProgressBar style={{ marginTop: 32 }} />
+
+							<PlayerControls style={{ marginTop: 40 }} />
+						</View>
+					</View>
+				</View>
+			</View>
+		</View>
+	);
 };
 
 export default PlayerScreen;
 
 const DismissPlayerSymbol = () => {
-	const router = useRouter();
 	const { top } = useSafeAreaInsets();
+	const router = useRouter();
 	const handlePress = () => {
 		router.back();
 	};
@@ -52,13 +120,39 @@ const styles = StyleSheet.create({
 		paddingHorizontal: screenPadding.horizontal,
 		backgroundColor: 'rgba(0,0,0,0.5)',
 	},
-	container: {
-		flex: 1,
-		backgroundColor: 'red',
+	// container: {
+	// 	flex: 1,
+	// 	backgroundColor: 'red',
+	// },
+	// contentContainer: {
+	// 	flex: 1,
+	// 	padding: 36,
+	// 	alignItems: 'center',
+	// },
+	artworkImageContainer: {
+		//! shadow effects not working
+		shadowOffset: {
+			width: 0,
+			height: 8,
+		},
+		shadowOpacity: 0.44,
+		shadowRadius: 11.0,
+		flexDirection: 'row',
+		justifyContent: 'center',
+		height: '55%',
 	},
-	contentContainer: {
+	artworkImage: {
+		width: '100%',
+		height: '100%',
+		borderRadius: 12,
+	},
+	trackTitleContainer: {
 		flex: 1,
-		padding: 36,
-		alignItems: 'center',
+		overflow: 'hidden',
+	},
+	trackTitleText: {
+		...defaultStyles.text,
+		fontSize: 18,
+		fontWeight: '500',
 	},
 });

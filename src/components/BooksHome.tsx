@@ -11,10 +11,15 @@ export type BookListProps = Partial<FlatListProps<Track>> & {
 
 export const BooksHome = ({ books, ...flatListProps }: BookListProps) => {
 	return (
-		<View style={{ paddingLeft: 20, gap: 12 }}>
+		<View style={{ paddingLeft: 14, gap: 12 }}>
 			<View style={styles.titleBar}>
 				<Text style={styles.titleText}>Recents</Text>
-				<Feather name='chevron-right' size={24} color={colors.icon} />
+				<Feather
+					name='chevron-right'
+					size={24}
+					color={colors.icon}
+					style={{ marginRight: 12 }}
+				/>
 			</View>
 			<FlatList
 				data={books}

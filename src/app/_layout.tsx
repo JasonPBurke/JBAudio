@@ -5,10 +5,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useCallback } from 'react';
 import TrackPlayer from 'react-native-track-player';
 import { useLogTrackPlayerState } from '@/hooks/useLogTrackPlayerState';
-import { View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 SplashScreen.preventAutoHideAsync();
-
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 TrackPlayer.registerPlaybackService(() => require('@/setup/service'));
 
@@ -25,9 +24,13 @@ const App = () => {
 
 	return (
 		<SafeAreaProvider>
-			<RootNavigation />
-			{/* StatusBar backgroundColor is not supported with edge-to-edge enabled. Render a view under the status bar to change its background. */}
-			<StatusBar style='light' backgroundColor='#000000' />
+			<GestureHandlerRootView style={{ flex: 1 }}>
+				<RootNavigation />
+				{/* StatusBar backgroundColor is not supported with edge-to-edge enabled. 
+			Render a view under the status bar to change its background. */}
+				{/* <StatusBar style='light' backgroundColor='#000000' /> */}
+				<StatusBar style='light' />
+			</GestureHandlerRootView>
 		</SafeAreaProvider>
 	);
 };

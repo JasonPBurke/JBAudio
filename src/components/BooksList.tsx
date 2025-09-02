@@ -4,8 +4,9 @@ import { BookListItem } from './BookListItem';
 import { utilsStyles } from '@/styles';
 import TrackPlayer, { Track, useIsPlaying } from 'react-native-track-player';
 import { screenPadding } from '@/constants/tokens';
+import { FlashList } from '@shopify/flash-list';
 
-export type BookListProps = Partial<FlatListProps<Track>> & {
+export type BookListProps = Partial<FlatListProps<any>> & {
 	books: Track[];
 };
 
@@ -27,7 +28,6 @@ export const BooksList = ({ books, ...flatListProps }: BookListProps) => {
 	return (
 		<FlatList
 			style={{ paddingHorizontal: screenPadding.horizontal }}
-			data={books}
 			contentContainerStyle={{ paddingTop: 12, paddingBottom: 128 }}
 			ListFooterComponent={books.length > 0 ? ItemDivider : null}
 			ItemSeparatorComponent={ItemDivider}
@@ -36,6 +36,7 @@ export const BooksList = ({ books, ...flatListProps }: BookListProps) => {
 					<Text style={utilsStyles.emptyComponent}>No books found</Text>
 				</View>
 			}
+			data={books}
 			renderItem={({ item: book }) => (
 				// <BookListItem book={book} onBookSelect={handleBookSelect} />
 				<BookListItem book={book} />

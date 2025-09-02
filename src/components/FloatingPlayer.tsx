@@ -47,8 +47,8 @@ export const FloatingPlayer = ({ style }: ViewProps) => {
 					<Text style={styles.bookTimeRemaining}>time remaining</Text>
 				</View>
 				<View style={styles.bookControlsContainer}>
-					<SeekBackButton iconSize={22} />
-					<PlayPauseButton iconSize={24} />
+					<SeekBackButton iconSize={24} />
+					<PlayPauseButton iconSize={32} />
 				</View>
 			</>
 		</TouchableOpacity>
@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
 		flexDirection: 'row',
 		alignItems: 'center',
 		columnGap: 20,
-		marginRight: 16,
+		marginRight: 8,
 		paddingLeft: 16,
 	},
 });

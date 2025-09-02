@@ -1,5 +1,11 @@
 import { unknownBookImageUri } from '@/constants/images';
-import { StyleSheet, Text, TouchableHighlight, View } from 'react-native';
+import {
+	Pressable,
+	StyleSheet,
+	Text,
+	TouchableHighlight,
+	View,
+} from 'react-native';
 import FastImage from '@d11/react-native-fast-image';
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
@@ -78,13 +84,15 @@ export const BookListItem = ({
 								color={colors.icon}
 							/>
 						) : (
-							<Feather
-								name='headphones'
-								size={18}
-								color={isActiveBook && playing ? colors.primary : colors.icon}
-								onPress={() => handlePressPlay(book)}
-								// onPress={() => handleBookSelect(book)}
-							/>
+							<Pressable hitSlop={25}>
+								<Feather
+									name='headphones'
+									size={18}
+									color={isActiveBook && playing ? colors.primary : colors.icon}
+									onPress={() => handlePressPlay(book)}
+									// onPress={() => handleBookSelect(book)}
+								/>
+							</Pressable>
 						)}
 					</View>
 				</View>
