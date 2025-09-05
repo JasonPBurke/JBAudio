@@ -13,7 +13,7 @@ const Header = () => {
 				<View style={styles.headerGroup}>
 					{/* 'bars' as alt for 'grip-lines' */}
 					<FontAwesome6 name='bars' size={20} color={colors.icon} />
-					<Text style={{ color: colors.icon, fontSize: 20 }}>JBAudio</Text>
+					<Text style={{ color: colors.icon, fontSize: 20 }}>SonicAudio</Text>
 				</View>
 				<View style={styles.headerGroup}>
 					<Ionicons name='search-sharp' size={24} color={colors.icon} />

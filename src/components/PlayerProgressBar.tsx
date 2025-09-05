@@ -19,6 +19,7 @@ export const PlayerProgressBar = ({ style }: ViewProps) => {
 
 	if (!isSliding.value) {
 		progress.value = duration > 0 ? position / duration : 0;
+		// progress.set((value) => (value = duration > 0 ? position / duration : 0));
 	}
 
 	return (
@@ -36,9 +37,11 @@ export const PlayerProgressBar = ({ style }: ViewProps) => {
 				thumbWidth={0}
 				renderBubble={() => null}
 				onSlidingStart={() => (isSliding.value = true)}
+				// onSlidingStart={() => isSliding.set((value) => (value = true))}
 				onSlidingComplete={async (value) => {
 					if (!isSliding.value) return;
 					isSliding.value = false;
+					// isSliding.set((value) => (value = false));
 
 					await TrackPlayer.seekTo(value * duration);
 				}}

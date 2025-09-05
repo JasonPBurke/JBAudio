@@ -6,6 +6,7 @@ import {
 	TouchableHighlight,
 	ActivityIndicator,
 	Pressable,
+	ColorValue,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -17,9 +18,17 @@ import { unknownBookImageUri } from '@/constants/images';
 import { MovingText } from '@/components/MovingText';
 import { PlayerControls } from '@/components/PlayerControls';
 import { PlayerProgressBar } from '@/components/PlayerProgressBar';
+import { usePlayerBackground } from '@/hooks/usePlayerBackground';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const PlayerScreen = () => {
 	const activeTrack = useActiveTrack();
+	const { imageColors } = usePlayerBackground(
+		activeTrack?.artwork ?? unknownBookImageUri
+	);
+
+	console.log('imageColors:', imageColors);
+
 	const { top, bottom } = useSafeAreaInsets();
 
 	if (!activeTrack) {
@@ -31,56 +40,72 @@ const PlayerScreen = () => {
 	}
 
 	return (
-		<View style={styles.overlayContainer}>
-			<DismissPlayerSymbol />
-			<View style={{ flex: 1, marginTop: top + 70, marginBottom: bottom }}>
-				<View style={styles.artworkImageContainer}>
-					<FastImage
-						source={{
-							uri: activeTrack.artwork ?? unknownBookImageUri,
-							priority: FastImage.priority.high,
-						}}
-						resizeMode={FastImage.resizeMode.contain}
-						style={styles.artworkImage}
-					/>
-				</View>
+		<LinearGradient
+			// start={{ x: 0.8, y: 0 }}
+			// end={{ x: 0.1, y: 0.5 }}
+			style={{ flex: 1 }}
+			colors={
+				imageColors
+					? [
+							imageColors.average,
+							imageColors.lightMuted,
+							imageColors.dominant,
+							imageColors.darkMuted,
+						]
+					: [colors.background]
+			}
+		>
+			<View style={styles.overlayContainer}>
+				<DismissPlayerSymbol />
+				<View style={{ flex: 1, marginTop: top + 70, marginBottom: bottom }}>
+					<View style={styles.artworkImageContainer}>
+						<FastImage
+							source={{
+								uri: activeTrack.artwork ?? unknownBookImageUri,
+								priority: FastImage.priority.high,
+							}}
+							resizeMode={FastImage.resizeMode.contain}
+							style={styles.artworkImage}
+						/>
+					</View>
 
-				<View style={{ flex: 1 }}>
-					<View style={{ marginTop: 75 }}>
-						<View style={{ height: 60 }}>
-							{/* onPress load chapter list */}
-							<Pressable
-								// onPress={() => console.log('pressed')}
-								style={{
-									flexDirection: 'row',
-									justifyContent: 'center',
-									alignItems: 'center',
-									gap: 4,
-								}}
-							>
-								{/* track title */}
-								<Feather
-									style={{ transform: 'rotate(180deg)' }}
-									name='list'
-									size={24}
-									color={colors.icon}
-								/>
-								<View style={styles.trackTitleContainer}>
-									<MovingText
-										text={activeTrack.title ?? ''}
-										animationThreshold={30}
-										style={styles.trackTitleText}
+					<View style={{ flex: 1 }}>
+						<View style={{ marginTop: 75 }}>
+							<View style={{ height: 60 }}>
+								{/* onPress load chapter list */}
+								<Pressable
+									// onPress={() => console.log('pressed')}
+									style={{
+										flexDirection: 'row',
+										justifyContent: 'center',
+										alignItems: 'center',
+										gap: 8,
+									}}
+								>
+									{/* track title */}
+									<Feather
+										style={{ transform: 'rotate(180deg)', marginLeft: 60 }}
+										name='list'
+										size={24}
+										color={colors.icon}
 									/>
-								</View>
-							</Pressable>
-							<PlayerProgressBar style={{ marginTop: 32 }} />
+									<View style={styles.trackTitleContainer}>
+										<MovingText
+											text={activeTrack.title ?? ''}
+											animationThreshold={30}
+											style={styles.trackTitleText}
+										/>
+									</View>
+								</Pressable>
+								<PlayerProgressBar style={{ marginTop: 32 }} />
 
-							<PlayerControls style={{ marginTop: 40 }} />
+								<PlayerControls style={{ marginTop: 40 }} />
+							</View>
 						</View>
 					</View>
 				</View>
 			</View>
-		</View>
+		</LinearGradient>
 	);
 };
 

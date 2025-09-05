@@ -3,6 +3,7 @@ import {
 	StyleSheet,
 	TouchableOpacity,
 	View,
+	Text,
 	ViewStyle,
 } from 'react-native';
 import TrackPlayer, {
@@ -144,6 +145,7 @@ export const PlaybackSpeed = ({ iconSize = 30 }: PlayerButtonProps) => {
 				size={iconSize}
 				color={colors.icon}
 			/>
+			{/* <Text>{speedRates[currentIndex]}x</Text> */}
 		</TouchableOpacity>
 	);
 };

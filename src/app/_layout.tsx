@@ -6,6 +6,16 @@ import { useCallback } from 'react';
 import TrackPlayer from 'react-native-track-player';
 import { useLogTrackPlayerState } from '@/hooks/useLogTrackPlayerState';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import {
+	configureReanimatedLogger,
+	ReanimatedLogLevel,
+} from 'react-native-reanimated';
+
+//! THIS IS TO SUPPRESS REANIMATED WARNINGS OF WRITING TO 'VALUE' DURING COMPONENT RERENDER
+configureReanimatedLogger({
+	level: ReanimatedLogLevel.warn,
+	strict: false, // Reanimated runs in strict mode by default
+});
 
 SplashScreen.preventAutoHideAsync();
 // eslint-disable-next-line @typescript-eslint/no-require-imports
