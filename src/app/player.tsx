@@ -41,18 +41,19 @@ const PlayerScreen = () => {
 
 	return (
 		<LinearGradient
-			// start={{ x: 0.8, y: 0 }}
-			// end={{ x: 0.1, y: 0.5 }}
+			start={{ x: 0, y: 0 }}
+			end={{ x: 0.5, y: 1 }}
+			locations={[0, 0.35, 0.5, 1]} // First color at 0%, second at 50%, third at 100%
 			style={{ flex: 1 }}
 			colors={
 				imageColors
-					? [
-							imageColors.average,
-							imageColors.lightMuted,
-							imageColors.dominant,
-							imageColors.darkMuted,
-						]
-					: [colors.background]
+					? ([
+							imageColors.darkVibrant as ColorValue,
+							imageColors.lightVibrant as ColorValue,
+							imageColors.dominant as ColorValue,
+							imageColors.darkMuted as ColorValue,
+						] as const)
+					: ([colors.primary as ColorValue, colors.background] as const)
 			}
 		>
 			<View style={styles.overlayContainer}>
