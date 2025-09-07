@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import TrackPlayer, {
 	AndroidAudioContentType,
+	Capability,
+	RatingType,
 	RepeatMode,
 } from 'react-native-track-player';
+import { MaterialCommunityIcons } from '@expo/vector-icons/';
 import * as MediaLibrary from 'expo-media-library';
 
 async function requestAudioPermission() {
@@ -39,7 +42,7 @@ async function requestAudioPermission() {
 // 			author: book.filename,
 // 			audio_url: book.uri,
 // 			thumbnail_url:
-// 				'https://m.media-amazon.com/images/I/71FTb9X6wsL._AC_UF1000,1000_QL80_.jpg',
+// 				'https://m.media-amazon.com/images/I/718oiEZui7L._SL1500_.jpg',
 // 		};
 // 	});
 // 	// console.log('myBooks', JSON.stringify(myBooks, null, 2));
@@ -53,6 +56,20 @@ const setupPlayer = async () => {
 		autoHandleInterruptions: true,
 		androidAudioContentType: AndroidAudioContentType.Speech,
 		maxCacheSize: 1024 * 10, //* more useful for server access of media
+	});
+
+	await TrackPlayer.updateOptions({
+		capabilities: [
+			Capability.Play,
+			Capability.Pause,
+			Capability.JumpForward,
+			Capability.JumpBackward,
+			Capability.SkipToNext,
+			Capability.SkipToPrevious,
+			Capability.SeekTo,
+		],
+		forwardJumpInterval: 30,
+		backwardJumpInterval: 30,
 	});
 
 	// await TrackPlayer.setVolume(0.5);

@@ -40,6 +40,7 @@
     "react-dom": "19.0.0",
     "react-native": "0.79.6",
     "react-native-awesome-slider": "^2.9.0",
+    "react-native-fast-shadow": "^0.1.1",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-image-colors": "^2.5.0",
     "react-native-loader-kit": "^2.0.8",

@@ -10,8 +10,9 @@ import {
 	configureReanimatedLogger,
 	ReanimatedLogLevel,
 } from 'react-native-reanimated';
+import playbackService from '@/setup/service';
 
-//! THIS IS TO SUPPRESS REANIMATED WARNINGS OF WRITING TO 'VALUE' DURING COMPONENT RERENDER
+//! THIS IS TO TEMP SUPPRESS REANIMATED WARNINGS OF WRITING TO 'VALUE' DURING COMPONENT RERENDER
 configureReanimatedLogger({
 	level: ReanimatedLogLevel.warn,
 	strict: false, // Reanimated runs in strict mode by default
@@ -19,7 +20,8 @@ configureReanimatedLogger({
 
 SplashScreen.preventAutoHideAsync();
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-TrackPlayer.registerPlaybackService(() => require('@/setup/service'));
+// TrackPlayer.registerPlaybackService(() => require('@/setup/service'));
+TrackPlayer.registerPlaybackService(() => playbackService);
 
 const App = () => {
 	const handleTrackPlayerLoaded = useCallback(() => {

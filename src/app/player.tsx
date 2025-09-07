@@ -6,7 +6,6 @@ import {
 	TouchableHighlight,
 	ActivityIndicator,
 	Pressable,
-	ColorValue,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -27,8 +26,6 @@ const PlayerScreen = () => {
 		activeTrack?.artwork ?? unknownBookImageUri
 	);
 
-	console.log('imageColors:', imageColors);
-
 	const { top, bottom } = useSafeAreaInsets();
 
 	if (!activeTrack) {
@@ -39,21 +36,34 @@ const PlayerScreen = () => {
 		);
 	}
 
+	//* LinearGradient imageColors options
+	// 	{
+	//   "average": "#393734",
+	//   "platform": "android",
+	//   "dominant": "#001820",
+	//   "vibrant": "#E07008",
+	//   "darkVibrant": "#001820",
+	//   "lightVibrant": "#F8D068",
+	//   "muted": "#905058",
+	//   "darkMuted": "#302020",
+	//   "lightMuted": "#2E3440"
+	// }
+
 	return (
 		<LinearGradient
 			start={{ x: 0, y: 0 }}
 			end={{ x: 0.5, y: 1 }}
-			locations={[0, 0.35, 0.5, 1]} // First color at 0%, second at 50%, third at 100%
+			locations={[0.15, 0.35, 0.45, 0.6]} // First color at 0%, second at 50%, third at 100%
 			style={{ flex: 1 }}
 			colors={
 				imageColors
-					? ([
-							imageColors.darkVibrant as ColorValue,
-							imageColors.lightVibrant as ColorValue,
-							imageColors.dominant as ColorValue,
-							imageColors.darkMuted as ColorValue,
-						] as const)
-					: ([colors.primary as ColorValue, colors.background] as const)
+					? [
+							imageColors.darkVibrant,
+							imageColors.lightVibrant,
+							imageColors.vibrant,
+							imageColors.darkMuted,
+						]
+					: [colors.primary, colors.background]
 			}
 		>
 			<View style={styles.overlayContainer}>
@@ -71,21 +81,15 @@ const PlayerScreen = () => {
 					</View>
 
 					<View style={{ flex: 1 }}>
-						<View style={{ marginTop: 75 }}>
-							<View style={{ height: 60 }}>
-								{/* onPress load chapter list */}
+						<View style={{ marginTop: 70 }}>
+							<View>
+								{/* onPress load chapter list...not implemented */}
 								<Pressable
 									// onPress={() => console.log('pressed')}
-									style={{
-										flexDirection: 'row',
-										justifyContent: 'center',
-										alignItems: 'center',
-										gap: 8,
-									}}
+									style={styles.chapterTitleContainer}
 								>
-									{/* track title */}
 									<Feather
-										style={{ transform: 'rotate(180deg)', marginLeft: 60 }}
+										style={{ transform: 'rotate(180deg)' }}
 										name='list'
 										size={24}
 										color={colors.icon}
@@ -93,14 +97,14 @@ const PlayerScreen = () => {
 									<View style={styles.trackTitleContainer}>
 										<MovingText
 											text={activeTrack.title ?? ''}
-											animationThreshold={30}
+											animationThreshold={34}
 											style={styles.trackTitleText}
 										/>
 									</View>
 								</Pressable>
-								<PlayerProgressBar style={{ marginTop: 32 }} />
+								<PlayerProgressBar style={{ marginTop: 70 }} />
 
-								<PlayerControls style={{ marginTop: 40 }} />
+								<PlayerControls style={{ marginTop: 50 }} />
 							</View>
 						</View>
 					</View>
@@ -156,13 +160,6 @@ const styles = StyleSheet.create({
 	// 	alignItems: 'center',
 	// },
 	artworkImageContainer: {
-		//! shadow effects not working
-		shadowOffset: {
-			width: 0,
-			height: 8,
-		},
-		shadowOpacity: 0.44,
-		shadowRadius: 11.0,
 		flexDirection: 'row',
 		justifyContent: 'center',
 		height: '55%',
@@ -172,11 +169,18 @@ const styles = StyleSheet.create({
 		height: '100%',
 		borderRadius: 12,
 	},
+	chapterTitleContainer: {
+		flexDirection: 'row',
+		justifyContent: 'center',
+		alignItems: 'center',
+		gap: 8,
+	},
 	trackTitleContainer: {
-		flex: 1,
 		overflow: 'hidden',
+		maxWidth: '80%',
 	},
 	trackTitleText: {
+		flex: 1,
 		...defaultStyles.text,
 		fontSize: 18,
 		fontWeight: '500',

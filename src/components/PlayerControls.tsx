@@ -14,9 +14,15 @@ import {
 	Feather,
 	FontAwesome5,
 	MaterialCommunityIcons,
+	AntDesign,
 } from '@expo/vector-icons';
 import { colors } from '@/constants/tokens';
 import { useState } from 'react';
+import Animated, {
+	useAnimatedStyle,
+	useSharedValue,
+	withTiming,
+} from 'react-native-reanimated';
 
 type PlayerControlsProps = {
 	style?: ViewStyle;
@@ -31,13 +37,13 @@ export const PlayerControls = ({ style }: PlayerControlsProps) => {
 	return (
 		<View style={[styles.controlsContainer, style]}>
 			<View style={styles.playerRow}>
-				<PlaybackSpeed />
-				<SeekBackButton iconSize={40} />
+				<PlaybackSpeed iconSize={25} />
+				<SeekBackButton iconSize={30} />
 
-				<PlayPauseButton iconSize={60} />
+				<PlayPauseButton iconSize={65} />
 
-				<SeekForwardButton iconSize={40} />
-				<SleepTimer />
+				<SeekForwardButton iconSize={30} />
+				<SleepTimer iconSize={25} />
 			</View>
 		</View>
 	);
@@ -49,14 +55,20 @@ export const PlayPauseButton = ({
 }: PlayerButtonProps) => {
 	const { playing } = useIsPlaying();
 
+	const onButtonPress = async () => {
+		if (playing) await TrackPlayer.pause();
+		else await TrackPlayer.play();
+	};
+
 	return (
 		<View style={[{ height: iconSize }, style]}>
 			<TouchableOpacity
 				activeOpacity={0.85}
-				onPress={playing ? TrackPlayer.pause : TrackPlayer.play}
+				// onPress={playing ? TrackPlayer.pause : TrackPlayer.play}
+				onPress={onButtonPress}
 			>
-				<FontAwesome5
-					name={[playing ? 'pause-circle' : 'play-circle']}
+				<AntDesign
+					name={playing ? 'pausecircleo' : 'playcircleo'}
 					size={iconSize}
 					color={colors.icon}
 				/>
@@ -66,12 +78,15 @@ export const PlayPauseButton = ({
 };
 
 export const SeekBackButton = ({ iconSize = 30 }: PlayerButtonProps) => {
-	const { position } = useProgress();
+	// const { position } = useProgress();
 
 	return (
 		<TouchableOpacity
 			activeOpacity={0.7}
-			onPress={() => TrackPlayer.seekTo(position - 30)}
+			onPress={async () => {
+				const currentPosition = (await TrackPlayer.getProgress()).position;
+				await TrackPlayer.seekTo(currentPosition - 30);
+			}}
 		>
 			<MaterialCommunityIcons
 				name='rewind-30'
@@ -83,12 +98,16 @@ export const SeekBackButton = ({ iconSize = 30 }: PlayerButtonProps) => {
 };
 
 export const SeekForwardButton = ({ iconSize = 30 }: PlayerButtonProps) => {
-	const { position } = useProgress();
+	// const { position } = useProgress();
 
 	return (
 		<TouchableOpacity
 			activeOpacity={0.7}
-			onPress={() => TrackPlayer.seekTo(position + 30)}
+			// onPress={() => TrackPlayer.seekTo(position + 30)} //* old way using useProgress()
+			onPress={async () => {
+				const currentPosition = (await TrackPlayer.getProgress()).position;
+				await TrackPlayer.seekTo(currentPosition + 30);
+			}}
 		>
 			<MaterialCommunityIcons
 				name='fast-forward-30'

@@ -5,7 +5,8 @@ export const colors = {
 	textMuted: '#d8dee9',
 	icon: '#E5E9F0',
 	maximumTrackTintColor: 'rgba(129, 161, 193, .4)',
-	minimumTrackTintColor: 'rgba(129, 161, 193, .6)',
+	// minimumTrackTintColor: 'rgba(236, 233, 43, 0.8)',
+	minimumTrackTintColor: 'rgba(255, 244, 79, 1)',
 };
 
 export const fontSize = {

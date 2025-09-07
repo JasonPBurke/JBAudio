@@ -32,9 +32,10 @@ export const PlayerProgressBar = ({ style }: ViewProps) => {
 				theme={{
 					minimumTrackTintColor: colors.minimumTrackTintColor,
 					maximumTrackTintColor: colors.maximumTrackTintColor,
+					// cacheTrackTintColor: '#333',
 				}}
-				thumbTouchSize={12}
-				thumbWidth={0}
+				// thumbTouchSize={15}
+				thumbWidth={13}
 				renderBubble={() => null}
 				onSlidingStart={() => (isSliding.value = true)}
 				// onSlidingStart={() => isSliding.set((value) => (value = true))}
@@ -64,7 +65,7 @@ const styles = StyleSheet.create({
 		flexDirection: 'row',
 		justifyContent: 'space-between',
 		alignItems: 'baseline',
-		marginTop: 20,
+		marginTop: 10,
 	},
 	timeText: {
 		...defaultStyles.text,

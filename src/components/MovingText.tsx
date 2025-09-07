@@ -24,7 +24,7 @@ export const MovingText = ({
 }: MovingTextProps) => {
 	const translateX = useSharedValue(0);
 	const shouldAnimate = text.length >= animationThreshold;
-	const textWidth = text.length * 3;
+	const textWidth = text.length * 1.5;
 
 	useEffect(() => {
 		if (!shouldAnimate) return;
@@ -57,7 +57,7 @@ export const MovingText = ({
 				animatedStyle,
 				shouldAnimate && {
 					width: 9999,
-					paddingLeft: 16,
+					paddingLeft: 8,
 				},
 			]}
 		>
