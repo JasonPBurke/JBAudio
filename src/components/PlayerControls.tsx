@@ -84,7 +84,9 @@ export const SeekBackButton = ({ iconSize = 30 }: PlayerButtonProps) => {
 		<TouchableOpacity
 			activeOpacity={0.7}
 			onPress={async () => {
-				const currentPosition = (await TrackPlayer.getProgress()).position;
+				const currentPosition = await TrackPlayer.getProgress().then(
+					(progress) => progress.position
+				);
 				await TrackPlayer.seekTo(currentPosition - 30);
 			}}
 		>
@@ -105,7 +107,9 @@ export const SeekForwardButton = ({ iconSize = 30 }: PlayerButtonProps) => {
 			activeOpacity={0.7}
 			// onPress={() => TrackPlayer.seekTo(position + 30)} //* old way using useProgress()
 			onPress={async () => {
-				const currentPosition = (await TrackPlayer.getProgress()).position;
+				const currentPosition = await TrackPlayer.getProgress().then(
+					(progress) => progress.position
+				);
 				await TrackPlayer.seekTo(currentPosition + 30);
 			}}
 		>
