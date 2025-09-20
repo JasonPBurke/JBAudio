@@ -1,54 +1,54 @@
 {
-	"expo": {
-		"name": "JBAudio",
-		"slug": "JBAudio",
-		"version": "1.0.0",
-		"orientation": "portrait",
-		"icon": "./assets/images/icon.png",
-		"scheme": "jbaudio",
-		"userInterfaceStyle": "dark",
-		"newArchEnabled": false,
-		"ios": {
-			"supportsTablet": true
-		},
-		"android": {
-			"permissions": [
-				"android.permission.READ_MEDIA_AUDIO",
-				"android.permission.MODIFY_AUDIO_SETTINGS"
-			],
-			"adaptiveIcon": {
-				"foregroundImage": "./assets/images/adaptive-icon.png",
-				"backgroundColor": "#ffffff"
-			},
-			"edgeToEdgeEnabled": true,
-			"package": "com.fuzzylogic42.JBAudio"
-		},
-		"web": {
-			"bundler": "metro",
-			"output": "static",
-			"favicon": "./assets/images/favicon.png"
-		},
-		"plugins": [
-			"expo-router",
-			[
-				"expo-splash-screen",
-				{
-					"image": "./assets/images/splash-icon.png",
-					"imageWidth": 200,
-					"resizeMode": "contain",
-					"backgroundColor": "#000"
-				}
-			]
-		],
-		"experiments": {
-			"typedRoutes": true,
-			"tsconfigPaths": true
-		},
-		"extra": {
-			"router": {},
-			"eas": {
-				"projectId": "38e52e0e-72de-42a8-aa99-4451d81b3bdb"
-			}
-		}
-	}
+  "expo": {
+    "name": "JBAudio",
+    "slug": "JBAudio",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "sonicbooks",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": false,
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "permissions": [
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.fuzzylogic42.JBAudio"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#000"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "tsconfigPaths": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "38e52e0e-72de-42a8-aa99-4451d81b3bdb"
+      }
+    }
+  }
 }

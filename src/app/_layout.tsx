@@ -7,15 +7,15 @@ import TrackPlayer from 'react-native-track-player';
 import { useLogTrackPlayerState } from '@/hooks/useLogTrackPlayerState';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
-	configureReanimatedLogger,
-	ReanimatedLogLevel,
+  configureReanimatedLogger,
+  ReanimatedLogLevel,
 } from 'react-native-reanimated';
 import playbackService from '@/setup/service';
 
 //! THIS IS TO TEMP SUPPRESS REANIMATED WARNINGS OF WRITING TO 'VALUE' DURING COMPONENT RERENDER
 configureReanimatedLogger({
-	level: ReanimatedLogLevel.warn,
-	strict: false, // Reanimated runs in strict mode by default
+  level: ReanimatedLogLevel.warn,
+  strict: false, // Reanimated runs in strict mode by default
 });
 
 SplashScreen.preventAutoHideAsync();
@@ -24,45 +24,45 @@ SplashScreen.preventAutoHideAsync();
 TrackPlayer.registerPlaybackService(() => playbackService);
 
 const App = () => {
-	const handleTrackPlayerLoaded = useCallback(() => {
-		SplashScreen.hideAsync();
-	}, []);
+  const handleTrackPlayerLoaded = useCallback(() => {
+    SplashScreen.hideAsync();
+  }, []);
 
-	useSetupTrackPlayer({
-		onLoad: handleTrackPlayerLoaded,
-	});
+  useSetupTrackPlayer({
+    onLoad: handleTrackPlayerLoaded,
+  });
 
-	useLogTrackPlayerState();
+  useLogTrackPlayerState();
 
-	return (
-		<SafeAreaProvider>
-			<GestureHandlerRootView style={{ flex: 1 }}>
-				<RootNavigation />
-				{/* StatusBar backgroundColor is not supported with edge-to-edge enabled. 
+  return (
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <RootNavigation />
+        {/* StatusBar backgroundColor is not supported with edge-to-edge enabled. 
 			Render a view under the status bar to change its background. */}
-				{/* <StatusBar style='light' backgroundColor='#000000' /> */}
-				<StatusBar style='light' />
-			</GestureHandlerRootView>
-		</SafeAreaProvider>
-	);
+        {/* <StatusBar style='light' backgroundColor='#000000' /> */}
+        <StatusBar style='light' />
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
+  );
 };
 
 const RootNavigation = () => {
-	return (
-		<Stack screenOptions={{ animation: 'fade_from_bottom' }}>
-			<Stack.Screen name='(tabs)' options={{ headerShown: false }} />
+  return (
+    <Stack screenOptions={{ animation: 'fade_from_bottom' }}>
+      <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
 
-			<Stack.Screen
-				name='player'
-				options={{
-					presentation: 'card',
-					headerShown: false,
+      <Stack.Screen
+        name='player'
+        options={{
+          presentation: 'card',
+          headerShown: false,
 
-					// animation: 'slide_from_bottom',
-				}}
-			/>
-		</Stack>
-	);
+          // animation: 'slide_from_bottom',
+        }}
+      />
+    </Stack>
+  );
 };
 
 export default App;
