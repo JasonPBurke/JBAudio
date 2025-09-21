@@ -10,15 +10,13 @@ import { bookTitleFilter } from '@/helpers/filter';
 import Header from '@/components/Header';
 import { BooksHome } from '@/components/BooksHome';
 import { Track } from 'react-native-track-player';
-import * as MediaLibrary from 'expo-media-library';
-// import * as Asset from 'expo-asset';
-// import { Asset } from 'expo-asset';
 import * as RNFS from '@dr.pogodin/react-native-fs';
+import { useScanExternalFileSystem } from '@/hooks/useScanExternalFileSystem';
 
 const fileName = 'Audiobooks/Mort.m4b';
 const localBook = `${RNFS.ExternalStorageDirectoryPath}/${fileName}`;
-console.log('localBook', localBook);
 
+//! THIS WILL BE IN ITS OWN USE HOOK TO BUILD THE LIBRARY
 const myLibrary: any = [
   {
     url: localBook,
@@ -35,6 +33,8 @@ const myLibrary: any = [
 ];
 
 const LibraryScreen = () => {
+  const testLibrary = useScanExternalFileSystem();
+
   const search = useNavigationSearch({
     searchBarOptions: {
       placeholder: 'Search in library',
@@ -57,7 +57,7 @@ const LibraryScreen = () => {
           {/* MOVE HEADER ABOVE SCROLL VIEW TO DOCK IT AT TOP OF SCREEN */}
           <Header />
           {/* SWITCH LIBRARY VIEW HERE FROM HOME TO LIST BASED ON <Header> BUTTON CLICK */}
-          <BooksHome books={myLibrary} />
+          <BooksHome books={testLibrary} />
           <View
             style={{
               ...utilsStyles.itemSeparator,

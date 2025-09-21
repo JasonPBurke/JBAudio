@@ -7,6 +7,49 @@
 //! when done, return to parent folder and continue to next folder to repeat process
 
 //* import this where you are using the library.json file: (library) > index.tsx
+import { BookListProps } from '@/components/BooksList';
+import * as RNFS from '@dr.pogodin/react-native-fs';
+import { useEffect, useState } from 'react';
+import { Track } from 'react-native-track-player';
+
+//* if we implement the user being able to choose their own folder, we remove the
+//*  '/Audiobooks' from the path and replace it with the user's chosen folder as passed in
+//* to useScanExternalFileSystem
+
+export const useScanExternalFileSystem = () => {
+  const path = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks`;
+  const [library, setLibrary]: any = useState([]);
+
+  useEffect(() => {
+    const handleReadDirectory = async (path: string) => {
+      try {
+        const result = await RNFS.readDir(path);
+        for (const item of result) {
+          if (item.isDirectory()) {
+            await handleReadDirectory(item.path);
+          } else if (
+            (item.isFile() && item.name.endsWith('.m4b')) ||
+            item.name.endsWith('.mp3')
+          ) {
+            setLibrary((prevLibrary: any) => [
+              ...prevLibrary,
+              {
+                title: item.name,
+                url: item.path,
+              },
+            ]);
+          }
+        }
+      } catch (err) {
+        console.error('Error reading directory', err);
+      }
+    };
+
+    handleReadDirectory(path);
+  }, [path]);
+
+  return library;
+};
 
 // const fileName = 'Audiobooks/Mort.m4b';
 // const localBook = `${RNFS.ExternalStorageDirectoryPath}/${fileName}`;

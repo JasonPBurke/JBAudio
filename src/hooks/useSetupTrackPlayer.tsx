@@ -52,7 +52,6 @@ export const useSetupTrackPlayer = ({
 
   useEffect(() => {
     requestAudioPermission();
-    // getAudioFiles();
     setupPlayer()
       .then(() => {
         isInitialized.current = true;

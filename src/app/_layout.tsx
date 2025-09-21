@@ -19,8 +19,6 @@ configureReanimatedLogger({
 });
 
 SplashScreen.preventAutoHideAsync();
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-// TrackPlayer.registerPlaybackService(() => require('@/setup/service'));
 TrackPlayer.registerPlaybackService(() => playbackService);
 
 const App = () => {
@@ -32,6 +30,7 @@ const App = () => {
     onLoad: handleTrackPlayerLoaded,
   });
 
+  //* for debugging
   useLogTrackPlayerState();
 
   return (
