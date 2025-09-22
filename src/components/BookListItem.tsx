@@ -41,8 +41,6 @@ export const BookListItem = ({
     router.navigate('/titleDetails');
   };
 
-  // console.log('book', JSON.stringify(book, null, 2));
-
   return (
     // <TouchableHighlight onPress={() => handleBookSelect(book)}>
     <TouchableHighlight onPress={handlePress}>

@@ -9,6 +9,8 @@
 //* import this where you are using the library.json file: (library) > index.tsx
 // import { BookListProps } from '@/components/BooksList';
 import * as RNFS from '@dr.pogodin/react-native-fs';
+// import { parseFile } from 'music-metadata';
+// import { inspect } from 'node:util';
 import {
   getMetadata,
   getArtwork,
@@ -23,44 +25,57 @@ import { useEffect, useState } from 'react';
 //* to useScanExternalFileSystem
 
 export const useScanExternalFileSystem = () => {
-  const path = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks`;
+  const path = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/Jonathan Stroud`;
   const [library, setLibrary]: any = useState([]);
 
   useEffect(() => {
-    // const extractMetadata = async (filePath: string) => {
-    //   try {
-    //     // console.log('Extracting metadata for:', filePath);
-    //     // Ensure the file path is decoded before extracting metadata
-    //     // const decodedPath = decodeURIComponent(filePath);
-    //     // // console.log('Using decoded path:', decodedPath);
-    //     const metadata = await getMetadata(
-    //       filePath,
-    //       // MetadataPresets.standardArtwork
-    //       MetadataPresets.standard
-    //     );
-    //     // const artwork = await getArtwork(filePath); // Use getArtwork to retrieve artwork URI
+    const extractMetadata = async (filePath: string) => {
+      try {
+        // console.log('Extracting metadata for:', filePath);
+        // Ensure the file path is decoded before extracting metadata
+        const decodedPath = decodeURIComponent(filePath);
+        // // console.log('Using decoded path:', decodedPath);
+        const metadata = await getMetadata(
+          decodedPath,
+          MetadataPresets.standardArtwork
+          // MetadataPresets.standard
+        );
+        // const artwork = await getArtwork(filePath); // Use getArtwork to retrieve artwork URI
 
-    //     return {
-    //       title: metadata.title || filePath.split('/').pop(),
-    //       author:
-    //         metadata.artist || metadata.albumArtist || 'Unknown Author',
-    //       trackNumber: metadata.trackNumber || 0,
-    //       // artwork: metadata.artworkData || null, // Include artworkUri in the returned object
-    //     };
-    //   } catch (error) {
-    //     console.error(`Error extracting metadata for ${filePath}`, error);
-    //     return {
-    //       title: filePath.split('/').pop(),
-    //       author: 'Unknown Author',
-    //       trackNumber: 0,
-    //       // artwork: null,
-    //     };
-    //   }
-    // };
+        console.log('Metadata:', {
+          albumArtist: metadata.albumArtist,
+          artist: metadata.artist,
+          albumTitle: metadata.albumTitle,
+          title: metadata.title,
+          trackNumber: metadata.trackNumber,
+          year: metadata.year,
+        });
+
+        return {
+          title:
+            metadata.albumTitle ||
+            metadata.title ||
+            filePath.split('/').pop(),
+          author:
+            metadata.albumArtist || metadata.artist || 'Unknown Author',
+          trackNumber: metadata.trackNumber || 0,
+          artwork: metadata.artworkData || null,
+        };
+      } catch (error) {
+        console.error(`Error extracting metadata for ${filePath}`, error);
+        return {
+          title: filePath.split('/').pop(),
+          author: 'Unknown Author',
+          trackNumber: 0,
+          // artwork: null,
+        };
+      }
+    };
 
     const handleReadDirectory = async (path: string, files: any[] = []) => {
       try {
         const result = await RNFS.readDir(path);
+
         for (const item of result) {
           if (item.isDirectory()) {
             await handleReadDirectory(item.path, files);
@@ -69,16 +84,17 @@ export const useScanExternalFileSystem = () => {
             item.name.endsWith('.mp3')
           ) {
             // Decode the path before passing it to extractMetadata
-            // const decodedPath = decodeURIComponent(item.path);
-            // const metadata = await extractMetadata(item.path);
+            const decodedPath = decodeURIComponent(item.path);
+            const metadata = await extractMetadata(decodedPath);
             // const coverArt = await extractMetadata(item.path);
             files.push({
-              // ...metadata,
-              title: item.name,
+              ...metadata,
+              // title: item.name,
               url: item.path,
             });
           }
         }
+
         return files;
       } catch (err) {
         console.error('Error reading directory', err);
@@ -89,7 +105,6 @@ export const useScanExternalFileSystem = () => {
     const scanDirectory = async () => {
       const files = await handleReadDirectory(path);
       setLibrary(files);
-      console.log('library', JSON.stringify(library, null, 2));
     };
 
     scanDirectory();

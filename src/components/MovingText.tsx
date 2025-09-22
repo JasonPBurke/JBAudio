@@ -1,67 +1,67 @@
 import { useEffect } from 'react';
 import { TextStyle } from 'react-native';
 import Animated, {
-	cancelAnimation,
-	Easing,
-	// StyleProps,
-	useAnimatedStyle,
-	useSharedValue,
-	withDelay,
-	withRepeat,
-	withTiming,
+  cancelAnimation,
+  Easing,
+  // StyleProps,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withTiming,
 } from 'react-native-reanimated';
 
 export type MovingTextProps = {
-	text: string;
-	animationThreshold: number;
-	style?: TextStyle; //StyleProps
+  text: string;
+  animationThreshold: number;
+  style?: TextStyle; //StyleProps
 };
 
 export const MovingText = ({
-	text,
-	animationThreshold,
-	style,
+  text,
+  animationThreshold,
+  style,
 }: MovingTextProps) => {
-	const translateX = useSharedValue(0);
-	const shouldAnimate = text.length >= animationThreshold;
-	const textWidth = text.length * 1.5;
+  const translateX = useSharedValue(0);
+  const shouldAnimate = text.length >= animationThreshold;
+  const textWidth = text.length * 4.75;
 
-	useEffect(() => {
-		if (!shouldAnimate) return;
+  useEffect(() => {
+    if (!shouldAnimate) return;
 
-		translateX.value = withDelay(
-			1000,
-			withRepeat(
-				withTiming(-textWidth, { duration: 6000, easing: Easing.linear }),
-				-1,
-				true
-			)
-		);
-		return () => {
-			cancelAnimation(translateX);
-			translateX.value = 0;
-		};
-	}, [translateX, text, animationThreshold, shouldAnimate, textWidth]);
+    translateX.value = withDelay(
+      1000,
+      withRepeat(
+        withTiming(-textWidth, { duration: 15000, easing: Easing.linear }),
+        4,
+        true
+      )
+    );
+    return () => {
+      cancelAnimation(translateX);
+      translateX.value = 0;
+    };
+  }, [translateX, text, animationThreshold, shouldAnimate, textWidth]);
 
-	const animatedStyle = useAnimatedStyle(() => {
-		return {
-			transform: [{ translateX: translateX.value }],
-		};
-	});
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateX: translateX.value }],
+    };
+  });
 
-	return (
-		<Animated.Text
-			numberOfLines={1}
-			style={[
-				style,
-				animatedStyle,
-				shouldAnimate && {
-					width: 9999,
-					paddingLeft: 8,
-				},
-			]}
-		>
-			{text}
-		</Animated.Text>
-	);
+  return (
+    <Animated.Text
+      numberOfLines={1}
+      style={[
+        style,
+        animatedStyle,
+        shouldAnimate && {
+          width: 9999,
+          paddingLeft: 8,
+        },
+      ]}
+    >
+      {text}
+    </Animated.Text>
+  );
 };
