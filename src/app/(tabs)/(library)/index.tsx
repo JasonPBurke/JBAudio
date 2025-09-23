@@ -13,7 +13,7 @@ import { useScanExternalFileSystem } from '@/hooks/useScanExternalFileSystem';
 
 const LibraryScreen = () => {
   const testLibrary = useScanExternalFileSystem();
-  const reducedTestLibrary = testLibrary.slice(0, 30);
+  // const reducedTestLibrary = testLibrary.slice(0, 30);
   // console.log(
   //   'reducedTestLibrary',
   //   JSON.stringify(reducedTestLibrary, null, 2)
@@ -42,7 +42,7 @@ const LibraryScreen = () => {
           {/* MOVE HEADER ABOVE SCROLL VIEW TO DOCK IT AT TOP OF SCREEN */}
           <Header />
           {/* SWITCH LIBRARY VIEW HERE FROM HOME TO LIST BASED ON <Header> BUTTON CLICK */}
-          <BooksHome books={reducedTestLibrary} />
+          <BooksHome books={testLibrary} />
           <View
             style={{
               ...utilsStyles.itemSeparator,
@@ -50,7 +50,7 @@ const LibraryScreen = () => {
               marginLeft: 0,
             }}
           />
-          <BooksList books={reducedTestLibrary} scrollEnabled={false} />
+          <BooksList books={testLibrary} scrollEnabled={false} />
         </ScrollView>
       </SafeAreaView>
     </View>

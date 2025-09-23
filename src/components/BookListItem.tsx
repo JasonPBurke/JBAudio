@@ -47,6 +47,7 @@ export const BookListItem = ({
       <View style={styles.bookItemContainer}>
         <View>
           <FastImage
+            resizeMode='contain'
             source={{
               uri: book.artwork ?? unknownBookImageUri,
               priority: FastImage.priority.normal,
@@ -118,10 +119,10 @@ const styles = StyleSheet.create({
   bookArtworkImage: {
     borderRadius: 4,
     //* height and width will need to be variable based on the cover img used
-    height: 75,
+    height: 80,
     // width: 55,
     aspectRatio: 0.75,
-    objectFit: 'contain',
+    // objectFit: 'contain',
   },
   bookInfoContainer: {
     flex: 1,

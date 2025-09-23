@@ -10,9 +10,9 @@ import { utilsStyles } from '@/styles';
 import { Track } from 'react-native-track-player';
 import { colors, fontSize } from '@/constants/tokens';
 import { Feather } from '@expo/vector-icons';
-// import { FlashList, FlashListProps } from '@shopify/flash-list';
+import { FlashList, FlashListProps } from '@shopify/flash-list';
 
-export type BookListProps = Partial<FlatListProps<Track>> & {
+export type BookListProps = Partial<FlashListProps<Track>> & {
   books: Track[];
 };
 
@@ -28,8 +28,8 @@ export const BooksHome = ({ books, ...flatListProps }: BookListProps) => {
           style={{ marginRight: 12 }}
         />
       </View>
-      <FlatList
-        style={{ paddingLeft: 14 }}
+      <FlashList<Track>
+        style={{ paddingLeft: 14, height: 200 }} //! try and set height based on bookGridItem image height
         data={books}
         renderItem={({ item: book }) => <BookGridItem book={book} />}
         horizontal={true}
@@ -54,5 +54,6 @@ const styles = StyleSheet.create({
   },
   titleText: {
     fontSize: fontSize.lg,
+    color: colors.text,
   },
 });

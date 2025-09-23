@@ -1,4 +1,4 @@
-import { FlatList, FlatListProps, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 // import library from '@/assets/data/library.json';
 import { BookListItem } from './BookListItem';
 import { utilsStyles } from '@/styles';
@@ -7,9 +7,9 @@ import TrackPlayer, {
   useIsPlaying,
 } from 'react-native-track-player';
 import { screenPadding } from '@/constants/tokens';
-import { FlashList } from '@shopify/flash-list';
+import { FlashList, FlashListProps } from '@shopify/flash-list';
 
-export type BookListProps = Partial<FlatListProps<any>> & {
+export type BookListProps = Partial<FlashListProps<any>> & {
   books: Track[];
 };
 
@@ -33,7 +33,7 @@ export const BooksList = ({ books, ...flatListProps }: BookListProps) => {
   // };
 
   return (
-    <FlatList
+    <FlashList<Track>
       style={{ paddingHorizontal: screenPadding.horizontal }}
       contentContainerStyle={{ paddingTop: 12, paddingBottom: 128 }}
       ListFooterComponent={books.length > 0 ? ItemDivider : null}

@@ -42,22 +42,23 @@ export const useScanExternalFileSystem = () => {
         );
         // const artwork = await getArtwork(filePath); // Use getArtwork to retrieve artwork URI
 
-        console.log('Metadata:', {
-          albumArtist: metadata.albumArtist,
-          artist: metadata.artist,
-          albumTitle: metadata.albumTitle,
-          title: metadata.title,
-          trackNumber: metadata.trackNumber,
-          year: metadata.year,
-        });
+        // console.log('Metadata:', {
+        //   albumArtist: metadata.albumArtist,
+        //   artist: metadata.artist,
+        //   albumTitle: metadata.albumTitle,
+        //   title: metadata.title,
+        //   trackNumber: metadata.trackNumber,
+        //   year: metadata.year,
+        // });
 
         return {
+          //! bookTitle: metadata.albumTitle  chapterTitle: metadata.title
           title:
-            metadata.albumTitle ||
             metadata.title ||
+            metadata.albumTitle ||
             filePath.split('/').pop(),
           author:
-            metadata.albumArtist || metadata.artist || 'Unknown Author',
+            metadata.artist || metadata.albumArtist || 'Unknown Author',
           trackNumber: metadata.trackNumber || 0,
           artwork: metadata.artworkData || null,
         };
@@ -102,13 +103,45 @@ export const useScanExternalFileSystem = () => {
       }
     };
 
+    const handleFileSort = (files: any) => {
+      const sortedFiles = files
+        .sort((a: any, b: any) => {
+          console.log('a', a.author);
+          console.log('b', b.author);
+          a.author.localCompare(b.author);
+        })
+        .reduce((acc: any, file: any) => {
+          console.log('here');
+          const author = file.author;
+          if (!acc[author]) {
+            acc[author] = [];
+          }
+          acc[author].push(file);
+          return acc;
+        });
+      console.log('sortedFiles', sortedFiles);
+      return sortedFiles;
+    };
+
     const scanDirectory = async () => {
-      const files = await handleReadDirectory(path);
-      setLibrary(files);
+      //! remove const files = if using .then
+      const files = await handleReadDirectory(path).then((result) => {
+        // console.log('result', result);
+        // const sortedFiles = handleFileSort(result);
+        // console.log(
+        //   'sorted books',
+        //   sortedFiles
+        //   // sortedFiles.title,
+        //   // sortedFiles.author,
+        //   // sortedFiles.trackNumber
+        // );
+        setLibrary(result); //! send in sortedFiles
+      });
     };
 
     scanDirectory();
   }, [path]);
 
+  // console.log('library---', JSON.stringify(library, null, 2));
   return library;
 };

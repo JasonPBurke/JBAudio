@@ -41,14 +41,13 @@ export const BookGridItem = ({
     router.navigate('/titleDetails');
   };
 
-  // console.log('book', JSON.stringify(book, null, 2));
-
   return (
     // <TouchableHighlight onPress={() => handleBookSelect(book)}>
     <TouchableHighlight onPress={handlePress}>
       <View style={styles.bookItemContainer}>
-        <View>
+        <View style={{}}>
           <FastImage
+            // resizeMode='contain' //TODO: I want this here, but need to fix the absolute images below to reposition based on image size??
             source={{
               uri: book.artwork ?? unknownBookImageUri,
               priority: FastImage.priority.normal,
@@ -122,9 +121,8 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 4,
     //* height and width will need to be variable based on the cover img used
     height: 150,
-    // width: 55,
-    aspectRatio: 0.75,
-    objectFit: 'contain',
+    aspectRatio: 0.7,
+    objectFit: 'cover', //! does'nt seem to be applying
   },
   bookInfoContainer: {
     flex: 1,
