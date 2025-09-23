@@ -1,21 +1,10 @@
-//TODO this is where we are going to build the library from the user's files
-//TODO it will be a list of objects with the following properties: title, author, audio_url, thumbnail_url
-//TODO will use the code below as a guide
-
-//! loop through the Audiobooks folder and check for files with .m4b/.mp3 extension
-//! if a folder is found, go inside and loop through checking for audio files
-//! when done, return to parent folder and continue to next folder to repeat process
-
-//* import this where you are using the library.json file: (library) > index.tsx
 // import { BookListProps } from '@/components/BooksList';
 import * as RNFS from '@dr.pogodin/react-native-fs';
 // import { parseFile } from 'music-metadata';
 // import { inspect } from 'node:util';
 import {
   getMetadata,
-  getArtwork,
   MetadataPresets,
-  MediaMetadata,
 } from '@missingcore/react-native-metadata-retriever';
 import { useEffect, useState } from 'react';
 // import { Track } from 'react-native-track-player';
@@ -106,12 +95,9 @@ export const useScanExternalFileSystem = () => {
     const handleFileSort = (files: any) => {
       const sortedFiles = files
         .sort((a: any, b: any) => {
-          console.log('a', a.author);
-          console.log('b', b.author);
           a.author.localCompare(b.author);
         })
         .reduce((acc: any, file: any) => {
-          console.log('here');
           const author = file.author;
           if (!acc[author]) {
             acc[author] = [];
@@ -119,7 +105,6 @@ export const useScanExternalFileSystem = () => {
           acc[author].push(file);
           return acc;
         });
-      console.log('sortedFiles', sortedFiles);
       return sortedFiles;
     };
 

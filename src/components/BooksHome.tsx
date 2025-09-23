@@ -28,6 +28,7 @@ export const BooksHome = ({ books, ...flatListProps }: BookListProps) => {
           style={{ marginRight: 12 }}
         />
       </View>
+      {/* <View style={{}}> */}
       <FlashList<Track>
         style={{ paddingLeft: 14, height: 200 }} //! try and set height based on bookGridItem image height
         data={books}
@@ -42,6 +43,7 @@ export const BooksHome = ({ books, ...flatListProps }: BookListProps) => {
         }
         {...flatListProps}
       />
+      {/* </View> */}
     </View>
   );
 };

@@ -1,5 +1,5 @@
 import { BookListProps, BooksList } from '@/components/BooksList';
-// import { screenPadding } from '@/constants/tokens';
+import { screenPadding } from '@/constants/tokens';
 import { useNavigationSearch } from '@/hooks/useNavigationSearch';
 import { defaultStyles, utilsStyles } from '@/styles';
 import React, { useMemo } from 'react';
@@ -35,9 +35,9 @@ const LibraryScreen = () => {
     <View style={defaultStyles.container}>
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView
-        // style={{
-        //   paddingHorizontal: screenPadding.horizontal,
-        // }}
+          style={{
+            paddingHorizontal: screenPadding.horizontal,
+          }}
         >
           {/* MOVE HEADER ABOVE SCROLL VIEW TO DOCK IT AT TOP OF SCREEN */}
           <Header />
