@@ -43,8 +43,8 @@ export const BookGridItem = ({
 
   return (
     <TouchableHighlight onPress={handlePress}>
-      <View style={[styles.bookItemContainer]}>
-        <View>
+      <View style={[styles.bookItemContainer, { height: 200 }]}>
+        <View style={{}}>
           <FastImage
             resizeMode='contain' //TODO: I want this here, but need to fix the absolute images below to reposition based on image size??
             //! JUST PLACE THE ABSOLUTE POSITIONING AT HE BOTTOM LEFT AND PLACE EVERY IMG AT THE BOTTOM LEFT AS WELL
@@ -105,8 +105,8 @@ export const BookGridItem = ({
 const styles = StyleSheet.create({
   bookItemContainer: {
     gap: 12,
-    maxWidth: 125,
-    height: 200,
+    maxWidth: 155,
+    // height: 200,
     // columnGap: 14,
     // alignItems: 'center',
     // justifyContent: 'center',
@@ -114,12 +114,12 @@ const styles = StyleSheet.create({
     // marginBottom: 12,
   },
   bookArtworkImage: {
+    //* height and width will need to be variable based on the cover img used
+    height: 150,
     borderTopLeftRadius: 2,
     borderTopRightRadius: 4,
     borderBottomLeftRadius: 2,
     borderBottomRightRadius: 4,
-    //* height and width will need to be variable based on the cover img used
-    height: 150,
   },
   bookInfoContainer: {
     flex: 1,

@@ -1,10 +1,4 @@
-import {
-  FlatList,
-  FlatListProps,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { BookGridItem } from '@/components/BookGridItem';
 import { utilsStyles } from '@/styles';
 import { Track } from 'react-native-track-player';
@@ -28,22 +22,26 @@ export const BooksHome = ({ books, ...flatListProps }: BookListProps) => {
           style={{ marginRight: 12 }}
         />
       </View>
-      {/* <View style={{}}> */}
-      <FlashList<Track>
-        style={{ paddingLeft: 14, height: 200 }} //! try and set height based on bookGridItem image height
-        data={books}
-        renderItem={({ item: book }) => <BookGridItem book={book} />}
-        horizontal={true}
-        showsHorizontalScrollIndicator={false}
-        ListFooterComponent={<View style={{ width: 14 }} />}
-        ListEmptyComponent={
-          <View>
-            <Text style={utilsStyles.emptyComponent}>No books found</Text>
-          </View>
-        }
-        {...flatListProps}
-      />
-      {/* </View> */}
+      {/* //! try and set height based on bookGridItem image height */}
+      <View style={{}}>
+        <FlashList<Track>
+          estimatedItemSize={200}
+          data={books}
+          estimatedListSize={{ height: 200, width: 400 }}
+          contentContainerStyle={{ paddingLeft: 14 }}
+          // keyExtractor={(item) => item.id}
+          renderItem={({ item: book }) => <BookGridItem book={book} />}
+          horizontal={true}
+          showsHorizontalScrollIndicator={false}
+          ListFooterComponent={<View style={{ width: 14 }} />}
+          ListEmptyComponent={
+            <View>
+              <Text style={utilsStyles.emptyComponent}>No books found</Text>
+            </View>
+          }
+          {...flatListProps}
+        />
+      </View>
     </View>
   );
 };

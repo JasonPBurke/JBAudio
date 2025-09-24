@@ -33,22 +33,24 @@ export const BooksList = ({ books, ...flatListProps }: BookListProps) => {
   // };
 
   return (
-    <FlashList<Track>
-      style={{ paddingHorizontal: screenPadding.horizontal }}
-      contentContainerStyle={{ paddingTop: 12, paddingBottom: 128 }}
-      ListFooterComponent={books.length > 0 ? ItemDivider : null}
-      ItemSeparatorComponent={ItemDivider}
-      ListEmptyComponent={
-        <View>
-          <Text style={utilsStyles.emptyComponent}>No books found</Text>
-        </View>
-      }
-      data={books}
-      renderItem={({ item: book }) => (
-        // <BookListItem book={book} onBookSelect={handleBookSelect} />
-        <BookListItem book={book} />
-      )}
-      {...flatListProps}
-    />
+    <View style={{ paddingHorizontal: screenPadding.horizontal }}>
+      <FlashList<Track>
+        estimatedItemSize={200}
+        contentContainerStyle={{ paddingTop: 12, paddingBottom: 128 }}
+        ListFooterComponent={books.length > 0 ? ItemDivider : null}
+        ItemSeparatorComponent={ItemDivider}
+        ListEmptyComponent={
+          <View>
+            <Text style={utilsStyles.emptyComponent}>No books found</Text>
+          </View>
+        }
+        data={books}
+        renderItem={({ item: book }) => (
+          // <BookListItem book={book} onBookSelect={handleBookSelect} />
+          <BookListItem book={book} />
+        )}
+        {...flatListProps}
+      />
+    </View>
   );
 };
