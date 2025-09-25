@@ -13,11 +13,9 @@ import { useScanExternalFileSystem } from '@/hooks/useScanExternalFileSystem';
 
 const LibraryScreen = () => {
   const testLibrary = useScanExternalFileSystem();
-  // const reducedTestLibrary = testLibrary.slice(0, 30);
-  // console.log(
-  //   'reducedTestLibrary',
-  //   JSON.stringify(reducedTestLibrary, null, 2)
-  // );
+
+  // console.log('testLibrary', JSON.stringify(testLibrary, null, 2));
+
   //! BEFORE ADDING THE BOOKS TO THE LIST, YOU HAVE TO SORT THEM BY AUTHOR AND GROUP BOOKS INTO ALBUMS.  THIS WILL REDUCE THE NUMBER OF METADATA IMAGES TO LOAD
 
   const search = useNavigationSearch({
