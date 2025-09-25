@@ -5,8 +5,6 @@ import {
   MetadataPresets,
 } from '@missingcore/react-native-metadata-retriever';
 import { useEffect, useState } from 'react';
-// import path from 'path';
-import libraryTestData from '@/assets/data/libraryTestData.json';
 // import { Track } from 'react-native-track-player';
 
 //* if we implement the user being able to choose their own folder, we remove the
@@ -18,16 +16,32 @@ export const useScanExternalFileSystem = () => {
   const [library, setLibrary]: any = useState([]);
 
   useEffect(() => {
-    const extractArtwork = async (filePath: string) => {
-      // console.log('extractArtwork', JSON.stringify(filePath, null, 2));
-      // try {
-      //   const decodedPath = decodeURIComponent(filePath);
-      //   const metadata = await getArtwork(decodedPath);
-      //   return metadata;
-      // } catch (error) {
-      //   console.error(`Error extracting metadata for ${filePath}`, error);
-      //   return null;
-      // }
+    const extractArtwork = async (sortedBooks: any[]) => {
+      const booksWithArtwork = await Promise.all(
+        sortedBooks.map(async (authorEntry) => {
+          const updatedBooks = await Promise.all(
+            authorEntry.books.map(async (book: any) => {
+              if (book.chapters && book.chapters.length > 0) {
+                const firstChapter = book.chapters[0];
+                try {
+                  const decodedPath = decodeURIComponent(firstChapter.url);
+                  const artwork = await getArtwork(decodedPath);
+                  return { ...book, artwork: artwork };
+                } catch (error) {
+                  console.error(
+                    `Error extracting artwork for ${firstChapter.url}`,
+                    error
+                  );
+                  return { ...book, artwork: null };
+                }
+              }
+              return { ...book, artwork: null };
+            })
+          );
+          return { ...authorEntry, books: updatedBooks };
+        })
+      );
+      return booksWithArtwork;
     };
     const extractMetadata = async (filePath: string) => {
       try {
@@ -68,7 +82,6 @@ export const useScanExternalFileSystem = () => {
             metadata.artist || metadata.albumArtist || 'Unknown Author',
           chapterNumber: metadata.trackNumber || 0,
           year: metadata.year,
-          // artwork: metadata.artworkData || null,
         };
       } catch (error) {
         console.error(`Error extracting metadata for ${filePath}`, error);
@@ -76,7 +89,6 @@ export const useScanExternalFileSystem = () => {
           title: filePath.split('/').pop(),
           author: 'Unknown Author',
           trackNumber: 0,
-          // artwork: null,
         };
       }
     };
@@ -92,10 +104,8 @@ export const useScanExternalFileSystem = () => {
             (item.isFile() && item.name.endsWith('.m4b')) ||
             item.name.endsWith('.mp3')
           ) {
-            // Decode the path before passing it to extractMetadata
             const decodedPath = decodeURIComponent(item.path);
             const metadata = await extractMetadata(decodedPath);
-            // const coverArt = await extractMetadata(item.path);
             files.push({
               ...metadata,
               url: item.path,
@@ -121,54 +131,56 @@ export const useScanExternalFileSystem = () => {
         }
       );
 
-      //TODO: sort by albumTitle and group all files with the same albumTitle into an album
       const sortedBookTitles = sortedBookAuthors.reduce(
-        (acc: any, book: any) => {
-          const author = book.author;
-          //* if author does not exist
-          if (!acc[author]) {
-            //* add the author as a key empty object
-            acc[author] = {};
-            // console.log('current acc: ', JSON.stringify(acc, null, 2));
+        (acc: any[], book: any) => {
+          let authorEntry = acc.find(
+            (entry) => entry.authorName === book.author
+          );
+
+          if (!authorEntry) {
+            authorEntry = { authorName: book.author, books: [] };
+            acc.push(authorEntry);
           }
-          //* if bookTitle does not exist
-          if (!(book.bookTitle in acc[author])) {
-            //* add the bookTitle to the object as key
-            acc[author][book.bookTitle] = {};
-            acc[author][book.bookTitle]['chapters'] = [];
-            // console.log('current acc: ', JSON.stringify(acc, null, 2));
+
+          let bookEntry = authorEntry.books.find(
+            (entry: any) => entry.bookTitle === book.bookTitle
+          );
+
+          if (!bookEntry) {
+            bookEntry = {
+              bookTitle: book.bookTitle,
+              chapters: [],
+              artwork: null,
+            };
+            authorEntry.books.push(bookEntry);
           }
-          //* add the chapter to the bookTitle array
-          acc[author][book.bookTitle]['chapters'].push(book);
-          acc[author][book.bookTitle]['chapters'].sort(
-            //* sort chapters by chapterNumber
+
+          bookEntry.chapters.push(book);
+          bookEntry.chapters.sort(
             (a: { chapterNumber: number }, b: { chapterNumber: number }) =>
               a.chapterNumber - b.chapterNumber
           );
+
           return acc;
         },
-        // {}
-        [{ authors: [{ books: [{ artwork: [], chapters: [] }] }] }]
+        []
       );
       // console.log(
       //   'sorted books',
       //   JSON.stringify(sortedBookTitles, null, 2)
       // );
       return sortedBookTitles;
-      // return books;
     };
-    // handleBookSort(libraryTestData);
 
     const scanDirectory = async () => {
-      await handleReadDirectory(path).then((result) => {
-        const testSort = handleBookSort(result);
-        const sortedLibraryWithArtwork = extractArtwork(testSort);
+      const result = await handleReadDirectory(path);
+      const testSort = handleBookSort(result);
+      console.log('testSort', JSON.stringify(testSort, null, 2));
+      //! to get the cover art for each book -->> author.bookTitle.chapters[0].url <<--
+      const sortedLibraryWithArtwork = await extractArtwork(testSort);
 
-        console.log('resulting library', JSON.stringify(testSort, null, 2));
-
-        //! GET THE COVER ARTWORK DATA FOR EACH BOOK ONLY ONCE
-        setLibrary(result);
-      });
+      //! GET THE COVER ARTWORK DATA FOR EACH BOOK ONLY ONCE
+      setLibrary(sortedLibraryWithArtwork);
     };
 
     scanDirectory();
