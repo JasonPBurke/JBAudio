@@ -23,7 +23,7 @@ const ItemDivider = () => (
   />
 );
 
-export const BooksList = ({ books, ...flatListProps }: BookListProps) => {
+export const BooksList = ({ books, ...flashListProps }: BookListProps) => {
   // const { playing } = useIsPlaying();
   // const handleBookSelect = async (track: Track) => {
   // 	//TODO: this is where you will load the book info page instead of
@@ -49,7 +49,7 @@ export const BooksList = ({ books, ...flatListProps }: BookListProps) => {
           // <BookListItem book={book} onBookSelect={handleBookSelect} />
           <BookListItem book={book} />
         )}
-        {...flatListProps}
+        {...flashListProps}
       />
     </View>
   );
