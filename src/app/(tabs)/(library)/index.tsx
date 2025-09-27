@@ -12,9 +12,10 @@ import { BooksHome } from '@/components/BooksHome';
 import { useScanExternalFileSystem } from '@/hooks/useScanExternalFileSystem';
 
 const LibraryScreen = () => {
+  const [toggleView, setToggleView] = React.useState(false);
   const testLibrary = useScanExternalFileSystem();
 
-  // console.log('testLibrary', JSON.stringify(testLibrary, null, 2));
+  // console.log('library', testLibrary[0]);
 
   //! BEFORE ADDING THE BOOKS TO THE LIST, YOU HAVE TO SORT THEM BY AUTHOR AND GROUP BOOKS INTO ALBUMS.  THIS WILL REDUCE THE NUMBER OF METADATA IMAGES TO LOAD
 
@@ -32,23 +33,14 @@ const LibraryScreen = () => {
   return (
     <View style={defaultStyles.container}>
       <SafeAreaView style={{ flex: 1 }}>
-        <ScrollView
-        // style={{
-        //   paddingHorizontal: screenPadding.horizontal,
-        // }}
-        >
+        <ScrollView>
           {/* MOVE HEADER ABOVE SCROLL VIEW TO DOCK IT AT TOP OF SCREEN */}
-          <Header />
-          {/* SWITCH LIBRARY VIEW HERE FROM HOME TO LIST BASED ON <Header> BUTTON CLICK */}
-          <BooksHome books={testLibrary} />
-          <View
-            style={{
-              ...utilsStyles.itemSeparator,
-              marginVertical: 29,
-              marginLeft: 0,
-            }}
-          />
-          <BooksList books={testLibrary} scrollEnabled={false} />
+          <Header setToggleView={setToggleView} toggleView={toggleView} />
+          {toggleView ? (
+            <BooksList books={testLibrary} scrollEnabled={false} />
+          ) : (
+            <BooksHome books={testLibrary} scrollEnabled={false} />
+          )}
         </ScrollView>
       </SafeAreaView>
     </View>

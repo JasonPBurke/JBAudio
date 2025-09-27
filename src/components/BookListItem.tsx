@@ -14,12 +14,13 @@ import TrackPlayer, {
   useActiveTrack,
   useIsPlaying,
 } from 'react-native-track-player';
+import { Book } from '@/types/Book';
 import { Entypo, Feather } from '@expo/vector-icons';
 import LoaderKitView from 'react-native-loader-kit';
 import { useRouter } from 'expo-router';
 
 export type BookListItemProps = {
-  book: Track;
+  book: Book;
   // onBookSelect: (book: Track) => void;
 };
 
@@ -27,14 +28,14 @@ export const BookListItem = ({
   book,
   // onBookSelect: handleBookSelect,
 }: BookListItemProps) => {
-  const isActiveBook = useActiveTrack()?.url === book.url;
-  const { playing } = useIsPlaying();
+  // const isActiveBook = useActiveTrack()?.url === book.url;
+  // const { playing } = useIsPlaying();
   const router = useRouter();
 
-  const handlePressPlay = async (track: Track) => {
-    if (isActiveBook && playing) return;
-    await TrackPlayer.load(track);
-    await TrackPlayer.play();
+  const handlePressPlay = async (book: Book) => {
+    // if (isActiveBook && playing) return;
+    // await TrackPlayer.load(track);
+    // await TrackPlayer.play();
   };
 
   const handlePress = () => {
@@ -54,7 +55,7 @@ export const BookListItem = ({
             }}
             style={{
               ...styles.bookArtworkImage,
-              opacity: isActiveBook ? 0.6 : 1,
+              // opacity: isActiveBook ? 0.6 : 1,
             }}
           />
         </View>
@@ -64,15 +65,15 @@ export const BookListItem = ({
               numberOfLines={1}
               style={{
                 ...styles.bookTitleText,
-                color: isActiveBook ? colors.primary : colors.text,
+                // color: isActiveBook ? colors.primary : colors.text,
               }}
             >
-              {book.title}
+              {book.bookTitle}
             </Text>
 
-            {book.author && (
+            {book.chapters[0].author && (
               <Text numberOfLines={1} style={styles.bookAuthorText}>
-                {book.author}
+                {book.chapters[0].author}
               </Text>
             )}
           </View>
@@ -82,25 +83,26 @@ export const BookListItem = ({
               size={18}
               color={colors.icon}
             />
-            {isActiveBook && playing ? (
+            {/* {isActiveBook && playing ? (
               <LoaderKitView
                 style={styles.trackPlayingImageIcon}
                 name={'LineScaleParty'}
                 color={colors.icon}
               />
-            ) : (
-              <Pressable hitSlop={35}>
-                <Feather
-                  name='headphones'
-                  size={18}
-                  color={
-                    isActiveBook && playing ? colors.primary : colors.icon
-                  }
-                  onPress={() => handlePressPlay(book)}
-                  // onPress={() => handleBookSelect(book)}
-                />
-              </Pressable>
-            )}
+            ) : ( */}
+            <Pressable hitSlop={35}>
+              <Feather
+                name='headphones'
+                size={18}
+                color={
+                  // isActiveBook && playing ? colors.primary : colors.icon
+                  colors.icon
+                }
+                onPress={() => handlePressPlay(book)}
+                // onPress={() => handleBookSelect(book)}
+              />
+            </Pressable>
+            {/* )} */}
           </View>
         </View>
       </View>

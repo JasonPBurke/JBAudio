@@ -48,23 +48,8 @@ export const useScanExternalFileSystem = () => {
         const decodedPath = decodeURIComponent(filePath);
         const metadata = await getMetadata(
           decodedPath,
-          // MetadataPresets.standardArtwork
           MetadataPresets.standard
         );
-
-        // console.log(
-        //   'metadata',
-        //   JSON.stringify(
-        //     {
-        //       title: metadata.title,
-        //       albumTitle: metadata.albumTitle,
-        //       artist: metadata.artist,
-        //       albumArtist: metadata.albumArtist,
-        //     },
-        //     null,
-        //     2
-        //   )
-        // );
 
         const bookTitleBackup = filePath
           .substring(0, filePath.lastIndexOf('/'))
@@ -72,7 +57,7 @@ export const useScanExternalFileSystem = () => {
           .pop();
 
         return {
-          //! bookTitle: metadata.albumTitle  chapterTitle: metadata.title
+          //? bookTitle: metadata.albumTitle  chapterTitle: metadata.title
           chapterTitle:
             metadata.title ||
             metadata.albumTitle ||
@@ -165,19 +150,13 @@ export const useScanExternalFileSystem = () => {
         },
         []
       );
-      // console.log(
-      //   'sorted books',
-      //   JSON.stringify(sortedBookTitles, null, 2)
-      // );
       return sortedBookTitles;
     };
 
     const scanDirectory = async () => {
       const result = await handleReadDirectory(path);
-      const testSort = handleBookSort(result);
-      console.log('testSort', JSON.stringify(testSort, null, 2));
-      //! to get the cover art for each book -->> author.bookTitle.chapters[0].url <<--
-      const sortedLibraryWithArtwork = await extractArtwork(testSort);
+      const sortedLibrary = handleBookSort(result);
+      const sortedLibraryWithArtwork = await extractArtwork(sortedLibrary);
 
       //! GET THE COVER ARTWORK DATA FOR EACH BOOK ONLY ONCE
       setLibrary(sortedLibraryWithArtwork);

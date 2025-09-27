@@ -14,12 +14,13 @@ import TrackPlayer, {
   useActiveTrack,
   useIsPlaying,
 } from 'react-native-track-player';
+import { Book } from '@/types/Book';
 import { Feather } from '@expo/vector-icons';
 import LoaderKitView from 'react-native-loader-kit';
 import { useRouter } from 'expo-router';
 
 export type BookListItemProps = {
-  book: Track;
+  book: Book;
   // onBookSelect: (book: Track) => void;
 };
 
@@ -27,14 +28,16 @@ export const BookGridItem = ({
   book,
   // onBookSelect: handleBookSelect,
 }: BookListItemProps) => {
-  const isActiveBook = useActiveTrack()?.url === book.url;
-  const { playing } = useIsPlaying();
+  // const isActiveBook = useActiveTrack()?.url === book.url;
+  // const { playing } = useIsPlaying();
   const router = useRouter();
 
-  const handlePressPlay = async (track: Track) => {
-    if (isActiveBook && playing) return;
-    await TrackPlayer.load(track);
-    await TrackPlayer.play();
+  //! need this function to be handlePlayPlaylist
+  //! it should load the books chapters list and start where it left off (timestamp in store)
+  const handlePressPlay = async (book: Book) => {
+    // if (isActiveBook && playing) return;
+    // await TrackPlayer.load(track);
+    // await TrackPlayer.play();
   };
 
   const handlePress = () => {
@@ -54,29 +57,31 @@ export const BookGridItem = ({
             }}
             style={{
               ...styles.bookArtworkImage,
-              opacity: isActiveBook ? 0.6 : 1,
+              // opacity: isActiveBook ? 0.6 : 1,
             }}
           />
-          {isActiveBook && playing ? (
+          {/* {isActiveBook && playing ? (
             <LoaderKitView
               style={styles.trackPlayingImageIcon}
               name={'LineScaleParty'}
               color={colors.icon}
             />
-          ) : (
-            <Pressable hitSlop={35}>
-              <Feather
-                style={styles.trackPausedIcon}
-                name='headphones'
-                size={18}
-                color={
-                  isActiveBook && playing ? colors.primary : colors.icon
-                }
-                onPress={() => handlePressPlay(book)}
-                // onPress={() => handleBookSelect(book)}
-              />
-            </Pressable>
-          )}
+          ) : ( */}
+          <Pressable hitSlop={35}>
+            <Feather
+              style={styles.trackPausedIcon}
+              name='headphones'
+              size={18}
+              color={
+                // isActiveBook && playing ? colors.primary : colors.icon
+                colors.icon
+              }
+              //! handle load playlist(grouped chapters)
+              onPress={() => handlePressPlay(book)}
+              // onPress={() => handleBookSelect(book)}
+            />
+          </Pressable>
+          {/* )} */}
         </View>
         <View style={styles.bookInfoContainer}>
           <View style={{ width: '100%' }}>
@@ -84,15 +89,15 @@ export const BookGridItem = ({
               numberOfLines={1}
               style={{
                 ...styles.bookTitleText,
-                color: isActiveBook ? colors.primary : colors.text,
+                // color: isActiveBook ? colors.primary : colors.text,
               }}
             >
-              {book.title}
+              {book.bookTitle}
             </Text>
 
-            {book.author && (
+            {book.chapters[0].author && (
               <Text numberOfLines={1} style={styles.bookAuthorText}>
-                {book.author}
+                {book.chapters[0].author}
               </Text>
             )}
           </View>
@@ -126,6 +131,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingLeft: 5,
   },
   bookTitleText: {
     ...defaultStyles.text,
