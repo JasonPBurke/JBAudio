@@ -9,14 +9,14 @@ import {
 import FastImage from '@d11/react-native-fast-image';
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
-import TrackPlayer, {
-  Track,
-  useActiveTrack,
-  useIsPlaying,
-} from 'react-native-track-player';
+// import LoaderKitView from 'react-native-loader-kit';
+// import TrackPlayer, {
+//   Track,
+//   useActiveTrack,
+//   useIsPlaying,
+// } from 'react-native-track-player';
 import { Book } from '@/types/Book';
 import { Feather } from '@expo/vector-icons';
-import LoaderKitView from 'react-native-loader-kit';
 import { useRouter } from 'expo-router';
 
 export type BookListItemProps = {
