@@ -60,6 +60,15 @@ const RootNavigation = () => {
           // animation: 'slide_from_bottom',
         }}
       />
+      <Stack.Screen
+        name='titleDetails'
+        options={{
+          presentation: 'pageSheet',
+          headerShown: false,
+
+          // animation: 'slide_from_bottom',
+        }}
+      />
     </Stack>
   );
 };

@@ -40,16 +40,22 @@ export const BookGridItem = ({
     // await TrackPlayer.play();
   };
 
+  const author = book.chapters[0].author; //? add author to the book object
+  const bookTitle = book.bookTitle;
+  // const artwork = book.artwork;
+
   const handlePress = () => {
-    router.navigate('/titleDetails');
+    router.navigate(
+      `/titleDetails?author=${author}&bookTitle=${bookTitle}`
+    );
   };
 
   return (
     <TouchableHighlight onPress={handlePress}>
       <View style={[styles.bookItemContainer, { height: 200 }]}>
-        <View style={{}}>
+        <View>
           <FastImage
-            resizeMode='contain' //TODO: I want this here, but need to fix the absolute images below to reposition based on image size??
+            resizeMode={FastImage.resizeMode.contain}
             //! JUST PLACE THE ABSOLUTE POSITIONING AT HE BOTTOM LEFT AND PLACE EVERY IMG AT THE BOTTOM LEFT AS WELL
             source={{
               uri: book.artwork ?? unknownBookImageUri,
@@ -67,7 +73,8 @@ export const BookGridItem = ({
               color={colors.icon}
             />
           ) : ( */}
-          <Pressable hitSlop={35}>
+
+          <Pressable hitSlop={15}>
             <Feather
               style={styles.trackPausedIcon}
               name='headphones'
@@ -111,12 +118,6 @@ const styles = StyleSheet.create({
   bookItemContainer: {
     gap: 12,
     maxWidth: 155,
-    // height: 200,
-    // columnGap: 14,
-    // alignItems: 'center',
-    // justifyContent: 'center',
-    // paddingLeft: 20,
-    // marginBottom: 12,
   },
   bookArtworkImage: {
     //* height and width will need to be variable based on the cover img used

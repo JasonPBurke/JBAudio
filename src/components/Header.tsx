@@ -28,7 +28,8 @@ const Header = ({ toggleView, setToggleView }: headerProps) => {
           {/* 'bars' as alt for 'grip-lines' */}
           <FontAwesome6 name='bars' size={20} color={colors.icon} />
           <Text style={{ color: colors.icon, fontSize: 20 }}>
-            SonicBooks
+            <Text style={{ color: '#FFB606' }}>S</Text>
+            onicBooks
           </Text>
         </View>
         <View style={styles.headerGroup}>

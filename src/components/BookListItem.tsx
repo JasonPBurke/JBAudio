@@ -38,8 +38,14 @@ export const BookListItem = ({
     // await TrackPlayer.play();
   };
 
+  const author = book.chapters[0].author; //? add author to the book object
+  const bookTitle = book.bookTitle;
+  // const artwork = book.artwork;
+
   const handlePress = () => {
-    router.navigate('/titleDetails');
+    router.navigate(
+      `/titleDetails?author=${author}&bookTitle=${bookTitle}`
+    );
   };
 
   return (
@@ -48,7 +54,8 @@ export const BookListItem = ({
       <View style={styles.bookItemContainer}>
         <View>
           <FastImage
-            resizeMode='contain'
+            // resizeMode='contain'
+            resizeMode={FastImage.resizeMode.contain}
             source={{
               uri: book.artwork ?? unknownBookImageUri,
               priority: FastImage.priority.normal,
@@ -120,11 +127,9 @@ const styles = StyleSheet.create({
   },
   bookArtworkImage: {
     borderRadius: 4,
-    //* height and width will need to be variable based on the cover img used
+    //* height and width will need to be variable based on the cover img used Flex should work here
     height: 80,
-    // width: 55,
     aspectRatio: 0.75,
-    // objectFit: 'contain',
   },
   bookInfoContainer: {
     flex: 1,

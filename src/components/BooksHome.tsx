@@ -41,7 +41,7 @@ export const BooksHome = ({ books: authors }: BookListProps) => {
             </View>
             <View>
               <FlashList<Book>
-                estimatedItemSize={50}
+                estimatedItemSize={120}
                 contentContainerStyle={{ paddingLeft: 14 }}
                 data={allBooks}
                 renderItem={({ item: book }) => (
@@ -76,8 +76,7 @@ export const BooksHome = ({ books: authors }: BookListProps) => {
               </View>
               <View style={{}}>
                 <FlashList<Book>
-                  estimatedItemSize={200}
-                  // estimatedListSize={{ height: 200, width: 400 }}
+                  estimatedItemSize={120}
                   contentContainerStyle={{ paddingLeft: 14 }}
                   data={author.books}
                   renderItem={({ item: book }) => (

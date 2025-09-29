@@ -19,7 +19,7 @@ const ItemDivider = () => (
     style={{
       ...utilsStyles.itemSeparator,
       marginVertical: 9,
-      marginLeft: 60,
+      marginLeft: 75,
     }}
   />
 );
@@ -40,7 +40,7 @@ export const BooksList = ({ books: authors }: BookListProps) => {
       {allBooks.length > 0 && (
         <View>
           <FlashList<Book>
-            estimatedItemSize={200}
+            estimatedItemSize={80}
             data={allBooks}
             renderItem={({ item: book }) => <BookListItem book={book} />}
             keyExtractor={(item) => item.chapters[0].url}

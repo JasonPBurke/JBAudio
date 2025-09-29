@@ -8,6 +8,7 @@ export type Chapter = {
 };
 
 export type Book = {
+  //? author: string;
   bookTitle: string;
   chapters: Chapter[];
   artwork: string;
