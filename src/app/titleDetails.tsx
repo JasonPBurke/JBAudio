@@ -129,18 +129,21 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     left: 10,
+    padding: 5,
     color: colors.icon,
+    // borderRadius: 4,
+    // backgroundColor: 'rgba(0,0,0,0.75)',
   },
-  trackPlayingImageIcon: {
-    position: 'absolute',
-    left: 10,
-    bottom: 10,
-    width: 20,
-    height: 20,
-  },
-  trackPausedIcon: {
-    position: 'absolute',
-    bottom: 10,
-    left: 10,
-  },
+  // trackPlayingImageIcon: {
+  //   position: 'absolute',
+  //   left: 10,
+  //   bottom: 10,
+  //   width: 20,
+  //   height: 20,
+  // },
+  // trackPausedIcon: {
+  //   position: 'absolute',
+  //   bottom: 10,
+  //   left: 10,
+  // },
 });

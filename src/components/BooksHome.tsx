@@ -25,10 +25,10 @@ export const BooksHome = ({ books: authors }: BookListProps) => {
 
   return (
     //? need to put a loader if allBooks.length === 0
-    <View style={{ gap: 12 }}>
+    <View>
       {/* Recently Added Section */}
       {allBooks.length > 0 && (
-        <View>
+        <View style={{ gap: 12 }}>
           <View style={{ gap: 12 }}>
             <View style={styles.titleBar}>
               <Text style={styles.titleText}>Recently Added</Text>
@@ -39,7 +39,7 @@ export const BooksHome = ({ books: authors }: BookListProps) => {
                 style={{ marginRight: 12 }}
               />
             </View>
-            <View>
+            <View style={styles.listContainer}>
               <FlashList<Book>
                 estimatedItemSize={120}
                 contentContainerStyle={{ paddingLeft: 14 }}
@@ -66,7 +66,9 @@ export const BooksHome = ({ books: authors }: BookListProps) => {
           {authors.map((author) => (
             <View key={author.authorName} style={{ gap: 12 }}>
               <View style={styles.titleBar}>
-                <Text style={styles.titleText}>{author.authorName}</Text>
+                <Text numberOfLines={1} style={styles.titleText}>
+                  {author.authorName}
+                </Text>
                 <Feather
                   name='chevron-right'
                   size={24}
@@ -74,7 +76,7 @@ export const BooksHome = ({ books: authors }: BookListProps) => {
                   style={{ marginRight: 12 }}
                 />
               </View>
-              <View style={{}}>
+              <View style={styles.listContainer}>
                 <FlashList<Book>
                   estimatedItemSize={120}
                   contentContainerStyle={{ paddingLeft: 14 }}
@@ -107,10 +109,15 @@ const styles = StyleSheet.create({
   titleBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingLeft: 14,
   },
   titleText: {
     fontSize: fontSize.lg,
     color: colors.text,
+    maxWidth: '95%',
+  },
+  listContainer: {
+    height: 200,
   },
 });

@@ -11,6 +11,7 @@ import {
   Ionicons,
   MaterialCommunityIcons,
 } from '@expo/vector-icons';
+import TabScreen from '@/components/TabScreen';
 
 type headerProps = {
   setToggleView: React.Dispatch<React.SetStateAction<boolean>>;
@@ -28,8 +29,7 @@ const Header = ({ toggleView, setToggleView }: headerProps) => {
           {/* 'bars' as alt for 'grip-lines' */}
           <FontAwesome6 name='bars' size={20} color={colors.icon} />
           <Text style={{ color: colors.icon, fontSize: 20 }}>
-            <Text style={{ color: '#FFB606' }}>S</Text>
-            onicBooks
+            <Text style={{ color: '#FFB606' }}>S</Text>onicbooks
           </Text>
         </View>
         <View style={styles.headerGroup}>
@@ -44,9 +44,8 @@ const Header = ({ toggleView, setToggleView }: headerProps) => {
           </Pressable>
         </View>
       </View>
-      <View
-        style={[styles.header, { justifyContent: 'space-between', gap: 8 }]}
-      >
+      <TabScreen />
+      {/* <View style={[styles.header, { justifyContent: 'space-between' }]}>
         <TouchableOpacity>
           <Text style={styles.bookStatusLinkText}>All(1)</Text>
         </TouchableOpacity>
@@ -59,7 +58,7 @@ const Header = ({ toggleView, setToggleView }: headerProps) => {
         <TouchableOpacity>
           <Text style={styles.bookStatusLinkText}>Finished(1)</Text>
         </TouchableOpacity>
-      </View>
+      </View> */}
     </View>
   );
 };

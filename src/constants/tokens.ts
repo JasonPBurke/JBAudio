@@ -9,7 +9,7 @@ export const colors = {
   minimumTrackTintColor: 'rgba(255, 244, 79, 1)',
 };
 
-//? Gold/black/purple: #1C1C1C, # 3B3B3B, #FFE002, #FFB606, #B28228, #492666, #830982
+//? Gold/black/purple: #1C1C1C, # 3B3B3B, #FFE002, #FFB606, #B28228, #492666, #830982, #
 
 export const fontSize = {
   xs: 12,

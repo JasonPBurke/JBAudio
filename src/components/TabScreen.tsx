@@ -1,0 +1,34 @@
+import { useState } from 'react';
+import { StyleSheet } from 'react-native';
+import TabButtons, { TabButtonsType } from '@/components/TabButtons';
+
+export enum CustomTabs {
+  All,
+  Unread,
+  Started,
+  Finished,
+}
+const TabScreen = () => {
+  const [selectedTab, setSelectedTab] = useState<CustomTabs>(
+    CustomTabs.Finished
+  );
+
+  const buttons: TabButtonsType[] = [
+    { title: 'All' },
+    { title: 'Unread' },
+    { title: 'Started' },
+    { title: 'Finished' },
+  ];
+
+  return (
+    <TabButtons
+      buttons={buttons}
+      selectedTab={selectedTab}
+      setSelectedTab={setSelectedTab}
+    />
+  );
+};
+
+export default TabScreen;
+
+const styles = StyleSheet.create({});

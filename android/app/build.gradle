@@ -88,13 +88,6 @@ android {
     compileSdk rootProject.ext.compileSdkVersion
 
     namespace 'com.fuzzylogic42.JBAudio'
-    // compileOptions {
-    //         sourceCompatibility JavaVersion.VERSION_21 // or desired version
-    //         targetCompatibility JavaVersion.VERSION_21 // or desired version
-    //     }
-    //     kotlin {
-    //         jvmToolchain(21) // or desired version
-    //     }
     defaultConfig {
         applicationId 'com.fuzzylogic42.JBAudio'
         minSdkVersion rootProject.ext.minSdkVersion
