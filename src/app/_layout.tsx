@@ -54,8 +54,6 @@ const RootNavigation = () => {
         options={{
           presentation: 'card',
           headerShown: false,
-
-          // animation: 'slide_from_bottom',
         }}
       />
       <Stack.Screen
@@ -63,7 +61,6 @@ const RootNavigation = () => {
         options={{
           presentation: 'pageSheet',
           headerShown: false,
-
           // animation: 'slide_from_right',
         }}
       />

@@ -87,6 +87,7 @@ export const useScanExternalFileSystem = () => {
           (item.isFile() && item.name.endsWith('.m4b')) ||
           item.name.endsWith('.mp3')
         ) {
+          console.log('item.stat', (await RNFS.stat(item.path)).size);
           const decodedPath = decodeURIComponent(item.path);
           const metadata = await extractMetadata(decodedPath);
           files.push({

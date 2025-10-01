@@ -11,6 +11,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@config-plugins/react-native-blob-util": "11.0.0",
     "@d11/react-native-fast-image": "^8.11.1",
     "@dr.pogodin/react-native-fs": "^2.35.1",
     "@expo/vector-icons": "^14.1.0",
@@ -38,11 +39,13 @@
     "expo-symbols": "~0.4.5",
     "expo-system-ui": "~5.0.11",
     "expo-web-browser": "~14.2.0",
+    "mediainfo.js": "^0.3.6",
     "music-metadata": "^11.9.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.6",
     "react-native-awesome-slider": "^2.9.0",
+    "react-native-edge-to-edge": "^1.7.0",
     "react-native-fast-shadow": "^0.1.1",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-image-colors": "^2.5.0",
@@ -54,7 +57,8 @@
     "react-native-track-player": "^4.1.2",
     "react-native-web": "~0.20.0",
     "react-native-webview": "13.13.5",
-    "ts-pattern": "^5.8.0"
+    "ts-pattern": "^5.8.0",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@babel/cli": "^7.28.3",
