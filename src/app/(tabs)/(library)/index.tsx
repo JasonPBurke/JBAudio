@@ -33,9 +33,9 @@ const LibraryScreen = () => {
   return (
     <View style={defaultStyles.container}>
       <SafeAreaView style={{ flex: 1 }}>
+        {/* MOVE HEADER ABOVE SCROLL VIEW TO DOCK IT AT TOP OF SCREEN */}
+        <Header setToggleView={setToggleView} toggleView={toggleView} />
         <ScrollView>
-          {/* MOVE HEADER ABOVE SCROLL VIEW TO DOCK IT AT TOP OF SCREEN */}
-          <Header setToggleView={setToggleView} toggleView={toggleView} />
           {toggleView ? (
             <BooksList books={testLibrary} scrollEnabled={false} />
           ) : (

@@ -10,7 +10,7 @@ export enum CustomTabs {
 }
 const TabScreen = () => {
   const [selectedTab, setSelectedTab] = useState<CustomTabs>(
-    CustomTabs.Finished
+    CustomTabs.All
   );
 
   const buttons: TabButtonsType[] = [

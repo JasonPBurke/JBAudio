@@ -45,20 +45,6 @@ const Header = ({ toggleView, setToggleView }: headerProps) => {
         </View>
       </View>
       <TabScreen />
-      {/* <View style={[styles.header, { justifyContent: 'space-between' }]}>
-        <TouchableOpacity>
-          <Text style={styles.bookStatusLinkText}>All(1)</Text>
-        </TouchableOpacity>
-        <TouchableOpacity>
-          <Text style={styles.bookStatusLinkText}>Unread(1)</Text>
-        </TouchableOpacity>
-        <TouchableOpacity>
-          <Text style={styles.bookStatusLinkText}>In Progress(1)</Text>
-        </TouchableOpacity>
-        <TouchableOpacity>
-          <Text style={styles.bookStatusLinkText}>Finished(1)</Text>
-        </TouchableOpacity>
-      </View> */}
     </View>
   );
 };
@@ -68,7 +54,7 @@ export default Header;
 const styles = StyleSheet.create({
   container: {
     paddingVertical: 4,
-    marginBottom: 12,
+    marginBottom: 6,
     gap: 16,
   },
   header: {
