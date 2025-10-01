@@ -54,7 +54,7 @@ export default Header;
 const styles = StyleSheet.create({
   container: {
     paddingVertical: 4,
-    marginBottom: 6,
+    marginBottom: 10,
     gap: 16,
   },
   header: {

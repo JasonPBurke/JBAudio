@@ -5,7 +5,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { colors, fontSize } from '@/constants/tokens';
+import { colors } from '@/constants/tokens';
 import { useState } from 'react';
 import Animated, {
   runOnJS,
@@ -13,7 +13,6 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { utilsStyles } from '@/styles';
 export type TabButtonsType = {
   title: string;
 };
@@ -24,7 +23,7 @@ interface TabButtonsProps {
   setSelectedTab: (index: number) => void;
 }
 
-//? Gold/black/purple: #1C1C1C, #3B3B3B, #FFE002, #FFB606, #B28228, #492666, #830982
+//? black/gold/purple: #1C1C1C, #3B3B3B, #FFE002, #FFB606, #B28228, #492666, #830982
 
 const TabButtons = ({
   buttons,
@@ -81,33 +80,6 @@ const TabButtons = ({
     };
   });
 
-  // const borderRadiusSettings = () => {
-  //   if (selectedTab === 0) {
-  //     return {
-  //       borderTopLeftRadius: 12,
-  //       borderTopRightRadius: 0,
-  //       borderBottomLeftRadius: 12,
-  //       borderBottomRightRadius: 0,
-  //     };
-  //   } else if (selectedTab === buttons.length - 1) {
-  //     return {
-  //       borderTopLeftRadius: 0,
-  //       borderTopRightRadius: 12,
-  //       borderBottomLeftRadius: 0,
-  //       borderBottomRightRadius: 12,
-  //     };
-  //   } else {
-  //     return {
-  //       borderTopLeftRadius: 0,
-  //       borderTopRightRadius: 0,
-  //       borderBottomLeftRadius: 0,
-  //       borderBottomRightRadius: 0,
-  //     };
-  //   }
-  // };
-
-  // const borderStyles = borderRadiusSettings();
-
   return (
     <View accessibilityRole='tablist' style={styles.container}>
       <Animated.View
@@ -115,9 +87,7 @@ const TabButtons = ({
           animatedStyle,
           {
             position: 'absolute',
-            // backgroundColor: '#2b2b2b',
             backgroundColor: '#ffb606cc',
-            // backgroundColor: '#ffb606',
             borderRadius: 4,
             height: tabbarHeight - 10,
             // borderColor: '#ffb606',
@@ -130,9 +100,7 @@ const TabButtons = ({
         style={{ flexDirection: 'row', justifyContent: 'space-around' }}
       >
         {buttons.map((button, index) => {
-          const color =
-            // selectedTab === index ? '#FFB606' : colors.textMuted;
-            selectedTab === index ? colors.text : '#d8dee98f';
+          const color = selectedTab === index ? colors.text : '#d8dee98f';
 
           return (
             <Pressable

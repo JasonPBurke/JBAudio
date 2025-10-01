@@ -1,7 +1,6 @@
-import { BookListProps, BooksList } from '@/components/BooksList';
-// import { screenPadding } from '@/constants/tokens';
+import { BooksList } from '@/components/BooksList';
 import { useNavigationSearch } from '@/hooks/useNavigationSearch';
-import { defaultStyles, utilsStyles } from '@/styles';
+import { defaultStyles } from '@/styles';
 import React, { useMemo } from 'react';
 import { ScrollView, View } from 'react-native';
 import library from '@/assets/data/library.json';
@@ -14,10 +13,6 @@ import { useScanExternalFileSystem } from '@/hooks/useScanExternalFileSystem';
 const LibraryScreen = () => {
   const [toggleView, setToggleView] = React.useState(false);
   const testLibrary = useScanExternalFileSystem();
-
-  // console.log('library', testLibrary[0]);
-
-  //! BEFORE ADDING THE BOOKS TO THE LIST, YOU HAVE TO SORT THEM BY AUTHOR AND GROUP BOOKS INTO ALBUMS.  THIS WILL REDUCE THE NUMBER OF METADATA IMAGES TO LOAD
 
   const search = useNavigationSearch({
     searchBarOptions: {

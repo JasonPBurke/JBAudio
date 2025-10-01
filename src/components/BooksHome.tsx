@@ -1,10 +1,12 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BookGridItem } from '@/components/BookGridItem';
 import { utilsStyles } from '@/styles';
 import { Book, Author } from '@/types/Book';
 import { colors, fontSize } from '@/constants/tokens';
 import { Feather } from '@expo/vector-icons';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
+import { BooksList } from '@/components/BooksList';
+import { useState } from 'react';
 // import { Track } from 'react-native-track-player';
 
 export type BookListProps = Partial<FlashListProps<Book>> & {
@@ -23,6 +25,10 @@ export const BooksHome = ({ books: authors }: BookListProps) => {
     return 0;
   });
 
+  // const handleRecentlyAddedPress = (authors: Author[]) => {
+  //   <BooksList books={authors} />;
+  // };
+
   return (
     //? need to put a loader if allBooks.length === 0
     <View>
@@ -30,15 +36,23 @@ export const BooksHome = ({ books: authors }: BookListProps) => {
       {allBooks.length > 0 && (
         <View style={{ gap: 12 }}>
           <View style={{ gap: 12 }}>
-            <View style={styles.titleBar}>
-              <Text style={styles.titleText}>Recently Added</Text>
-              <Feather
-                name='chevron-right'
-                size={24}
-                color={colors.icon}
-                style={{ marginRight: 12 }}
-              />
-            </View>
+            <Pressable
+              style={{ paddingVertical: 6 }}
+              android_ripple={{
+                color: '#cccccc28',
+              }}
+              onPress={() => {}}
+            >
+              <View style={styles.titleBar}>
+                <Text style={styles.titleText}>Recently Added</Text>
+                <Feather
+                  name='chevron-right'
+                  size={24}
+                  color={colors.icon}
+                  style={{ marginRight: 12 }}
+                />
+              </View>
+            </Pressable>
             <View style={styles.listContainer}>
               <FlashList<Book>
                 estimatedItemSize={120}
@@ -65,17 +79,25 @@ export const BooksHome = ({ books: authors }: BookListProps) => {
           {/* Authors Sections */}
           {authors.map((author) => (
             <View key={author.authorName} style={{ gap: 12 }}>
-              <View style={styles.titleBar}>
-                <Text numberOfLines={1} style={styles.titleText}>
-                  {author.authorName}
-                </Text>
-                <Feather
-                  name='chevron-right'
-                  size={24}
-                  color={colors.icon}
-                  style={{ marginRight: 12 }}
-                />
-              </View>
+              <Pressable
+                style={{ paddingVertical: 6 }}
+                android_ripple={{
+                  color: '#cccccc28',
+                }}
+                onPress={() => {}}
+              >
+                <View style={styles.titleBar}>
+                  <Text numberOfLines={1} style={styles.titleText}>
+                    {author.authorName}
+                  </Text>
+                  <Feather
+                    name='chevron-right'
+                    size={24}
+                    color={colors.icon}
+                    style={{ marginRight: 12 }}
+                  />
+                </View>
+              </Pressable>
               <View style={styles.listContainer}>
                 <FlashList<Book>
                   estimatedItemSize={120}
@@ -113,7 +135,7 @@ const styles = StyleSheet.create({
     paddingLeft: 14,
   },
   titleText: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize.base,
     color: colors.text,
     maxWidth: '95%',
   },

@@ -11,6 +11,7 @@ import {
   ReanimatedLogLevel,
 } from 'react-native-reanimated';
 import playbackService from '@/setup/service';
+import { View } from 'react-native';
 
 //! THIS IS TO TEMP SUPPRESS REANIMATED WARNINGS OF WRITING TO 'VALUE' DURING COMPONENT RERENDER
 configureReanimatedLogger({
@@ -37,10 +38,7 @@ const App = () => {
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <RootNavigation />
-        {/* StatusBar backgroundColor is not supported with edge-to-edge enabled. 
-			Render a view under the status bar to change its background. */}
-        {/* <StatusBar style='light' backgroundColor='#000000' /> */}
-        <StatusBar style='light' />
+        {/* <StatusBar style='light' /> */}
       </GestureHandlerRootView>
     </SafeAreaProvider>
   );
