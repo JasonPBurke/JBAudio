@@ -36,7 +36,8 @@ const Header = ({ toggleView, setToggleView }: headerProps) => {
           <Ionicons name='search-sharp' size={24} color={colors.icon} />
           <Pressable hitSlop={10} style={{ padding: 4 }}>
             <MaterialCommunityIcons
-              name='dots-grid'
+              name={toggleView ? 'dots-grid' : 'bookshelf'}
+              // name='dots-grid'
               size={24}
               color={colors.icon}
               onPress={handleToggleView}

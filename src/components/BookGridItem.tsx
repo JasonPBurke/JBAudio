@@ -6,6 +6,7 @@ import {
   TouchableHighlight,
   View,
 } from 'react-native';
+import { memo } from 'react';
 import FastImage from '@d11/react-native-fast-image';
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
@@ -24,10 +25,10 @@ export type BookListItemProps = {
   // onBookSelect: (book: Track) => void;
 };
 
-export const BookGridItem = ({
+export const BookGridItem = memo(function BookListItem({
   book,
   // onBookSelect: handleBookSelect,
-}: BookListItemProps) => {
+}: BookListItemProps) {
   // const isActiveBook = useActiveTrack()?.url === book.url;
   // const { playing } = useIsPlaying();
   const router = useRouter();
@@ -112,7 +113,7 @@ export const BookGridItem = ({
       </View>
     </TouchableHighlight>
   );
-};
+});
 
 const styles = StyleSheet.create({
   bookItemContainer: {

@@ -1,10 +1,11 @@
-import { Text, View } from 'react-native';
+import { Text, View, ViewToken } from 'react-native';
 // import library from '@/assets/data/library.json';
 import { BookListItem } from './BookListItem';
 import { utilsStyles } from '@/styles';
 import { Book, Author } from '@/types/Book';
 import { screenPadding } from '@/constants/tokens';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
+import { useSharedValue } from 'react-native-reanimated';
 // import TrackPlayer, {
 //   Track,
 //   useIsPlaying,
@@ -34,6 +35,8 @@ export const BooksList = ({ books: authors }: BookListProps) => {
   // 	await TrackPlayer.play();
   // };
 
+  const viewableItems = useSharedValue<ViewToken[]>([]);
+
   return (
     //? need to put a loader if allBooks.length === 0
     <View style={{ paddingHorizontal: screenPadding.horizontal }}>
@@ -42,7 +45,13 @@ export const BooksList = ({ books: authors }: BookListProps) => {
           <FlashList<Book>
             estimatedItemSize={80}
             data={allBooks}
-            renderItem={({ item: book }) => <BookListItem book={book} />}
+            onViewableItemsChanged={({ viewableItems: vItems }) => {
+              console.log('viewableItems', viewableItems);
+              viewableItems.value = vItems;
+            }}
+            renderItem={({ item: book }) => (
+              <BookListItem viewableItems={viewableItems} book={book} />
+            )}
             keyExtractor={(item) => item.chapters[0].url}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingTop: 12, paddingBottom: 128 }}

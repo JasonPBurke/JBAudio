@@ -3,9 +3,12 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  Touchable,
   TouchableHighlight,
   View,
+  ViewToken,
 } from 'react-native';
+import { memo } from 'react';
 import FastImage from '@d11/react-native-fast-image';
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
@@ -18,16 +21,23 @@ import { Book } from '@/types/Book';
 import { Entypo, Feather } from '@expo/vector-icons';
 import LoaderKitView from 'react-native-loader-kit';
 import { useRouter } from 'expo-router';
+import Animated, {
+  SharedValue,
+  useAnimatedStyle,
+  withTiming,
+} from 'react-native-reanimated';
 
 export type BookListItemProps = {
   book: Book;
+  viewableItems: SharedValue<ViewToken[]>;
   // onBookSelect: (book: Track) => void;
 };
 
-export const BookListItem = ({
+export const BookListItem = memo(function BookListItem({
   book,
+  viewableItems,
   // onBookSelect: handleBookSelect,
-}: BookListItemProps) => {
+}: BookListItemProps) {
   // const isActiveBook = useActiveTrack()?.url === book.url;
   // const { playing } = useIsPlaying();
   const router = useRouter();
@@ -48,8 +58,32 @@ export const BookListItem = ({
     );
   };
 
+  const rStyle = useAnimatedStyle(() => {
+    const isVisible = Boolean(
+      viewableItems.value
+        .filter((item) => item.isViewable)
+        .find(
+          (viewableItem) =>
+            viewableItem.item.chapters[0].url === book.chapters[0].url
+        )
+    );
+
+    // console.log('isVisible', isVisible);
+
+    return {
+      opacity: withTiming(isVisible ? 1 : 0),
+      transform: [{ scale: withTiming(isVisible ? 1 : 0.8) }],
+    };
+  }, []);
+
+  // console.log(
+  //   'viewableItems',
+  //   JSON.stringify(viewableItems.value[0]?.isViewable, null, 2)
+  // );
+
   return (
     // <TouchableHighlight onPress={() => handleBookSelect(book)}>
+
     <TouchableHighlight onPress={handlePress}>
       <View style={styles.bookItemContainer}>
         <View>
@@ -91,12 +125,12 @@ export const BookListItem = ({
               color={colors.icon}
             />
             {/* {isActiveBook && playing ? (
-              <LoaderKitView
-                style={styles.trackPlayingImageIcon}
-                name={'LineScaleParty'}
-                color={colors.icon}
-              />
-            ) : ( */}
+                <LoaderKitView
+                  style={styles.trackPlayingImageIcon}
+                  name={'LineScaleParty'}
+                  color={colors.icon}
+                />
+              ) : ( */}
             <Pressable hitSlop={35}>
               <Feather
                 name='headphones'
@@ -115,7 +149,7 @@ export const BookListItem = ({
       </View>
     </TouchableHighlight>
   );
-};
+});
 
 const styles = StyleSheet.create({
   bookItemContainer: {

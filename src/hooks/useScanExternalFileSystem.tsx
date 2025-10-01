@@ -5,11 +5,11 @@ import {
   MetadataPresets,
 } from '@missingcore/react-native-metadata-retriever';
 import { useEffect, useState } from 'react';
-// import { Track } from 'react-native-track-player';
+import MediaInfoFactory from 'mediainfo.js';
+import RNFetchBlob from 'react-native-blob-util';
 
 //* if we implement the user being able to choose their own folder, we remove the
-//*  '/Audiobooks' from the path and replace it with the user's chosen folder as passed in
-//* to useScanExternalFileSystem
+//*  '/Audiobooks' from the path and replace it with the user's chosen folder
 
 export const useScanExternalFileSystem = () => {
   const path = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing`;
@@ -23,8 +23,8 @@ export const useScanExternalFileSystem = () => {
             if (book.chapters && book.chapters.length > 0) {
               const firstChapter = book.chapters[0];
               try {
-                const decodedPath = decodeURIComponent(firstChapter.url);
-                const artwork = await getArtwork(decodedPath);
+                // const decodedPath = decodeURIComponent(firstChapter.url);
+                const artwork = await getArtwork(firstChapter.url);
                 return { ...book, artwork: artwork };
               } catch (error) {
                 console.error(
@@ -44,9 +44,9 @@ export const useScanExternalFileSystem = () => {
   };
   const extractMetadata = async (filePath: string) => {
     try {
-      const decodedPath = decodeURIComponent(filePath);
+      // const decodedPath = decodeURIComponent(filePath);
       const metadata = await getMetadata(
-        decodedPath,
+        filePath,
         MetadataPresets.standard
       );
 
@@ -87,9 +87,13 @@ export const useScanExternalFileSystem = () => {
           (item.isFile() && item.name.endsWith('.m4b')) ||
           item.name.endsWith('.mp3')
         ) {
-          console.log('item.stat', (await RNFS.stat(item.path)).size);
-          const decodedPath = decodeURIComponent(item.path);
-          const metadata = await extractMetadata(decodedPath);
+          // console.log('item.name', item.name);
+          // console.log('item.stat', (await RNFS.stat(item.path)).size);
+
+          // const decodedPath = decodeURIComponent(item.path);
+          //!
+          const metadata = await extractMetadata(item.path);
+          // console.log('metadata', metadata);
           files.push({
             ...metadata,
             url: item.path,
