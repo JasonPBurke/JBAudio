@@ -58,23 +58,24 @@ export const BookListItem = memo(function BookListItem({
     );
   };
 
-  const rStyle = useAnimatedStyle(() => {
-    const isVisible = Boolean(
-      viewableItems.value
-        .filter((item) => item.isViewable)
-        .find(
-          (viewableItem) =>
-            viewableItem.item.chapters[0].url === book.chapters[0].url
-        )
-    );
+  //! for animated list
+  // const rStyle = useAnimatedStyle(() => {
+  //   const isVisible = Boolean(
+  //     viewableItems.value
+  //       .filter((item) => item.isViewable)
+  //       .find(
+  //         (viewableItem) =>
+  //           viewableItem.item.chapters[0].url === book.chapters[0].url
+  //       )
+  //   );
 
-    // console.log('isVisible', isVisible);
+  //   console.log('isVisible', isVisible);
 
-    return {
-      opacity: withTiming(isVisible ? 1 : 0),
-      transform: [{ scale: withTiming(isVisible ? 1 : 0.8) }],
-    };
-  }, []);
+  //   return {
+  //     opacity: withTiming(isVisible ? 1 : 0),
+  //     transform: [{ scale: withTiming(isVisible ? 1 : 0.8) }],
+  //   };
+  // }, []);
 
   // console.log(
   //   'viewableItems',

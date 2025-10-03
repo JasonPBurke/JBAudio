@@ -37,7 +37,7 @@ const Header = ({ toggleView, setToggleView }: headerProps) => {
           <Pressable hitSlop={10} style={{ padding: 4 }}>
             <MaterialCommunityIcons
               name={toggleView ? 'dots-grid' : 'bookshelf'}
-              // name='dots-grid'
+              style={{ transform: [{ scaleX: -1 }] }}
               size={24}
               color={colors.icon}
               onPress={handleToggleView}

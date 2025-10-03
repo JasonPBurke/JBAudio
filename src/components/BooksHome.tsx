@@ -5,15 +5,15 @@ import { Book, Author } from '@/types/Book';
 import { colors, fontSize } from '@/constants/tokens';
 import { Feather } from '@expo/vector-icons';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
-import { BooksList } from '@/components/BooksList';
-import { useState } from 'react';
+// import { BooksList } from '@/components/BooksList';
+// import { useState } from 'react';
 // import { Track } from 'react-native-track-player';
 
 export type BookListProps = Partial<FlashListProps<Book>> & {
-  books: Author[];
+  authors: Author[];
 };
 
-export const BooksHome = ({ books: authors }: BookListProps) => {
+export const BooksHome = ({ authors }: BookListProps) => {
   const allBooks = authors.flatMap((author) => author.books);
 
   authors.sort((a, b) => {
@@ -106,7 +106,7 @@ export const BooksHome = ({ books: authors }: BookListProps) => {
                   renderItem={({ item: book }) => (
                     <BookGridItem book={book} />
                   )}
-                  keyExtractor={(item) => item.bookTitle}
+                  keyExtractor={(item) => item.chapters[0].url}
                   horizontal={true}
                   showsHorizontalScrollIndicator={false}
                   ListFooterComponent={<View style={{ width: 14 }} />}

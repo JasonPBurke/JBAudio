@@ -12,7 +12,7 @@ import { useSharedValue } from 'react-native-reanimated';
 // } from 'react-native-track-player';
 
 export type BookListProps = Partial<FlashListProps<Book>> & {
-  books: Author[];
+  authors: Author[];
 };
 
 const ItemDivider = () => (
@@ -25,7 +25,7 @@ const ItemDivider = () => (
   />
 );
 
-export const BooksList = ({ books: authors }: BookListProps) => {
+export const BooksList = ({ authors }: BookListProps) => {
   const allBooks = authors.flatMap((author) => author.books);
   // const { playing } = useIsPlaying();
   // const handleBookSelect = async (track: Track) => {
@@ -45,8 +45,9 @@ export const BooksList = ({ books: authors }: BookListProps) => {
           <FlashList<Book>
             estimatedItemSize={80}
             data={allBooks}
+            //! onViewableItemsChanged is a reanimated function to animate the list
             onViewableItemsChanged={({ viewableItems: vItems }) => {
-              console.log('viewableItems', viewableItems);
+              // console.log('viewableItems', viewableItems);
               viewableItems.value = vItems;
             }}
             renderItem={({ item: book }) => (

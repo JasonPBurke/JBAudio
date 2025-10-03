@@ -3,16 +3,16 @@ import { useNavigationSearch } from '@/hooks/useNavigationSearch';
 import { defaultStyles } from '@/styles';
 import React, { useMemo } from 'react';
 import { ScrollView, View } from 'react-native';
-import library from '@/assets/data/library.json';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { bookTitleFilter } from '@/helpers/filter';
 import Header from '@/components/Header';
 import { BooksHome } from '@/components/BooksHome';
 import { useScanExternalFileSystem } from '@/hooks/useScanExternalFileSystem';
+import { useAuthors } from '@/store/library';
 
 const LibraryScreen = () => {
   const [toggleView, setToggleView] = React.useState(false);
-  const testLibrary = useScanExternalFileSystem();
+  useScanExternalFileSystem(); // Call the hook to trigger scanning and store update
 
   const search = useNavigationSearch({
     searchBarOptions: {
@@ -20,10 +20,13 @@ const LibraryScreen = () => {
     },
   });
 
+  const library = useAuthors();
+  // console.log('library', library);
+
   const filteredBooks = useMemo(() => {
     if (!search) return library;
     return library.filter(bookTitleFilter(search));
-  }, [search]);
+  }, [search, library]);
 
   return (
     <View style={defaultStyles.container}>
@@ -32,9 +35,9 @@ const LibraryScreen = () => {
         <Header setToggleView={setToggleView} toggleView={toggleView} />
         <ScrollView>
           {toggleView ? (
-            <BooksList books={testLibrary} scrollEnabled={false} />
+            <BooksList authors={filteredBooks} scrollEnabled={false} />
           ) : (
-            <BooksHome books={testLibrary} scrollEnabled={false} />
+            <BooksHome authors={filteredBooks} scrollEnabled={false} />
           )}
         </ScrollView>
       </SafeAreaView>

@@ -11,7 +11,6 @@ import {
   ReanimatedLogLevel,
 } from 'react-native-reanimated';
 import playbackService from '@/setup/service';
-import { View } from 'react-native';
 
 //! THIS IS TO TEMP SUPPRESS REANIMATED WARNINGS OF WRITING TO 'VALUE' DURING COMPONENT RERENDER
 configureReanimatedLogger({
@@ -47,7 +46,10 @@ const App = () => {
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <RootNavigation />
-        <SystemBars hidden={false} style={'auto'} />
+        <SystemBars
+          hidden={{ statusBar: false, navigationBar: false }}
+          style={'auto'}
+        />
       </GestureHandlerRootView>
     </SafeAreaProvider>
   );
