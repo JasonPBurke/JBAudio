@@ -76,6 +76,7 @@ const TitleDetails = () => {
             style={styles.bookArtworkImage}
           />
           <Pressable
+            hitSlop={10}
             style={styles.backButton}
             onPress={() => router.back()}
           >
@@ -87,7 +88,14 @@ const TitleDetails = () => {
           <Text style={styles.bookTitleText}>{bookTitle}</Text>
           <Text style={styles.bookAuthorText}>{author}</Text>
           <Text style={styles.bookAuthorText}>
+            {book?.metadata.ctime.toString()}
+          </Text>
+          <Text style={styles.bookAuthorText}>
             {book?.metadata.narrator}
+          </Text>
+          <Text style={styles.bookAuthorText}>
+            <Text>Total Chapter Files: </Text>
+            {book?.chapters.length}
           </Text>
         </View>
       </View>
@@ -109,8 +117,9 @@ const styles = StyleSheet.create({
     // backgroundColor: '#1c1c1c',
   },
   bookArtworkContainer: {
-    width: '85%',
+    width: '90%',
     height: '60%',
+    paddingTop: 5,
   },
   bookArtworkImage: {
     height: '100%',
@@ -128,12 +137,12 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: 'absolute',
-    top: 10,
-    left: 10,
-    padding: 5,
+    top: 0,
+    left: 0,
+    padding: 4,
     color: colors.icon,
-    // borderRadius: 4,
-    // backgroundColor: 'rgba(0,0,0,0.75)',
+    borderRadius: 50,
+    backgroundColor: 'rgba(0,0,0,0.35)',
   },
   // trackPlayingImageIcon: {
   //   position: 'absolute',

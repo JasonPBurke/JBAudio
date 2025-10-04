@@ -17,6 +17,9 @@ export type Book = {
     genre: string;
     sampleRate: number;
     totalTrackCount: number;
+    ctime: Date;
+    //TODO mtime: Date;
+    //TODO lastPlayedChapterAndPosition: [Chapter, number];?? ...something like this
   };
 };
 
