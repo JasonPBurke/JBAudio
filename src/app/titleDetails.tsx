@@ -5,6 +5,7 @@ import {
   // useWindowDimensions,
   Pressable,
 } from 'react-native';
+import { useBook } from '@/store/library';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import FastImage from '@d11/react-native-fast-image';
 import { unknownBookImageUri } from '@/constants/images';
@@ -13,10 +14,6 @@ import { Feather } from '@expo/vector-icons';
 import { defaultStyles } from '@/styles';
 import { usePlayerBackground } from '@/hooks/usePlayerBackground';
 import { LinearGradient } from 'expo-linear-gradient';
-import {
-  testImage1,
-  testImage2,
-} from '/home/jason/Development/JBAudio/assets/images/testImage';
 
 const TitleDetails = () => {
   const router = useRouter();
@@ -26,10 +23,11 @@ const TitleDetails = () => {
     bookTitle: string;
   }>();
 
-  const testImage = Math.random() > 0.5 ? testImage1 : testImage2;
+  const book = useBook(author, bookTitle);
+  // console.log('book found', JSON.stringify(book, null, 2));
 
   const { imageColors } = usePlayerBackground(
-    testImage || unknownBookImageUri
+    book?.artwork || unknownBookImageUri
   );
 
   //* LinearGradient imageColors options
@@ -72,7 +70,7 @@ const TitleDetails = () => {
           <FastImage
             resizeMode={FastImage.resizeMode.contain}
             source={{
-              uri: testImage || unknownBookImageUri,
+              uri: book?.artwork || unknownBookImageUri,
               priority: FastImage.priority.normal,
             }}
             style={styles.bookArtworkImage}
@@ -88,6 +86,9 @@ const TitleDetails = () => {
         <View>
           <Text style={styles.bookTitleText}>{bookTitle}</Text>
           <Text style={styles.bookAuthorText}>{author}</Text>
+          <Text style={styles.bookAuthorText}>
+            {book?.metadata.narrator}
+          </Text>
         </View>
       </View>
     </LinearGradient>
@@ -108,7 +109,7 @@ const styles = StyleSheet.create({
     // backgroundColor: '#1c1c1c',
   },
   bookArtworkContainer: {
-    width: '100%',
+    width: '85%',
     height: '60%',
   },
   bookArtworkImage: {

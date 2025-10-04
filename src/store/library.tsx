@@ -1,11 +1,6 @@
 import { Author, Book } from '@/types/Book';
 import { create } from 'zustand';
 
-//! need to import from the db here to retrieve library
-// const library = ScanExternalFileSystem();
-
-// console.log('library', library);
-
 interface LibraryState {
   authors: Author[];
   setAuthors: (authors: Author[]) => void;
@@ -22,3 +17,9 @@ export const useAuthors = () => useLibraryStore((state) => state.authors);
 //   useLibraryStore((state) =>
 //     state.authors.flatMap((author) => author.books)
 //   );
+
+export const useBook = (author: string, bookTitle: string) =>
+  useLibraryStore((state) => {
+    const authorFound = state.authors.find((a) => a.authorName === author);
+    return authorFound?.books.find((b) => b.bookTitle === bookTitle);
+  });

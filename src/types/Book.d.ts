@@ -9,16 +9,22 @@ export type Book = {
   author: string;
   bookTitle: string;
   chapters: Chapter[];
-  artwork: string;
-  metadata: [];
+  artwork: string | null;
+  metadata: {
+    year: number | string;
+    description: string;
+    narrator: string;
+    genre: string;
+    sampleRate: number;
+    totalTrackCount: number;
+  };
 };
 
 export type Chapter = {
-  chapterTitle: string;
-  bookTitle: string;
   author: string;
+  bookTitle: string;
+  chapterTitle: string;
   chapterNumber: number;
-  year: string;
   url: string;
 };
 

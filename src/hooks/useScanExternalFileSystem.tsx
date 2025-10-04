@@ -1,4 +1,4 @@
-import { Author } from '@/types/Book';
+import { Author, Book, Chapter } from '@/types/Book';
 import * as RNFS from '@dr.pogodin/react-native-fs';
 import {
   getMetadata,
@@ -103,7 +103,7 @@ export const useScanExternalFileSystem = () => {
         return {
           //? bookTitle: metadata.albumTitle  chapterTitle: metadata.title
           author: artist || albumArtist || writer || 'Unknown Author',
-          performer: composer || 'Unknown Voice Artist',
+          narrator: composer || 'Unknown Voice Artist',
           bookTitle: albumTitle || displayTitle || bookTitleBackup,
           chapterTitle:
             title ||
@@ -172,7 +172,7 @@ export const useScanExternalFileSystem = () => {
       );
 
       const sortedBookTitles = sortedBookAuthors.reduce(
-        (acc: any[], book: any) => {
+        (acc: Author[], book: any) => {
           let authorEntry = acc.find(
             (entry) => entry.authorName === book.author
           );
@@ -186,20 +186,43 @@ export const useScanExternalFileSystem = () => {
             (entry: any) => entry.bookTitle === book.bookTitle
           );
 
+          // console.log('narrator', book.composer);
+
           if (!bookEntry) {
             bookEntry = {
+              author: book.author,
               bookTitle: book.bookTitle,
               chapters: [],
               artwork: null,
+              metadata: {
+                year: book.year,
+                description: book.description,
+                narrator: book.narrator,
+                genre: book.genre,
+                sampleRate: book.sampleRate,
+                totalTrackCount: book.totalTrackCount,
+              },
             };
             authorEntry.books.push(bookEntry);
           }
 
-          bookEntry.chapters.push(book);
-          bookEntry.chapters.sort(
-            (a: { chapterNumber: number }, b: { chapterNumber: number }) =>
-              a.chapterNumber - b.chapterNumber
-          );
+          const chapter: Chapter = {
+            author: book.author,
+            bookTitle: book.bookTitle,
+            chapterTitle: book.chapterTitle,
+            chapterNumber: book.chapterNumber,
+            url: book.url,
+          };
+
+          bookEntry.chapters.push(chapter);
+          if (bookEntry.chapters.length > 1) {
+            bookEntry.chapters.sort(
+              (
+                a: { chapterNumber: number },
+                b: { chapterNumber: number }
+              ) => a.chapterNumber - b.chapterNumber
+            );
+          }
 
           return acc;
         },
