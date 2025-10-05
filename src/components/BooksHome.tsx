@@ -5,9 +5,6 @@ import { Book, Author } from '@/types/Book';
 import { colors, fontSize } from '@/constants/tokens';
 import { Feather } from '@expo/vector-icons';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
-// import { BooksList } from '@/components/BooksList';
-// import { useState } from 'react';
-// import { Track } from 'react-native-track-player';
 
 export type BookListProps = Partial<FlashListProps<Book>> & {
   authors: Author[];
@@ -15,6 +12,11 @@ export type BookListProps = Partial<FlashListProps<Book>> & {
 
 export const BooksHome = ({ authors }: BookListProps) => {
   const allBooks = authors.flatMap((author) => author.books);
+
+  const handleBookSelect = async (selectedBook: Book) => {
+    const chapterIndex = selectedBook.bookProgress.currentChapterIndex;
+    if (chapterIndex === -1) return;
+  };
 
   authors.sort((a, b) => {
     const nameA = a.authorName.toUpperCase();
@@ -34,7 +36,7 @@ export const BooksHome = ({ authors }: BookListProps) => {
     <View>
       {/* Recently Added Section */}
       {allBooks.length > 0 && (
-        <View style={{ gap: 12 }}>
+        <View style={{ gap: 12, marginBottom: 12 }}>
           <View style={{ gap: 12 }}>
             <Pressable
               style={{ paddingVertical: 6 }}
@@ -59,7 +61,7 @@ export const BooksHome = ({ authors }: BookListProps) => {
                 contentContainerStyle={{ paddingLeft: 14 }}
                 data={allBooks}
                 renderItem={({ item: book }) => (
-                  <BookGridItem book={book} />
+                  <BookGridItem book={book} bookId={book.chapters[0].url} />
                 )}
                 keyExtractor={(item) => item.chapters[0].url}
                 horizontal={true}
@@ -104,7 +106,10 @@ export const BooksHome = ({ authors }: BookListProps) => {
                   contentContainerStyle={{ paddingLeft: 14 }}
                   data={author.books}
                   renderItem={({ item: book }) => (
-                    <BookGridItem book={book} />
+                    <BookGridItem
+                      book={book}
+                      bookId={book.chapters[0].url}
+                    />
                   )}
                   keyExtractor={(item) => item.chapters[0].url}
                   horizontal={true}

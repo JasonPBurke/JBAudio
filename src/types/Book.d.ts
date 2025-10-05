@@ -10,6 +10,10 @@ export type Book = {
   bookTitle: string;
   chapters: Chapter[];
   artwork: string | null;
+  bookProgress: {
+    currentChapterIndex: number; //* on queueChange, update this to the current index
+    currentChapterProgress: number; //* update 1000/5000ms as play progresses
+  };
   metadata: {
     year: number | string;
     description: string;

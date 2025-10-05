@@ -23,3 +23,10 @@ export const useBook = (author: string, bookTitle: string) =>
     const authorFound = state.authors.find((a) => a.authorName === author);
     return authorFound?.books.find((b) => b.bookTitle === bookTitle);
   });
+
+export const useBookArtwork = (author: string, bookTitle: string) =>
+  useLibraryStore((state) => {
+    const authorFound = state.authors.find((a) => a.authorName === author);
+    return authorFound?.books.find((b) => b.bookTitle === bookTitle)
+      ?.artwork;
+  });

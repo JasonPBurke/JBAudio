@@ -15,7 +15,7 @@ import { useLibraryStore } from '@/store/library';
 //*  '/Audiobooks' from the path and replace it with the user's chosen folder
 
 export const useScanExternalFileSystem = () => {
-  const path = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/Brandon Sanderson`;
+  const path = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing`;
   // const singlePath = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing/2010 - Kraken/Kraken-Part01.mp3`;
   const { setAuthors } = useLibraryStore();
 
@@ -140,13 +140,7 @@ export const useScanExternalFileSystem = () => {
             (item.isFile() && item.name.endsWith('.m4b')) ||
             item.name.endsWith('.mp3')
           ) {
-            // console.log('item.name', item.name);
-            // console.log('item.stat', (await RNFS.stat(item.path)).size);
-
-            // const decodedPath = decodeURIComponent(item.path);
-            //!
             const metadata = await extractMetadata(item.path);
-            // console.log('culled metadata', JSON.stringify(metadata, null, 2));
             files.push({
               ...metadata,
               url: item.path,
@@ -195,6 +189,10 @@ export const useScanExternalFileSystem = () => {
               bookTitle: book.bookTitle,
               chapters: [],
               artwork: null,
+              bookProgress: {
+                currentChapterIndex: 0,
+                currentChapterProgress: 0,
+              },
               metadata: {
                 year: book.year,
                 description: book.description,

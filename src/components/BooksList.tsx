@@ -1,19 +1,10 @@
 import { Text, View, ViewToken } from 'react-native';
-// import library from '@/assets/data/library.json';
 import { BookListItem } from './BookListItem';
 import { utilsStyles } from '@/styles';
 import { Book, Author } from '@/types/Book';
 import { screenPadding } from '@/constants/tokens';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
 import { useSharedValue } from 'react-native-reanimated';
-// import TrackPlayer, {
-//   Track,
-//   useIsPlaying,
-// } from 'react-native-track-player';
-
-export type BookListProps = Partial<FlashListProps<Book>> & {
-  authors: Author[];
-};
 
 const ItemDivider = () => (
   <View
@@ -25,15 +16,17 @@ const ItemDivider = () => (
   />
 );
 
+export type BookListProps = Partial<FlashListProps<Book>> & {
+  authors: Author[];
+};
+
 export const BooksList = ({ authors }: BookListProps) => {
   const allBooks = authors.flatMap((author) => author.books);
-  // const { playing } = useIsPlaying();
-  // const handleBookSelect = async (track: Track) => {
-  // 	//TODO: this is where you will load the book info page instead of
-  // 	//TODO: loading the trackPlayer.
-  // 	await TrackPlayer.load(track);
-  // 	await TrackPlayer.play();
-  // };
+
+  const handleBookSelect = async (selectedBook: Book) => {
+    const chapterIndex = selectedBook.bookProgress.currentChapterIndex;
+    if (chapterIndex === -1) return;
+  };
 
   const viewableItems = useSharedValue<ViewToken[]>([]);
 
@@ -43,15 +36,18 @@ export const BooksList = ({ authors }: BookListProps) => {
       {allBooks.length > 0 && (
         <View>
           <FlashList<Book>
-            estimatedItemSize={80}
+            estimatedItemSize={120}
             data={allBooks}
             //! onViewableItemsChanged is a reanimated function to animate the list
-            onViewableItemsChanged={({ viewableItems: vItems }) => {
-              // console.log('viewableItems', viewableItems);
-              viewableItems.value = vItems;
-            }}
+            // onViewableItemsChanged={({ viewableItems: vItems }) => {
+            //   viewableItems.value = vItems;
+            // }}
             renderItem={({ item: book }) => (
-              <BookListItem viewableItems={viewableItems} book={book} />
+              <BookListItem
+                viewableItems={viewableItems}
+                book={book}
+                bookId={book.chapters[0].url}
+              />
             )}
             keyExtractor={(item) => item.chapters[0].url}
             showsHorizontalScrollIndicator={false}

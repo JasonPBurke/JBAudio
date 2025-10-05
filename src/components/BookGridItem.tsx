@@ -6,44 +6,62 @@ import {
   TouchableHighlight,
   View,
 } from 'react-native';
-import { memo } from 'react';
+import { memo, use } from 'react';
 import FastImage from '@d11/react-native-fast-image';
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
-// import LoaderKitView from 'react-native-loader-kit';
-// import TrackPlayer, {
-//   Track,
-//   useActiveTrack,
-//   useIsPlaying,
-// } from 'react-native-track-player';
+import LoaderKitView from 'react-native-loader-kit';
+import TrackPlayer, {
+  Track,
+  useActiveTrack,
+  useIsPlaying,
+} from 'react-native-track-player';
 import { Book } from '@/types/Book';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useQueueStore } from '@/store/queue';
 
 export type BookListItemProps = {
   book: Book;
-  // onBookSelect: (book: Track) => void;
+  bookId: string;
 };
 
 export const BookGridItem = memo(function BookListItem({
   book,
-  // onBookSelect: handleBookSelect,
+  bookId,
 }: BookListItemProps) {
-  // const isActiveBook = useActiveTrack()?.url === book.url;
-  // const { playing } = useIsPlaying();
+  const isActiveBook =
+    useActiveTrack()?.url ===
+    book.chapters[book.bookProgress.currentChapterIndex].url;
+  const { playing } = useIsPlaying();
   const router = useRouter();
-
-  //! need this function to be handlePlayPlaylist
-  //! it should load the books chapters list and start where it left off (timestamp in store)
-  const handlePressPlay = async (book: Book) => {
-    // if (isActiveBook && playing) return;
-    // await TrackPlayer.load(track);
-    // await TrackPlayer.play();
-  };
-
-  const author = book.chapters[0].author; //? add author to the book object
+  const { setActiveBookId, activeBookId } = useQueueStore();
+  const author = book.author;
   const bookTitle = book.bookTitle;
-  // const artwork = book.artwork;
+
+  const handlePressPlay = async (book: Book) => {
+    const chapterIndex = book.bookProgress.currentChapterIndex;
+    if (chapterIndex === -1) return;
+
+    const isChangingBook = bookId !== activeBookId;
+
+    if (isChangingBook) {
+      await TrackPlayer.reset();
+      const tracks: Track[] = book.chapters.map((chapter) => ({
+        url: chapter.url,
+        title: chapter.chapterTitle,
+        artist: chapter.author,
+        artwork: book.artwork ?? unknownBookImageUri,
+      }));
+      await TrackPlayer.add(tracks);
+      await TrackPlayer.skip(chapterIndex);
+      await TrackPlayer.play();
+      setActiveBookId(bookId);
+    } else {
+      await TrackPlayer.skip(chapterIndex);
+      await TrackPlayer.play();
+    }
+  };
 
   const handlePress = () => {
     router.navigate(
@@ -67,29 +85,23 @@ export const BookGridItem = memo(function BookListItem({
               // opacity: isActiveBook ? 0.6 : 1,
             }}
           />
-          {/* {isActiveBook && playing ? (
+          {isActiveBook && playing ? (
             <LoaderKitView
               style={styles.trackPlayingImageIcon}
               name={'LineScaleParty'}
-              color={colors.icon}
+              color={colors.primary}
             />
-          ) : ( */}
-
-          <Pressable hitSlop={15}>
-            <Feather
-              style={styles.trackPausedIcon}
-              name='headphones'
-              size={18}
-              color={
-                // isActiveBook && playing ? colors.primary : colors.icon
-                colors.icon
-              }
-              //! handle load playlist(grouped chapters)
-              onPress={() => handlePressPlay(book)}
-              // onPress={() => handleBookSelect(book)}
-            />
-          </Pressable>
-          {/* )} */}
+          ) : (
+            <Pressable hitSlop={15}>
+              <Feather
+                style={styles.trackPausedIcon}
+                name='headphones'
+                size={18}
+                color={colors.icon}
+                onPress={() => handlePressPlay(book)}
+              />
+            </Pressable>
+          )}
         </View>
         <View style={styles.bookInfoContainer}>
           <View style={{ width: '100%' }}>
@@ -97,7 +109,7 @@ export const BookGridItem = memo(function BookListItem({
               numberOfLines={1}
               style={{
                 ...styles.bookTitleText,
-                // color: isActiveBook ? colors.primary : colors.text,
+                color: colors.text,
               }}
             >
               {book.bookTitle}

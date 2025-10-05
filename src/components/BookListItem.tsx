@@ -8,7 +8,7 @@ import {
   View,
   ViewToken,
 } from 'react-native';
-import { memo } from 'react';
+import { memo, useRef } from 'react';
 import FastImage from '@d11/react-native-fast-image';
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
@@ -26,31 +26,51 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
 } from 'react-native-reanimated';
+import { useQueueStore } from '@/store/queue';
 
 export type BookListItemProps = {
   book: Book;
+  bookId: string;
   viewableItems: SharedValue<ViewToken[]>;
-  // onBookSelect: (book: Track) => void;
 };
 
 export const BookListItem = memo(function BookListItem({
   book,
+  bookId,
   viewableItems,
-  // onBookSelect: handleBookSelect,
 }: BookListItemProps) {
-  // const isActiveBook = useActiveTrack()?.url === book.url;
-  // const { playing } = useIsPlaying();
+  const isActiveBook =
+    useActiveTrack()?.url ===
+    book.chapters[book.bookProgress.currentChapterIndex].url;
+  const { playing } = useIsPlaying();
   const router = useRouter();
+  const author = book.author;
+  const bookTitle = book.bookTitle;
+  const { setActiveBookId, activeBookId } = useQueueStore();
 
   const handlePressPlay = async (book: Book) => {
-    // if (isActiveBook && playing) return;
-    // await TrackPlayer.load(track);
-    // await TrackPlayer.play();
-  };
+    const chapterIndex = book.bookProgress.currentChapterIndex;
+    if (chapterIndex === -1) return;
 
-  const author = book.chapters[0].author; //? add author to the book object
-  const bookTitle = book.bookTitle;
-  // const artwork = book.artwork;
+    const isChangingBook = bookId !== activeBookId;
+
+    if (isChangingBook) {
+      await TrackPlayer.reset();
+      const tracks: Track[] = book.chapters.map((chapter) => ({
+        url: chapter.url,
+        title: chapter.chapterTitle,
+        artist: chapter.author,
+        artwork: book.artwork ?? unknownBookImageUri,
+      }));
+      await TrackPlayer.add(tracks);
+      await TrackPlayer.skip(chapterIndex);
+      await TrackPlayer.play();
+      setActiveBookId(bookId);
+    } else {
+      await TrackPlayer.skip(chapterIndex);
+      await TrackPlayer.play();
+    }
+  };
 
   const handlePress = () => {
     router.navigate(
@@ -83,8 +103,6 @@ export const BookListItem = memo(function BookListItem({
   // );
 
   return (
-    // <TouchableHighlight onPress={() => handleBookSelect(book)}>
-
     <TouchableHighlight onPress={handlePress}>
       <View style={styles.bookItemContainer}>
         <View>
@@ -107,44 +125,49 @@ export const BookListItem = memo(function BookListItem({
               numberOfLines={1}
               style={{
                 ...styles.bookTitleText,
+                color: colors.textMuted,
                 // color: isActiveBook ? colors.primary : colors.text,
               }}
             >
               {book.bookTitle}
             </Text>
 
-            {book.chapters[0].author && (
+            {book.author && (
               <Text numberOfLines={1} style={styles.bookAuthorText}>
-                {book.chapters[0].author}
+                {book.author}
               </Text>
             )}
           </View>
-          <View style={{ gap: 18 }}>
-            <Entypo
-              name='dots-three-vertical'
-              size={18}
-              color={colors.icon}
-            />
-            {/* {isActiveBook && playing ? (
+          <View
+            style={{
+              gap: 18,
+            }}
+          >
+            <Pressable style={{ padding: 8 }} hitSlop={10}>
+              <Entypo
+                name='dots-three-vertical'
+                size={18}
+                color={colors.icon}
+              />
+            </Pressable>
+            {isActiveBook && playing ? (
+              <View style={{ padding: 8 }}>
                 <LoaderKitView
                   style={styles.trackPlayingImageIcon}
                   name={'LineScaleParty'}
-                  color={colors.icon}
+                  color={colors.primary}
                 />
-              ) : ( */}
-            <Pressable hitSlop={35}>
-              <Feather
-                name='headphones'
-                size={18}
-                color={
-                  // isActiveBook && playing ? colors.primary : colors.icon
-                  colors.icon
-                }
-                onPress={() => handlePressPlay(book)}
-                // onPress={() => handleBookSelect(book)}
-              />
-            </Pressable>
-            {/* )} */}
+              </View>
+            ) : (
+              <Pressable style={{ padding: 8 }} hitSlop={10}>
+                <Feather
+                  name='headphones'
+                  size={18}
+                  color={colors.icon}
+                  onPress={() => handlePressPlay(book)}
+                />
+              </Pressable>
+            )}
           </View>
         </View>
       </View>
@@ -157,8 +180,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     columnGap: 14,
     alignItems: 'center',
-    paddingRight: 20,
-    // marginBottom: 12,
+    paddingRight: 36,
   },
   bookArtworkImage: {
     borderRadius: 4,
@@ -192,6 +214,7 @@ const styles = StyleSheet.create({
   // 	height: 20,
   // },
   trackPlayingImageIcon: {
+    padding: 8,
     width: 20,
     height: 20,
   },

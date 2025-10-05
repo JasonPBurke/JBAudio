@@ -80,7 +80,16 @@ const TitleDetails = () => {
             style={styles.backButton}
             onPress={() => router.back()}
           >
-            <Feather name='arrow-left-circle' size={32} />
+            {/* <Feather
+              name='arrow-down-circle'
+              // color={colors.icon}
+              size={32}
+            /> */}
+            <Feather
+              name='arrow-down-circle'
+              // color={colors.icon}
+              size={32}
+            />
           </Pressable>
         </View>
 
@@ -139,7 +148,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
-    padding: 4,
+    // padding: 4,
     color: colors.icon,
     borderRadius: 50,
     backgroundColor: 'rgba(0,0,0,0.35)',

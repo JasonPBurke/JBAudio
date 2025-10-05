@@ -19,12 +19,23 @@ import { PlayerControls } from '@/components/PlayerControls';
 import { PlayerProgressBar } from '@/components/PlayerProgressBar';
 import { usePlayerBackground } from '@/hooks/usePlayerBackground';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useBookArtwork } from '@/store/library';
 
 const PlayerScreen = () => {
   const activeTrack = useActiveTrack();
   const { imageColors } = usePlayerBackground(
     activeTrack?.artwork ?? unknownBookImageUri
   );
+
+  console.log('artist', activeTrack?.artist);
+  console.log('title', activeTrack?.title);
+
+  const bookArtwork = useBookArtwork(
+    activeTrack?.artist ?? 'Unknown Author',
+    activeTrack?.title ?? 'Unknown Title'
+  );
+
+  // console.log('bookArtwork', bookArtwork);
 
   const { top, bottom } = useSafeAreaInsets();
 
@@ -79,7 +90,7 @@ const PlayerScreen = () => {
           <View style={styles.artworkImageContainer}>
             <FastImage
               source={{
-                uri: activeTrack.artwork ?? unknownBookImageUri,
+                uri: activeTrack?.artwork ?? unknownBookImageUri,
                 priority: FastImage.priority.high,
               }}
               resizeMode={FastImage.resizeMode.contain}
