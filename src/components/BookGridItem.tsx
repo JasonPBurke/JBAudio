@@ -6,8 +6,10 @@ import {
   TouchableHighlight,
   View,
 } from 'react-native';
-import { memo, use } from 'react';
-import FastImage from '@d11/react-native-fast-image';
+import { memo } from 'react';
+// import FastImage from '@d11/react-native-fast-image';
+import { Image } from 'expo-image';
+
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import LoaderKitView from 'react-native-loader-kit';
@@ -63,9 +65,13 @@ export const BookGridItem = memo(function BookListItem({
     }
   };
 
+  const encodedBookId = encodeURIComponent(bookId);
+  const encodedAuthor = encodeURIComponent(author);
+  const encodedBookTitle = encodeURIComponent(bookTitle);
+
   const handlePress = () => {
     router.navigate(
-      `/titleDetails?author=${author}&bookTitle=${bookTitle}&bookId=${bookId}`
+      `/titleDetails?bookId=${encodedBookId}&author=${encodedAuthor}&bookTitle=${encodedBookTitle}`
     );
   };
 
@@ -73,13 +79,15 @@ export const BookGridItem = memo(function BookListItem({
     <TouchableHighlight onPress={handlePress}>
       <View style={[styles.bookItemContainer, { height: 200 }]}>
         <View>
-          <FastImage
-            resizeMode={FastImage.resizeMode.contain}
+          <Image
+            contentFit='contain'
+            // resizeMode={FastImage.resizeMode.contain}
             //! JUST PLACE THE ABSOLUTE POSITIONING AT HE BOTTOM LEFT AND PLACE EVERY IMG AT THE BOTTOM LEFT AS WELL
-            source={{
-              uri: book.artwork ?? unknownBookImageUri,
-              priority: FastImage.priority.normal,
-            }}
+            // source={{
+            //   uri: book.artwork ?? unknownBookImageUri,
+            //   // priority: FastImage.priority.normal,
+            // }}
+            source={book.artwork ?? unknownBookImageUri}
             style={{
               ...styles.bookArtworkImage,
               // opacity: isActiveBook ? 0.6 : 1,

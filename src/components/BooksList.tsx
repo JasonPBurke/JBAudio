@@ -46,7 +46,7 @@ export const BooksList = ({ authors }: BookListProps) => {
               <BookListItem
                 viewableItems={viewableItems}
                 book={book}
-                bookId={book.chapters[0].url}
+                bookId={book.bookId}
               />
             )}
             keyExtractor={(item) => item.chapters[0].url}

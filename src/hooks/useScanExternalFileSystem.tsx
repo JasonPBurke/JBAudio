@@ -8,6 +8,8 @@ import {
 } from '@missingcore/react-native-metadata-retriever';
 import { useEffect } from 'react';
 import { useLibraryStore } from '@/store/library';
+// import { v4 as uuidv4 } from 'uuid';
+// import * as Crypto from 'expo-crypto';
 // import MediaInfoFactory from 'mediainfo.js';
 // import RNFetchBlob from 'react-native-blob-util';
 
@@ -165,6 +167,12 @@ export const useScanExternalFileSystem = () => {
         }
       );
 
+      // const generateUUID = () => {
+      //   return uuidv4({
+      //     random: Crypto.getRandomValues(new Uint8Array(16)),
+      //   });
+      // };
+
       const sortedBookTitles = sortedBookAuthors.reduce(
         (acc: Author[], book: any) => {
           let authorEntry = acc.find(
@@ -184,6 +192,7 @@ export const useScanExternalFileSystem = () => {
 
           if (!bookEntry) {
             bookEntry = {
+              bookId: book.uri, // Assign the URL of the first chapter as bookId
               author: book.author,
               bookTitle: book.bookTitle,
               chapters: [],

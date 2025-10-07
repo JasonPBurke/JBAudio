@@ -13,10 +13,10 @@ export type BookListProps = Partial<FlashListProps<Book>> & {
 export const BooksHome = ({ authors }: BookListProps) => {
   const allBooks = authors.flatMap((author) => author.books);
 
-  const handleBookSelect = async (selectedBook: Book) => {
-    const chapterIndex = selectedBook.bookProgress.currentChapterIndex;
-    if (chapterIndex === -1) return;
-  };
+  // const handleBookSelect = async (selectedBook: Book) => {
+  //   const chapterIndex = selectedBook.bookProgress.currentChapterIndex;
+  //   if (chapterIndex === -1) return;
+  // };
 
   authors.sort((a, b) => {
     const nameA = a.authorName.toUpperCase();
@@ -61,7 +61,7 @@ export const BooksHome = ({ authors }: BookListProps) => {
                 contentContainerStyle={{ paddingLeft: 14 }}
                 data={allBooks}
                 renderItem={({ item: book }) => (
-                  <BookGridItem book={book} bookId={book.chapters[0].url} />
+                  <BookGridItem book={book} bookId={book.bookId} />
                 )}
                 keyExtractor={(item) => item.chapters[0].url}
                 horizontal={true}
