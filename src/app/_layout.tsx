@@ -70,7 +70,7 @@ const RootNavigation = () => {
       <Stack.Screen
         name='titleDetails'
         options={{
-          presentation: 'pageSheet',
+          presentation: 'fullScreenModal',
           headerShown: false,
           // animation: 'slide_from_right',
         }}
