@@ -23,10 +23,10 @@ export type BookListProps = Partial<FlashListProps<Book>> & {
 export const BooksList = ({ authors }: BookListProps) => {
   const allBooks = authors.flatMap((author) => author.books);
 
-  const handleBookSelect = async (selectedBook: Book) => {
-    const chapterIndex = selectedBook.bookProgress.currentChapterIndex;
-    if (chapterIndex === -1) return;
-  };
+  // const handleBookSelect = async (selectedBook: Book) => {
+  //   const chapterIndex = selectedBook.bookProgress.currentChapterIndex;
+  //   if (chapterIndex === -1) return;
+  // };
 
   const viewableItems = useSharedValue<ViewToken[]>([]);
 

@@ -74,7 +74,7 @@ export const BookListItem = memo(function BookListItem({
 
   const handlePress = () => {
     router.navigate(
-      `/titleDetails?author=${author}&bookTitle=${bookTitle}`
+      `/titleDetails?author=${author}&bookTitle=${bookTitle}&bookId=${bookId}`
     );
   };
 
@@ -107,7 +107,6 @@ export const BookListItem = memo(function BookListItem({
       <View style={styles.bookItemContainer}>
         <View>
           <FastImage
-            // resizeMode='contain'
             resizeMode={FastImage.resizeMode.contain}
             source={{
               uri: book.artwork ?? unknownBookImageUri,
@@ -138,11 +137,7 @@ export const BookListItem = memo(function BookListItem({
               </Text>
             )}
           </View>
-          <View
-            style={{
-              gap: 18,
-            }}
-          >
+          <View style={{ gap: 18 }}>
             <Pressable style={{ padding: 8 }} hitSlop={10}>
               <Entypo
                 name='dots-three-vertical'
@@ -159,13 +154,12 @@ export const BookListItem = memo(function BookListItem({
                 />
               </View>
             ) : (
-              <Pressable style={{ padding: 8 }} hitSlop={10}>
-                <Feather
-                  name='headphones'
-                  size={18}
-                  color={colors.icon}
-                  onPress={() => handlePressPlay(book)}
-                />
+              <Pressable
+                onPress={() => handlePressPlay(book)}
+                style={{ padding: 8 }}
+                hitSlop={10}
+              >
+                <Feather name='headphones' size={18} color={colors.icon} />
               </Pressable>
             )}
           </View>

@@ -148,6 +148,9 @@ android {
 }
 
 dependencies {
+    implementation("@d11/react-native-fast-image") {
+            exclude group: "com.github.bumptech.glide"
+        }
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 
