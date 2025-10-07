@@ -24,6 +24,7 @@ import TrackPlayer, {
   // useActiveTrack,
 } from 'react-native-track-player';
 import { useQueueStore } from '@/store/queue';
+import { formatDate } from '@/helpers/miscellaneous';
 
 const TitleDetails = () => {
   const router = useRouter();
@@ -83,7 +84,8 @@ const TitleDetails = () => {
     <LinearGradient
       start={{ x: 0, y: 0 }}
       end={{ x: 0.5, y: 1 }}
-      locations={[0.15, 0.2, 0.65, 0.8]}
+      // locations={[0.15, 0.2, 0.65, 0.8]}
+      locations={[0.15, 0.35, 0.45, 0.6]}
       style={{ flex: 1 }}
       colors={
         imageColors
@@ -137,17 +139,74 @@ const TitleDetails = () => {
 
         <View style={styles.bookInfoContainer}>
           <Text style={styles.bookTitleText}>{bookTitle}</Text>
-          <Text style={styles.bookAuthorText}>{author}</Text>
-          <Text style={styles.bookAuthorText}>
-            {book?.metadata.ctime.toString()}
-          </Text>
-          <Text style={styles.bookAuthorText}>
-            {book?.metadata.narrator}
-          </Text>
-          <Text style={styles.bookAuthorText}>
-            <Text>Total Chapter Files: </Text>
-            {book?.chapters.length}
-          </Text>
+
+          <View style={styles.authorNarratorContainer}>
+            <View
+              style={{
+                alignItems: 'center',
+                flex: 1,
+              }}
+            >
+              <Text
+                style={{
+                  ...styles.bookInfoText,
+                  color: imageColors?.muted || colors.textMuted,
+                }}
+              >
+                Author
+              </Text>
+              <Text style={styles.bookInfoText}>{author}</Text>
+            </View>
+            <View
+              style={{
+                ...styles.divider,
+                backgroundColor: imageColors?.muted || colors.textMuted,
+              }}
+            />
+            <View
+              style={{
+                alignItems: 'center',
+                flex: 1,
+              }}
+            >
+              <Text
+                style={{
+                  ...styles.bookInfoText,
+                  color: imageColors?.muted || colors.textMuted,
+                }}
+              >
+                Narrated by
+              </Text>
+              <Text style={styles.bookInfoText}>
+                {book?.metadata.narrator}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.inlineInfoContainer}>
+            <Text>Added on:</Text>
+            <Text style={styles.bookInfoText}>
+              {formatDate(book?.metadata.ctime)}
+            </Text>
+          </View>
+          <View style={styles.inlineInfoContainer}>
+            <Text>Total Audio Files:</Text>
+            <Text style={styles.bookInfoText}>
+              {book?.metadata.totalTrackCount || book?.chapters.length}
+            </Text>
+          </View>
+          <View>
+            <Text>Duration: </Text>
+          </View>
+          <View style={styles.inlineInfoContainer}>
+            <Text>Year:</Text>
+            <Text style={styles.bookInfoText}>{book?.metadata.year}</Text>
+          </View>
+          <View style={styles.inlineInfoContainer}>
+            <Text>Description: </Text>
+            <Text style={styles.bookInfoText}>
+              {book?.metadata.description}
+            </Text>
+          </View>
         </View>
       </View>
     </LinearGradient>
@@ -172,21 +231,29 @@ const styles = StyleSheet.create({
     paddingTop: 5,
   },
   bookInfoContainer: {
+    gap: 20,
     flex: 1,
     width: '100%',
     paddingHorizontal: 20,
+    alignItems: 'center',
   },
   bookArtworkImage: {
     height: '100%',
     width: 'auto',
     borderRadius: 4,
   },
+  authorNarratorContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
   bookTitleText: {
     ...defaultStyles.text,
     fontSize: fontSize.lg,
     fontWeight: '600',
   },
-  bookAuthorText: {
+  bookInfoText: {
     ...defaultStyles.text,
     fontSize: fontSize.sm,
   },
@@ -201,15 +268,24 @@ const styles = StyleSheet.create({
   },
   trackPlayingImageIcon: {
     position: 'absolute',
-    top: '25%',
+    // top: '25%',
+    bottom: 0,
+    right: 20,
     padding: 10,
     backgroundColor: '#1c1c1c7f',
     borderRadius: 50,
     zIndex: 10,
   },
-  // trackPausedIcon: {
-  //   position: 'absolute',
-  //   bottom: 10,
-  //   left: 10,
-  // },
+  divider: {
+    width: 1,
+    height: '50%',
+    // backgroundColor: '#d8dee981',
+    alignSelf: 'center',
+  },
+  inlineInfoContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+  },
 });
