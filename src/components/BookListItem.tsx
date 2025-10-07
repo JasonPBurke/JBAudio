@@ -9,7 +9,9 @@ import {
   ViewToken,
 } from 'react-native';
 import { memo, useRef } from 'react';
-import FastImage from '@d11/react-native-fast-image';
+// import FastImage from '@d11/react-native-fast-image';
+import { Image } from 'expo-image';
+
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import TrackPlayer, {
@@ -72,9 +74,13 @@ export const BookListItem = memo(function BookListItem({
     }
   };
 
+  const encodedBookId = encodeURIComponent(bookId);
+  const encodedAuthor = encodeURIComponent(author);
+  const encodedBookTitle = encodeURIComponent(bookTitle);
+
   const handlePress = () => {
     router.navigate(
-      `/titleDetails?author=${author}&bookTitle=${bookTitle}&bookId=${bookId}`
+      `/titleDetails?bookId=${encodedBookId}&author=${encodedAuthor}&bookTitle=${encodedBookTitle}`
     );
   };
 
@@ -106,11 +112,12 @@ export const BookListItem = memo(function BookListItem({
     <TouchableHighlight onPress={handlePress}>
       <View style={styles.bookItemContainer}>
         <View>
-          <FastImage
-            resizeMode={FastImage.resizeMode.contain}
+          <Image
+            contentFit='contain'
+            // resizeMode={FastImage.resizeMode.contain}
             source={{
               uri: book.artwork ?? unknownBookImageUri,
-              priority: FastImage.priority.normal,
+              // priority: FastImage.priority.normal,
             }}
             style={{
               ...styles.bookArtworkImage,
@@ -137,7 +144,7 @@ export const BookListItem = memo(function BookListItem({
               </Text>
             )}
           </View>
-          <View style={{ gap: 18 }}>
+          <View style={{ gap: 10 }}>
             <Pressable style={{ padding: 8 }} hitSlop={10}>
               <Entypo
                 name='dots-three-vertical'

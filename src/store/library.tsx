@@ -24,6 +24,19 @@ export const useBook = (author: string, bookTitle: string) =>
     return authorFound?.books.find((b) => b.bookTitle === bookTitle);
   });
 
+export const useBookById = (bookId: string) =>
+  useLibraryStore((state) => {
+    for (const author of state.authors) {
+      for (const book of author.books) {
+        if (book.bookId === bookId) {
+          console.log('found book', JSON.stringify(book, null, 2));
+          return book;
+        }
+      }
+    }
+    console.log('book not found');
+  });
+
 export const useBookArtwork = (author: string, bookTitle: string) =>
   useLibraryStore((state) => {
     const authorFound = state.authors.find((a) => a.authorName === author);

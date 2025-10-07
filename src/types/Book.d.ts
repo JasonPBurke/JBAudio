@@ -6,6 +6,7 @@ export type Author = {
 
 //? this is equal to type Playlist on video
 export type Book = {
+  bookId: string; // first chapter url
   author: string;
   bookTitle: string;
   chapters: Chapter[];

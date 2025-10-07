@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@config-plugins/react-native-blob-util": "11.0.0",
-    "@d11/react-native-fast-image": "^8.11.1",
     "@dr.pogodin/react-native-fs": "^2.35.1",
     "@expo/vector-icons": "^14.1.0",
     "@gorhom/bottom-sheet": "^5.2.4",
@@ -29,6 +28,7 @@
     "expo-asset": "~11.1.7",
     "expo-blur": "~14.1.5",
     "expo-constants": "~17.1.7",
+    "expo-crypto": "~14.1.5",
     "expo-dev-client": "~5.2.4",
     "expo-file-system": "~18.1.11",
     "expo-font": "~13.3.2",
@@ -66,6 +66,7 @@
     "react-native-web": "~0.20.0",
     "react-native-webview": "13.13.5",
     "ts-pattern": "^5.8.0",
+    "uuid": "^13.0.0",
     "zustand": "^5.0.8"
   },
   "devDependencies": {

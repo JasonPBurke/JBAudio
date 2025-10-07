@@ -5,9 +5,11 @@ import {
   // useWindowDimensions,
   Pressable,
 } from 'react-native';
-import { useBook } from '@/store/library';
+import { useAuthors, useBook, useBookById } from '@/store/library';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import FastImage from '@d11/react-native-fast-image';
+// import FastImage from '@d11/react-native-fast-image';
+import { Image } from 'expo-image';
+
 import { unknownBookImageUri } from '@/constants/images';
 import { colors, fontSize } from '@/constants/tokens';
 import { Feather } from '@expo/vector-icons';
@@ -19,7 +21,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Book } from '@/types/Book';
 import TrackPlayer, {
   Track,
-  useActiveTrack,
+  // useActiveTrack,
 } from 'react-native-track-player';
 import { useQueueStore } from '@/store/queue';
 
@@ -27,14 +29,13 @@ const TitleDetails = () => {
   const router = useRouter();
   // const { width, height } = useWindowDimensions();
   const { setActiveBookId, activeBookId } = useQueueStore();
-  const { author, bookTitle, bookId } = useLocalSearchParams<{
+  const { bookId, author, bookTitle } = useLocalSearchParams<{
     author: string;
-    bookTitle: string;
     bookId: string;
+    bookTitle: string;
   }>();
 
   const book = useBook(author, bookTitle);
-  // console.log('book found', JSON.stringify(book, null, 2));
 
   const { imageColors } = usePlayerBackground(
     book?.artwork || unknownBookImageUri
@@ -112,11 +113,12 @@ const TitleDetails = () => {
           />
         </Pressable>
         <View style={styles.bookArtworkContainer}>
-          <FastImage
-            resizeMode={FastImage.resizeMode.contain}
+          <Image
+            contentFit='contain'
+            // resizeMode={FastImage.resizeMode.contain}
             source={{
-              uri: book?.artwork || unknownBookImageUri,
-              priority: FastImage.priority.normal,
+              uri: book?.artwork ?? unknownBookImageUri,
+              // priority: FastImage.priority.normal,
             }}
             style={styles.bookArtworkImage}
           />

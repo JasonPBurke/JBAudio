@@ -12,7 +12,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useActiveTrack } from 'react-native-track-player';
-import FastImage from '@d11/react-native-fast-image';
+// import FastImage from '@d11/react-native-fast-image';
+import { Image } from 'expo-image';
 import { unknownBookImageUri } from '@/constants/images';
 import { MovingText } from '@/components/MovingText';
 import { PlayerControls } from '@/components/PlayerControls';
@@ -83,12 +84,13 @@ const PlayerScreen = () => {
           style={{ flex: 1, marginTop: top + 70, marginBottom: bottom }}
         >
           <View style={styles.artworkImageContainer}>
-            <FastImage
+            <Image
               source={{
                 uri: activeTrack?.artwork ?? unknownBookImageUri,
-                priority: FastImage.priority.high,
+                // priority: FastImage.priority.high,
               }}
-              resizeMode={FastImage.resizeMode.contain}
+              contentFit='contain'
+              // resizeMode={FastImage.resizeMode.contain}
               style={styles.artworkImage}
             />
           </View>
