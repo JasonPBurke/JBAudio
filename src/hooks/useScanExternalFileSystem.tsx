@@ -16,7 +16,6 @@ import { useLibraryStore } from '@/store/library';
 
 export const useScanExternalFileSystem = () => {
   const path = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing`;
-  // const singlePath = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing/2010 - Kraken/Kraken-Part01.mp3`;
   const { setAuthors } = useLibraryStore();
 
   useEffect(() => {

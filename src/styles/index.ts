@@ -19,7 +19,7 @@ export const utilsStyles = StyleSheet.create({
     alignItems: 'center',
   },
   slider: {
-    height: 5,
+    height: 2,
     borderRadius: 16,
   },
   itemSeparator: {

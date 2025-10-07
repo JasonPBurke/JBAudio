@@ -65,7 +65,7 @@ export const BookGridItem = memo(function BookListItem({
 
   const handlePress = () => {
     router.navigate(
-      `/titleDetails?author=${author}&bookTitle=${bookTitle}`
+      `/titleDetails?author=${author}&bookTitle=${bookTitle}&bookId=${bookId}`
     );
   };
 

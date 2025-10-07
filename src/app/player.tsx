@@ -19,7 +19,7 @@ import { PlayerControls } from '@/components/PlayerControls';
 import { PlayerProgressBar } from '@/components/PlayerProgressBar';
 import { usePlayerBackground } from '@/hooks/usePlayerBackground';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useBookArtwork } from '@/store/library';
+// import { useBookArtwork } from '@/store/library';
 
 const PlayerScreen = () => {
   const activeTrack = useActiveTrack();
@@ -27,15 +27,10 @@ const PlayerScreen = () => {
     activeTrack?.artwork ?? unknownBookImageUri
   );
 
-  console.log('artist', activeTrack?.artist);
-  console.log('title', activeTrack?.title);
-
-  const bookArtwork = useBookArtwork(
-    activeTrack?.artist ?? 'Unknown Author',
-    activeTrack?.title ?? 'Unknown Title'
-  );
-
-  // console.log('bookArtwork', bookArtwork);
+  // const bookArtwork = useBookArtwork(
+  //   activeTrack?.artist ?? 'Unknown Author',
+  //   activeTrack?.title ?? 'Unknown Title'
+  // );
 
   const { top, bottom } = useSafeAreaInsets();
 
