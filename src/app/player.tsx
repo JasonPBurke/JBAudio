@@ -20,18 +20,12 @@ import { PlayerControls } from '@/components/PlayerControls';
 import { PlayerProgressBar } from '@/components/PlayerProgressBar';
 import { usePlayerBackground } from '@/hooks/usePlayerBackground';
 import { LinearGradient } from 'expo-linear-gradient';
-// import { useBookArtwork } from '@/store/library';
 
 const PlayerScreen = () => {
   const activeTrack = useActiveTrack();
   const { imageColors } = usePlayerBackground(
     activeTrack?.artwork ?? unknownBookImageUri
   );
-
-  // const bookArtwork = useBookArtwork(
-  //   activeTrack?.artist ?? 'Unknown Author',
-  //   activeTrack?.title ?? 'Unknown Title'
-  // );
 
   const { top, bottom } = useSafeAreaInsets();
 
@@ -65,6 +59,10 @@ const PlayerScreen = () => {
       colors={
         imageColors
           ? [
+              // imageColors.vibrant,
+              // imageColors.lightVibrant,
+              // imageColors.darkMuted,
+              // imageColors.darkVibrant,
               imageColors.darkVibrant,
               imageColors.lightVibrant,
               imageColors.vibrant,
@@ -80,20 +78,32 @@ const PlayerScreen = () => {
     >
       <View style={styles.overlayContainer}>
         <DismissPlayerSymbol />
+
         <View
           style={{ flex: 1, marginTop: top + 70, marginBottom: bottom }}
         >
           <View style={styles.artworkImageContainer}>
             <Image
+              contentFit='contain'
               source={{
                 uri: activeTrack?.artwork ?? unknownBookImageUri,
                 // priority: FastImage.priority.high,
               }}
-              contentFit='contain'
               // resizeMode={FastImage.resizeMode.contain}
               style={styles.artworkImage}
             />
           </View>
+          {/* <View style={styles.bookArtworkContainer}>
+            <Image
+              contentFit='contain'
+              source={{
+                uri: activeTrack?.artwork ?? unknownBookImageUri,
+                // priority: FastImage.priority.normal,
+              }}
+              // resizeMode={FastImage.resizeMode.contain}
+              style={styles.bookArtworkImage}
+            />
+          </View> */}
 
           <View style={{ flex: 1 }}>
             <View style={{ marginTop: 70 }}>
@@ -139,23 +149,28 @@ const DismissPlayerSymbol = () => {
   };
 
   return (
-    <TouchableHighlight
-      style={{
-        position: 'absolute',
-        top: top + 8,
-        left: 16,
-        right: 0,
-        flexDirection: 'row',
-        justifyContent: 'flex-start',
-      }}
-    >
-      <Ionicons
+    <Pressable
+      hitSlop={10}
+      style={{ ...styles.backButton, top: top + 8 }}
+      onPress={handlePress}
+    />
+    // <TouchableHighlight
+    //   style={{
+    //     position: 'absolute',
+    //     top: top + 8,
+    //     left: 16,
+    //     right: 0,
+    //     flexDirection: 'row',
+    //     justifyContent: 'flex-start',
+    //   }}
+    // >
+    /* <Ionicons
         name='chevron-down-outline'
         size={24}
         color={colors.icon}
         onPress={handlePress}
-      />
-    </TouchableHighlight>
+      /> */
+    // </TouchableHighlight>
   );
 };
 
@@ -165,24 +180,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: screenPadding.horizontal,
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
-  // container: {
-  // 	flex: 1,
-  // 	backgroundColor: 'red',
-  // },
-  // contentContainer: {
-  // 	flex: 1,
-  // 	padding: 36,
-  // 	alignItems: 'center',
-  // },
   artworkImageContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     height: '55%',
+    width: '100%',
   },
   artworkImage: {
-    width: '100%',
     height: '100%',
-    borderRadius: 12,
+    width: '100%',
+    borderRadius: 6,
   },
   chapterTitleContainer: {
     flexDirection: 'row',
@@ -200,4 +207,34 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '500',
   },
+  backButton: {
+    width: 55,
+    height: 7,
+    backgroundColor: '#1c1c1ca9',
+    borderRadius: 50,
+    borderColor: colors.textMuted,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignSelf: 'center',
+    // position: 'absolute',
+    // left: 16,
+    // right: 0,
+    // flexDirection: 'row',
+  },
+
+  // bookArtworkContainer: {
+  //   width: '90%',
+  //   height: '60%',
+  //   // paddingTop: 5,
+  //   flex: 1,
+  //   alignSelf: 'center',
+  //   marginBottom: 32,
+  //   // borderColor: 'red',
+  //   // borderWidth: 1,
+  // },
+  // bookArtworkImage: {
+  //   height: '100%',
+  //   width: 'auto',
+  //   borderRadius: 12,
+  // },
 });

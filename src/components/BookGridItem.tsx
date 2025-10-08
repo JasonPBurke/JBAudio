@@ -1,12 +1,14 @@
 import { unknownBookImageUri } from '@/constants/images';
 import {
+  Dimensions,
   Pressable,
   StyleSheet,
   Text,
   TouchableHighlight,
   View,
+  Image as RNImage,
 } from 'react-native';
-import { memo } from 'react';
+import { memo, useEffect, useState } from 'react';
 // import FastImage from '@d11/react-native-fast-image';
 import { Image } from 'expo-image';
 
@@ -32,14 +34,20 @@ export const BookGridItem = memo(function BookListItem({
   book,
   bookId,
 }: BookListItemProps) {
+  const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
+  const router = useRouter();
+  const { playing } = useIsPlaying();
+
+  const { setActiveBookId, activeBookId } = useQueueStore();
   const isActiveBook =
     useActiveTrack()?.url ===
     book.chapters[book.bookProgress.currentChapterIndex].url;
-  const { playing } = useIsPlaying();
-  const router = useRouter();
-  const { setActiveBookId, activeBookId } = useQueueStore();
-  const author = book.author;
-  const bookTitle = book.bookTitle;
+
+  useEffect(() => {
+    RNImage.getSize(book.artwork || unknownBookImageUri, (w, h) => {
+      setImageSize({ width: w, height: h });
+    });
+  }, [book.artwork]);
 
   const handlePressPlay = async (book: Book) => {
     const chapterIndex = book.bookProgress.currentChapterIndex;
@@ -66,8 +74,8 @@ export const BookGridItem = memo(function BookListItem({
   };
 
   const encodedBookId = encodeURIComponent(bookId);
-  const encodedAuthor = encodeURIComponent(author);
-  const encodedBookTitle = encodeURIComponent(bookTitle);
+  const encodedAuthor = encodeURIComponent(book.author);
+  const encodedBookTitle = encodeURIComponent(book.bookTitle);
 
   const handlePress = () => {
     router.navigate(
@@ -77,21 +85,32 @@ export const BookGridItem = memo(function BookListItem({
 
   return (
     <TouchableHighlight onPress={handlePress}>
-      <View style={[styles.bookItemContainer, { height: 200 }]}>
-        <View>
+      <View
+        style={[
+          {
+            height: 250,
+            width: imageSize.height
+              ? (imageSize.width / imageSize.height) * 150
+              : 0,
+          },
+        ]}
+      >
+        <View
+          style={{
+            width: imageSize.height
+              ? (imageSize.width / imageSize.height) * 150
+              : 0,
+            height: 150,
+          }}
+        >
           <Image
-            contentFit='contain'
-            // resizeMode={FastImage.resizeMode.contain}
-            //! JUST PLACE THE ABSOLUTE POSITIONING AT HE BOTTOM LEFT AND PLACE EVERY IMG AT THE BOTTOM LEFT AS WELL
-            // source={{
-            //   uri: book.artwork ?? unknownBookImageUri,
-            //   // priority: FastImage.priority.normal,
-            // }}
             source={book.artwork ?? unknownBookImageUri}
             style={{
               ...styles.bookArtworkImage,
-              // opacity: isActiveBook ? 0.6 : 1,
+              width: '100%',
+              height: '100%',
             }}
+            contentFit='contain'
           />
           {isActiveBook && playing ? (
             <LoaderKitView
@@ -111,24 +130,29 @@ export const BookGridItem = memo(function BookListItem({
             </Pressable>
           )}
         </View>
-        <View style={styles.bookInfoContainer}>
-          <View style={{ width: '100%' }}>
-            <Text
-              numberOfLines={1}
-              style={{
-                ...styles.bookTitleText,
-                color: colors.text,
-              }}
-            >
-              {book.bookTitle}
-            </Text>
+        <View
+          style={{
+            ...styles.bookInfoContainer,
+            width: imageSize.height
+              ? (imageSize.width / imageSize.height) * 150 - 10
+              : 0,
+          }}
+        >
+          <Text
+            numberOfLines={2}
+            style={{
+              ...styles.bookTitleText,
+              color: colors.text,
+            }}
+          >
+            {book.bookTitle}
+          </Text>
 
-            {book.chapters[0].author && (
-              <Text numberOfLines={1} style={styles.bookAuthorText}>
-                {book.chapters[0].author}
-              </Text>
-            )}
-          </View>
+          {book.author && (
+            <Text numberOfLines={1} style={styles.bookAuthorText}>
+              {book.author}
+            </Text>
+          )}
         </View>
       </View>
     </TouchableHighlight>
@@ -136,23 +160,14 @@ export const BookGridItem = memo(function BookListItem({
 });
 
 const styles = StyleSheet.create({
-  bookItemContainer: {
-    gap: 12,
-    maxWidth: 155,
-  },
   bookArtworkImage: {
-    //* height and width will need to be variable based on the cover img used
-    height: 150,
-    borderTopLeftRadius: 2,
-    borderTopRightRadius: 4,
-    borderBottomLeftRadius: 2,
-    borderBottomRightRadius: 4,
+    height: '100%',
+    width: '100%',
   },
   bookInfoContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    height: 50,
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
     paddingLeft: 5,
   },
   bookTitleText: {
@@ -170,13 +185,13 @@ const styles = StyleSheet.create({
   trackPlayingImageIcon: {
     position: 'absolute',
     left: 10,
-    bottom: 10,
+    bottom: 6,
     width: 20,
     height: 20,
   },
   trackPausedIcon: {
     position: 'absolute',
-    bottom: 10,
+    bottom: 6,
     left: 10,
   },
 });

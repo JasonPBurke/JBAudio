@@ -5,8 +5,7 @@ export const colors = {
   textMuted: '#d8dee9',
   icon: '#E5E9F0',
   maximumTrackTintColor: 'rgba(129, 161, 193, .4)',
-  // minimumTrackTintColor: 'rgba(236, 233, 43, 0.8)',
-  minimumTrackTintColor: 'rgba(255, 244, 79, 1)',
+  minimumTrackTintColor: '#FFB606',
 };
 
 //? Gold/black/purple: #1C1C1C, # 3B3B3B, #FFE002, #FFB606, #B28228, #492666, #830982, #

@@ -66,7 +66,10 @@ export const BooksHome = ({ authors }: BookListProps) => {
                 keyExtractor={(item) => item.chapters[0].url}
                 horizontal={true}
                 showsHorizontalScrollIndicator={false}
-                ListFooterComponent={<View style={{ width: 14 }} />}
+                ItemSeparatorComponent={() => (
+                  <View style={{ width: 12 }} />
+                )}
+                ListFooterComponent={<View style={{ width: 12 }} />}
                 ListEmptyComponent={
                   <View>
                     <Text style={utilsStyles.emptyComponent}>
@@ -103,7 +106,12 @@ export const BooksHome = ({ authors }: BookListProps) => {
               <View style={styles.listContainer}>
                 <FlashList<Book>
                   estimatedItemSize={120}
-                  contentContainerStyle={{ paddingLeft: 14 }}
+                  contentContainerStyle={{
+                    paddingLeft: 14,
+                  }}
+                  ItemSeparatorComponent={() => (
+                    <View style={{ width: 12 }} />
+                  )}
                   data={author.books}
                   renderItem={({ item: book }) => (
                     <BookGridItem
@@ -114,7 +122,7 @@ export const BooksHome = ({ authors }: BookListProps) => {
                   keyExtractor={(item) => item.chapters[0].url}
                   horizontal={true}
                   showsHorizontalScrollIndicator={false}
-                  ListFooterComponent={<View style={{ width: 14 }} />}
+                  ListFooterComponent={<View style={{ width: 12 }} />}
                   ListEmptyComponent={
                     <View>
                       <Text style={utilsStyles.emptyComponent}>
@@ -146,5 +154,8 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     height: 200,
+  },
+  containerGap: {
+    gap: 12,
   },
 });
