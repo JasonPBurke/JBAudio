@@ -63,16 +63,20 @@ const RootNavigation = () => {
       <Stack.Screen
         name='player'
         options={{
-          presentation: 'card',
+          presentation: 'formSheet',
+          sheetCornerRadius: 15,
+
           headerShown: false,
         }}
       />
       <Stack.Screen
         name='titleDetails'
         options={{
-          presentation: 'fullScreenModal',
+          sheetCornerRadius: 15,
+          presentation: 'formSheet',
+          // sheetAllowedDetents: [0.9, 1],
           headerShown: false,
-          // animation: 'slide_from_right',
+          animation: 'slide_from_bottom',
         }}
       />
     </Stack>

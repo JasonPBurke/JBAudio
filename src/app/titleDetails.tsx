@@ -5,18 +5,17 @@ import {
   // useWindowDimensions,
   Pressable,
 } from 'react-native';
-import { useAuthors, useBook, useBookById } from '@/store/library';
+import { useBook } from '@/store/library';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 // import FastImage from '@d11/react-native-fast-image';
 import { Image } from 'expo-image';
 
 import { unknownBookImageUri } from '@/constants/images';
 import { colors, fontSize } from '@/constants/tokens';
-import { Feather } from '@expo/vector-icons';
 import { defaultStyles } from '@/styles';
 import { usePlayerBackground } from '@/hooks/usePlayerBackground';
 import { LinearGradient } from 'expo-linear-gradient';
-// import { Play } from 'lucide-react-native';
+import { Play } from 'lucide-react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Book } from '@/types/Book';
 import TrackPlayer, {
@@ -115,26 +114,20 @@ const TitleDetails = () => {
           />
         </Pressable>
         <View style={styles.bookArtworkContainer}>
-          <Image
-            contentFit='contain'
-            // resizeMode={FastImage.resizeMode.contain}
-            source={{
-              uri: book?.artwork ?? unknownBookImageUri,
-              // priority: FastImage.priority.normal,
-            }}
-            style={styles.bookArtworkImage}
-          />
           <Pressable
             hitSlop={10}
             style={styles.backButton}
             onPress={() => router.back()}
-          >
-            <Feather
-              name='arrow-down-circle'
-              // color={colors.icon}
-              size={32}
-            />
-          </Pressable>
+          />
+          <Image
+            contentFit='contain'
+            source={{
+              uri: book?.artwork ?? unknownBookImageUri,
+              // priority: FastImage.priority.normal,
+            }}
+            // resizeMode={FastImage.resizeMode.contain}
+            style={styles.bookArtworkImage}
+          />
         </View>
 
         <View style={styles.bookInfoContainer}>
@@ -198,7 +191,7 @@ const TitleDetails = () => {
             <Text>Duration: </Text>
           </View>
           <View style={styles.inlineInfoContainer}>
-            <Text>Year:</Text>
+            <Text>Release year:</Text>
             <Text style={styles.bookInfoText}>{book?.metadata.year}</Text>
           </View>
           <View style={styles.inlineInfoContainer}>
@@ -229,6 +222,10 @@ const styles = StyleSheet.create({
     width: '90%',
     height: '60%',
     paddingTop: 5,
+    flex: 1,
+    marginBottom: 32,
+    // justifyContent: 'flex-start',
+    // alignItems: 'flex-start',
   },
   bookInfoContainer: {
     gap: 20,
@@ -240,7 +237,7 @@ const styles = StyleSheet.create({
   bookArtworkImage: {
     height: '100%',
     width: 'auto',
-    borderRadius: 4,
+    borderRadius: 6,
   },
   authorNarratorContainer: {
     flexDirection: 'row',
@@ -258,13 +255,23 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
   },
   backButton: {
-    position: 'absolute',
-    top: 6,
-    left: 10,
-    // padding: 4,
-    color: colors.icon,
+    width: 55,
+    height: 7,
+    backgroundColor: '#1c1c1ca9',
     borderRadius: 50,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    borderColor: colors.textMuted,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginBottom: 20,
+
+    // position: 'absolute',
+    // top: 6,
+    // left: 10,
+    // padding: 4,
+    // color: colors.icon,
+    // borderRadius: 50,
+    // backgroundColor: 'rgba(0,0,0,0.35)',
   },
   trackPlayingImageIcon: {
     position: 'absolute',

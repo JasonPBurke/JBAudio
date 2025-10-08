@@ -28,7 +28,10 @@ export const FloatingPlayer = ({ style }: ViewProps) => {
   const activeBook = useActiveTrack();
   const lastActiveBook = useLastActiveTrack();
   const displayedBook = activeBook ?? lastActiveBook;
-  if (!displayedBook) return null;
+
+  if (!displayedBook) {
+    return null;
+  }
 
   const handlePress = () => {
     router.navigate('/player');
@@ -36,11 +39,13 @@ export const FloatingPlayer = ({ style }: ViewProps) => {
 
   return (
     <TouchableOpacity
+      activeOpacity={0.9}
       onPress={handlePress}
       style={[styles.parentContainer, style]}
     >
       <>
         <Image
+          contentFit='contain'
           source={{
             uri: displayedBook.artwork ?? unknownBookImageUri,
           }}
@@ -70,15 +75,17 @@ const styles = StyleSheet.create({
   parentContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1f2226ff', // 3B4252
+    // backgroundColor: '#1f2226ff', // 3B4252
+    backgroundColor: '#1c1c1c',
+
     padding: 8,
-    borderRadius: 12,
+    borderRadius: 6,
+    marginBottom: 12,
   },
   bookArtworkImage: {
-    width: 50,
     height: 50,
-    // aspectRatio: 0.75,
-    borderRadius: 8,
+    width: 50,
+    borderRadius: 6,
   },
   bookTitleContainer: {
     flex: 1,

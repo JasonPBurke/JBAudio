@@ -51,7 +51,7 @@ export const BooksList = ({ authors }: BookListProps) => {
             )}
             keyExtractor={(item) => item.chapters[0].url}
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingTop: 12, paddingBottom: 128 }}
+            contentContainerStyle={{ paddingTop: 12, paddingBottom: 92 }}
             ListFooterComponent={allBooks.length > 0 ? ItemDivider : null}
             ItemSeparatorComponent={ItemDivider}
             ListEmptyComponent={
