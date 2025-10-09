@@ -19,6 +19,7 @@ import { useLastActiveTrack } from '@/hooks/useLastActiveTrack';
 import { MovingText } from '@/components/MovingText';
 import { useRouter } from 'expo-router';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
+import { colors } from '@/constants/tokens';
 
 export const FloatingPlayer = ({ style }: ViewProps) => {
   const { duration, position } = useProgress(250);
@@ -41,7 +42,14 @@ export const FloatingPlayer = ({ style }: ViewProps) => {
     <TouchableOpacity
       activeOpacity={0.9}
       onPress={handlePress}
-      style={[styles.parentContainer, style]}
+      style={[
+        styles.parentContainer,
+        style,
+        {
+          borderColor: colors.primary,
+          borderWidth: StyleSheet.hairlineWidth,
+        },
+      ]}
     >
       <>
         <Image
@@ -75,8 +83,9 @@ const styles = StyleSheet.create({
   parentContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    // backgroundColor: '#1f2226ff', // 3B4252
-    backgroundColor: '#1c1c1c',
+    backgroundColor: '#1f2226ff', // 3B4252
+    // backgroundColor: '#1c1c1c',
+    // borderColor: colors.primary,
 
     padding: 8,
     borderRadius: 6,

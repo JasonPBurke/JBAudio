@@ -62,6 +62,7 @@ export const BookGridItem = memo(function BookListItem({
         title: chapter.chapterTitle,
         artist: chapter.author,
         artwork: book.artwork ?? unknownBookImageUri,
+        album: book.bookTitle,
       }));
       await TrackPlayer.add(tracks);
       await TrackPlayer.skip(chapterIndex);

@@ -5,6 +5,8 @@ import {
   // useWindowDimensions,
   Pressable,
 } from 'react-native';
+// import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+// import { BlurView } from 'expo-blur';
 import { useBook } from '@/store/library';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 // import FastImage from '@d11/react-native-fast-image';
@@ -15,7 +17,7 @@ import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import { usePlayerBackground } from '@/hooks/usePlayerBackground';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Play } from 'lucide-react-native';
+// import { Play } from 'lucide-react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Book } from '@/types/Book';
 import TrackPlayer, {
@@ -24,8 +26,11 @@ import TrackPlayer, {
 } from 'react-native-track-player';
 import { useQueueStore } from '@/store/queue';
 import { formatDate } from '@/helpers/miscellaneous';
+import ModalComponent from '@/components/ModalComponent';
+import { useState } from 'react';
 
 const TitleDetails = () => {
+  const [showModal, setShowModal] = useState(false);
   const router = useRouter();
   // const { width, height } = useWindowDimensions();
   const { setActiveBookId, activeBookId } = useQueueStore();
@@ -55,6 +60,7 @@ const TitleDetails = () => {
         title: chapter.chapterTitle,
         artist: chapter.author,
         artwork: book.artwork ?? unknownBookImageUri,
+        album: book.bookTitle,
       }));
       await TrackPlayer.add(tracks);
       await TrackPlayer.skip(chapterIndex);
@@ -129,77 +135,98 @@ const TitleDetails = () => {
             style={styles.bookArtworkImage}
           />
         </View>
-
         <View style={styles.bookInfoContainer}>
-          <Text style={styles.bookTitleText}>{bookTitle}</Text>
+          <Pressable
+            onLongPress={() => setShowModal(true)}
+            style={styles.bookInfoContainer}
+          >
+            <Text style={styles.bookTitleText}>{bookTitle}</Text>
 
-          <View style={styles.authorNarratorContainer}>
-            <View
-              style={{
-                alignItems: 'center',
-                flex: 1,
-              }}
-            >
-              <Text
+            <View style={styles.authorNarratorContainer}>
+              <View
                 style={{
-                  ...styles.bookInfoText,
-                  color: imageColors?.muted || colors.textMuted,
+                  alignItems: 'center',
+                  flex: 1,
                 }}
               >
-                Author
-              </Text>
-              <Text style={styles.bookInfoText}>{author}</Text>
+                <Text
+                  style={{
+                    ...styles.bookInfoText,
+                    color: imageColors?.muted || colors.textMuted,
+                  }}
+                >
+                  Author
+                </Text>
+                <Text style={styles.bookInfoText}>{author}</Text>
+              </View>
+              <View
+                style={{
+                  ...styles.divider,
+                  backgroundColor: imageColors?.muted || colors.textMuted,
+                }}
+              />
+              <View
+                style={{
+                  alignItems: 'center',
+                  flex: 1,
+                }}
+              >
+                <Text
+                  style={{
+                    ...styles.bookInfoText,
+                    color: imageColors?.muted || colors.textMuted,
+                  }}
+                >
+                  Narrated by
+                </Text>
+                <Text style={styles.bookInfoText}>
+                  {book?.metadata.narrator}
+                </Text>
+              </View>
             </View>
-            <View
-              style={{
-                ...styles.divider,
-                backgroundColor: imageColors?.muted || colors.textMuted,
-              }}
-            />
-            <View
-              style={{
-                alignItems: 'center',
-                flex: 1,
-              }}
-            >
-              <Text
-                style={{
-                  ...styles.bookInfoText,
-                  color: imageColors?.muted || colors.textMuted,
-                }}
-              >
-                Narrated by
-              </Text>
+            <View style={styles.inlineInfoContainer}>
+              <Text>Added on:</Text>
               <Text style={styles.bookInfoText}>
-                {book?.metadata.narrator}
+                {formatDate(book?.metadata.ctime)}
               </Text>
             </View>
-          </View>
-          <View style={styles.inlineInfoContainer}>
-            <Text>Added on:</Text>
-            <Text style={styles.bookInfoText}>
-              {formatDate(book?.metadata.ctime)}
-            </Text>
-          </View>
-          <View style={styles.inlineInfoContainer}>
-            <Text>Total Audio Files:</Text>
-            <Text style={styles.bookInfoText}>
-              {book?.metadata.totalTrackCount || book?.chapters.length}
-            </Text>
-          </View>
-          <View>
-            <Text>Duration: </Text>
-          </View>
-          <View style={styles.inlineInfoContainer}>
-            <Text>Release year:</Text>
-            <Text style={styles.bookInfoText}>{book?.metadata.year}</Text>
-          </View>
-          <View style={styles.inlineInfoContainer}>
-            <Text>Description: </Text>
-            <Text style={styles.bookInfoText}>
-              {book?.metadata.description}
-            </Text>
-          </View>
+            <View style={styles.inlineInfoContainer}>
+              <Text>Total Audio Files:</Text>
+              <Text style={styles.bookInfoText}>
+                {book?.metadata.totalTrackCount || book?.chapters.length}
+              </Text>
+            </View>
+            <View>
+              <Text>Duration: </Text>
+            </View>
+            <View style={styles.inlineInfoContainer}>
+              <Text>Release year:</Text>
+              <Text style={styles.bookInfoText}>{book?.metadata.year}</Text>
+            </View>
+            <View style={styles.inlineInfoContainer}>
+              <Text>Description: </Text>
+              <Text style={styles.bookInfoText}>
+                {book?.metadata.description}
+              </Text>
+            </View>
+          </Pressable>
+
+          <ModalComponent
+            isVisible={showModal}
+            onBackdropPress={() => setShowModal(false)}
+            onBackButtonPress={() => setShowModal(false)}
+            hideModal={() => setShowModal(false)}
+            swipeDirection='up'
+            onSwipeComplete={() => setShowModal(false)}
+            animationIn='slideInUp'
+            animationOut='slideOutDown'
+            style={{
+              ...styles.metadataModal,
+              backgroundColor: '#1C1C1C',
+            }}
+          >
+            <Text>build out edit metadata screen here</Text>
+          </ModalComponent>
         </View>
       </View>
     </LinearGradient>
@@ -286,7 +313,6 @@ const styles = StyleSheet.create({
   divider: {
     width: 1,
     height: '50%',
-    // backgroundColor: '#d8dee981',
     alignSelf: 'center',
   },
   inlineInfoContainer: {
@@ -294,5 +320,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 6,
+  },
+  metadataModal: {
+    flex: 1 / 3,
+    margin: 20,
+    // backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 35,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
 });
