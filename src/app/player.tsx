@@ -3,9 +3,11 @@ import { defaultStyles } from '@/styles';
 import {
   StyleSheet,
   View,
+  Text,
   TouchableHighlight,
   ActivityIndicator,
   Pressable,
+  FlatList,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -20,9 +22,17 @@ import { PlayerControls } from '@/components/PlayerControls';
 import { PlayerProgressBar } from '@/components/PlayerProgressBar';
 import { usePlayerBackground } from '@/hooks/usePlayerBackground';
 import { LinearGradient } from 'expo-linear-gradient';
+import ModalComponent from '@/components/ModalComponent';
+import { useState } from 'react';
+import { useBook } from '@/store/library';
+import { Book } from '@/types/Book';
 
 const PlayerScreen = () => {
+  const [showModal, setShowModal] = useState(false);
+
   const activeTrack = useActiveTrack();
+  const book = useBook(activeTrack?.artist ?? '', activeTrack?.album ?? '');
+
   const { imageColors } = usePlayerBackground(
     activeTrack?.artwork ?? unknownBookImageUri
   );
@@ -93,24 +103,13 @@ const PlayerScreen = () => {
               style={styles.artworkImage}
             />
           </View>
-          {/* <View style={styles.bookArtworkContainer}>
-            <Image
-              contentFit='contain'
-              source={{
-                uri: activeTrack?.artwork ?? unknownBookImageUri,
-                // priority: FastImage.priority.normal,
-              }}
-              // resizeMode={FastImage.resizeMode.contain}
-              style={styles.bookArtworkImage}
-            />
-          </View> */}
 
           <View style={{ flex: 1 }}>
             <View style={{ marginTop: 70 }}>
               <View>
                 {/* onPress load chapter list...not implemented */}
                 <Pressable
-                  // onPress={() => console.log('pressed')}
+                  onPress={() => setShowModal(true)}
                   style={styles.chapterTitleContainer}
                 >
                   <Feather
@@ -131,6 +130,23 @@ const PlayerScreen = () => {
 
                 <PlayerControls style={{ marginTop: 50 }} />
               </View>
+              <ModalComponent
+                propagateSwipe
+                isVisible={showModal}
+                onBackdropPress={() => setShowModal(false)}
+                onBackButtonPress={() => setShowModal(false)}
+                hideModal={() => setShowModal(false)}
+                swipeDirection={'up'}
+                onSwipeComplete={() => setShowModal(false)}
+                animationIn='slideInUp'
+                animationOut='slideOutDown'
+                style={{
+                  // ...styles.metadataModal,
+                  backgroundColor: '#1C1C1C',
+                }}
+              >
+                <ChapterList book={book} />
+              </ModalComponent>
             </View>
           </View>
         </View>
@@ -140,6 +156,48 @@ const PlayerScreen = () => {
 };
 
 export default PlayerScreen;
+
+const ChapterList = ({ book }: { book: Book | undefined }) => {
+  return (
+    <View style={{ flex: 1, width: '100%', padding: 20 }}>
+      <Text
+        style={{
+          color: colors.text,
+          fontSize: 20,
+          textAlign: 'center',
+          marginBottom: 20,
+        }}
+      >
+        Chapters
+      </Text>
+      {book?.chapters && book.chapters.length > 0 ? (
+        <FlatList
+          data={book.chapters}
+          keyExtractor={(item) => item.chapterTitle}
+          renderItem={({ item }) => {
+            return (
+              <View style={styles.chapterItem}>
+                <Text style={styles.chapterTitle}>{item.chapterTitle}</Text>
+                {/* <Text style={styles.chapterDuration}>{item.duration}</Text> */}
+              </View>
+            );
+          }}
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+        />
+      ) : (
+        <Text
+          style={{
+            color: colors.textMuted,
+            textAlign: 'center',
+          }}
+        >
+          No chapters found for this book.
+        </Text>
+      )}
+    </View>
+  );
+};
 
 const DismissPlayerSymbol = () => {
   const { top } = useSafeAreaInsets();
@@ -154,23 +212,6 @@ const DismissPlayerSymbol = () => {
       style={{ ...styles.backButton, top: top + 8 }}
       onPress={handlePress}
     />
-    // <TouchableHighlight
-    //   style={{
-    //     position: 'absolute',
-    //     top: top + 8,
-    //     left: 16,
-    //     right: 0,
-    //     flexDirection: 'row',
-    //     justifyContent: 'flex-start',
-    //   }}
-    // >
-    /* <Ionicons
-        name='chevron-down-outline'
-        size={24}
-        color={colors.icon}
-        onPress={handlePress}
-      /> */
-    // </TouchableHighlight>
   );
 };
 
@@ -222,19 +263,18 @@ const styles = StyleSheet.create({
     // flexDirection: 'row',
   },
 
-  // bookArtworkContainer: {
-  //   width: '90%',
-  //   height: '60%',
-  //   // paddingTop: 5,
-  //   flex: 1,
-  //   alignSelf: 'center',
-  //   marginBottom: 32,
-  //   // borderColor: 'red',
-  //   // borderWidth: 1,
-  // },
-  // bookArtworkImage: {
-  //   height: '100%',
-  //   width: 'auto',
-  //   borderRadius: 12,
-  // },
+  chapterItem: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.textMuted,
+  },
+  chapterTitle: {
+    ...defaultStyles.text,
+    fontSize: 16,
+  },
+  chapterDuration: {
+    ...defaultStyles.text,
+    fontSize: 14,
+    color: colors.textMuted,
+  },
 });
