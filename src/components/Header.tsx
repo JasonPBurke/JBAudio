@@ -21,6 +21,7 @@ type headerProps = {
 const Header = ({ toggleView, setToggleView }: headerProps) => {
   const handleToggleView = () => {
     setToggleView((prevState) => !prevState);
+    // setToggleView(toggleView === 0 ? 1 : toggleView === 1 ? 2 : 0);
   };
   return (
     <View style={styles.container}>
@@ -37,6 +38,13 @@ const Header = ({ toggleView, setToggleView }: headerProps) => {
           <Pressable hitSlop={10} style={{ padding: 4 }}>
             <MaterialCommunityIcons
               name={toggleView ? 'dots-grid' : 'bookshelf'}
+              // name={
+              //   toggleView === 0
+              //     ? 'bookshelf'
+              //     : toggleView === 1
+              //       ? 'format-list-bulleted'
+              //       : 'dots-grid'
+              // }
               style={{ transform: [{ scaleX: -1 }] }}
               size={24}
               color={colors.icon}

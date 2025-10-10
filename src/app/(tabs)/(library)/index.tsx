@@ -1,17 +1,19 @@
 import { BooksList } from '@/components/BooksList';
+import { BooksHome } from '@/components/BooksHome';
+import { BooksGrid } from '@/components/BooksGrid';
 import { useNavigationSearch } from '@/hooks/useNavigationSearch';
 import { defaultStyles } from '@/styles';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { bookTitleFilter } from '@/helpers/filter';
 import Header from '@/components/Header';
-import { BooksHome } from '@/components/BooksHome';
 import { useScanExternalFileSystem } from '@/hooks/useScanExternalFileSystem';
 import { useAuthors } from '@/store/library';
 
 const LibraryScreen = () => {
   const [toggleView, setToggleView] = React.useState(false);
+  // const [toggleView, setToggleView] = React.useState(0);
   useScanExternalFileSystem(); // Call the hook to trigger scanning and store update
 
   const search = useNavigationSearch({
@@ -21,6 +23,10 @@ const LibraryScreen = () => {
   });
 
   const library = useAuthors();
+
+  // useEffect(() => {
+  //   console.log('library', library);
+  // }, [library]);
 
   const filteredBooks = useMemo(() => {
     if (!search) return library;
@@ -33,10 +39,10 @@ const LibraryScreen = () => {
         {/* MOVE HEADER ABOVE SCROLL VIEW TO DOCK IT AT TOP OF SCREEN */}
         <Header setToggleView={setToggleView} toggleView={toggleView} />
         <ScrollView>
-          {toggleView ? (
-            <BooksList authors={filteredBooks} scrollEnabled={false} />
-          ) : (
+          {!toggleView ? (
             <BooksHome authors={filteredBooks} scrollEnabled={false} />
+          ) : (
+            <BooksList authors={filteredBooks} scrollEnabled={false} />
           )}
         </ScrollView>
       </SafeAreaView>

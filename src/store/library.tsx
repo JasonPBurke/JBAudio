@@ -1,14 +1,17 @@
 import { Author, Book } from '@/types/Book';
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 interface LibraryState {
   authors: Author[];
   setAuthors: (authors: Author[]) => void;
+  getAuthors: () => Author[];
 }
 
-export const useLibraryStore = create<LibraryState>()((set) => ({
+export const useLibraryStore = create<LibraryState>()((set, get) => ({
   authors: [],
   setAuthors: (authors) => set({ authors }),
+  getAuthors: () => get().authors,
 }));
 
 export const useAuthors = () => useLibraryStore((state) => state.authors);

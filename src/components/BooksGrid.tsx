@@ -11,19 +11,24 @@ export type BookGridProps = Partial<MasonryFlashListProps<Book>> & {
   authors: Author[];
 };
 
-const BooksGrid = ({ authors }: BookGridProps) => {
+export const BooksGrid = ({ authors }: BookGridProps) => {
   const allBooks = authors.flatMap((author) => author.books);
 
   return (
-    <View>
+    <View style={{ height: 250 }}>
       <MasonryFlashList
         data={allBooks}
         renderItem={({ item: book }) => (
-          <BookGridItem book={book} bookId={book.chapters[0].url} />
+          <BookGridItem
+            book={book}
+            bookId={book.chapters[0].url}
+            flowDirection='column'
+          />
         )}
         estimatedItemSize={250}
         numColumns={3}
         keyExtractor={(item) => item.chapters[0].url}
+        // ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
         ListEmptyComponent={
@@ -35,5 +40,3 @@ const BooksGrid = ({ authors }: BookGridProps) => {
     </View>
   );
 };
-
-export default BooksGrid;
