@@ -20,6 +20,7 @@ import TrackPlayer, {
   useActiveTrack,
   useIsPlaying,
 } from 'react-native-track-player';
+
 import { Book } from '@/types/Book';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -28,11 +29,13 @@ import { useQueueStore } from '@/store/queue';
 export type BookListItemProps = {
   book: Book;
   bookId: string;
+  flowDirection: 'row' | 'column';
 };
 
 export const BookGridItem = memo(function BookListItem({
   book,
   bookId,
+  flowDirection,
 }: BookListItemProps) {
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const router = useRouter();
@@ -86,7 +89,15 @@ export const BookGridItem = memo(function BookListItem({
 
   return (
     <TouchableHighlight
-      // style={{ borderColor: colors.primary, borderWidth: 1 }}
+      style={
+        {
+          // flex: 1,
+          // borderColor: colors.primary,
+          // borderWidth: 1,
+          // justifyContent: 'flex-start',
+          // alignItems: 'flex-start',
+        }
+      }
       onPress={handlePress}
     >
       <View
@@ -96,6 +107,18 @@ export const BookGridItem = memo(function BookListItem({
             width: imageSize.height
               ? (imageSize.width / imageSize.height) * 150
               : 0,
+            // height:
+            //   flowDirection === 'row'
+            //     ? 250
+            //     : imageSize.height
+            //       ? (imageSize.height / imageSize.width) * 150 + 55
+            //       : 0,
+            // width:
+            //   flowDirection === 'row'
+            //     ? imageSize.height
+            //       ? (imageSize.width / imageSize.height) * 150
+            //       : 0
+            //     : 250,
           },
         ]}
       >
@@ -105,6 +128,18 @@ export const BookGridItem = memo(function BookListItem({
             width: imageSize.height
               ? (imageSize.width / imageSize.height) * 150
               : 0,
+            // height:
+            //   flowDirection === 'row'
+            //     ? 150
+            //     : imageSize.height
+            //       ? (imageSize.height / imageSize.width) * 150
+            //       : 0,
+            // width:
+            //   flowDirection === 'row'
+            //     ? imageSize.height
+            //       ? (imageSize.width / imageSize.height) * 150
+            //       : 0
+            //     : 125,
           }}
         >
           <Image
@@ -148,6 +183,12 @@ export const BookGridItem = memo(function BookListItem({
             width: imageSize.height
               ? (imageSize.width / imageSize.height) * 150 - 10
               : 0,
+            // width:
+            //   flowDirection === 'row'
+            //     ? imageSize.height
+            //       ? (imageSize.width / imageSize.height) * 150
+            //       : 0
+            //     : 125,
           }}
         >
           <Text

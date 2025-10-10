@@ -51,6 +51,7 @@ export const BookListItem = memo(function BookListItem({
   const { setActiveBookId, activeBookId } = useQueueStore();
 
   const handlePressPlay = async (book: Book) => {
+    //! this should be done in the chapter list in the player
     const chapterIndex = book.bookProgress.currentChapterIndex;
     if (chapterIndex === -1) return;
 
@@ -70,7 +71,7 @@ export const BookListItem = memo(function BookListItem({
       await TrackPlayer.play();
       setActiveBookId(bookId);
     } else {
-      await TrackPlayer.skip(chapterIndex);
+      // await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.play();
     }
   };
@@ -85,30 +86,6 @@ export const BookListItem = memo(function BookListItem({
     );
   };
 
-  //! for animated list
-  // const rStyle = useAnimatedStyle(() => {
-  //   const isVisible = Boolean(
-  //     viewableItems.value
-  //       .filter((item) => item.isViewable)
-  //       .find(
-  //         (viewableItem) =>
-  //           viewableItem.item.chapters[0].url === book.chapters[0].url
-  //       )
-  //   );
-
-  //   console.log('isVisible', isVisible);
-
-  //   return {
-  //     opacity: withTiming(isVisible ? 1 : 0),
-  //     transform: [{ scale: withTiming(isVisible ? 1 : 0.8) }],
-  //   };
-  // }, []);
-
-  // console.log(
-  //   'viewableItems',
-  //   JSON.stringify(viewableItems.value[0]?.isViewable, null, 2)
-  // );
-
   return (
     <TouchableHighlight onPress={handlePress}>
       <View style={styles.bookItemContainer}>
@@ -122,7 +99,6 @@ export const BookListItem = memo(function BookListItem({
             }}
             style={{
               ...styles.bookArtworkImage,
-              // opacity: isActiveBook ? 0.6 : 1,
             }}
           />
         </View>
@@ -132,8 +108,8 @@ export const BookListItem = memo(function BookListItem({
               numberOfLines={1}
               style={{
                 ...styles.bookTitleText,
-                color: colors.textMuted,
-                // color: isActiveBook ? colors.primary : colors.text,
+                // color: colors.textMuted,
+                color: isActiveBook ? '#ffb406be' : colors.text,
               }}
             >
               {book.bookTitle}

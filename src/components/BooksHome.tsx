@@ -11,7 +11,6 @@ import { Book, Author } from '@/types/Book';
 import { colors, fontSize } from '@/constants/tokens';
 import { Feather } from '@expo/vector-icons';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
-import { BooksList } from './BooksList';
 
 export type BookListProps = Partial<FlashListProps<Book>> & {
   authors: Author[];
@@ -34,10 +33,10 @@ export const BooksHome = ({ authors }: BookListProps) => {
     return 0;
   });
 
-  const handleRecentlyAddedPress = (authors: Author[]) => {
-    console.log('handleRecentlyAddedPress');
-    return <BooksList authors={authors} />;
-  };
+  // const handleRecentlyAddedPress = (authors: Author[]) => {
+  //   console.log('handleRecentlyAddedPress');
+  //   return <BooksList authors={authors} />;
+  // };
 
   return (
     //? need to put a loader if allBooks.length === 0
@@ -56,7 +55,7 @@ export const BooksHome = ({ authors }: BookListProps) => {
                 color: '#cccccc28',
               }}
               onPress={() => {
-                handleRecentlyAddedPress(authors);
+                // handleRecentlyAddedPress(authors);
               }}
             >
               <View style={styles.titleBar}>
@@ -75,7 +74,11 @@ export const BooksHome = ({ authors }: BookListProps) => {
                 contentContainerStyle={{ paddingLeft: 14 }}
                 data={allBooks}
                 renderItem={({ item: book }) => (
-                  <BookGridItem book={book} bookId={book.chapters[0].url} />
+                  <BookGridItem
+                    book={book}
+                    bookId={book.chapters[0].url}
+                    flowDirection='row'
+                  />
                 )}
                 keyExtractor={(item) => item.chapters[0].url}
                 horizontal={true}
@@ -132,6 +135,7 @@ export const BooksHome = ({ authors }: BookListProps) => {
                     <BookGridItem
                       book={book}
                       bookId={book.chapters[0].url}
+                      flowDirection='row'
                     />
                   )}
                   keyExtractor={(item) => item.chapters[0].url}

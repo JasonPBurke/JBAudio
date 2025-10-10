@@ -67,7 +67,7 @@ const TitleDetails = () => {
       await TrackPlayer.play();
       setActiveBookId(bookId);
     } else {
-      await TrackPlayer.skip(chapterIndex);
+      // await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.play();
     }
   };
