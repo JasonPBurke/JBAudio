@@ -20,7 +20,7 @@ import TrackPlayer, {
   useIsPlaying,
 } from 'react-native-track-player';
 import { Book } from '@/types/Book';
-import { Entypo, Feather } from '@expo/vector-icons';
+import { Entypo, Feather, Ionicons } from '@expo/vector-icons';
 import LoaderKitView from 'react-native-loader-kit';
 import { useRouter } from 'expo-router';
 import Animated, {
@@ -167,7 +167,11 @@ export const BookListItem = memo(function BookListItem({
                 style={{ padding: 8 }}
                 hitSlop={10}
               >
-                <Feather name='headphones' size={18} color={colors.icon} />
+                <Ionicons
+                  name='headset-outline'
+                  size={18}
+                  color={colors.icon}
+                />
               </Pressable>
             )}
           </View>
