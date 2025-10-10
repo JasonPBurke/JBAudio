@@ -18,15 +18,6 @@ configureReanimatedLogger({
   strict: false, // Reanimated runs in strict mode by default
 });
 
-// type Style = 'auto' | 'inverted' | 'light' | 'dark';
-
-// type SystemBarsProps = {
-//   // set the color of the system bar content (as no effect on semi-opaque navigation bar)
-//   style?: Style | { statusBar?: Style; navigationBar?: Style };
-//   // hide system bars (the navigation bar cannot be hidden on iOS)
-//   hidden?: boolean | { statusBar?: boolean; navigationBar?: boolean };
-// };
-
 SplashScreen.preventAutoHideAsync();
 TrackPlayer.registerPlaybackService(() => playbackService);
 

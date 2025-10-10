@@ -21,7 +21,7 @@ import TrackPlayer, {
   useIsPlaying,
 } from 'react-native-track-player';
 import { Book } from '@/types/Book';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
 
@@ -85,7 +85,10 @@ export const BookGridItem = memo(function BookListItem({
   };
 
   return (
-    <TouchableHighlight onPress={handlePress}>
+    <TouchableHighlight
+      // style={{ borderColor: colors.primary, borderWidth: 1 }}
+      onPress={handlePress}
+    >
       <View
         style={[
           {
@@ -98,10 +101,10 @@ export const BookGridItem = memo(function BookListItem({
       >
         <View
           style={{
+            height: 150,
             width: imageSize.height
               ? (imageSize.width / imageSize.height) * 150
               : 0,
-            height: 150,
           }}
         >
           <Image
@@ -120,10 +123,18 @@ export const BookGridItem = memo(function BookListItem({
               color={colors.primary}
             />
           ) : (
-            <Pressable hitSlop={15}>
-              <Feather
-                style={styles.trackPausedIcon}
-                name='headphones'
+            <Pressable
+              style={{
+                ...styles.trackPausedIcon,
+                padding: 6,
+                borderRadius: 4,
+                backgroundColor: '#1c1c1c96',
+              }}
+              hitSlop={25}
+            >
+              <Ionicons
+                // style={styles.trackPausedIcon}
+                name='headset-outline'
                 size={18}
                 color={colors.icon}
                 onPress={() => handlePressPlay(book)}
@@ -176,6 +187,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     fontWeight: '600',
     maxWidth: '90%',
+    marginTop: 4,
   },
   bookAuthorText: {
     ...defaultStyles.text,
@@ -185,14 +197,14 @@ const styles = StyleSheet.create({
   },
   trackPlayingImageIcon: {
     position: 'absolute',
-    left: 10,
-    bottom: 6,
+    left: 11,
+    bottom: 8,
     width: 20,
     height: 20,
   },
   trackPausedIcon: {
     position: 'absolute',
-    bottom: 6,
-    left: 10,
+    bottom: 2,
+    left: 2,
   },
 });

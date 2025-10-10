@@ -1,10 +1,17 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { BookGridItem } from '@/components/BookGridItem';
 import { utilsStyles } from '@/styles';
 import { Book, Author } from '@/types/Book';
 import { colors, fontSize } from '@/constants/tokens';
 import { Feather } from '@expo/vector-icons';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
+import { BooksList } from './BooksList';
 
 export type BookListProps = Partial<FlashListProps<Book>> & {
   authors: Author[];
@@ -27,23 +34,30 @@ export const BooksHome = ({ authors }: BookListProps) => {
     return 0;
   });
 
-  // const handleRecentlyAddedPress = (authors: Author[]) => {
-  //   <BooksList books={authors} />;
-  // };
+  const handleRecentlyAddedPress = (authors: Author[]) => {
+    console.log('handleRecentlyAddedPress');
+    return <BooksList authors={authors} />;
+  };
 
   return (
     //? need to put a loader if allBooks.length === 0
-    <View>
+    <ScrollView
+      style={{ flex: 1 }}
+      showsVerticalScrollIndicator={false}
+      showsHorizontalScrollIndicator={false}
+    >
       {/* Recently Added Section */}
       {allBooks.length > 0 && (
-        <View style={{ gap: 12, marginBottom: 12 }}>
+        <View style={{ gap: 12, marginBottom: 82 }}>
           <View style={{ gap: 12 }}>
             <Pressable
               style={{ paddingVertical: 6 }}
               android_ripple={{
                 color: '#cccccc28',
               }}
-              onPress={() => {}}
+              onPress={() => {
+                handleRecentlyAddedPress(authors);
+              }}
             >
               <View style={styles.titleBar}>
                 <Text style={styles.titleText}>Recently Added</Text>
@@ -61,11 +75,12 @@ export const BooksHome = ({ authors }: BookListProps) => {
                 contentContainerStyle={{ paddingLeft: 14 }}
                 data={allBooks}
                 renderItem={({ item: book }) => (
-                  <BookGridItem book={book} bookId={book.bookId} />
+                  <BookGridItem book={book} bookId={book.chapters[0].url} />
                 )}
                 keyExtractor={(item) => item.chapters[0].url}
                 horizontal={true}
                 showsHorizontalScrollIndicator={false}
+                showsVerticalScrollIndicator={false}
                 ItemSeparatorComponent={() => (
                   <View style={{ width: 12 }} />
                 )}
@@ -122,6 +137,7 @@ export const BooksHome = ({ authors }: BookListProps) => {
                   keyExtractor={(item) => item.chapters[0].url}
                   horizontal={true}
                   showsHorizontalScrollIndicator={false}
+                  showsVerticalScrollIndicator={false}
                   ListFooterComponent={<View style={{ width: 12 }} />}
                   ListEmptyComponent={
                     <View>
@@ -136,7 +152,7 @@ export const BooksHome = ({ authors }: BookListProps) => {
           ))}
         </View>
       )}
-    </View>
+    </ScrollView>
   );
 };
 

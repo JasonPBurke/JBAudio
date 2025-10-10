@@ -30,28 +30,35 @@ export const BooksList = ({ authors }: BookListProps) => {
 
   const viewableItems = useSharedValue<ViewToken[]>([]);
 
+  // console.log('book.bookId', book.bookId)
+
   return (
     //? need to put a loader if allBooks.length === 0
-    <View style={{ paddingHorizontal: screenPadding.horizontal }}>
+    <View style={{ flex: 1, paddingHorizontal: screenPadding.horizontal }}>
       {allBooks.length > 0 && (
-        <View>
+        <View style={{ flex: 1 }}>
           <FlashList<Book>
-            estimatedItemSize={120}
+            estimatedItemSize={200}
             data={allBooks}
             //! onViewableItemsChanged is a reanimated function to animate the list
             // onViewableItemsChanged={({ viewableItems: vItems }) => {
             //   viewableItems.value = vItems;
             // }}
             renderItem={({ item: book }) => (
+              // console.log('book.bookId', book.bookId), //undefined
               <BookListItem
                 viewableItems={viewableItems}
                 book={book}
-                bookId={book.bookId}
+                bookId={book.chapters[0].url}
               />
             )}
-            keyExtractor={(item) => item.chapters[0].url}
+            keyExtractor={(item) =>
+              // console.log('item.chapters[0].url', item.chapters[0].url),
+              item.chapters[0].url
+            }
+            showsVerticalScrollIndicator={false}
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingTop: 12, paddingBottom: 92 }}
+            contentContainerStyle={{ paddingTop: 12, paddingBottom: 82 }}
             ListFooterComponent={allBooks.length > 0 ? ItemDivider : null}
             ItemSeparatorComponent={ItemDivider}
             ListEmptyComponent={
