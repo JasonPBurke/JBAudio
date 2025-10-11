@@ -19,16 +19,16 @@ export default class Book extends Model {
 
   @text('title') title!: string;
   @text('artwork') artwork!: string | null;
-  @field('current_chapter_index') currentChapterIndex!: number;
-  @field('current_chapter_progress') currentChapterProgress!: number;
-  @field('year') year!: number;
-  @text('description') description!: string;
-  @text('narrator') narrator!: string;
+  @field('current_chapter_index') currentChapterIndex!: number | null;
+  @field('current_chapter_progress') currentChapterProgress!: number | null;
+  @field('year') year!: number | null;
+  @text('description') description!: string | null;
+  @text('narrator') narrator!: string | null;
   @text('genre') genre!: string | null;
   @field('sample_rate') sampleRate!: number | null;
   @field('total_track_count') totalTrackCount!: number;
   @date('created_at') createdAt!: Date;
-  @date('updated_at') updatedAt!: Date;
+  @date('updated_at') updatedAt!: Date | null;
 
   @relation('authors', 'author_id') author!: Author;
   @children('chapters') chapters!: Chapter[];
