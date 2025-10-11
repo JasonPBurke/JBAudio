@@ -12,6 +12,7 @@
 		],
 		"noEmit": true,
 		"allowSyntheticDefaultImports": true,
+		"experimentalDecorators": true,
 		"skipLibCheck": true,
 		"resolveJsonModule": true,
 		"baseUrl": ".",

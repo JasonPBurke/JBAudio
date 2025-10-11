@@ -4,14 +4,15 @@ export default appSchema({
   version: 1,
   tables: [
     tableSchema({
+      name: 'authors',
+      columns: [{ name: 'name', type: 'string' }],
+    }),
+    tableSchema({
       name: 'books',
       columns: [
-        { name: 'book_id', type: 'string' },
-        { name: 'author', type: 'string' },
-        { name: 'book_title', type: 'string' },
+        { name: 'author_id', type: 'string', isIndexed: true },
+        { name: 'title', type: 'string' },
         { name: 'artwork', type: 'string', isOptional: true },
-        { name: 'book_duration', type: 'number' },
-        { name: 'book_progress', type: 'number' },
         { name: 'current_chapter_index', type: 'number' },
         { name: 'current_chapter_progress', type: 'number' },
         { name: 'year', type: 'number' },
@@ -20,17 +21,15 @@ export default appSchema({
         { name: 'genre', type: 'string', isOptional: true },
         { name: 'sample_rate', type: 'number', isOptional: true },
         { name: 'total_track_count', type: 'number' },
-        { name: 'ctime', type: 'string' },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
       ],
     }),
     tableSchema({
       name: 'chapters',
       columns: [
-        { name: 'book_id', type: 'string' },
-        { name: 'author', type: 'string' },
-        { name: 'book_title', type: 'string' },
-        { name: 'chapter_duration', type: 'number' },
-        { name: 'chapter_title', type: 'string' },
+        { name: 'book_id', type: 'string', isIndexed: true },
+        { name: 'title', type: 'string' },
         { name: 'chapter_number', type: 'number' },
         { name: 'url', type: 'string' },
       ],

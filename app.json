@@ -30,6 +30,18 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      ["@morrowdigital/watermelondb-expo-plugin", { "disableJsi": true }],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "2.0.21",
+            "packagingOptions": {
+              "pickFirst": ["**/libc++_shared.so"]
+            }
+          }
+        }
+      ],
       "@config-plugins/react-native-blob-util",
       [
         "react-native-edge-to-edge",
@@ -50,7 +62,8 @@
           "backgroundColor": "#1C1C1C"
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      "expo-build-properties"
     ],
     "experiments": {
       "typedRoutes": true,
