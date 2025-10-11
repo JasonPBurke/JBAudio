@@ -6,7 +6,7 @@ import {
 export default schemaMigrations({
   migrations: [
     {
-      toVersion: 1,
+      toVersion: 2,
       steps: [
         createTable({
           name: 'authors',
@@ -18,11 +18,19 @@ export default schemaMigrations({
             { name: 'author_id', type: 'string', isIndexed: true },
             { name: 'title', type: 'string' },
             { name: 'artwork', type: 'string', isOptional: true },
-            { name: 'current_chapter_index', type: 'number' },
-            { name: 'current_chapter_progress', type: 'number' },
-            { name: 'year', type: 'number' },
-            { name: 'description', type: 'string' },
-            { name: 'narrator', type: 'string' },
+            {
+              name: 'current_chapter_index',
+              type: 'number',
+              isOptional: true,
+            },
+            {
+              name: 'current_chapter_progress',
+              type: 'number',
+              isOptional: true,
+            },
+            { name: 'year', type: 'number', isOptional: true },
+            { name: 'description', type: 'string', isOptional: true },
+            { name: 'narrator', type: 'string', isOptional: true },
             { name: 'genre', type: 'string', isOptional: true },
             { name: 'sample_rate', type: 'number', isOptional: true },
             { name: 'total_track_count', type: 'number' },

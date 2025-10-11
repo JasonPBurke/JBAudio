@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 1,
+  version: 2,
   tables: [
     tableSchema({
       name: 'authors',
@@ -13,11 +13,19 @@ export default appSchema({
         { name: 'author_id', type: 'string', isIndexed: true },
         { name: 'title', type: 'string' },
         { name: 'artwork', type: 'string', isOptional: true },
-        { name: 'current_chapter_index', type: 'number' },
-        { name: 'current_chapter_progress', type: 'number' },
-        { name: 'year', type: 'number' },
-        { name: 'description', type: 'string' },
-        { name: 'narrator', type: 'string' },
+        {
+          name: 'current_chapter_index',
+          type: 'number',
+          isOptional: true,
+        },
+        {
+          name: 'current_chapter_progress',
+          type: 'number',
+          isOptional: true,
+        },
+        { name: 'year', type: 'number', isOptional: true },
+        { name: 'description', type: 'string', isOptional: true },
+        { name: 'narrator', type: 'string', isOptional: true },
         { name: 'genre', type: 'string', isOptional: true },
         { name: 'sample_rate', type: 'number', isOptional: true },
         { name: 'total_track_count', type: 'number' },

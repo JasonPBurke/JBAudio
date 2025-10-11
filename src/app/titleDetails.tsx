@@ -19,7 +19,6 @@ import { usePlayerBackground } from '@/hooks/usePlayerBackground';
 import { LinearGradient } from 'expo-linear-gradient';
 // import { Play } from 'lucide-react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Book } from '@/types/Book';
 import TrackPlayer, {
   Track,
   // useActiveTrack,
@@ -28,6 +27,10 @@ import { useQueueStore } from '@/store/queue';
 import { formatDate } from '@/helpers/miscellaneous';
 import ModalComponent from '@/components/ModalComponent';
 import { useState } from 'react';
+
+import database from '@/db';
+import Book from '@/db/models/Book';
+import { Book as BookType } from '@/types/Book';
 
 const TitleDetails = () => {
   const [showModal, setShowModal] = useState(false);
@@ -46,7 +49,7 @@ const TitleDetails = () => {
     book?.artwork || unknownBookImageUri
   );
 
-  const handlePressPlay = async (book: Book | undefined) => {
+  const handlePressPlay = async (book: BookType | undefined) => {
     if (!book) return;
     const chapterIndex = book.bookProgress.currentChapterIndex;
     if (chapterIndex === -1) return;
@@ -70,6 +73,28 @@ const TitleDetails = () => {
       // await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.play();
     }
+  };
+
+  const test = async (book: BookType | undefined) => {
+    const booksCollection = database.get<Book>('books');
+    console.log('booksCollection', booksCollection);
+    // await booksCollection.destroyPermanently();
+    await database.write(async () => {
+      await booksCollection.create((item) => {
+        item.title = book?.bookTitle || '';
+        item.artwork = book?.artwork || '';
+        item.year = book?.metadata.year || 0;
+        item.description = book?.metadata.description || '';
+        item.narrator = book?.metadata.narrator || '';
+        item.genre = book?.metadata.genre || '';
+        item.sampleRate = book?.metadata.sampleRate || 0;
+        item.totalTrackCount = book?.metadata.totalTrackCount || 0;
+        item.currentChapterIndex =
+          book?.bookProgress.currentChapterIndex || 0;
+        item.currentChapterProgress =
+          book?.bookProgress.currentChapterProgress || 0;
+      });
+    });
   };
 
   //* LinearGradient imageColors options
@@ -118,6 +143,9 @@ const TitleDetails = () => {
             size={44}
             color={colors.primary}
           />
+        </Pressable>
+        <Pressable style={styles.testButton} onPress={() => test(book)}>
+          <Ionicons name='pizza' size={44} color={colors.primary} />
         </Pressable>
         <View style={styles.bookArtworkContainer}>
           <Pressable
@@ -305,6 +333,16 @@ const styles = StyleSheet.create({
     // top: '25%',
     bottom: 0,
     right: 20,
+    padding: 10,
+    backgroundColor: '#1c1c1c7f',
+    borderRadius: 50,
+    zIndex: 10,
+  },
+  testButton: {
+    position: 'absolute',
+    // top: '25%',
+    bottom: 0,
+    left: 20,
     padding: 10,
     backgroundColor: '#1c1c1c7f',
     borderRadius: 50,
