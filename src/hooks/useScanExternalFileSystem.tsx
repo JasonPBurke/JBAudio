@@ -8,6 +8,7 @@ import {
 } from '@missingcore/react-native-metadata-retriever';
 import { useEffect } from 'react';
 import { useLibraryStore } from '@/store/library';
+// import { usePopulateDatabase } from './usePopulateDatabase';
 // import { v4 as uuidv4 } from 'uuid';
 // import * as Crypto from 'expo-crypto';
 // import MediaInfoFactory from 'mediainfo.js';
@@ -19,6 +20,7 @@ import { useLibraryStore } from '@/store/library';
 export const useScanExternalFileSystem = () => {
   const path = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing`;
   const { setAuthors } = useLibraryStore();
+  // const { populateDatabase } = usePopulateDatabase();
 
   useEffect(() => {
     const extractArtwork = async (sortedBooks: any[]) => {
@@ -244,6 +246,7 @@ export const useScanExternalFileSystem = () => {
       const sortedLibrary = handleBookSort(result);
       const sortedLibraryWithArtwork = await extractArtwork(sortedLibrary);
       setAuthors(sortedLibraryWithArtwork);
+      // await populateDatabase(sortedLibraryWithArtwork);
     };
     scanDirectory(path);
   }, [path, setAuthors]);
