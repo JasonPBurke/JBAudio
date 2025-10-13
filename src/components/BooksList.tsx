@@ -1,27 +1,31 @@
 import { Text, View, ViewToken } from 'react-native';
 import { BookListItem } from './BookListItem';
 import { utilsStyles } from '@/styles';
-import { Book, Author } from '@/types/Book';
+import { Book, Author as AuthorType } from '@/types/Book';
 import { screenPadding } from '@/constants/tokens';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
 import { useSharedValue } from 'react-native-reanimated';
+import database from '@/db';
+import Author from '@/db/models/Author';
+import { useLibraryStore } from '@/store/library';
+import { useEffect } from 'react';
+import { withObservables } from '@nozbe/watermelondb/react';
 
-const ItemDivider = () => (
-  <View
-    style={{
-      ...utilsStyles.itemSeparator,
-      marginVertical: 9,
-      marginLeft: 75,
-    }}
-  />
-);
+// const queryAuthors = () => database.get<Author>('authors');
 
 export type BookListProps = Partial<FlashListProps<Book>> & {
-  authors: Author[];
+  authors: AuthorType[];
 };
 
-export const BooksList = ({ authors }: BookListProps) => {
+const BooksList = ({ authors }: BookListProps) => {
   const allBooks = authors.flatMap((author) => author.books);
+  const setAuthors = useLibraryStore((state) => state.setAuthors);
+
+  useEffect(() => {
+    if (authors) {
+      setAuthors(authors);
+    }
+  }, [authors, setAuthors]);
 
   // const handleBookSelect = async (selectedBook: Book) => {
   //   const chapterIndex = selectedBook.bookProgress.currentChapterIndex;
@@ -74,3 +78,25 @@ export const BooksList = ({ authors }: BookListProps) => {
     </View>
   );
 };
+
+const ItemDivider = () => (
+  <View
+    style={{
+      ...utilsStyles.itemSeparator,
+      marginVertical: 9,
+      marginLeft: 75,
+    }}
+  />
+);
+
+// const enhance = withObservables(['authors'], ({ authors }) => ({
+//   authors: authors.observe(),
+// }));
+
+// const BooksList = enhance(BooksListComponent);
+
+// const EnhancedBooksList = withObservables(['authors'], () => [
+//   queryAuthors(),
+// ])(BooksList);
+
+export default BooksList;

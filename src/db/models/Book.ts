@@ -19,7 +19,7 @@ export default class Book extends Model {
 
   @text('title') title!: string;
   @text('artwork') artwork!: string | null;
-  @field('current_chapter_index') currentChapterIndex!: number | null;
+  @field('current_chapter_index') currentChapterIndex!: number;
   @field('current_chapter_progress') currentChapterProgress!: number | null;
   @field('year') year!: number | null;
   @text('description') description!: string | null;

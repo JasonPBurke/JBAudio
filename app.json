@@ -30,7 +30,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      ["@morrowdigital/watermelondb-expo-plugin", { "disableJsi": true }],
+      ["@morrowdigital/watermelondb-expo-plugin", { "disableJsi": false }],
       [
         "expo-build-properties",
         {

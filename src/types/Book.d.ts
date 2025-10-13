@@ -1,30 +1,30 @@
 //? equal to type Artist on video @4:09
 export type Author = {
-  authorName: string;
+  name: string; //!change to name to match watermelon db?
   books: Book[];
 };
 
 //? this is equal to type Playlist on video
 export type Book = {
-  bookId: string; // first chapter url
+  bookId: string | null; // first chapter url
   author: string;
   bookTitle: string;
   chapters: Chapter[];
-  // bookDuration: number;
+  //! bookDuration: number;
   artwork: string | null;
   bookProgress: {
     currentChapterIndex: number; //* on queueChange, update this to the current index
-    currentChapterProgress: number; //* update 1000/5000ms as play progresses
+    currentChapterProgress: number | null; //* update 1000/5000ms as play progresses
   };
   metadata: {
-    year: number;
-    description: string;
-    narrator: string;
-    genre: string;
-    sampleRate: number;
-    totalTrackCount: number;
+    year: number | null;
+    description: string | null;
+    narrator: string | null;
+    genre: string | null;
+    sampleRate: number | null;
+    totalTrackCount: number | null;
     ctime: Date;
-    //TODO mtime: Date;
+    mtime: Date | null;
     //TODO lastPlayedChapterAndPosition: [Chapter, number];?? ...something like this
   };
 };
@@ -34,7 +34,7 @@ export type Chapter = {
   bookTitle: string;
   chapterTitle: string;
   chapterNumber: number;
-  // chapterDuration: number;
+  //! chapterDuration: number;
   url: string;
 };
 

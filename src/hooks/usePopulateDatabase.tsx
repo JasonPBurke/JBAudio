@@ -17,7 +17,7 @@ export const usePopulateDatabase = () => {
         // Check if author already exists
         const existingAuthors = await database
           .get<Author>('authors')
-          .query(Q.where('name', authorData.authorName))
+          .query(Q.where('name', authorData.name))
           .fetch();
 
         let authorRecord = existingAuthors[0];
@@ -27,7 +27,7 @@ export const usePopulateDatabase = () => {
           authorRecord = await database
             .get<Author>('authors')
             .create((author) => {
-              author.name = authorData.authorName;
+              author.name = authorData.name;
             });
         }
 
@@ -50,16 +50,16 @@ export const usePopulateDatabase = () => {
               .get<Book>('books')
               .create((book) => {
                 book.title = bookData.bookTitle;
-                book.artwork = bookData.artwork;
+                book.artwork = bookData.artwork || '';
                 book.currentChapterIndex =
-                  bookData.bookProgress.currentChapterIndex;
+                  bookData.bookProgress.currentChapterIndex || 0;
                 book.currentChapterProgress =
-                  bookData.bookProgress.currentChapterProgress;
+                  bookData.bookProgress.currentChapterProgress || 0;
                 book.year = bookData.metadata.year || 0;
                 book.description = bookData.metadata.description || '';
                 book.narrator = bookData.metadata.narrator || '';
-                book.genre = bookData.metadata.genre;
-                book.sampleRate = bookData.metadata.sampleRate;
+                book.genre = bookData.metadata.genre || '';
+                book.sampleRate = bookData.metadata.sampleRate || 0;
                 book.totalTrackCount =
                   bookData.metadata.totalTrackCount || 0;
                 book.createdAt = bookData.metadata.ctime || new Date();
@@ -70,16 +70,16 @@ export const usePopulateDatabase = () => {
           } else {
             // Update existing book
             await bookRecord.update((book: Book) => {
-              book.artwork = bookData.artwork;
+              book.artwork = bookData.artwork || '';
               book.currentChapterIndex =
-                bookData.bookProgress.currentChapterIndex;
+                bookData.bookProgress.currentChapterIndex || 0;
               book.currentChapterProgress =
-                bookData.bookProgress.currentChapterProgress;
+                bookData.bookProgress.currentChapterProgress || 0;
               book.year = bookData.metadata.year || 0;
               book.description = bookData.metadata.description || '';
               book.narrator = bookData.metadata.narrator || '';
-              book.genre = bookData.metadata.genre;
-              book.sampleRate = bookData.metadata.sampleRate;
+              book.genre = bookData.metadata.genre || '';
+              book.sampleRate = bookData.metadata.sampleRate || 0;
               book.totalTrackCount = bookData.metadata.totalTrackCount || 0;
               book.updatedAt = new Date();
             });
