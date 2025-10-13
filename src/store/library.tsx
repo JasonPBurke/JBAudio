@@ -1,76 +1,120 @@
-import database from '@/db';
-import Author from '@/db/models/Author';
-// import Book from '@/db/models/Book';
-import { Author as AuthorType } from '@/types/Book';
+import { Author, Book, Chapter } from '@/types/Book';
 import { create } from 'zustand';
+import database from '@/db';
+import { Subscription } from 'rxjs';
+import AuthorModel from '@/db/models/Author';
+import BookModel from '@/db/models/Book';
+import ChapterModel from '@/db/models/Chapter';
 
 interface LibraryState {
-  authors: AuthorType[];
-  setAuthors: (authors: AuthorType[]) => void;
-  getAuthors: () => AuthorType[];
-  init: () => () => void;
+  authors: Author[];
+  setAuthors: (authors: Author[]) => void;
+  getAuthors: () => Author[];
+  init: () => () => void; // Function to initialize and return cleanup
 }
-
-const authorsCollection = database.get<Author>('authors');
 
 export const useLibraryStore = create<LibraryState>()((set, get) => ({
   authors: [],
-  // This initializes the observer to listen for changes
-  // and unsubscribes when the store is no longer active.
-  init: () => {
-    // WatermelonDB's query().observe() returns an RxJS Observable
-    const observable = authorsCollection.query().observe();
-
-    const subscription = observable.subscribe((watermelonAuthors) => {
-      // Map the WatermelonDB models to plain JavaScript objects.
-      // The `observe()` method returns the full models, not just the raw data.
-      const dbAuthors = watermelonAuthors.map((author) => ({
-        name: author.name,
-        books: author.books.map((book) => ({
-          bookId: book.chapters[0].url,
-          author: book.author.name,
-          bookTitle: book.title,
-          chapters: book.chapters.map((chapter) => ({
-            author: book.author.name,
-            bookTitle: book.title,
-            chapterTitle: chapter.title,
-            chapterNumber: chapter.chapterNumber,
-            url: chapter.url,
-          })),
-          artwork: book.artwork,
-          bookProgress: {
-            currentChapterIndex: book.currentChapterIndex,
-            currentChapterProgress: book.currentChapterProgress,
-          },
-          metadata: {
-            year: book.year,
-            description: book.description,
-            narrator: book.narrator,
-            genre: book.genre,
-            sampleRate: book.sampleRate,
-            totalTrackCount: book.totalTrackCount,
-            ctime: book.createdAt,
-            mtime: book.updatedAt,
-          },
-        })),
-      }));
-      console.log('dbAuthors', JSON.stringify(dbAuthors, null, 2));
-      set({ authors: dbAuthors });
-    });
-
-    // Return the unsubscribe function to clean up the observer
-    return subscription.unsubscribe;
-  },
   setAuthors: (authors) => set({ authors }),
   getAuthors: () => get().authors,
+  init: () => {
+    const authorsCollection =
+      database.collections.get<AuthorModel>('authors');
+
+    const subscriptions: Subscription[] = [];
+
+    // console.log('Subscribing to authors collection...');
+    // Observe authors and their related books and chapters
+    const authorsSubscription = authorsCollection
+      .query()
+      .observe() // Simplified to observe()
+      .subscribe(async (authorModels) => {
+        // console.log('Observer received authorModels:', authorModels);
+        let authorsData: Author[] = [];
+        try {
+          authorsData = await Promise.all(
+            authorModels.map(async (authorModel: AuthorModel) => {
+              // console.log('Processing author:', authorModel.name);
+              const bookModels = await (authorModel.books as any).fetch(); // Correctly fetch related books
+              // console.log(
+              //   'Fetched bookModels for',
+              //   authorModel.name,
+              //   ':',
+              //   bookModels
+              // );
+
+              const booksData: Book[] = await Promise.all(
+                bookModels.map(async (bookModel: BookModel) => {
+                  // console.log('Processing book:', bookModel.title);
+                  const chapterModels = await (
+                    bookModel.chapters as any
+                  ).fetch(); // Correctly fetch related chapters
+                  // console.log(
+                  //   'Fetched chapterModels for',
+                  //   bookModel.title,
+                  //   ':',
+                  //   chapterModels
+                  // );
+
+                  const chaptersData: Chapter[] = chapterModels.map(
+                    (chapterModel: ChapterModel) => ({
+                      author: authorModel.name,
+                      bookTitle: bookModel.title,
+                      chapterTitle: chapterModel.title,
+                      chapterNumber: chapterModel.chapterNumber,
+                      url: chapterModel.url,
+                    })
+                  );
+
+                  return {
+                    bookId: bookModel.id,
+                    author: authorModel.name,
+                    bookTitle: bookModel.title,
+                    chapters: chaptersData,
+                    artwork: bookModel.artwork,
+                    bookProgress: {
+                      currentChapterIndex: bookModel.currentChapterIndex,
+                      currentChapterProgress:
+                        bookModel.currentChapterProgress,
+                    },
+                    metadata: {
+                      year: bookModel.year,
+                      description: bookModel.description,
+                      narrator: bookModel.narrator,
+                      genre: bookModel.genre,
+                      sampleRate: bookModel.sampleRate,
+                      totalTrackCount: bookModel.totalTrackCount,
+                      ctime: bookModel.createdAt,
+                      mtime: bookModel.updatedAt,
+                    },
+                  };
+                })
+              );
+              return {
+                name: authorModel.name, // Use 'name' to match the Author type
+                books: booksData,
+              };
+            })
+          );
+        } catch (error) {
+          console.error('Error during authorsData mapping:', error);
+        }
+        // console.log(
+        //   'Authors data before setting to Zustand store:',
+        //   authorsData
+        // );
+        set({ authors: authorsData });
+      });
+
+    subscriptions.push(authorsSubscription);
+
+    return () => {
+      subscriptions.forEach((sub) => sub.unsubscribe());
+    };
+  },
 }));
 
 export const useAuthors = () => useLibraryStore((state) => state.authors);
-
-// export const useBooks = () =>
-//   useLibraryStore((state) =>
-//     state.authors.flatMap((author) => author.books)
-//   );
 
 export const useBook = (author: string, bookTitle: string) =>
   useLibraryStore((state) => {

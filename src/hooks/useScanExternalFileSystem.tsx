@@ -10,7 +10,7 @@ import { useEffect } from 'react';
 import { useLibraryStore } from '@/store/library';
 import database from '@/db';
 import { Q } from '@nozbe/watermelondb';
-// import { usePopulateDatabase } from './usePopulateDatabase';
+import { usePopulateDatabase } from './usePopulateDatabase';
 // import { v4 as uuidv4 } from 'uuid';
 // import * as Crypto from 'expo-crypto';
 // import MediaInfoFactory from 'mediainfo.js';
@@ -22,7 +22,7 @@ import { Q } from '@nozbe/watermelondb';
 export const useScanExternalFileSystem = () => {
   const path = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing`;
   const { setAuthors } = useLibraryStore();
-  // const { populateDatabase } = usePopulateDatabase();
+  const { populateDatabase } = usePopulateDatabase();
 
   useEffect(() => {
     const handleReadDirectory = async (path: string, files: any[] = []) => {
@@ -236,8 +236,9 @@ export const useScanExternalFileSystem = () => {
       const sortedLibrary = handleBookSort(result);
       const sortedLibraryWithArtwork = await extractArtwork(sortedLibrary);
       //! setting new books on zustand... maybe on db is better?
-      setAuthors(sortedLibraryWithArtwork);
-      // await populateDatabase(sortedLibraryWithArtwork);
+      // setAuthors(sortedLibraryWithArtwork);
+      await populateDatabase(sortedLibraryWithArtwork);
+      console.log('sortedLibraryWithArtwork', sortedLibraryWithArtwork);
     };
 
     scanDirectory(path);
