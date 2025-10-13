@@ -25,8 +25,8 @@ export const BooksHome = ({ authors }: BookListProps) => {
   // };
 
   authors.sort((a, b) => {
-    const nameA = a.authorName.toUpperCase();
-    const nameB = b.authorName.toUpperCase();
+    const nameA = a.name.toUpperCase();
+    const nameB = b.name.toUpperCase();
 
     if (nameA < nameB) return -1;
     if (nameA > nameB) return 1;
@@ -101,7 +101,7 @@ export const BooksHome = ({ authors }: BookListProps) => {
 
           {/* Authors Sections */}
           {authors.map((author) => (
-            <View key={author.authorName} style={{ gap: 12 }}>
+            <View key={author.name} style={{ gap: 12 }}>
               <Pressable
                 style={{ paddingVertical: 6 }}
                 android_ripple={{
@@ -111,7 +111,7 @@ export const BooksHome = ({ authors }: BookListProps) => {
               >
                 <View style={styles.titleBar}>
                   <Text numberOfLines={1} style={styles.titleText}>
-                    {author.authorName}
+                    {author.name}
                   </Text>
                   <Feather
                     name='chevron-right'

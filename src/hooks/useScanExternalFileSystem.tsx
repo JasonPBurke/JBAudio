@@ -8,6 +8,8 @@ import {
 } from '@missingcore/react-native-metadata-retriever';
 import { useEffect } from 'react';
 import { useLibraryStore } from '@/store/library';
+import database from '@/db';
+import { Q } from '@nozbe/watermelondb';
 // import { usePopulateDatabase } from './usePopulateDatabase';
 // import { v4 as uuidv4 } from 'uuid';
 // import * as Crypto from 'expo-crypto';
@@ -23,32 +25,46 @@ export const useScanExternalFileSystem = () => {
   // const { populateDatabase } = usePopulateDatabase();
 
   useEffect(() => {
-    const extractArtwork = async (sortedBooks: any[]) => {
-      const booksWithArtwork = await Promise.all(
-        sortedBooks.map(async (authorEntry) => {
-          const updatedBooks = await Promise.all(
-            authorEntry.books.map(async (book: any) => {
-              if (book.chapters && book.chapters.length > 0) {
-                const firstChapter = book.chapters[0];
-                try {
-                  const artwork = await getArtwork(firstChapter.url);
-                  return { ...book, artwork: artwork };
-                } catch (error) {
-                  console.error(
-                    `Error extracting artwork for ${firstChapter.url}`,
-                    error
-                  );
-                  return { ...book, artwork: null };
-                }
-              }
-              return { ...book, artwork: null };
-            })
-          );
-          return { ...authorEntry, books: updatedBooks };
-        })
-      );
-      return booksWithArtwork;
+    const handleReadDirectory = async (path: string, files: any[] = []) => {
+      try {
+        const result = await RNFS.readDir(path);
+
+        for (const item of result) {
+          if (item.isDirectory()) {
+            await handleReadDirectory(item.path, files);
+          } else if (
+            (item.isFile() && item.name.endsWith('.m4b')) ||
+            item.name.endsWith('.mp3')
+          ) {
+            //* query the database to see if the file already exists
+            const fileExists = await checkIfFileExists(item.path);
+            if (!fileExists) {
+              const metadata = await extractMetadata(item.path);
+              files.push({
+                ...metadata,
+                url: item.path,
+              });
+            }
+          }
+        }
+
+        return files;
+      } catch (err) {
+        console.error('Error reading directory', err);
+        return files;
+      }
     };
+
+    const checkIfFileExists = async (path: string) => {
+      //* should never be greater than 1
+      const matchingChapterUriCount = await database
+        .get('chapters')
+        .query(Q.where('url', path))
+        .fetchCount();
+
+      return matchingChapterUriCount > 0; // allows for boolean check
+    };
+
     const extractMetadata = async (filePath: string) => {
       try {
         // const decodedPath = decodeURIComponent(filePath);
@@ -73,30 +89,6 @@ export const useScanExternalFileSystem = () => {
           MediaMetadataPublicFields
           // MetadataPresets.standard
         );
-
-        // console.log(
-        //   'metadata',
-        //   JSON.stringify(
-        //     {
-        //       year,
-        //       trackNumber,
-        //       totalTrackCount,
-        //       artist,
-        //       albumArtist,
-        //       writer,
-        //       albumTitle,
-        //       title,
-        //       displayTitle,
-        //       composer,
-        //       artworkUri,
-        //       description,
-        //       genre,
-        //       sampleRate,
-        //     },
-        //     null,
-        //     2
-        //   )
-        // );
 
         const bookTitleBackup = filePath
           .substring(0, filePath.lastIndexOf('/'))
@@ -132,32 +124,6 @@ export const useScanExternalFileSystem = () => {
       }
     };
 
-    const handleReadDirectory = async (path: string, files: any[] = []) => {
-      try {
-        const result = await RNFS.readDir(path);
-
-        for (const item of result) {
-          if (item.isDirectory()) {
-            await handleReadDirectory(item.path, files);
-          } else if (
-            (item.isFile() && item.name.endsWith('.m4b')) ||
-            item.name.endsWith('.mp3')
-          ) {
-            const metadata = await extractMetadata(item.path);
-            files.push({
-              ...metadata,
-              url: item.path,
-            });
-          }
-        }
-
-        return files;
-      } catch (err) {
-        console.error('Error reading directory', err);
-        return files;
-      }
-    };
-
     const handleBookSort = (books: any) => {
       const sortedBookAuthors = books.sort(
         (a: { author: string }, b: { author: string }) => {
@@ -177,20 +143,16 @@ export const useScanExternalFileSystem = () => {
 
       const sortedBookTitles = sortedBookAuthors.reduce(
         (acc: Author[], book: any) => {
-          let authorEntry = acc.find(
-            (entry) => entry.authorName === book.author
-          );
+          let authorEntry = acc.find((entry) => entry.name === book.author);
 
           if (!authorEntry) {
-            authorEntry = { authorName: book.author, books: [] };
+            authorEntry = { name: book.author, books: [] };
             acc.push(authorEntry);
           }
 
           let bookEntry = authorEntry.books.find(
             (entry: any) => entry.bookTitle === book.bookTitle
           );
-
-          // console.log('narrator', book.composer);
 
           if (!bookEntry) {
             bookEntry = {
@@ -211,6 +173,7 @@ export const useScanExternalFileSystem = () => {
                 sampleRate: book.sampleRate,
                 totalTrackCount: book.totalTrackCount,
                 ctime: book.ctime,
+                mtime: book.mtime || null,
               },
             };
             authorEntry.books.push(bookEntry);
@@ -241,15 +204,42 @@ export const useScanExternalFileSystem = () => {
       return sortedBookTitles;
     };
 
+    const extractArtwork = async (sortedBooks: any[]) => {
+      const booksWithArtwork = await Promise.all(
+        sortedBooks.map(async (authorEntry) => {
+          const updatedBooks = await Promise.all(
+            authorEntry.books.map(async (book: any) => {
+              if (book.chapters && book.chapters.length > 0) {
+                const firstChapter = book.chapters[0];
+                try {
+                  const artwork = await getArtwork(firstChapter.url);
+                  return { ...book, artwork: artwork };
+                } catch (error) {
+                  console.error(
+                    `Error extracting artwork for ${firstChapter.url}`,
+                    error
+                  );
+                  return { ...book, artwork: null };
+                }
+              }
+              return { ...book, artwork: null };
+            })
+          );
+          return { ...authorEntry, books: updatedBooks };
+        })
+      );
+      return booksWithArtwork;
+    };
+
     const scanDirectory = async (path: string) => {
       const result = await handleReadDirectory(path);
       const sortedLibrary = handleBookSort(result);
       const sortedLibraryWithArtwork = await extractArtwork(sortedLibrary);
+      //! setting new books on zustand... maybe on db is better?
       setAuthors(sortedLibraryWithArtwork);
       // await populateDatabase(sortedLibraryWithArtwork);
     };
+
     scanDirectory(path);
   }, [path, setAuthors]);
-
-  // return library;
 };

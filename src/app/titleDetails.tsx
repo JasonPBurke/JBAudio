@@ -77,24 +77,27 @@ const TitleDetails = () => {
 
   const test = async (book: BookType | undefined) => {
     const booksCollection = database.get<Book>('books');
-    console.log('booksCollection', booksCollection);
+
+    const books = await booksCollection.query().fetch();
+    console.log('books', books);
     // await booksCollection.destroyPermanently();
-    await database.write(async () => {
-      await booksCollection.create((item) => {
-        item.title = book?.bookTitle || '';
-        item.artwork = book?.artwork || '';
-        item.year = book?.metadata.year || 0;
-        item.description = book?.metadata.description || '';
-        item.narrator = book?.metadata.narrator || '';
-        item.genre = book?.metadata.genre || '';
-        item.sampleRate = book?.metadata.sampleRate || 0;
-        item.totalTrackCount = book?.metadata.totalTrackCount || 0;
-        item.currentChapterIndex =
-          book?.bookProgress.currentChapterIndex || 0;
-        item.currentChapterProgress =
-          book?.bookProgress.currentChapterProgress || 0;
-      });
-    });
+    // await database.write(async () => {
+    //   await booksCollection.create((item) => {
+    //     item.title = book?.bookTitle || '';
+    //     item.artwork = book?.artwork || '';
+    //     item.year = book?.metadata.year || 0;
+    //     item.description = book?.metadata.description || '';
+    //     item.narrator = book?.metadata.narrator || '';
+    //     item.genre = book?.metadata.genre || '';
+    //     item.sampleRate = book?.metadata.sampleRate || 0;
+    // item.totalTrackCount = book?.metadata.totalTrackCount || book?.chapters.length || 0;
+    //     item.currentChapterIndex =
+    //       book?.bookProgress.currentChapterIndex || 0;
+    //     item.currentChapterProgress =
+    //       book?.bookProgress.currentChapterProgress || 0;
+    //   });
+    // });
+    // console.log('booksCollection', booksCollection);
   };
 
   //* LinearGradient imageColors options
