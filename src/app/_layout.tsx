@@ -11,6 +11,8 @@ import {
   ReanimatedLogLevel,
 } from 'react-native-reanimated';
 import playbackService from '@/setup/service';
+import { DatabaseProvider } from '@nozbe/watermelondb/DatabaseProvider';
+import database from '@/db';
 
 //! THIS IS TO TEMP SUPPRESS REANIMATED WARNINGS OF WRITING TO 'VALUE' DURING COMPONENT RERENDER
 configureReanimatedLogger({
@@ -36,7 +38,9 @@ const App = () => {
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <RootNavigation />
+        <DatabaseProvider database={database}>
+          <RootNavigation />
+        </DatabaseProvider>
         <SystemBars
           hidden={{ statusBar: false, navigationBar: false }}
           style={'auto'}

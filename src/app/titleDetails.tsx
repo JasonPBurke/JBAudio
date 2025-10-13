@@ -31,6 +31,7 @@ import { useState } from 'react';
 import database from '@/db';
 import Book from '@/db/models/Book';
 import { Book as BookType } from '@/types/Book';
+import Author from '@/db/models/Author';
 
 const TitleDetails = () => {
   const [showModal, setShowModal] = useState(false);
@@ -76,13 +77,13 @@ const TitleDetails = () => {
   };
 
   const test = async (book: BookType | undefined) => {
-    const booksCollection = database.get<Book>('books');
+    const authorsCollection = database.get<Author>('author');
 
-    const books = await booksCollection.query().fetch();
+    const books = await authorsCollection.query().fetch();
     console.log('books', books);
     // await booksCollection.destroyPermanently();
     // await database.write(async () => {
-    //   await booksCollection.create((item) => {
+    //   await authorsCollection.create((item) => {
     //     item.title = book?.bookTitle || '';
     //     item.artwork = book?.artwork || '';
     //     item.year = book?.metadata.year || 0;

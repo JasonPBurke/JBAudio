@@ -1,34 +1,30 @@
 import BooksList from '@/components/BooksList';
 import { BooksHome } from '@/components/BooksHome';
 // import { BooksGrid } from '@/components/BooksGrid';
-import { useNavigationSearch } from '@/hooks/useNavigationSearch';
+// import { useNavigationSearch } from '@/hooks/useNavigationSearch';
 import { defaultStyles } from '@/styles';
 import React, { use, useEffect, useMemo } from 'react';
 import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { bookTitleFilter } from '@/helpers/filter';
+// import { bookTitleFilter } from '@/helpers/filter';
 import Header from '@/components/Header';
 import { useScanExternalFileSystem } from '@/hooks/useScanExternalFileSystem';
 import { useAuthors, useLibraryStore } from '@/store/library';
-import database from '@/db';
-import Book from '@/db/models/Book';
-import Author from '@/db/models/Author';
-
-// const queryAuthors = database.get<Author>('authors');
+// import database from '@/db';
+// import Book from '@/db/models/Book';
+// import Author from '@/db/models/Author';
 
 const LibraryScreen = () => {
   const [toggleView, setToggleView] = React.useState(false);
 
-  // const [toggleView, setToggleView] = React.useState(0);
-  // const initStore = useLibraryStore((state) => state.init);
-  // console.log('initStore', initStore);
   useScanExternalFileSystem(); // Call the hook to trigger scanning and store update
 
-  // useEffect(() => {
-  //   // Start observing the database and return the cleanup function.
-  //   const unsubscribe = initStore();
-  //   return () => unsubscribe();
-  // }, [initStore]); // Re-run effect if initStore reference changes
+  const initStore = useLibraryStore((state) => state.init);
+  useEffect(() => {
+    // Start observing the database and return the cleanup function.
+    const unsubscribe = initStore();
+    return () => unsubscribe();
+  }, [initStore]); // Re-run effect if initStore reference changes
 
   // const search = useNavigationSearch({
   //   searchBarOptions: {
@@ -38,17 +34,12 @@ const LibraryScreen = () => {
 
   const library = useAuthors();
 
+  // console.log('LibraryScreen library state:', library);
+
   // const filteredBooks = useMemo(() => {
   //   if (!search) return library;
   //   return library.filter(bookTitleFilter(search));
   // }, [search, library]);
-
-  // const setAuthors = useLibraryStore((state) => state.setAuthors);
-  // console.log('queryAuthors', queryAuthors);
-
-  useEffect(() => {
-    return;
-  }, []);
 
   return (
     <View style={defaultStyles.container}>
