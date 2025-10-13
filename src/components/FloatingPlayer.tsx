@@ -71,7 +71,7 @@ export const FloatingPlayer = ({ style }: ViewProps) => {
           </Text>
         </View>
         <View style={styles.bookControlsContainer}>
-          <SeekBackButton iconSize={24} />
+          <SeekBackButton iconSize={26} top={5} right={9} fontSize={8} />
           <PlayPauseButton iconSize={32} />
         </View>
       </>

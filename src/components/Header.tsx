@@ -7,10 +7,13 @@ import {
   View,
 } from 'react-native';
 import {
-  FontAwesome6,
-  Ionicons,
-  MaterialCommunityIcons,
-} from '@expo/vector-icons';
+  Grip,
+  Library,
+  List,
+  Search,
+  Settings2,
+  TextAlignJustify,
+} from 'lucide-react-native';
 import TabScreen from '@/components/TabScreen';
 
 type headerProps = {
@@ -27,29 +30,42 @@ const Header = ({ toggleView, setToggleView }: headerProps) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerGroup}>
-          {/* 'bars' as alt for 'grip-lines' */}
-          <FontAwesome6 name='bars' size={20} color={colors.icon} />
+          <Settings2
+            size={20}
+            color={colors.icon}
+            strokeWidth={1.0}
+            absoluteStrokeWidth
+          />
+
           <Text style={{ color: colors.icon, fontSize: 20 }}>
             <Text style={{ color: '#FFB606' }}>S</Text>onicbooks
           </Text>
         </View>
         <View style={styles.headerGroup}>
-          <Ionicons name='search-sharp' size={24} color={colors.icon} />
+          <Search
+            size={24}
+            color={colors.icon}
+            strokeWidth={1.5}
+            absoluteStrokeWidth
+          />
           <Pressable hitSlop={10} style={{ padding: 4 }}>
-            <MaterialCommunityIcons
-              name={toggleView ? 'dots-grid' : 'bookshelf'}
-              // name={
-              //   toggleView === 0
-              //     ? 'bookshelf'
-              //     : toggleView === 1
-              //       ? 'format-list-bulleted'
-              //       : 'dots-grid'
-              // }
-              style={{ transform: [{ scaleX: -1 }] }}
-              size={24}
-              color={colors.icon}
-              onPress={handleToggleView}
-            />
+            {toggleView ? (
+              <List
+                size={24}
+                color={colors.icon}
+                strokeWidth={1.5}
+                absoluteStrokeWidth
+                onPress={handleToggleView}
+              />
+            ) : (
+              <Library
+                size={24}
+                color={colors.icon}
+                strokeWidth={1.5}
+                absoluteStrokeWidth
+                onPress={handleToggleView}
+              />
+            )}
           </Pressable>
         </View>
       </View>
@@ -74,8 +90,9 @@ const styles = StyleSheet.create({
   },
   headerGroup: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 10,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   bookStatusLinkText: {
     color: colors.text,

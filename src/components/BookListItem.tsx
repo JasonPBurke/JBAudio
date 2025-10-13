@@ -20,7 +20,7 @@ import TrackPlayer, {
   useIsPlaying,
 } from 'react-native-track-player';
 import { Book } from '@/types/Book';
-import { Entypo, Feather, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import LoaderKitView from 'react-native-loader-kit';
 import { useRouter } from 'expo-router';
 import Animated, {
@@ -29,6 +29,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useQueueStore } from '@/store/queue';
+import { EllipsisVertical } from 'lucide-react-native';
 
 export type BookListItemProps = {
   book: Book;
@@ -108,7 +109,6 @@ export const BookListItem = memo(function BookListItem({
               numberOfLines={1}
               style={{
                 ...styles.bookTitleText,
-                // color: colors.textMuted,
                 color: isActiveBook ? '#ffb406be' : colors.text,
               }}
             >
@@ -121,12 +121,13 @@ export const BookListItem = memo(function BookListItem({
               </Text>
             )}
           </View>
-          <View style={{ gap: 10 }}>
+          <View style={{ gap: 8 }}>
             <Pressable style={{ padding: 8 }} hitSlop={10}>
-              <Entypo
-                name='dots-three-vertical'
+              <EllipsisVertical
                 size={18}
                 color={colors.icon}
+                strokeWidth={1.5}
+                absoluteStrokeWidth
               />
             </Pressable>
             {isActiveBook && playing ? (
@@ -166,7 +167,6 @@ const styles = StyleSheet.create({
   },
   bookArtworkImage: {
     borderRadius: 4,
-    //* height and width will need to be variable based on the cover img used Flex should work here
     height: 80,
     aspectRatio: 0.75,
   },
