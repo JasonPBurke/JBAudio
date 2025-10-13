@@ -17,7 +17,6 @@ import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import { usePlayerBackground } from '@/hooks/usePlayerBackground';
 import { LinearGradient } from 'expo-linear-gradient';
-// import { Play } from 'lucide-react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import TrackPlayer, {
   Track,
@@ -27,11 +26,7 @@ import { useQueueStore } from '@/store/queue';
 import { formatDate } from '@/helpers/miscellaneous';
 import ModalComponent from '@/components/ModalComponent';
 import { useState } from 'react';
-
-import database from '@/db';
-import Book from '@/db/models/Book';
-import { Book as BookType } from '@/types/Book';
-import Author from '@/db/models/Author';
+import { Book } from '@/types/Book';
 
 const TitleDetails = () => {
   const [showModal, setShowModal] = useState(false);
@@ -50,7 +45,7 @@ const TitleDetails = () => {
     book?.artwork || unknownBookImageUri
   );
 
-  const handlePressPlay = async (book: BookType | undefined) => {
+  const handlePressPlay = async (book: Book | undefined) => {
     if (!book) return;
     const chapterIndex = book.bookProgress.currentChapterIndex;
     if (chapterIndex === -1) return;
@@ -76,29 +71,9 @@ const TitleDetails = () => {
     }
   };
 
-  const test = async (book: BookType | undefined) => {
-    const authorsCollection = database.get<Author>('author');
-
-    const books = await authorsCollection.query().fetch();
-    console.log('books', books);
-    // await booksCollection.destroyPermanently();
-    // await database.write(async () => {
-    //   await authorsCollection.create((item) => {
-    //     item.title = book?.bookTitle || '';
-    //     item.artwork = book?.artwork || '';
-    //     item.year = book?.metadata.year || 0;
-    //     item.description = book?.metadata.description || '';
-    //     item.narrator = book?.metadata.narrator || '';
-    //     item.genre = book?.metadata.genre || '';
-    //     item.sampleRate = book?.metadata.sampleRate || 0;
-    // item.totalTrackCount = book?.metadata.totalTrackCount || book?.chapters.length || 0;
-    //     item.currentChapterIndex =
-    //       book?.bookProgress.currentChapterIndex || 0;
-    //     item.currentChapterProgress =
-    //       book?.bookProgress.currentChapterProgress || 0;
-    //   });
-    // });
-    // console.log('booksCollection', booksCollection);
+  const test = async (book: Book | undefined) => {
+    // await database.unsafeResetDatabase();
+    console.log('Pizza Time!');
   };
 
   //* LinearGradient imageColors options

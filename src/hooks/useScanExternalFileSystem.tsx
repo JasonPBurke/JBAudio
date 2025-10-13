@@ -7,7 +7,7 @@ import {
   MediaMetadataPublicFields,
 } from '@missingcore/react-native-metadata-retriever';
 import { useEffect } from 'react';
-import { useLibraryStore } from '@/store/library';
+// import { useLibraryStore } from '@/store/library';
 import database from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import { usePopulateDatabase } from './usePopulateDatabase';
@@ -20,8 +20,8 @@ import { usePopulateDatabase } from './usePopulateDatabase';
 //*  '/Audiobooks' from the path and replace it with the user's chosen folder
 
 export const useScanExternalFileSystem = () => {
-  const path = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing`;
-  const { setAuthors } = useLibraryStore();
+  const path = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/Brandon Sanderson`;
+  // const { setAuthors } = useLibraryStore();
   const { populateDatabase } = usePopulateDatabase();
 
   useEffect(() => {
@@ -235,12 +235,9 @@ export const useScanExternalFileSystem = () => {
       const result = await handleReadDirectory(path);
       const sortedLibrary = handleBookSort(result);
       const sortedLibraryWithArtwork = await extractArtwork(sortedLibrary);
-      //! setting new books on zustand... maybe on db is better?
-      // setAuthors(sortedLibraryWithArtwork);
       await populateDatabase(sortedLibraryWithArtwork);
-      console.log('sortedLibraryWithArtwork', sortedLibraryWithArtwork);
     };
 
     scanDirectory(path);
-  }, [path, setAuthors]);
+  }, [path, populateDatabase]);
 };

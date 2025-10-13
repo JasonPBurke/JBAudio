@@ -14,6 +14,8 @@ export const usePopulateDatabase = () => {
   const populateDatabase = useCallback(
     async (authors: AuthorType[]) => {
       await database.write(async () => {
+        const batchOperations = [];
+
         // Clear existing data (optional - remove if you want to preserve existing data)
         // await database.unsafeResetDatabase();
 
@@ -30,9 +32,10 @@ export const usePopulateDatabase = () => {
           if (!authorRecord) {
             authorRecord = await database
               .get<Author>('authors')
-              .create((author) => {
+              .prepareCreate((author) => {
                 author.name = authorData.name;
               });
+            batchOperations.push(authorRecord);
           }
 
           // Process books for this author
@@ -52,7 +55,7 @@ export const usePopulateDatabase = () => {
             if (!bookRecord) {
               bookRecord = await database
                 .get<Book>('books')
-                .create((book) => {
+                .prepareCreate((book) => {
                   book.title = bookData.bookTitle;
                   book.artwork = bookData.artwork || unknownBookImageUri;
                   book.currentChapterIndex =
@@ -65,29 +68,36 @@ export const usePopulateDatabase = () => {
                   book.genre = bookData.metadata.genre || '';
                   book.sampleRate = bookData.metadata.sampleRate || 0;
                   book.totalTrackCount =
-                    bookData.metadata.totalTrackCount || 0;
+                    bookData.metadata.totalTrackCount ||
+                    bookData.chapters.length ||
+                    0;
                   book.createdAt = bookData.metadata.ctime || new Date();
                   book.updatedAt = new Date();
                   // Set the foreign key relationship
                   (book._raw as any).author_id = authorRecord.id;
                 });
+              batchOperations.push(bookRecord);
             } else {
               // Update existing book
-              await bookRecord.update((book: Book) => {
-                book.artwork = bookData.artwork || unknownBookImageUri;
-                book.currentChapterIndex =
-                  bookData.bookProgress.currentChapterIndex || 0;
-                book.currentChapterProgress =
-                  bookData.bookProgress.currentChapterProgress || 0;
-                book.year = bookData.metadata.year || 0;
-                book.description = bookData.metadata.description || '';
-                book.narrator = bookData.metadata.narrator || '';
-                book.genre = bookData.metadata.genre || '';
-                book.sampleRate = bookData.metadata.sampleRate || 0;
-                book.totalTrackCount =
-                  bookData.metadata.totalTrackCount || 0;
-                book.updatedAt = new Date();
-              });
+              batchOperations.push(
+                bookRecord.prepareUpdate((book: Book) => {
+                  book.artwork = bookData.artwork || unknownBookImageUri;
+                  book.currentChapterIndex =
+                    bookData.bookProgress.currentChapterIndex || 0;
+                  book.currentChapterProgress =
+                    bookData.bookProgress.currentChapterProgress || 0;
+                  book.year = bookData.metadata.year || 0;
+                  book.description = bookData.metadata.description || '';
+                  book.narrator = bookData.metadata.narrator || '';
+                  book.genre = bookData.metadata.genre || '';
+                  book.sampleRate = bookData.metadata.sampleRate || 0;
+                  book.totalTrackCount =
+                    bookData.metadata.totalTrackCount ||
+                    bookData.chapters.length ||
+                    0;
+                  book.updatedAt = new Date();
+                })
+              );
             }
 
             // Clear existing chapters for this book (in case of re-scan)
@@ -97,23 +107,25 @@ export const usePopulateDatabase = () => {
               .fetch();
 
             for (const chapter of existingChapters) {
-              await chapter.markAsDeleted();
+              batchOperations.push(chapter.prepareMarkAsDeleted());
             }
 
             // Create chapters for this book
             for (const chapterData of bookData.chapters) {
-              await database
+              const newChapter = database
                 .get<Chapter>('chapters')
-                .create((chapter: Chapter) => {
+                .prepareCreate((chapter: Chapter) => {
                   chapter.title = chapterData.chapterTitle;
                   chapter.chapterNumber = chapterData.chapterNumber;
                   chapter.url = chapterData.url;
                   // Set the foreign key relationship
                   (chapter._raw as any).book_id = bookRecord.id;
                 });
+              batchOperations.push(newChapter);
             }
           }
         }
+        await database.batch(...batchOperations);
       });
 
       console.log('Database populated successfully');

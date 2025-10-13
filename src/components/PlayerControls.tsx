@@ -2,6 +2,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
+  Text,
   ViewStyle,
 } from 'react-native';
 import TrackPlayer, {
@@ -13,6 +14,16 @@ import {
   MaterialCommunityIcons,
   AntDesign,
 } from '@expo/vector-icons';
+import {
+  Play,
+  Pause,
+  IterationCcw,
+  IterationCw,
+  Gauge,
+  Bell,
+  SkipBack,
+  SkipForward,
+} from 'lucide-react-native';
 import { colors } from '@/constants/tokens';
 import { useState } from 'react';
 
@@ -23,6 +34,9 @@ type PlayerControlsProps = {
 type PlayerButtonProps = {
   style?: ViewStyle;
   iconSize?: number;
+  fontSize?: number;
+  top?: number;
+  right?: number;
 };
 
 export const PlayerControls = ({ style }: PlayerControlsProps) => {
@@ -30,11 +44,11 @@ export const PlayerControls = ({ style }: PlayerControlsProps) => {
     <View style={[styles.controlsContainer, style]}>
       <View style={styles.playerRow}>
         <PlaybackSpeed iconSize={25} />
-        <SeekBackButton iconSize={30} />
+        <SeekBackButton iconSize={35} top={5} right={11} fontSize={12} />
 
-        <PlayPauseButton iconSize={65} />
+        <PlayPauseButton iconSize={70} />
 
-        <SeekForwardButton iconSize={30} />
+        <SeekForwardButton iconSize={35} top={5} right={11} fontSize={12} />
         <SleepTimer iconSize={25} />
       </View>
     </View>
@@ -43,7 +57,7 @@ export const PlayerControls = ({ style }: PlayerControlsProps) => {
 
 export const PlayPauseButton = ({
   style,
-  iconSize = 30,
+  iconSize = 50,
 }: PlayerButtonProps) => {
   const { playing } = useIsPlaying();
 
@@ -59,17 +73,32 @@ export const PlayPauseButton = ({
         // onPress={playing ? TrackPlayer.pause : TrackPlayer.play}
         onPress={onButtonPress}
       >
-        <AntDesign
-          name={playing ? 'pausecircleo' : 'playcircleo'}
-          size={iconSize}
-          color={colors.icon}
-        />
+        {playing ? (
+          <Pause
+            size={iconSize}
+            color={colors.icon}
+            strokeWidth={1.5}
+            absoluteStrokeWidth
+          />
+        ) : (
+          <Play
+            size={iconSize}
+            color={colors.icon}
+            strokeWidth={1.5}
+            absoluteStrokeWidth
+          />
+        )}
       </TouchableOpacity>
     </View>
   );
 };
 
-export const SeekBackButton = ({ iconSize = 30 }: PlayerButtonProps) => {
+export const SeekBackButton = ({
+  iconSize = 30,
+  top = 7,
+  right = 12,
+  fontSize,
+}: PlayerButtonProps) => {
   // const { position } = useProgress();
   const seekDuration = 30;
 
@@ -90,17 +119,33 @@ export const SeekBackButton = ({ iconSize = 30 }: PlayerButtonProps) => {
         // }
       }}
     >
-      <MaterialCommunityIcons
-        name={`rewind-${seekDuration}`}
-        // name='rewind-30'
+      <IterationCw
         size={iconSize}
         color={colors.icon}
+        strokeWidth={1.5}
+        absoluteStrokeWidth
       />
+
+      <Text
+        style={{
+          ...styles.seekTime,
+          fontSize: fontSize,
+          top: top,
+          right: right,
+        }}
+      >
+        {seekDuration}
+      </Text>
     </TouchableOpacity>
   );
 };
 
-export const SeekForwardButton = ({ iconSize = 30 }: PlayerButtonProps) => {
+export const SeekForwardButton = ({
+  iconSize = 30,
+  top = 7,
+  right = 12,
+  fontSize,
+}: PlayerButtonProps) => {
   // const { position } = useProgress();
   const seekDuration = 30;
 
@@ -115,12 +160,23 @@ export const SeekForwardButton = ({ iconSize = 30 }: PlayerButtonProps) => {
         await TrackPlayer.seekTo(currentPosition + seekDuration);
       }}
     >
-      <MaterialCommunityIcons
-        name={`fast-forward-${seekDuration}`}
-        // name='fast-forward-30'
+      <IterationCcw
         size={iconSize}
         color={colors.icon}
+        strokeWidth={1.5}
+        absoluteStrokeWidth
       />
+
+      <Text
+        style={{
+          ...styles.seekTime,
+          fontSize: fontSize,
+          top: top,
+          right: right,
+        }}
+      >
+        {seekDuration}
+      </Text>
     </TouchableOpacity>
   );
 };
@@ -133,7 +189,12 @@ export const SkipToPreviousButton = ({
       activeOpacity={0.7}
       onPress={() => TrackPlayer.skipToPrevious()}
     >
-      <Feather name='skip-back' size={iconSize} color={colors.icon} />
+      <SkipBack
+        size={iconSize}
+        color={colors.icon}
+        strokeWidth={1.5}
+        absoluteStrokeWidth
+      />
     </TouchableOpacity>
   );
 };
@@ -144,7 +205,12 @@ export const SkipToNextButton = ({ iconSize = 30 }: PlayerButtonProps) => {
       activeOpacity={0.7}
       onPress={() => TrackPlayer.skipToNext()}
     >
-      <Feather name='skip-forward' size={iconSize} color={colors.icon} />
+      <SkipForward
+        size={iconSize}
+        color={colors.icon}
+        strokeWidth={1.5}
+        absoluteStrokeWidth
+      />
     </TouchableOpacity>
   );
 };
@@ -161,19 +227,28 @@ export const PlaybackSpeed = ({ iconSize = 30 }: PlayerButtonProps) => {
   };
 
   return (
-    <TouchableOpacity activeOpacity={0.7} onPress={handleSpeedRate}>
-      <MaterialCommunityIcons
-        name={
-          currentIndex === 0
-            ? 'speedometer-slow'
-            : currentIndex === 1
-              ? 'speedometer-medium'
-              : 'speedometer'
-        }
+    <TouchableOpacity
+      // style={{
+      //   // flexDirection: 'row',
+      //   justifyContent: 'center',
+      //   alignItems: 'center',
+      //   gap: 2,
+      // }}
+      activeOpacity={0.7}
+      onPress={handleSpeedRate}
+    >
+      <Gauge
         size={iconSize}
         color={colors.icon}
+        strokeWidth={1.5}
+        absoluteStrokeWidth
       />
-      {/* <Text>{speedRates[currentIndex]}x</Text> */}
+
+      <Text
+        style={{ position: 'absolute', bottom: 14, left: 22, fontSize: 10 }}
+      >
+        {speedRates[currentIndex]}x
+      </Text>
     </TouchableOpacity>
   );
 };
@@ -181,10 +256,11 @@ export const PlaybackSpeed = ({ iconSize = 30 }: PlayerButtonProps) => {
 export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
   return (
     <TouchableOpacity activeOpacity={0.7}>
-      <MaterialCommunityIcons
-        name='bell-sleep-outline'
+      <Bell
         size={iconSize}
         color={colors.icon}
+        strokeWidth={1.5}
+        absoluteStrokeWidth
       />
     </TouchableOpacity>
   );
@@ -198,5 +274,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-evenly',
     alignItems: 'center',
+  },
+  seekTime: {
+    position: 'absolute',
   },
 });

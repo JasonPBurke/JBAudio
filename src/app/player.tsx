@@ -4,14 +4,12 @@ import {
   StyleSheet,
   View,
   Text,
-  TouchableHighlight,
+  // TouchableHighlight,
   ActivityIndicator,
   Pressable,
   FlatList,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useActiveTrack } from 'react-native-track-player';
 // import FastImage from '@d11/react-native-fast-image';
@@ -26,6 +24,7 @@ import ModalComponent from '@/components/ModalComponent';
 import { useState } from 'react';
 import { useBook } from '@/store/library';
 import { Book } from '@/types/Book';
+import { Logs } from 'lucide-react-native';
 
 const PlayerScreen = () => {
   const [showModal, setShowModal] = useState(false);
@@ -107,17 +106,18 @@ const PlayerScreen = () => {
           <View style={{ flex: 1 }}>
             <View style={{ marginTop: 70 }}>
               <View>
-                {/* onPress load chapter list...not implemented */}
                 <Pressable
                   onPress={() => setShowModal(true)}
                   style={styles.chapterTitleContainer}
                 >
-                  <Feather
-                    style={{ transform: 'rotate(180deg)' }}
-                    name='list'
+                  <Logs
                     size={24}
+                    // style={{ transform: 'rotate(180deg)' }}
                     color={colors.icon}
+                    strokeWidth={1.5}
+                    absoluteStrokeWidth
                   />
+
                   <View style={styles.trackTitleContainer}>
                     <MovingText
                       text={activeTrack.title ?? ''}

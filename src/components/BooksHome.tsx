@@ -9,8 +9,8 @@ import { BookGridItem } from '@/components/BookGridItem';
 import { utilsStyles } from '@/styles';
 import { Book, Author } from '@/types/Book';
 import { colors, fontSize } from '@/constants/tokens';
-import { Feather } from '@expo/vector-icons';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
+import { ChevronRight } from 'lucide-react-native';
 
 export type BookListProps = Partial<FlashListProps<Book>> & {
   authors: Author[];
@@ -60,8 +60,7 @@ export const BooksHome = ({ authors }: BookListProps) => {
             >
               <View style={styles.titleBar}>
                 <Text style={styles.titleText}>Recently Added</Text>
-                <Feather
-                  name='chevron-right'
+                <ChevronRight
                   size={24}
                   color={colors.icon}
                   style={{ marginRight: 12 }}
@@ -113,8 +112,7 @@ export const BooksHome = ({ authors }: BookListProps) => {
                   <Text numberOfLines={1} style={styles.titleText}>
                     {author.name}
                   </Text>
-                  <Feather
-                    name='chevron-right'
+                  <ChevronRight
                     size={24}
                     color={colors.icon}
                     style={{ marginRight: 12 }}
