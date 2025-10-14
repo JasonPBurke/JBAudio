@@ -1,6 +1,6 @@
 import BooksList from '@/components/BooksList';
 import { BooksHome } from '@/components/BooksHome';
-// import { BooksGrid } from '@/components/BooksGrid';
+import { BooksGrid } from '@/components/BooksGrid';
 // import { useNavigationSearch } from '@/hooks/useNavigationSearch';
 import { defaultStyles } from '@/styles';
 import React, { use, useEffect, useMemo } from 'react';
