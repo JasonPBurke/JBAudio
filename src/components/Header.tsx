@@ -59,6 +59,7 @@ const Header = ({ toggleView, setToggleView }: headerProps) => {
               />
             ) : (
               <Library
+                style={{ transform: [{ rotateY: '180deg' }] }}
                 size={24}
                 color={colors.icon}
                 strokeWidth={1.5}

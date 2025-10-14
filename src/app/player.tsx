@@ -112,7 +112,7 @@ const PlayerScreen = () => {
                 >
                   <Logs
                     size={24}
-                    // style={{ transform: 'rotate(180deg)' }}
+                    style={{ transform: [{ rotateY: '180deg' }] }}
                     color={colors.icon}
                     strokeWidth={1.5}
                     absoluteStrokeWidth
