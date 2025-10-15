@@ -42,6 +42,7 @@ export const PlayerChaptersModal = ({
         pressBehavior={'close'}
         disappearsOnIndex={-1}
         appearsOnIndex={0}
+        // style={{ backgroundColor: '#1c1c1c0' }}
       />
     ),
     []

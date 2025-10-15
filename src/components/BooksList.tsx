@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Text, View, ViewToken } from 'react-native';
 import { BookListItem } from './BookListItem';
 import { utilsStyles } from '@/styles';
@@ -95,4 +96,4 @@ const ItemDivider = () => (
 //   queryAuthors(),
 // ])(BooksList);
 
-export default BooksList;
+export default memo(BooksList);

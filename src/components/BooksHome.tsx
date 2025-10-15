@@ -11,12 +11,13 @@ import { Book, Author } from '@/types/Book';
 import { colors, fontSize } from '@/constants/tokens';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
 import { ChevronRight } from 'lucide-react-native';
+import { memo } from 'react';
 
 export type BookListProps = Partial<FlashListProps<Book>> & {
   authors: Author[];
 };
 
-export const BooksHome = ({ authors }: BookListProps) => {
+const BooksHome = ({ authors }: BookListProps) => {
   const allBooks = authors.flatMap((author) => author.books);
 
   // const handleBookSelect = async (selectedBook: Book) => {
@@ -157,6 +158,8 @@ export const BooksHome = ({ authors }: BookListProps) => {
     </ScrollView>
   );
 };
+
+export default memo(BooksHome);
 
 const styles = StyleSheet.create({
   titleBar: {
