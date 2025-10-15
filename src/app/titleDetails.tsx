@@ -124,6 +124,7 @@ const TitleDetails = () => {
         <Pressable style={styles.testButton} onPress={() => test(book)}>
           <Ionicons name='pizza' size={44} color={colors.primary} />
         </Pressable>
+
         <View style={styles.bookArtworkContainer}>
           <Pressable
             hitSlop={10}
@@ -251,10 +252,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   bookArtworkContainer: {
+    flex: 1,
     width: '90%',
     height: '60%',
     paddingTop: 5,
-    flex: 1,
     marginBottom: 32,
     // justifyContent: 'flex-start',
     // alignItems: 'flex-start',

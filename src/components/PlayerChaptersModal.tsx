@@ -49,6 +49,7 @@ export const PlayerChaptersModal = ({
   );
 
   const activeTrack = useActiveTrack();
+  console.log('activeTrack', activeTrack?.url);
 
   if (!activeTrack) {
     return (
@@ -95,13 +96,19 @@ export const PlayerChaptersModal = ({
         index={0}
         snapPoints={snapPoints}
       >
-        <ChapterList book={book} />
+        <ChapterList book={book} activeTrackUrl={activeTrack?.url} />
       </BottomSheetModal>
     </View>
   );
 };
 
-const ChapterList = ({ book }: { book: Book | undefined }) => {
+const ChapterList = ({
+  book,
+  activeTrackUrl,
+}: {
+  book: Book | undefined;
+  activeTrackUrl: string | undefined;
+}) => {
   const handleChapterChange = async (item: Chapter) => {
     console.log('handleChapterChange event:', item.url);
     const chapterIndex = book?.bookProgress.currentChapterIndex;
@@ -124,19 +131,38 @@ const ChapterList = ({ book }: { book: Book | undefined }) => {
         <BottomSheetFlatList
           data={book.chapters}
           keyExtractor={(item) => item.chapterTitle}
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
+            const isFirstChapter = index === 0;
+            const isLastChapter = index === book.chapters.length - 1;
             return (
               <Pressable
                 onPress={() => handleChapterChange(item)}
-                style={styles.chapterItem}
+                style={{
+                  ...styles.chapterItem,
+                  borderBottomLeftRadius: isLastChapter ? 20 : 0,
+                  borderBottomRightRadius: isLastChapter ? 20 : 0,
+                  borderTopLeftRadius: isFirstChapter ? 20 : 0,
+                  borderTopRightRadius: isFirstChapter ? 20 : 0,
+                }}
               >
-                <Text style={styles.chapterTitle}>{item.chapterTitle}</Text>
+                <Text
+                  style={{
+                    ...styles.chapterTitle,
+                    color:
+                      activeTrackUrl === item.url
+                        ? colors.primary
+                        : colors.textMuted,
+                  }}
+                >
+                  {item.chapterTitle}
+                </Text>
                 {/* // item.duration */}
                 <Text style={styles.chapterDuration}>{'12:34'}</Text>
               </Pressable>
             );
           }}
           style={{ flex: 1 }}
+          ItemSeparatorComponent={() => <View style={{ height: 2 }} />}
           showsVerticalScrollIndicator={false}
         />
       ) : (
@@ -171,9 +197,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   chapterItem: {
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.textMuted,
+    paddingVertical: 13,
+    paddingHorizontal: 13,
+    backgroundColor: colors.background,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -182,6 +208,7 @@ const styles = StyleSheet.create({
     ...defaultStyles.text,
     fontSize: 16,
     maxWidth: '80%',
+    // color: colors.textMuted,
   },
   chapterDuration: {
     ...defaultStyles.text,
