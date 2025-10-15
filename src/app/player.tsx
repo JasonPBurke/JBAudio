@@ -3,11 +3,8 @@ import { defaultStyles } from '@/styles';
 import {
   StyleSheet,
   View,
-  Text,
-  // TouchableHighlight,
   ActivityIndicator,
   Pressable,
-  FlatList,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -15,19 +12,21 @@ import { useActiveTrack } from 'react-native-track-player';
 // import FastImage from '@d11/react-native-fast-image';
 import { Image } from 'expo-image';
 import { unknownBookImageUri } from '@/constants/images';
-import { MovingText } from '@/components/MovingText';
 import { PlayerControls } from '@/components/PlayerControls';
 import { PlayerProgressBar } from '@/components/PlayerProgressBar';
 import { usePlayerBackground } from '@/hooks/usePlayerBackground';
 import { LinearGradient } from 'expo-linear-gradient';
-import ModalComponent from '@/components/ModalComponent';
-import { useState } from 'react';
+import { PlayerChaptersModal } from '@/components/PlayerChaptersModal';
+import { useCallback, useRef } from 'react';
 import { useBook } from '@/store/library';
-import { Book } from '@/types/Book';
-import { Logs } from 'lucide-react-native';
+import { BottomSheetModal } from '@gorhom/bottom-sheet';
 
 const PlayerScreen = () => {
-  const [showModal, setShowModal] = useState(false);
+  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+
+  const handlePresentPress = useCallback(() => {
+    bottomSheetModalRef.current?.present();
+  }, []);
 
   const activeTrack = useActiveTrack();
   const book = useBook(activeTrack?.artist ?? '', activeTrack?.album ?? '');
@@ -106,47 +105,16 @@ const PlayerScreen = () => {
           <View style={{ flex: 1 }}>
             <View style={{ marginTop: 70 }}>
               <View>
-                <Pressable
-                  onPress={() => setShowModal(true)}
-                  style={styles.chapterTitleContainer}
-                >
-                  <Logs
-                    size={24}
-                    style={{ transform: [{ rotateY: '180deg' }] }}
-                    color={colors.icon}
-                    strokeWidth={1.5}
-                    absoluteStrokeWidth
-                  />
-
-                  <View style={styles.trackTitleContainer}>
-                    <MovingText
-                      text={activeTrack.title ?? ''}
-                      animationThreshold={34}
-                      style={styles.trackTitleText}
-                    />
-                  </View>
-                </Pressable>
+                <PlayerChaptersModal
+                  book={book}
+                  handlePresentPress={handlePresentPress}
+                  bottomSheetModalRef={bottomSheetModalRef}
+                  bgColor={imageColors?.darkMuted ?? '#1C1C1C'}
+                />
                 <PlayerProgressBar style={{ marginTop: 70 }} />
 
                 <PlayerControls style={{ marginTop: 50 }} />
               </View>
-              <ModalComponent
-                propagateSwipe
-                isVisible={showModal}
-                onBackdropPress={() => setShowModal(false)}
-                onBackButtonPress={() => setShowModal(false)}
-                hideModal={() => setShowModal(false)}
-                swipeDirection={'up'}
-                onSwipeComplete={() => setShowModal(false)}
-                animationIn='slideInUp'
-                animationOut='slideOutDown'
-                style={{
-                  // ...styles.metadataModal,
-                  backgroundColor: '#1C1C1C',
-                }}
-              >
-                <ChapterList book={book} />
-              </ModalComponent>
             </View>
           </View>
         </View>
@@ -156,48 +124,6 @@ const PlayerScreen = () => {
 };
 
 export default PlayerScreen;
-
-const ChapterList = ({ book }: { book: Book | undefined }) => {
-  return (
-    <View style={{ flex: 1, width: '100%', padding: 20 }}>
-      <Text
-        style={{
-          color: colors.text,
-          fontSize: 20,
-          textAlign: 'center',
-          marginBottom: 20,
-        }}
-      >
-        Chapters
-      </Text>
-      {book?.chapters && book.chapters.length > 0 ? (
-        <FlatList
-          data={book.chapters}
-          keyExtractor={(item) => item.chapterTitle}
-          renderItem={({ item }) => {
-            return (
-              <View style={styles.chapterItem}>
-                <Text style={styles.chapterTitle}>{item.chapterTitle}</Text>
-                {/* <Text style={styles.chapterDuration}>{item.duration}</Text> */}
-              </View>
-            );
-          }}
-          style={{ flex: 1 }}
-          showsVerticalScrollIndicator={false}
-        />
-      ) : (
-        <Text
-          style={{
-            color: colors.textMuted,
-            textAlign: 'center',
-          }}
-        >
-          No chapters found for this book.
-        </Text>
-      )}
-    </View>
-  );
-};
 
 const DismissPlayerSymbol = () => {
   const { top } = useSafeAreaInsets();
