@@ -8,7 +8,7 @@ import {
   View,
   ViewToken,
 } from 'react-native';
-import { memo, useRef } from 'react';
+import { memo } from 'react';
 // import FastImage from '@d11/react-native-fast-image';
 import { Image } from 'expo-image';
 

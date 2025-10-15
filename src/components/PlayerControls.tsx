@@ -107,7 +107,7 @@ export const PlayPauseButton = ({
         <Animated.View style={animatedPlayButtonStyle}>
           <Play
             size={iconSize}
-            color={colors.icon}
+            color={colors.primary}
             strokeWidth={1.5}
             absoluteStrokeWidth
           />
@@ -115,7 +115,7 @@ export const PlayPauseButton = ({
         <Animated.View style={animatedPauseButtonStyle}>
           <Pause
             size={iconSize}
-            color={colors.icon}
+            color={colors.primary}
             strokeWidth={1.5}
             absoluteStrokeWidth
           />
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
   },
   playerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-evenly',
+    justifyContent: 'space-around',
     alignItems: 'center',
   },
   seekTime: {

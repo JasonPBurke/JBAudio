@@ -1,5 +1,5 @@
 import BooksList from '@/components/BooksList';
-import { BooksHome } from '@/components/BooksHome';
+import BooksHome from '@/components/BooksHome';
 import { BooksGrid } from '@/components/BooksGrid';
 // import { useNavigationSearch } from '@/hooks/useNavigationSearch';
 import { defaultStyles } from '@/styles';
