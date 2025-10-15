@@ -31,7 +31,6 @@ import { Book } from '@/types/Book';
 const TitleDetails = () => {
   const [showModal, setShowModal] = useState(false);
   const router = useRouter();
-  // const { width, height } = useWindowDimensions();
   const { setActiveBookId, activeBookId } = useQueueStore();
   const { bookId, author, bookTitle } = useLocalSearchParams<{
     author: string;
@@ -72,7 +71,6 @@ const TitleDetails = () => {
   };
 
   const test = async (book: Book | undefined) => {
-    // await database.unsafeResetDatabase();
     console.log('Pizza Time!');
   };
 
@@ -281,8 +279,10 @@ const styles = StyleSheet.create({
   },
   bookTitleText: {
     ...defaultStyles.text,
-    fontSize: fontSize.lg,
+    fontSize: 21,
     fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 26,
   },
   bookInfoText: {
     ...defaultStyles.text,

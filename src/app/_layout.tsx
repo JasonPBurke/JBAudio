@@ -6,6 +6,7 @@ import { useCallback } from 'react';
 import TrackPlayer from 'react-native-track-player';
 import { useLogTrackPlayerState } from '@/hooks/useLogTrackPlayerState';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import {
   configureReanimatedLogger,
   ReanimatedLogLevel,
@@ -37,7 +38,7 @@ const App = () => {
 
   return (
     <SafeAreaProvider>
-      <GestureHandlerRootView style={{ flex: 1 }}>
+      <GestureHandlerRootView>
         <DatabaseProvider database={database}>
           <RootNavigation />
         </DatabaseProvider>
@@ -52,29 +53,31 @@ const App = () => {
 
 const RootNavigation = () => {
   return (
-    <Stack screenOptions={{ animation: 'fade_from_bottom' }}>
-      <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
+    <BottomSheetModalProvider>
+      <Stack screenOptions={{ animation: 'fade_from_bottom' }}>
+        <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
 
-      <Stack.Screen
-        name='player'
-        options={{
-          presentation: 'formSheet',
-          sheetCornerRadius: 15,
+        <Stack.Screen
+          name='player'
+          options={{
+            presentation: 'formSheet',
+            sheetCornerRadius: 15,
 
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name='titleDetails'
-        options={{
-          sheetCornerRadius: 15,
-          presentation: 'formSheet',
-          // sheetAllowedDetents: [0.9, 1],
-          headerShown: false,
-          animation: 'slide_from_bottom',
-        }}
-      />
-    </Stack>
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name='titleDetails'
+          options={{
+            sheetCornerRadius: 15,
+            presentation: 'formSheet',
+            // sheetAllowedDetents: [0.9, 1],
+            headerShown: false,
+            animation: 'slide_from_bottom',
+          }}
+        />
+      </Stack>
+    </BottomSheetModalProvider>
   );
 };
 

@@ -3,16 +3,13 @@ import { BooksHome } from '@/components/BooksHome';
 import { BooksGrid } from '@/components/BooksGrid';
 // import { useNavigationSearch } from '@/hooks/useNavigationSearch';
 import { defaultStyles } from '@/styles';
-import React, { use, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 // import { bookTitleFilter } from '@/helpers/filter';
 import Header from '@/components/Header';
 import { useScanExternalFileSystem } from '@/hooks/useScanExternalFileSystem';
 import { useAuthors, useLibraryStore } from '@/store/library';
-// import database from '@/db';
-// import Book from '@/db/models/Book';
-// import Author from '@/db/models/Author';
 
 const LibraryScreen = () => {
   const [toggleView, setToggleView] = React.useState(false);

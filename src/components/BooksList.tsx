@@ -11,8 +11,6 @@ import { useLibraryStore } from '@/store/library';
 import { useEffect } from 'react';
 import { withObservables } from '@nozbe/watermelondb/react';
 
-// const queryAuthors = () => database.get<Author>('authors');
-
 export type BookListProps = Partial<FlashListProps<Book>> & {
   authors: AuthorType[];
 };
@@ -33,8 +31,6 @@ const BooksList = ({ authors }: BookListProps) => {
   // };
 
   const viewableItems = useSharedValue<ViewToken[]>([]);
-
-  // console.log('book.bookId', book.bookId)
 
   return (
     //? need to put a loader if allBooks.length === 0
