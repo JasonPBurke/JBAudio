@@ -19,7 +19,9 @@ import TrackPlayer, {
   useActiveTrack,
   useIsPlaying,
 } from 'react-native-track-player';
-import { Book } from '@/types/Book';
+import { Book as BookType } from '@/types/Book';
+import Book from '@/db/models/Book';
+
 import { Ionicons } from '@expo/vector-icons';
 import LoaderKitView from 'react-native-loader-kit';
 import { useRouter } from 'expo-router';
@@ -30,9 +32,10 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useQueueStore } from '@/store/queue';
 import { EllipsisVertical } from 'lucide-react-native';
+import database from '@/db';
 
 export type BookListItemProps = {
-  book: Book;
+  book: BookType;
   bookId: string;
   viewableItems: SharedValue<ViewToken[]>;
 };
@@ -51,9 +54,15 @@ export const BookListItem = memo(function BookListItem({
   const bookTitle = book.bookTitle;
   const { setActiveBookId, activeBookId } = useQueueStore();
 
-  const handlePressPlay = async (book: Book) => {
-    //! this should be done in the chapter list in the player
-    const chapterIndex = book.bookProgress.currentChapterIndex;
+  const handlePressPlay = async (book: BookType) => {
+    // Fetch the latest book data from the database to get the most current chapter index
+    const latestBookFromDB = await database.collections
+      .get<Book>('books')
+      .find(book.bookId!);
+
+    const chapterIndex = latestBookFromDB.currentChapterIndex;
+    console.log('chapterIndex', chapterIndex);
+
     if (chapterIndex === -1) return;
 
     const isChangingBook = bookId !== activeBookId;

@@ -1,4 +1,3 @@
-import { memo } from 'react';
 import { Text, View, ViewToken } from 'react-native';
 import { BookListItem } from './BookListItem';
 import { utilsStyles } from '@/styles';
@@ -6,11 +5,11 @@ import { Book, Author as AuthorType } from '@/types/Book';
 import { screenPadding } from '@/constants/tokens';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
 import { useSharedValue } from 'react-native-reanimated';
-import database from '@/db';
-import Author from '@/db/models/Author';
 import { useLibraryStore } from '@/store/library';
-import { useEffect } from 'react';
-import { withObservables } from '@nozbe/watermelondb/react';
+import { useEffect, memo } from 'react';
+// import { withObservables } from '@nozbe/watermelondb/react';
+// import database from '@/db';
+// import Author from '@/db/models/Author';
 
 export type BookListProps = Partial<FlashListProps<Book>> & {
   authors: AuthorType[];
@@ -87,13 +86,7 @@ const ItemDivider = () => (
 );
 
 // const enhance = withObservables(['authors'], ({ authors }) => ({
-//   authors: authors.observe(),
+//   authors,
 // }));
-
-// const BooksList = enhance(BooksListComponent);
-
-// const EnhancedBooksList = withObservables(['authors'], () => [
-//   queryAuthors(),
-// ])(BooksList);
 
 export default memo(BooksList);
