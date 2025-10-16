@@ -11,6 +11,10 @@ interface LibraryState {
   setAuthors: (authors: Author[]) => void;
   getAuthors: () => Author[];
   init: () => () => void; // Function to initialize and return cleanup
+  updateBookChapterIndex: (
+    bookId: string,
+    chapterIndex: number
+  ) => Promise<void>;
 }
 
 export const useLibraryStore = create<LibraryState>()((set, get) => ({
@@ -23,38 +27,22 @@ export const useLibraryStore = create<LibraryState>()((set, get) => ({
 
     const subscriptions: Subscription[] = [];
 
-    // console.log('Subscribing to authors collection...');
     // Observe authors and their related books and chapters
     const authorsSubscription = authorsCollection
       .query()
-      .observe() // Simplified to observe()
+      .observe()
       .subscribe(async (authorModels) => {
-        // console.log('Observer received authorModels:', authorModels);
         let authorsData: Author[] = [];
         try {
           authorsData = await Promise.all(
             authorModels.map(async (authorModel: AuthorModel) => {
-              // console.log('Processing author:', authorModel.name);
-              const bookModels = await (authorModel.books as any).fetch(); // Correctly fetch related books
-              // console.log(
-              //   'Fetched bookModels for',
-              //   authorModel.name,
-              //   ':',
-              //   bookModels
-              // );
+              const bookModels = await (authorModel.books as any).fetch();
 
               const booksData: Book[] = await Promise.all(
                 bookModels.map(async (bookModel: BookModel) => {
-                  // console.log('Processing book:', bookModel.title);
                   const chapterModels = await (
                     bookModel.chapters as any
-                  ).fetch(); // Correctly fetch related chapters
-                  // console.log(
-                  //   'Fetched chapterModels for',
-                  //   bookModel.title,
-                  //   ':',
-                  //   chapterModels
-                  // );
+                  ).fetch();
 
                   const chaptersData: Chapter[] = chapterModels.map(
                     (chapterModel: ChapterModel) => ({
@@ -112,6 +100,16 @@ export const useLibraryStore = create<LibraryState>()((set, get) => ({
       subscriptions.forEach((sub) => sub.unsubscribe());
     };
   },
+  updateBookChapterIndex: async (bookId: string, chapterIndex: number) => {
+    await database.write(async () => {
+      const book = await database.collections
+        .get<BookModel>('books')
+        .find(bookId);
+      await book.update((record) => {
+        record.currentChapterIndex = chapterIndex;
+      });
+    });
+  },
 }));
 
 export const useAuthors = () => useLibraryStore((state) => state.authors);
@@ -127,7 +125,7 @@ export const useBookById = (bookId: string) =>
     for (const author of state.authors) {
       for (const book of author.books) {
         if (book.bookId === bookId) {
-          console.log('found book', JSON.stringify(book, null, 2));
+          // console.log('found book', JSON.stringify(book, null, 2));
           return book;
         }
       }

@@ -21,5 +21,15 @@ export default module.exports = async function () {
   TrackPlayer.addEventListener(Event.RemotePrevious, () =>
     TrackPlayer.skipToPrevious()
   );
+  TrackPlayer.addEventListener(
+    Event.PlaybackProgressUpdated,
+    async ({ position, track }) => {
+      console.log('PlaybackProgressUpdated event:', position, track);
+      // get the track to fetch your unique ID property (if applicable)
+      const trackToUpdate = await TrackPlayer.getTrack(track);
+      //! update progress and track queue index to database
+      // setProgress(trackToUpdate.id, position);
+    }
+  );
   // Add other remote event listeners as needed (e.g., RemoteStop, RemoteSeek)
 };

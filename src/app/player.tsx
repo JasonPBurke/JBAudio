@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useActiveTrack } from 'react-native-track-player';
+import TrackPlayer, { useActiveTrack } from 'react-native-track-player';
 // import FastImage from '@d11/react-native-fast-image';
 import { Image } from 'expo-image';
 import { unknownBookImageUri } from '@/constants/images';
@@ -18,18 +18,44 @@ import { usePlayerBackground } from '@/hooks/usePlayerBackground';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PlayerChaptersModal } from '@/components/PlayerChaptersModal';
 import { useCallback, useRef } from 'react';
-import { useBook } from '@/store/library';
+import { useBook, useLibraryStore } from '@/store/library';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
+import database from '@/db';
+import BookModel from '@/db/models/Book';
 
 const PlayerScreen = () => {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const activeTrack = useActiveTrack();
+  const book = useBook(activeTrack?.artist ?? '', activeTrack?.album ?? '');
+  const { updateBookChapterIndex } = useLibraryStore();
 
   const handlePresentPress = useCallback(() => {
     bottomSheetModalRef.current?.present();
   }, []);
 
-  const activeTrack = useActiveTrack();
-  const book = useBook(activeTrack?.artist ?? '', activeTrack?.album ?? '');
+  const handleChapterSelect = useCallback(
+    async (chapterIndex: number) => {
+      console.log(' in handleChapterSelect in player.tsx');
+      if (!book?.bookId) return;
+
+      await TrackPlayer.skip(chapterIndex);
+      await TrackPlayer.play();
+
+      //! update state store an rely on the observer to update the db is better??
+      await updateBookChapterIndex(book.bookId, chapterIndex);
+      // await database.write(async () => {
+      //   const bookRecord = await database.collections
+      //     .get<BookModel>('books')
+      //     .find(book.bookId!); // Add non-null assertion
+      //   await bookRecord.update((record) => {
+      //     record.currentChapterIndex = chapterIndex;
+      //   });
+      // });
+
+      bottomSheetModalRef.current?.close();
+    },
+    [book?.bookId]
+  );
 
   const { imageColors } = usePlayerBackground(
     activeTrack?.artwork ?? unknownBookImageUri
@@ -110,6 +136,7 @@ const PlayerScreen = () => {
                   handlePresentPress={handlePresentPress}
                   bottomSheetModalRef={bottomSheetModalRef}
                   bgColor={imageColors?.darkMuted ?? '#1C1C1C'}
+                  onChapterSelect={handleChapterSelect}
                 />
                 <PlayerProgressBar style={{ marginTop: 70 }} />
 
