@@ -12,6 +12,7 @@ import { colors, fontSize } from '@/constants/tokens';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
 import { ChevronRight } from 'lucide-react-native';
 import { memo } from 'react';
+// import { withObservables } from '@nozbe/watermelondb/react';
 
 export type BookListProps = Partial<FlashListProps<Book>> & {
   authors: Author[];
@@ -158,6 +159,10 @@ const BooksHome = ({ authors }: BookListProps) => {
     </ScrollView>
   );
 };
+
+// const enhance = withObservables(['authors'], ({ authors }) => ({
+//   authors,
+// }));
 
 export default memo(BooksHome);
 

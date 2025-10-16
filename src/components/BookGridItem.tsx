@@ -21,13 +21,16 @@ import TrackPlayer, {
   useIsPlaying,
 } from 'react-native-track-player';
 
-import { Book } from '@/types/Book';
+import { Book as BookType } from '@/types/Book';
+import Book from '@/db/models/Book';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
+import database from '@/db';
 
 export type BookListItemProps = {
-  book: Book;
+  book: BookType;
   bookId: string;
   flowDirection: 'row' | 'column';
 };
@@ -52,8 +55,14 @@ export const BookGridItem = memo(function BookListItem({
     });
   }, [book.artwork]);
 
-  const handlePressPlay = async (book: Book) => {
-    const chapterIndex = book.bookProgress.currentChapterIndex;
+  const handlePressPlay = async (book: BookType) => {
+    // Fetch the latest book data from the database to get the most current chapter index
+    const latestBookFromDB = await database.collections
+      .get<Book>('books')
+      .find(book.bookId!);
+
+    const chapterIndex = latestBookFromDB.currentChapterIndex;
+    console.log('chapterIndex', chapterIndex);
     if (chapterIndex === -1) return;
 
     const isChangingBook = bookId !== activeBookId;
