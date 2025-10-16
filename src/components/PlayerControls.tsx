@@ -245,7 +245,7 @@ export const PlaybackSpeed = ({ iconSize = 30 }: PlayerButtonProps) => {
     setCurrentIndex((prevIndex) => (prevIndex + 1) % speedRates.length);
     //! crashing app...look at docs for implementation
     // await TrackPlayer.setRate(currentIndex);
-    console.log('currentSpeedIndex', currentIndex);
+    // console.log('currentSpeedIndex', currentIndex);
   };
 
   return (
@@ -278,7 +278,7 @@ export const PlaybackSpeed = ({ iconSize = 30 }: PlayerButtonProps) => {
 export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
   const [timerOn, setTimerOn] = useState(false);
 
-  console.log('timerOn', timerOn); //! resets on player close
+  // console.log('timerOn', timerOn); //! resets on player close
 
   const rotation = useSharedValue(0);
   const opacity1 = useSharedValue(0);

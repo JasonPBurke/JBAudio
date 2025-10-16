@@ -26,7 +26,9 @@ import { useQueueStore } from '@/store/queue';
 import { formatDate } from '@/helpers/miscellaneous';
 import ModalComponent from '@/components/ModalComponent';
 import { useState } from 'react';
-import { Book } from '@/types/Book';
+import { Book as BookType } from '@/types/Book';
+import database from '@/db';
+import Book from '@/db/models/Book';
 
 const TitleDetails = () => {
   const [showModal, setShowModal] = useState(false);
@@ -44,12 +46,19 @@ const TitleDetails = () => {
     book?.artwork || unknownBookImageUri
   );
 
-  const handlePressPlay = async (book: Book | undefined) => {
+  const handlePressPlay = async (book: BookType | undefined) => {
     if (!book) return;
-    const chapterIndex = book.bookProgress.currentChapterIndex;
+
+    // Fetch the latest book data from the database to get the most current chapter index
+    const latestBookFromDB = await database.collections
+      .get<Book>('books')
+      .find(book.bookId!);
+
+    const chapterIndex = latestBookFromDB.currentChapterIndex;
+    console.log('chapterIndex', chapterIndex);
     if (chapterIndex === -1) return;
 
-    const isChangingBook = bookId !== activeBookId;
+    const isChangingBook = book.bookId !== activeBookId;
 
     if (isChangingBook) {
       await TrackPlayer.reset();
@@ -63,14 +72,18 @@ const TitleDetails = () => {
       await TrackPlayer.add(tracks);
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.play();
-      setActiveBookId(bookId);
+      if (book.bookId) {
+        setActiveBookId(book.bookId);
+      }
     } else {
-      // await TrackPlayer.skip(chapterIndex);
+      // If the book is not changing, but the chapter index might have,
+      // we should still skip to the correct chapter.
+      await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.play();
     }
   };
 
-  const test = async (book: Book | undefined) => {
+  const test = async (book: BookType | undefined) => {
     console.log('Pizza Time!');
   };
 

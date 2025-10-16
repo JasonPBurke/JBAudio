@@ -3,28 +3,33 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  FlatList,
+  // FlatList,
   ActivityIndicator,
 } from 'react-native';
 import {
   BottomSheetBackdrop,
   BottomSheetFlatList,
+  // BottomSheetFlatListMethods,
   BottomSheetModal,
-  BottomSheetView,
+  // BottomSheetView,
 } from '@gorhom/bottom-sheet';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { colors, screenPadding } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import { Book, Chapter } from '@/types/Book';
 import { Logs } from 'lucide-react-native';
 import { MovingText } from './MovingText';
 import TrackPlayer, { useActiveTrack } from 'react-native-track-player';
+import { useBook, useBookById } from '@/store/library';
+import database from '@/db';
+import BookModel from '@/db/models/Book';
 
 type PlayerChaptersModalProps = {
   handlePresentPress: () => void;
   book: Book | undefined;
   bottomSheetModalRef: React.ForwardedRef<BottomSheetModal>;
   bgColor: string | undefined;
+  onChapterSelect: (chapterIndex: number) => void;
 };
 
 export const PlayerChaptersModal = ({
@@ -32,6 +37,7 @@ export const PlayerChaptersModal = ({
   book,
   bottomSheetModalRef,
   bgColor = '#1C1C1C',
+  onChapterSelect,
 }: PlayerChaptersModalProps) => {
   const snapPoints = useMemo(() => ['40%', '70%'], []);
 
@@ -42,14 +48,35 @@ export const PlayerChaptersModal = ({
         pressBehavior={'close'}
         disappearsOnIndex={-1}
         appearsOnIndex={0}
-        // style={{ backgroundColor: '#1c1c1c0' }}
       />
     ),
     []
   );
 
   const activeTrack = useActiveTrack();
-  console.log('activeTrack', activeTrack?.url);
+  // console.log('activeTrack', activeTrack?.url);
+
+  const bookFromZustand = useBookById(book?.bookId ?? '');
+  const bookFromDb = database.collections
+    .get<BookModel>('books')
+    .find(book?.bookId ?? '');
+  console.log(
+    'bookFromDb',
+    bookFromDb.then((book) => book.currentChapterIndex)
+  );
+
+  useEffect(() => {
+    if (book && bookFromZustand) {
+      console.log(
+        'DB currentChapterIndex:',
+        book.bookProgress.currentChapterIndex
+      );
+      console.log(
+        'Zustand currentChapterIndex:',
+        bookFromZustand.bookProgress.currentChapterIndex
+      );
+    }
+  }, [book, bookFromZustand]);
 
   if (!activeTrack) {
     return (
@@ -96,7 +123,11 @@ export const PlayerChaptersModal = ({
         index={0}
         snapPoints={snapPoints}
       >
-        <ChapterList book={book} activeTrackUrl={activeTrack?.url} />
+        <ChapterList
+          book={book}
+          activeTrackUrl={activeTrack?.url}
+          onChapterSelect={onChapterSelect}
+        />
       </BottomSheetModal>
     </View>
   );
@@ -105,20 +136,36 @@ export const PlayerChaptersModal = ({
 const ChapterList = ({
   book,
   activeTrackUrl,
+  onChapterSelect,
 }: {
   book: Book | undefined;
   activeTrackUrl: string | undefined;
+  onChapterSelect: (chapterIndex: number) => void;
 }) => {
-  const handleChapterChange = async (item: Chapter) => {
-    console.log('handleChapterChange event:', item.url);
-    const chapterIndex = book?.bookProgress.currentChapterIndex;
-    if (chapterIndex === -1) return;
-    else if (chapterIndex !== undefined) {
-      await TrackPlayer.skip(chapterIndex);
-      console.log('TrackPlayer.skip(chapterIndex)', chapterIndex);
-      await TrackPlayer.play();
-    }
+  const handleChapterChange = async (chapterIndex: number) => {
+    onChapterSelect(chapterIndex);
   };
+
+  // const flatListRef = useRef<BottomSheetFlatListMethods>(null);
+  // const ITEM_HEIGHT = 45;
+
+  // useEffect(() => {
+  //   // Scroll to the desired index after the component mounts
+  //   if (flatListRef.current) {
+  //     const targetIndex = 25; // Example: scroll to the 26th item (index 25)
+  //     flatListRef.current.scrollToIndex({
+  //       index: targetIndex,
+  //       animated: false, // Set to true for a smooth scroll animation
+  //       viewPosition: 0.5, // Centers the item in the viewport (0 for top, 1 for bottom)
+  //     });
+  //   }
+  // }, []);
+
+  // const getItemLayout = (data: any, index: number) => ({
+  //   length: ITEM_HEIGHT,
+  //   offset: ITEM_HEIGHT * index,
+  //   index,
+  // });
 
   return (
     <View
@@ -136,7 +183,7 @@ const ChapterList = ({
             const isLastChapter = index === book.chapters.length - 1;
             return (
               <Pressable
-                onPress={() => handleChapterChange(item)}
+                onPress={() => handleChapterChange(index)}
                 style={{
                   ...styles.chapterItem,
                   borderBottomLeftRadius: isLastChapter ? 20 : 0,
@@ -161,6 +208,8 @@ const ChapterList = ({
               </Pressable>
             );
           }}
+          // getItemLayout={getItemLayout}
+          // ref={flatListRef}
           style={{ flex: 1 }}
           ItemSeparatorComponent={() => <View style={{ height: 2 }} />}
           showsVerticalScrollIndicator={false}
