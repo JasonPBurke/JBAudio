@@ -177,8 +177,8 @@ const styles = StyleSheet.create({
     height: '75%',
     width: '100%',
     borderRadius: 6,
-
     alignSelf: 'center',
+    elevation: 6,
   },
   // chapterTitleContainer: {
   //   flexDirection: 'row',
