@@ -10,6 +10,8 @@ import { utilsStyles } from '@/styles';
 import { Book, Author } from '@/types/Book';
 import { colors, fontSize } from '@/constants/tokens';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
+import { LegendList, LegendListProps } from '@legendapp/list';
+
 import { ChevronRight } from 'lucide-react-native';
 import { memo } from 'react';
 // import { withObservables } from '@nozbe/watermelondb/react';
@@ -71,15 +73,12 @@ const BooksHome = ({ authors }: BookListProps) => {
             </Pressable>
             <View style={styles.listContainer}>
               <FlashList<Book>
-                estimatedItemSize={120}
+                estimatedItemSize={80}
                 contentContainerStyle={{ paddingLeft: 14 }}
                 data={allBooks}
+                // recycleItems={true}
                 renderItem={({ item: book }) => (
-                  <BookGridItem
-                    book={book}
-                    bookId={book.chapters[0].url}
-                    flowDirection='row'
-                  />
+                  <BookGridItem book={book} bookId={book.chapters[0].url} />
                 )}
                 keyExtractor={(item) => item.chapters[0].url}
                 horizontal={true}
@@ -123,7 +122,7 @@ const BooksHome = ({ authors }: BookListProps) => {
               </Pressable>
               <View style={styles.listContainer}>
                 <FlashList<Book>
-                  estimatedItemSize={120}
+                  estimatedItemSize={80}
                   contentContainerStyle={{
                     paddingLeft: 14,
                   }}
@@ -131,11 +130,11 @@ const BooksHome = ({ authors }: BookListProps) => {
                     <View style={{ width: 12 }} />
                   )}
                   data={author.books}
+                  // recycleItems={true}
                   renderItem={({ item: book }) => (
                     <BookGridItem
                       book={book}
                       bookId={book.chapters[0].url}
-                      flowDirection='row'
                     />
                   )}
                   keyExtractor={(item) => item.chapters[0].url}

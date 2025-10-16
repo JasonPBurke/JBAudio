@@ -20,7 +20,7 @@ import { usePopulateDatabase } from './usePopulateDatabase';
 //*  '/Audiobooks' from the path and replace it with the user's chosen folder
 
 export const useScanExternalFileSystem = () => {
-  const path = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/Brandon Sanderson`;
+  const path = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/Terry Pratchett`;
   // const { setAuthors } = useLibraryStore();
   const { populateDatabase } = usePopulateDatabase();
 

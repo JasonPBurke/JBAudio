@@ -56,27 +56,23 @@ export const PlayerChaptersModal = ({
   const activeTrack = useActiveTrack();
   // console.log('activeTrack', activeTrack?.url);
 
-  const bookFromZustand = useBookById(book?.bookId ?? '');
-  const bookFromDb = database.collections
-    .get<BookModel>('books')
-    .find(book?.bookId ?? '');
-  console.log(
-    'bookFromDb',
-    bookFromDb.then((book) => book.currentChapterIndex)
-  );
+  // const bookFromZustand = useBookById(book?.bookId ?? '');
+  // const bookFromDb = database.collections
+  //   .get<BookModel>('books')
+  //   .find(book?.bookId ?? '');
 
-  useEffect(() => {
-    if (book && bookFromZustand) {
-      console.log(
-        'DB currentChapterIndex:',
-        book.bookProgress.currentChapterIndex
-      );
-      console.log(
-        'Zustand currentChapterIndex:',
-        bookFromZustand.bookProgress.currentChapterIndex
-      );
-    }
-  }, [book, bookFromZustand]);
+  // useEffect(() => {
+  //   if (book && bookFromZustand) {
+  //     console.log(
+  //       'DB currentChapterIndex:',
+  //       book.bookProgress.currentChapterIndex
+  //     );
+  //     console.log(
+  //       'Zustand currentChapterIndex:',
+  //       bookFromZustand.bookProgress.currentChapterIndex
+  //     );
+  //   }
+  // }, [book, bookFromZustand]);
 
   if (!activeTrack) {
     return (

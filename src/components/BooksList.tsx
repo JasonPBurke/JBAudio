@@ -4,6 +4,7 @@ import { utilsStyles } from '@/styles';
 import { Book, Author as AuthorType } from '@/types/Book';
 import { screenPadding } from '@/constants/tokens';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
+import { LegendList, LegendListProps } from '@legendapp/list';
 import { useSharedValue } from 'react-native-reanimated';
 import { useLibraryStore } from '@/store/library';
 import { useEffect, memo } from 'react';
@@ -38,8 +39,10 @@ const BooksList = ({ authors }: BookListProps) => {
       {allBooks.length > 0 && (
         <View style={{ flex: 1 }}>
           <FlashList<Book>
-            estimatedItemSize={200}
+            estimatedItemSize={49}
             data={allBooks}
+            // disableAutoLayout={true}
+            // recycleItems={true}
             //! onViewableItemsChanged is a reanimated function to animate the list
             // onViewableItemsChanged={({ viewableItems: vItems }) => {
             //   viewableItems.value = vItems;
