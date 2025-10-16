@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
   bookArtworkImage: {
     height: 50,
     width: 50,
-    borderRadius: 6,
+    borderRadius: 3,
   },
   bookTitleContainer: {
     flex: 1,

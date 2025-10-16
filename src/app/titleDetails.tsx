@@ -2,7 +2,7 @@ import {
   Text,
   View,
   StyleSheet,
-  // useWindowDimensions,
+  // Image as RNImage,
   Pressable,
 } from 'react-native';
 // import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
@@ -25,13 +25,15 @@ import TrackPlayer, {
 import { useQueueStore } from '@/store/queue';
 import { formatDate } from '@/helpers/miscellaneous';
 import ModalComponent from '@/components/ModalComponent';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Book as BookType } from '@/types/Book';
 import database from '@/db';
 import Book from '@/db/models/Book';
 
 const TitleDetails = () => {
   const [showModal, setShowModal] = useState(false);
+  // const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
+
   const router = useRouter();
   const { setActiveBookId, activeBookId } = useQueueStore();
   const { bookId, author, bookTitle } = useLocalSearchParams<{
@@ -41,6 +43,12 @@ const TitleDetails = () => {
   }>();
 
   const book = useBook(author, bookTitle);
+
+  // useEffect(() => {
+  //   RNImage.getSize(book?.artwork || unknownBookImageUri, (w, h) => {
+  //     setImageSize({ width: w, height: h });
+  //   });
+  // }, [book?.artwork]);
 
   const { imageColors } = usePlayerBackground(
     book?.artwork || unknownBookImageUri
@@ -54,7 +62,9 @@ const TitleDetails = () => {
       .get<Book>('books')
       .find(book.bookId!);
 
+    //! update chapterProgress wherever chapterIndex is updated
     const chapterIndex = latestBookFromDB.currentChapterIndex;
+    const chapterProgress = latestBookFromDB.currentChapterProgress;
     console.log('chapterIndex', chapterIndex);
     if (chapterIndex === -1) return;
 
@@ -77,8 +87,9 @@ const TitleDetails = () => {
       }
     } else {
       // If the book is not changing, but the chapter index might have,
-      // we should still skip to the correct chapter.
+      // we should still skip to the correct chapter and chapter progress.
       await TrackPlayer.skip(chapterIndex);
+      await TrackPlayer.seekTo(chapterProgress || 0);
       await TrackPlayer.play();
     }
   };
@@ -138,12 +149,19 @@ const TitleDetails = () => {
           <Ionicons name='pizza' size={44} color={colors.primary} />
         </Pressable>
 
-        <View style={styles.bookArtworkContainer}>
-          <Pressable
-            hitSlop={10}
-            style={styles.backButton}
-            onPress={() => router.back()}
-          />
+        <Pressable
+          hitSlop={10}
+          style={styles.backButton}
+          onPress={() => router.back()}
+        />
+        <View
+          style={{
+            ...styles.bookArtworkContainer,
+            // width: imageSize.height
+            //   ? (imageSize.width / imageSize.height) * 350
+            //   : 0,
+          }}
+        >
           <Image
             contentFit='contain'
             source={{
@@ -266,12 +284,10 @@ const styles = StyleSheet.create({
   },
   bookArtworkContainer: {
     flex: 1,
-    height: '60%',
+    height: '65%',
     width: '90%',
     paddingTop: 5,
     marginBottom: 32,
-    // justifyContent: 'flex-start',
-    // alignItems: 'flex-start',
   },
   bookInfoContainer: {
     gap: 20,
@@ -282,9 +298,8 @@ const styles = StyleSheet.create({
   },
   bookArtworkImage: {
     height: '100%',
-    width: 'auto',
-    borderRadius: 6,
-    elevation: 6,
+    width: '100%',
+    borderRadius: 10,
   },
   authorNarratorContainer: {
     flexDirection: 'row',
@@ -360,13 +375,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 35,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    // shadowColor: '#000',
+    // shadowOffset: {
+    //   width: 0,
+    //   height: 2,
+    // },
+    // shadowOpacity: 0.25,
+    // shadowRadius: 4,
     elevation: 5,
   },
 });

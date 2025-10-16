@@ -32,13 +32,13 @@ import database from '@/db';
 export type BookListItemProps = {
   book: BookType;
   bookId: string;
-  flowDirection: 'row' | 'column';
+  // flowDirection: 'row' | 'column';
 };
 
 export const BookGridItem = memo(function BookListItem({
   book,
   bookId,
-  flowDirection,
+  // flowDirection,
 }: BookListItemProps) {
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const router = useRouter();
@@ -62,6 +62,7 @@ export const BookGridItem = memo(function BookListItem({
       .find(book.bookId!);
 
     const chapterIndex = latestBookFromDB.currentChapterIndex;
+    const chapterProgress = latestBookFromDB.currentChapterProgress;
     console.log('chapterIndex', chapterIndex);
     if (chapterIndex === -1) return;
 
@@ -82,6 +83,7 @@ export const BookGridItem = memo(function BookListItem({
       setActiveBookId(bookId);
     } else {
       await TrackPlayer.skip(chapterIndex);
+      await TrackPlayer.seekTo(chapterProgress || 0);
       await TrackPlayer.play();
     }
   };
@@ -118,11 +120,7 @@ export const BookGridItem = memo(function BookListItem({
         >
           <Image
             source={book.artwork ?? unknownBookImageUri}
-            style={{
-              ...styles.bookArtworkImage,
-              width: '100%',
-              height: '100%',
-            }}
+            style={styles.bookArtworkImage}
             contentFit='contain'
           />
           {isActiveBook && playing ? (
@@ -185,6 +183,7 @@ const styles = StyleSheet.create({
   bookArtworkImage: {
     height: '100%',
     width: '100%',
+    borderRadius: 3,
   },
   bookInfoContainer: {
     height: 50,
