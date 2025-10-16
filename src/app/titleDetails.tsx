@@ -284,6 +284,7 @@ const styles = StyleSheet.create({
     height: '100%',
     width: 'auto',
     borderRadius: 6,
+    elevation: 6,
   },
   authorNarratorContainer: {
     flexDirection: 'row',
