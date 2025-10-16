@@ -20,8 +20,6 @@ import { PlayerChaptersModal } from '@/components/PlayerChaptersModal';
 import { useCallback, useRef } from 'react';
 import { useBook, useLibraryStore } from '@/store/library';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
-import database from '@/db';
-import BookModel from '@/db/models/Book';
 
 const PlayerScreen = () => {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
@@ -35,7 +33,6 @@ const PlayerScreen = () => {
 
   const handleChapterSelect = useCallback(
     async (chapterIndex: number) => {
-      console.log(' in handleChapterSelect in player.tsx');
       if (!book?.bookId) return;
 
       await TrackPlayer.skip(chapterIndex);
@@ -54,14 +51,14 @@ const PlayerScreen = () => {
 
       bottomSheetModalRef.current?.close();
     },
-    [book?.bookId]
+    [book?.bookId, updateBookChapterIndex]
   );
 
   const { imageColors } = usePlayerBackground(
     activeTrack?.artwork ?? unknownBookImageUri
   );
 
-  const { top, bottom } = useSafeAreaInsets();
+  // const { top, bottom } = useSafeAreaInsets();
 
   if (!activeTrack) {
     return (
@@ -111,40 +108,35 @@ const PlayerScreen = () => {
       }
     >
       <View style={styles.overlayContainer}>
-        <DismissPlayerSymbol />
-
-        <View
+        {/* <View
           style={{ flex: 1, marginTop: top + 70, marginBottom: bottom }}
-        >
-          <View style={styles.artworkImageContainer}>
-            <Image
-              contentFit='contain'
-              source={{
-                uri: activeTrack?.artwork ?? unknownBookImageUri,
-                // priority: FastImage.priority.high,
-              }}
-              // resizeMode={FastImage.resizeMode.contain}
-              style={styles.artworkImage}
-            />
-          </View>
-
-          <View style={{ flex: 1 }}>
-            <View style={{ marginTop: 70 }}>
-              <View>
-                <PlayerChaptersModal
-                  book={book}
-                  handlePresentPress={handlePresentPress}
-                  bottomSheetModalRef={bottomSheetModalRef}
-                  bgColor={imageColors?.darkMuted ?? '#1C1C1C'}
-                  onChapterSelect={handleChapterSelect}
-                />
-                <PlayerProgressBar style={{ marginTop: 70 }} />
-
-                <PlayerControls style={{ marginTop: 50 }} />
-              </View>
-            </View>
-          </View>
+          > */}
+        <View style={styles.artworkImageContainer}>
+          <DismissPlayerSymbol />
+          <Image
+            contentFit='contain'
+            source={{
+              uri: activeTrack?.artwork ?? unknownBookImageUri,
+              // priority: FastImage.priority.high,
+            }}
+            // resizeMode={FastImage.resizeMode.contain}
+            style={styles.artworkImage}
+          />
         </View>
+
+        <View style={{ marginTop: 70 }}>
+          <PlayerChaptersModal
+            book={book}
+            handlePresentPress={handlePresentPress}
+            bottomSheetModalRef={bottomSheetModalRef}
+            bgColor={imageColors?.darkMuted ?? '#1C1C1C'}
+            onChapterSelect={handleChapterSelect}
+          />
+          <PlayerProgressBar style={{ marginTop: 70 }} />
+
+          <PlayerControls style={{ marginTop: 50 }} />
+        </View>
+        {/* </View> */}
       </View>
     </LinearGradient>
   );
@@ -173,35 +165,40 @@ const styles = StyleSheet.create({
     ...defaultStyles.container,
     paddingHorizontal: screenPadding.horizontal,
     backgroundColor: 'rgba(0,0,0,0.5)',
+    // alignItems: 'center',
   },
   artworkImageContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    alignSelf: 'center',
     height: '55%',
-    width: '100%',
+    width: '95%',
   },
   artworkImage: {
-    height: '100%',
+    marginTop: 60,
+    height: '75%',
     width: '100%',
     borderRadius: 6,
+
+    alignSelf: 'center',
   },
-  chapterTitleContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  trackTitleContainer: {
-    overflow: 'hidden',
-    maxWidth: '80%',
-  },
-  trackTitleText: {
-    flex: 1,
-    ...defaultStyles.text,
-    fontSize: 18,
-    fontWeight: '500',
-  },
+  // chapterTitleContainer: {
+  //   flexDirection: 'row',
+  //   justifyContent: 'center',
+  //   alignItems: 'center',
+  //   gap: 8,
+  // },
+  // trackTitleContainer: {
+  //   overflow: 'hidden',
+  //   maxWidth: '80%',
+
+  // },
+  // trackTitleText: {
+  //   flex: 1,
+  //   ...defaultStyles.text,
+  //   fontSize: 18,
+  //   fontWeight: '500',
+  // },
   backButton: {
+    marginBottom: 12,
     width: 55,
     height: 7,
     backgroundColor: '#1c1c1ca9',
@@ -210,12 +207,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     justifyContent: 'center',
     alignSelf: 'center',
-    // position: 'absolute',
-    // left: 16,
-    // right: 0,
-    // flexDirection: 'row',
   },
-
   chapterItem: {
     paddingVertical: 10,
     borderBottomWidth: 1,

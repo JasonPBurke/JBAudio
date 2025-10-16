@@ -266,8 +266,8 @@ const styles = StyleSheet.create({
   },
   bookArtworkContainer: {
     flex: 1,
-    width: '90%',
     height: '60%',
+    width: '90%',
     paddingTop: 5,
     marginBottom: 32,
     // justifyContent: 'flex-start',
