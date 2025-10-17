@@ -150,7 +150,12 @@ export const BookGridItem = memo(function BookListItem({
                 color={colors.icon}
                 onPress={() => handlePressPlay(book)}
               /> */}
-              <Play size={18} color={colors.icon} />
+              <Play
+                size={18}
+                color={colors.icon}
+                strokeWidth={1}
+                absoluteStrokeWidth
+              />
             </Pressable>
           )}
         </View>
