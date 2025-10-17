@@ -1,4 +1,6 @@
 import TrackPlayer, { Event } from 'react-native-track-player';
+import database from '@/db';
+import BookModel from '@/db/models/Book';
 
 export default module.exports = async function () {
   TrackPlayer.addEventListener(Event.RemotePlay, () => TrackPlayer.play());
@@ -27,8 +29,19 @@ export default module.exports = async function () {
       console.log('PlaybackProgressUpdated event:', position, track);
       // get the track to fetch your unique ID property (if applicable)
       const trackToUpdate = await TrackPlayer.getTrack(track);
+      // const bookToUpdate = await database.collections.get
       //! update progress and track queue index to database
-      // setProgress(trackToUpdate.id, position);
+      console.log('trackToUpdate', trackToUpdate);
+      if (trackToUpdate?.id) {
+        await database.write(async () => {
+          const book = await database.collections
+            .get('books')
+            .find(trackToUpdate.id);
+          await book.update((record) => {
+            record.currentChapterProgress = position;
+          });
+        });
+      }
     }
   );
   // Add other remote event listeners as needed (e.g., RemoteStop, RemoteSeek)

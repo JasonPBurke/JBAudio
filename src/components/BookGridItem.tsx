@@ -24,7 +24,8 @@ import TrackPlayer, {
 import { Book as BookType } from '@/types/Book';
 import Book from '@/db/models/Book';
 
-import { Ionicons } from '@expo/vector-icons';
+import { Play } from 'lucide-react-native';
+// import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
 import database from '@/db';
@@ -64,6 +65,7 @@ export const BookGridItem = memo(function BookListItem({
     const chapterIndex = latestBookFromDB.currentChapterIndex;
     const chapterProgress = latestBookFromDB.currentChapterProgress;
     console.log('chapterIndex', chapterIndex);
+    console.log('chapterProgress', chapterProgress);
     if (chapterIndex === -1) return;
 
     const isChangingBook = bookId !== activeBookId;
@@ -79,6 +81,7 @@ export const BookGridItem = memo(function BookListItem({
       }));
       await TrackPlayer.add(tracks);
       await TrackPlayer.skip(chapterIndex);
+      await TrackPlayer.seekTo(chapterProgress || 0);
       await TrackPlayer.play();
       setActiveBookId(bookId);
     } else {
@@ -131,6 +134,7 @@ export const BookGridItem = memo(function BookListItem({
             />
           ) : (
             <Pressable
+              onPress={() => handlePressPlay(book)}
               style={{
                 ...styles.trackPausedIcon,
                 padding: 6,
@@ -139,13 +143,14 @@ export const BookGridItem = memo(function BookListItem({
               }}
               hitSlop={25}
             >
-              <Ionicons
+              {/* <Ionicons
                 // style={styles.trackPausedIcon}
                 name='headset-outline'
                 size={18}
                 color={colors.icon}
                 onPress={() => handlePressPlay(book)}
-              />
+              /> */}
+              <Play size={18} color={colors.icon} />
             </Pressable>
           )}
         </View>

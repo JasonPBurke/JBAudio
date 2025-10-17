@@ -22,7 +22,8 @@ import TrackPlayer, {
 import { Book as BookType } from '@/types/Book';
 import Book from '@/db/models/Book';
 
-import { Ionicons } from '@expo/vector-icons';
+import { Play } from 'lucide-react-native';
+// import { Ionicons } from '@expo/vector-icons';
 import LoaderKitView from 'react-native-loader-kit';
 import { useRouter } from 'expo-router';
 import Animated, {
@@ -61,7 +62,7 @@ export const BookListItem = memo(function BookListItem({
       .find(book.bookId!);
 
     const chapterIndex = latestBookFromDB.currentChapterIndex;
-    console.log('chapterIndex', chapterIndex);
+    const chapterProgress = latestBookFromDB.currentChapterProgress;
 
     if (chapterIndex === -1) return;
 
@@ -78,10 +79,12 @@ export const BookListItem = memo(function BookListItem({
       }));
       await TrackPlayer.add(tracks);
       await TrackPlayer.skip(chapterIndex);
+      await TrackPlayer.seekTo(chapterProgress || 0);
       await TrackPlayer.play();
       setActiveBookId(bookId);
     } else {
-      // await TrackPlayer.skip(chapterIndex);
+      await TrackPlayer.skip(chapterIndex);
+      await TrackPlayer.seekTo(chapterProgress || 0);
       await TrackPlayer.play();
     }
   };
@@ -153,10 +156,15 @@ export const BookListItem = memo(function BookListItem({
                 style={{ padding: 8 }}
                 hitSlop={10}
               >
-                <Ionicons
+                {/* <Ionicons
                   name='headset-outline'
                   size={18}
                   color={colors.icon}
+                /> */}
+                <Play
+                  onPress={() => handlePressPlay(book)}
+                  size={18}
+                  color={colors.textMuted}
                 />
               </Pressable>
             )}
