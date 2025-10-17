@@ -65,7 +65,6 @@ const TitleDetails = () => {
     //! update chapterProgress wherever chapterIndex is updated
     const chapterIndex = latestBookFromDB.currentChapterIndex;
     const chapterProgress = latestBookFromDB.currentChapterProgress;
-    console.log('chapterIndex', chapterIndex);
     if (chapterIndex === -1) return;
 
     const isChangingBook = book.bookId !== activeBookId;
@@ -81,6 +80,7 @@ const TitleDetails = () => {
       }));
       await TrackPlayer.add(tracks);
       await TrackPlayer.skip(chapterIndex);
+      await TrackPlayer.seekTo(chapterProgress || 0);
       await TrackPlayer.play();
       if (book.bookId) {
         setActiveBookId(book.bookId);

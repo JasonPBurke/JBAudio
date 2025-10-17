@@ -26,6 +26,7 @@ const setupPlayer = async () => {
   });
 
   await TrackPlayer.updateOptions({
+    progressUpdateEventInterval: 1000,
     capabilities: [
       Capability.Play,
       Capability.Pause,
