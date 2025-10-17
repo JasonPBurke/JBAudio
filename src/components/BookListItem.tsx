@@ -138,7 +138,7 @@ export const BookListItem = memo(function BookListItem({
               <EllipsisVertical
                 size={18}
                 color={colors.icon}
-                strokeWidth={1.5}
+                strokeWidth={1}
                 absoluteStrokeWidth
               />
             </Pressable>
@@ -165,6 +165,8 @@ export const BookListItem = memo(function BookListItem({
                   onPress={() => handlePressPlay(book)}
                   size={18}
                   color={colors.textMuted}
+                  strokeWidth={1}
+                  absoluteStrokeWidth
                 />
               </Pressable>
             )}
