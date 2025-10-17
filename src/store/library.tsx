@@ -10,6 +10,8 @@ interface LibraryState {
   authors: Author[];
   setAuthors: (authors: Author[]) => void;
   getAuthors: () => Author[];
+  playbackProgress: Record<string, number>; // New: Stores real-time playback progress
+  setPlaybackProgress: (bookId: string, progress: number) => void; // New: Action to update playback progress
   init: () => () => void; // Function to initialize and return cleanup
   updateBookChapterIndex: (
     bookId: string,
@@ -19,8 +21,16 @@ interface LibraryState {
 
 export const useLibraryStore = create<LibraryState>()((set, get) => ({
   authors: [],
+  playbackProgress: {}, // Initialize new state
   setAuthors: (authors) => set({ authors }),
   getAuthors: () => get().authors,
+  setPlaybackProgress: (bookId: string, progress: number) =>
+    set((state) => ({
+      playbackProgress: {
+        ...state.playbackProgress,
+        [bookId]: progress,
+      },
+    })),
   init: () => {
     const authorsCollection =
       database.collections.get<AuthorModel>('authors');
