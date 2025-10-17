@@ -26,6 +26,7 @@ export const useLogTrackPlayerState = () => {
             trackUrl: event.track?.url,
             lastTrackTitle: event.lastTrack?.title,
             lastTrackUrl: event.lastTrack?.url,
+            bookId: event.track?.bookId,
           },
           null,
           2

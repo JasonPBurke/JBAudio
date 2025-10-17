@@ -8,6 +8,7 @@ import {
 // import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 // import { BlurView } from 'expo-blur';
 import { useBook } from '@/store/library';
+import { useBookProgress } from '@/hooks/useBookProgress';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 // import FastImage from '@d11/react-native-fast-image';
 import { Image } from 'expo-image';
@@ -54,6 +55,9 @@ const TitleDetails = () => {
     book?.artwork || unknownBookImageUri
   );
 
+  const progress = useBookProgress(book?.bookId!);
+  console.log('progress', progress);
+
   const handlePressPlay = async (book: BookType | undefined) => {
     if (!book) return;
 
@@ -77,6 +81,7 @@ const TitleDetails = () => {
         artist: chapter.author,
         artwork: book.artwork ?? unknownBookImageUri,
         album: book.bookTitle,
+        bookId: book.bookId,
       }));
       await TrackPlayer.add(tracks);
       await TrackPlayer.skip(chapterIndex);

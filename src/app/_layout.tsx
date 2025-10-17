@@ -15,6 +15,7 @@ import playbackService from '@/setup/service';
 import { DatabaseProvider } from '@nozbe/watermelondb/DatabaseProvider';
 import database from '@/db';
 
+TrackPlayer.registerPlaybackService(() => playbackService);
 //! THIS IS TO TEMP SUPPRESS REANIMATED WARNINGS OF WRITING TO 'VALUE' DURING COMPONENT RERENDER
 configureReanimatedLogger({
   level: ReanimatedLogLevel.warn,
@@ -22,7 +23,6 @@ configureReanimatedLogger({
 });
 
 SplashScreen.preventAutoHideAsync();
-TrackPlayer.registerPlaybackService(() => playbackService);
 
 const App = () => {
   const handleTrackPlayerLoaded = useCallback(() => {
