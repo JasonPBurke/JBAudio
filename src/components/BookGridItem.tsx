@@ -171,7 +171,6 @@ export const BookGridItem = memo(function BookListItem({
             numberOfLines={2}
             style={{
               ...styles.bookTitleText,
-              // color: colors.text,
               color: isActiveBook ? '#ffb406be' : colors.text,
             }}
           >
@@ -206,7 +205,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     fontWeight: '600',
     maxWidth: '90%',
-    marginTop: 4,
+    marginTop: 2,
   },
   bookAuthorText: {
     ...defaultStyles.text,
