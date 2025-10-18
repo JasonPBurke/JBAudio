@@ -26,7 +26,7 @@ const setupPlayer = async () => {
   });
 
   await TrackPlayer.updateOptions({
-    progressUpdateEventInterval: 1000,
+    progressUpdateEventInterval: 1,
     capabilities: [
       Capability.Play,
       Capability.Pause,
@@ -41,7 +41,7 @@ const setupPlayer = async () => {
   });
 
   // await TrackPlayer.setVolume(0.5);
-  await TrackPlayer.setRepeatMode(RepeatMode.Queue); //* probably want this set to off not queue
+  await TrackPlayer.setRepeatMode(RepeatMode.Off); //* probably want this set to off not queue
 };
 
 export const useSetupTrackPlayer = ({

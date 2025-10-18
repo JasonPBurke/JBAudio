@@ -4,6 +4,7 @@ const events = [
   Event.PlaybackState,
   Event.PlayerError,
   Event.PlaybackActiveTrackChanged,
+  // Event.PlaybackProgressUpdated,
 ];
 
 export const useLogTrackPlayerState = () => {
