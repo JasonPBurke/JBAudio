@@ -1,11 +1,9 @@
 import TrackPlayer, { Event } from 'react-native-track-player';
-import { useLibraryStore } from '@/store/library'; // Changed import
+import { useLibraryStore } from '@/store/library';
 import { updateChapterProgressInDB } from '@/db/chapterQueries';
-import database from '@/db';
-import BookModel from '@/db/models/Book';
 
 // create a local reference for the `setPlaybackProgress` function
-const setPlaybackProgress = useLibraryStore.getState().setPlaybackProgress; // Changed reference
+const setPlaybackProgress = useLibraryStore.getState().setPlaybackProgress;
 
 export default module.exports = async function () {
   TrackPlayer.addEventListener(Event.RemotePlay, () => TrackPlayer.play());
@@ -32,34 +30,30 @@ export default module.exports = async function () {
   TrackPlayer.addEventListener(
     Event.PlaybackProgressUpdated,
     async ({ position, track }) => {
-      console.log('TrackPlayer.PlaybackProgressUpdated', position, track);
-      // get the track to fetch your unique ID property (if applicable)
       const trackToUpdate = await TrackPlayer.getTrack(track);
-      console.log('trackToUpdate', trackToUpdate);
-      console.log('setPlaybackProgress called with:', {
-        bookId: trackToUpdate.bookId,
-        position,
-      }); // Added console log
+
       // write progress to the zustand store
-      setPlaybackProgress(trackToUpdate.bookId, position); // Changed function call
+      setPlaybackProgress(trackToUpdate.bookId, position);
     }
   );
   // New listener for when a track finishes
   TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async (event) => {
     const { track, position } = event;
 
-    console.log('TrackPlayer.PlaybackQueueEnded', event);
-
     // Perform the WatermelonDB update here
-    await updateChapterProgressInDB(track, position);
+    //! if the queue is empty, we should reset the progress to 0 as the book has finished
+    await updateChapterProgressInDB(track.bookId, position);
   });
-  TrackPlayer.addEventListener(Event.ActiveTrackChanged, async (event) => {
-    const { track, position } = event;
+  TrackPlayer.addEventListener(
+    Event.PlaybackActiveTrackChanged,
+    async (event) => {
+      setPlaybackProgress(event.track.bookId, event.lastPosition);
 
-    console.log('TrackPlayer.PlaybackQueueEnded', event);
-
-    // Perform the WatermelonDB update here
-    await updateChapterProgressInDB(track, position);
-  });
-  // Add other remote event listeners as needed (e.g., RemoteStop, RemoteSeek)
+      // Perform the WatermelonDB update here
+      await updateChapterProgressInDB(
+        event.track.bookId,
+        event.lastPosition
+      );
+    }
+  );
 };

@@ -5,6 +5,7 @@ import {
   date,
   relation,
   children,
+  writer,
 } from '@nozbe/watermelondb/decorators';
 import { Associations } from '@nozbe/watermelondb/Model';
 import Author from './Author';
@@ -32,4 +33,11 @@ export default class Book extends Model {
 
   @relation('authors', 'author_id') author!: Author;
   @children('chapters') chapters!: Chapter[];
+
+  @writer async updateCurrentChapterProgress(progress: number) {
+    await this.update((book) => {
+      book.currentChapterProgress = progress;
+    });
+    console.log('book.currentChapterProgress', this.currentChapterProgress);
+  }
 }
