@@ -11,6 +11,7 @@ import {
 import { memo, useEffect, useState } from 'react';
 // import FastImage from '@d11/react-native-fast-image';
 import { Image } from 'expo-image';
+import { useLibraryStore } from '@/store/library';
 
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
@@ -39,7 +40,6 @@ export type BookListItemProps = {
 export const BookGridItem = memo(function BookListItem({
   book,
   bookId,
-  // flowDirection,
 }: BookListItemProps) {
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const router = useRouter();
@@ -50,28 +50,38 @@ export const BookGridItem = memo(function BookListItem({
     useActiveTrack()?.url ===
     book.chapters[book.bookProgress.currentChapterIndex].url;
 
+  const { getPlaybackProgress } = useLibraryStore();
+
   useEffect(() => {
     RNImage.getSize(book.artwork || unknownBookImageUri, (w, h) => {
       setImageSize({ width: w, height: h });
     });
   }, [book.artwork]);
 
+  // const progress = getPlaybackProgress(book.bookId!);
+  // console.log('progress before play', progress);
+
   const handlePressPlay = async (book: BookType) => {
     // Fetch the latest book data from the database to get the most current chapter index
-    const latestBookFromDB = await database.collections
+    const latestBookFromDB = await database
       .get<Book>('books')
       .find(book.bookId!);
 
     const chapterIndex = latestBookFromDB.currentChapterIndex;
-    const chapterProgress = latestBookFromDB.currentChapterProgress;
+    // const chapterProgress = latestBookFromDB.currentChapterProgress;
+    const chapterProgress = getPlaybackProgress(book.bookId!);
     console.log('chapterIndex', chapterIndex);
     console.log('chapterProgress', chapterProgress);
     if (chapterIndex === -1) return;
 
     const isChangingBook = bookId !== activeBookId;
 
+    //TODO: if book changes, get the previous tracks lastPosition and index and add to books DB
     if (isChangingBook) {
+      // const activeTrack = await TrackPlayer.getActiveTrack();
+      // console.log('activeTrack', activeTrack?.bookId);
       await TrackPlayer.reset();
+      //! should these tracks be built at the useSEFS.tsx and added to the DB on first scan?
       const tracks: Track[] = book.chapters.map((chapter) => ({
         url: chapter.url,
         title: chapter.chapterTitle,
@@ -80,6 +90,7 @@ export const BookGridItem = memo(function BookListItem({
         album: book.bookTitle,
         bookId: book.bookId,
       }));
+
       await TrackPlayer.add(tracks);
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(chapterProgress || 0);
@@ -87,7 +98,7 @@ export const BookGridItem = memo(function BookListItem({
       setActiveBookId(bookId);
     } else {
       await TrackPlayer.skip(chapterIndex);
-      await TrackPlayer.seekTo(chapterProgress || 0);
+      await TrackPlayer.seekTo(chapterProgress || 0); //!should this be here?
       await TrackPlayer.play();
     }
   };

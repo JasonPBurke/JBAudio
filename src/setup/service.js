@@ -30,8 +30,15 @@ export default module.exports = async function () {
   TrackPlayer.addEventListener(
     Event.PlaybackProgressUpdated,
     async ({ position, track }) => {
+      //? event {"buffered": 107.232, "duration": 4626.991, "position": 0.526, "track": 3}
       const trackToUpdate = await TrackPlayer.getTrack(track);
 
+      // console.log('trackToUpdate.bookId', Object.keys(trackToUpdate));
+      // console.log('event', event.position);
+      // console.log('trackToUpdate', trackToUpdate.bookId);
+      // console.log('PlaybackProgressUpdated on book:', trackToUpdate.name);
+
+      //? trackToUpdate ["title", "album", "url", "artwork", "bookId", "artist"]
       // write progress to the zustand store
       setPlaybackProgress(trackToUpdate.bookId, position);
     }
@@ -39,21 +46,31 @@ export default module.exports = async function () {
   // New listener for when a track finishes
   TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async (event) => {
     const { track, position } = event;
-
+    //?trackToUpdate.bookId ["title", "album", "url", "artwork", "bookId", "artist"]
+    const trackToUpdate = await TrackPlayer.getTrack(track);
     // Perform the WatermelonDB update here
     //! if the queue is empty, we should reset the progress to 0 as the book has finished
-    await updateChapterProgressInDB(track.bookId, position);
+    await updateChapterProgressInDB(trackToUpdate.bookId, position); //! maybe -1 if completed
   });
-  TrackPlayer.addEventListener(
-    Event.PlaybackActiveTrackChanged,
-    async (event) => {
-      setPlaybackProgress(event.track.bookId, event.lastPosition);
+  // TrackPlayer.addEventListener(
+  //   Event.PlaybackActiveTrackChanged,
+  //   async (event) => {
+  //     const { track, position } = event;
+  //     const trackToUpdate = await TrackPlayer.getTrack(track);
 
-      // Perform the WatermelonDB update here
-      await updateChapterProgressInDB(
-        event.track.bookId,
-        event.lastPosition
-      );
-    }
-  );
+  //     //* don't want to update state in this case, only DB
+  //     // setPlaybackProgress(event.track.bookId, event.lastPosition);
+  //     //* reset the DB progress to 0 when the track changes
+  //     await updateChapterProgressInDB(trackToUpdate.bookId, position);
+
+  //     // Perform the WatermelonDB update here
+  //     // await updateChapterProgressInDB(
+  //     //   console.log('using updateChapterProgressInDB'),
+  //     //   event.track.bookId,
+  //     //   event.lastPosition
+  //     // ).then((res) => {
+  //     //   console.log('updateChapterProgressInDB', res);
+  //     // });
+  //   }
+  // );
 };
