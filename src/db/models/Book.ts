@@ -35,9 +35,14 @@ export default class Book extends Model {
   @children('chapters') chapters!: Chapter[];
 
   @writer async updateCurrentChapterProgress(progress: number) {
+    console.log('book.currentChapterProgress before DB', progress);
     await this.update((book) => {
       book.currentChapterProgress = progress;
+      // book.currentChapterIndex = index // ! add this to update both values on book change
     });
-    console.log('book.currentChapterProgress', this.currentChapterProgress);
+    console.log(
+      'book.currentChapterProgress from DB',
+      this.currentChapterProgress
+    );
   }
 }
