@@ -8,10 +8,10 @@ import {
   View,
   Image as RNImage,
 } from 'react-native';
-import { act, memo, useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 // import FastImage from '@d11/react-native-fast-image';
 import { Image } from 'expo-image';
-import { useLibraryStore } from '@/store/library';
+// import { useLibraryStore } from '@/store/library';
 
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
@@ -26,7 +26,6 @@ import { Book as BookType } from '@/types/Book';
 import Book from '@/db/models/Book';
 
 import { Play } from 'lucide-react-native';
-// import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
 import database from '@/db';
@@ -54,16 +53,13 @@ export const BookGridItem = memo(function BookListItem({
     useActiveTrack()?.url ===
     book.chapters[book.bookProgress.currentChapterIndex].url;
 
-  const { getPlaybackProgress } = useLibraryStore();
+  // const { getPlaybackProgress } = useLibraryStore();
 
   useEffect(() => {
     RNImage.getSize(book.artwork || unknownBookImageUri, (w, h) => {
       setImageSize({ width: w, height: h });
     });
   }, [book.artwork]);
-
-  // const progress = getPlaybackProgress(book.bookId!);
-  // console.log('progress before play', progress);
 
   const handlePressPlay = async (book: BookType) => {
     // Fetch the latest book data from the database to get the most current chapter index
@@ -72,25 +68,18 @@ export const BookGridItem = memo(function BookListItem({
       .find(book.bookId!);
 
     const chapterIndex = latestBookFromDB.currentChapterIndex;
-    // const chapterProgress = latestBookFromDB.currentChapterProgress;
-    // const chapterProgress = getPlaybackProgress(book.bookId!);
-    // console.log('chapterIndex', chapterIndex);
-    // console.log('chapterProgress', chapterProgress);
     if (chapterIndex === -1) return;
 
     const isChangingBook = bookId !== activeBookId;
 
-    //TODO: if book changes, get the previous tracks lastPosition and index and add to books DB
     if (isChangingBook) {
       const activeBookId = await TrackPlayer.getActiveTrack().then(
         (res) => res?.bookId
       );
       const activeChapterPosition = (await TrackPlayer.getProgress())
         .position;
-      console.log('activeTrackPosition', activeChapterPosition);
-      console.log('activeTrack.bookId', activeBookId);
       if (activeBookId) {
-        //TODO: add to DB
+        //* add to DB
         updateChapterProgressInDB(activeBookId, activeChapterPosition);
       }
       await TrackPlayer.reset();

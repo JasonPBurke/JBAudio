@@ -8,7 +8,6 @@ export const updateChapterProgressInDB = async (
   const book = (await database.collections
     .get('books')
     .find(bookId)) as Book;
-  console.log('progress in chapterQueries', progress);
 
   if (book) {
     await book.updateCurrentChapterProgress(progress);
@@ -21,10 +20,6 @@ export const getChapterProgressInDB = async (bookId: string) => {
     .find(bookId)) as Book;
 
   if (book) {
-    console.log(
-      'book.currentChapterProgress from DB',
-      book.currentChapterProgress
-    );
     return book.currentChapterProgress;
   }
 };

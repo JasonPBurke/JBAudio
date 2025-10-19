@@ -173,7 +173,7 @@ const ChapterList = ({
       {book?.chapters && book.chapters.length > 0 ? (
         <BottomSheetFlatList
           data={book.chapters}
-          keyExtractor={(item) => item.chapterTitle}
+          keyExtractor={(item) => item.url}
           renderItem={({ item, index }) => {
             const isFirstChapter = index === 0;
             const isLastChapter = index === book.chapters.length - 1;
