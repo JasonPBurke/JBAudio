@@ -35,7 +35,7 @@ export const useLibraryStore = create<LibraryState>()((set, get) => ({
         [bookId]: progress,
       },
     })),
-  //! temp till I know and can confirm the progress is passed to the DB so that when two books are started, I can switch between them with both of their chapter and progress are working.  I want the DB updated with progress when the book is changed, or the chapter is changed. whenever a chapter is played, it now owns the currentProgress and currentChapterIndex
+
   getPlaybackProgress: (bookId: string) => get().playbackProgress[bookId],
   //! temp till I know and can confirm the progress is passed to the DB so that when two books are started, I can switch between them with both of their chapter and progress are working
 

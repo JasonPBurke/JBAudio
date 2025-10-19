@@ -1,4 +1,10 @@
-import TrackPlayer, { Event } from 'react-native-track-player';
+import TrackPlayer, {
+  Event,
+  useActiveTrack,
+  useTrackPlayerEvents,
+  usePlaybackState,
+  State,
+} from 'react-native-track-player';
 import { useLibraryStore } from '@/store/library';
 import { updateChapterProgressInDB } from '@/db/chapterQueries';
 
@@ -32,8 +38,6 @@ export default module.exports = async function () {
     async ({ position, track }) => {
       //? event {"buffered": 107.232, "duration": 4626.991, "position": 0.526, "track": 3}
       const trackToUpdate = await TrackPlayer.getTrack(track);
-
-      // console.log('trackToUpdate.bookId', Object.keys(trackToUpdate));
       // console.log('event', event.position);
       // console.log('trackToUpdate', trackToUpdate.bookId);
       // console.log('PlaybackProgressUpdated on book:', trackToUpdate.name);
@@ -49,9 +53,22 @@ export default module.exports = async function () {
     //?trackToUpdate.bookId ["title", "album", "url", "artwork", "bookId", "artist"]
     const trackToUpdate = await TrackPlayer.getTrack(track);
     // Perform the WatermelonDB update here
-    //! if the queue is empty, we should reset the progress to 0 as the book has finished
+    //! if the queue is empty, we should reset the progress and chapter index to 0 as the book has finished
     await updateChapterProgressInDB(trackToUpdate.bookId, position); //! maybe -1 if completed
   });
+  TrackPlayer.addEventListener(Event.PlaybackState, async (event) => {
+    //TODO: get the current track.bookId and current position and update the DB
+    if (
+      event.state === State.Paused ||
+      event.state === State.Stopped ||
+      event.state === State.Buffering
+    ) {
+      const { bookId } = await TrackPlayer.getActiveTrack();
+      const { position } = await TrackPlayer.getProgress();
+      await updateChapterProgressInDB(bookId, position);
+    }
+  });
+
   // TrackPlayer.addEventListener(
   //   Event.PlaybackActiveTrackChanged,
   //   async (event) => {
