@@ -26,7 +26,7 @@ import TrackPlayer, {
 import { useQueueStore } from '@/store/queue';
 import { formatDate } from '@/helpers/miscellaneous';
 import ModalComponent from '@/components/ModalComponent';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Book as BookType } from '@/types/Book';
 import database from '@/db';
 import Book from '@/db/models/Book';

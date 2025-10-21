@@ -46,8 +46,8 @@ const BooksHome = ({ authors }: BookListProps) => {
     //? need to put a loader if allBooks.length === 0
     <ScrollView
       style={{ flex: 1 }}
-      // showsVerticalScrollIndicator={false}
-      // showsHorizontalScrollIndicator={false}
+      showsVerticalScrollIndicator={false}
+      showsHorizontalScrollIndicator={false}
     >
       {/* Recently Added Section */}
       {allBooks.length > 0 && (
@@ -139,8 +139,8 @@ const BooksHome = ({ authors }: BookListProps) => {
                   )}
                   keyExtractor={(item) => item.chapters[0].url}
                   horizontal={true}
-                  // showsHorizontalScrollIndicator={false}
-                  // showsVerticalScrollIndicator={false}
+                  showsHorizontalScrollIndicator={false}
+                  showsVerticalScrollIndicator={false}
                   ListFooterComponent={<View style={{ width: 12 }} />}
                   ListEmptyComponent={
                     <View>
