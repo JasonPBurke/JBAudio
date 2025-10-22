@@ -15,14 +15,16 @@ export const BooksGrid = ({ authors }: BookGridProps) => {
   const allBooks = authors.flatMap((author) => author.books);
 
   return (
-    <View style={{ height: 250 }}>
+    <View
+    // style={{ height: 250 }}
+    >
       <MasonryFlashList
         data={allBooks}
         renderItem={({ item: book }) => (
           <BookGridItem
             book={book}
             bookId={book.chapters[0].url}
-            flowDirection='column'
+            // flowDirection='column'
           />
         )}
         estimatedItemSize={250}
