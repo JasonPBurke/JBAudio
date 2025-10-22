@@ -20,13 +20,18 @@ import { MovingText } from '@/components/MovingText';
 import { useRouter } from 'expo-router';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { colors } from '@/constants/tokens';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export const FloatingPlayer = ({ style }: ViewProps) => {
   const { duration, position } = useProgress(250);
   const trackRemainingTime = formatSecondsToMinutes(duration - position);
+  const { bottom } = useSafeAreaInsets();
 
   const router = useRouter();
   const activeBook = useActiveTrack();
+  // const isActiveBook =
+  //   useActiveTrack()?.url ===
+  //   activeBook?.chapters[activeBook?.bookProgress.currentChapterIndex].url;
   const lastActiveBook = useLastActiveTrack();
   const displayedBook = activeBook ?? lastActiveBook;
 
@@ -46,6 +51,7 @@ export const FloatingPlayer = ({ style }: ViewProps) => {
         styles.parentContainer,
         style,
         {
+          marginBottom: bottom - 12,
           borderColor: colors.primary,
           borderWidth: StyleSheet.hairlineWidth,
         },
@@ -71,8 +77,8 @@ export const FloatingPlayer = ({ style }: ViewProps) => {
           </Text>
         </View>
         <View style={styles.bookControlsContainer}>
-          <SeekBackButton iconSize={26} top={5} right={9} fontSize={8} />
-          <PlayPauseButton iconSize={32} />
+          <SeekBackButton iconSize={32} top={14} right={19} fontSize={12} />
+          <PlayPauseButton iconSize={40} top={6} left={6} />
         </View>
       </>
     </TouchableOpacity>
@@ -84,12 +90,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#1f2226ff', // 3B4252
-    // backgroundColor: '#1c1c1c',
-    // borderColor: colors.primary,
-
-    padding: 8,
     borderRadius: 6,
-    marginBottom: 12,
   },
   bookArtworkImage: {
     height: 50,
@@ -99,25 +100,23 @@ const styles = StyleSheet.create({
   bookTitleContainer: {
     flex: 1,
     overflow: 'hidden',
-    marginLeft: 10,
+    margin: 4,
   },
   bookTitle: {
     ...defaultStyles.text,
     fontSize: 18,
     fontWeight: '600',
-    paddingLeft: 10,
   },
   bookTimeRemaining: {
     ...defaultStyles.text,
     fontSize: 12,
     fontWeight: '400',
-    paddingLeft: 10,
   },
   bookControlsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    columnGap: 20,
-    marginRight: 8,
-    paddingLeft: 16,
+    // columnGap: 14,
+    paddingVertical: 4,
+    // paddingHorizontal: 8,
   },
 });

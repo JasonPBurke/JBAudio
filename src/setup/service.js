@@ -6,10 +6,20 @@ import TrackPlayer, {
   State,
 } from 'react-native-track-player';
 import { useLibraryStore } from '@/store/library';
-import { updateChapterProgressInDB } from '@/db/chapterQueries';
+import {
+  updateChapterProgressInDB,
+  updateChapterIndexInDB,
+} from '@/db/chapterQueries';
 
 // create a local reference for the `setPlaybackProgress` function
-const setPlaybackProgress = useLibraryStore.getState().setPlaybackProgress;
+// const setPlaybackProgress = useLibraryStore.getState().setPlaybackProgress;
+// const setPlaybackIndex = useLibraryStore.getState().setPlaybackIndex;
+const {
+  setPlaybackIndex,
+  setPlaybackProgress,
+  getPlaybackIndex,
+  getPlaybackProgress,
+} = useLibraryStore.getState();
 
 export default module.exports = async function () {
   TrackPlayer.addEventListener(Event.RemotePlay, () => TrackPlayer.play());
@@ -38,7 +48,7 @@ export default module.exports = async function () {
     async ({ position, track }) => {
       //? event {"buffered": 107.232, "duration": 4626.991, "position": 0.526, "track": 3}
       const trackToUpdate = await TrackPlayer.getTrack(track);
-      // console.log('event', event.position);
+      // console.log('event', position);
       // console.log('trackToUpdate', trackToUpdate.bookId);
       // console.log('PlaybackProgressUpdated on book:', trackToUpdate.name);
 
@@ -48,16 +58,26 @@ export default module.exports = async function () {
     }
   );
   // New listener for when a track finishes
+  //! also happens on a book change!!!! DO NOT RESET PROGRESS AND INDEX
   TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async (event) => {
     const { track, position } = event;
     //?trackToUpdate.bookId ["title", "album", "url", "artwork", "bookId", "artist"]
     const trackToUpdate = await TrackPlayer.getTrack(track);
     // Perform the WatermelonDB update here
-    //! if the queue is empty, we should reset the progress and chapter index to 0 as the book has finished
-    await updateChapterProgressInDB(trackToUpdate.bookId, position); //! maybe -1 if completed
+    console.log('POSSIBLE BOOK CHANGE');
+    setPlaybackProgress(trackToUpdate.bookId, position);
+    setPlaybackIndex(trackToUpdate.bookId, track);
+
+    // console.log(getPlaybackProgress(trackToUpdate.bookId));
+
+    await updateChapterProgressInDB(trackToUpdate.bookId, process).then(
+      (res) => {
+        console.log('updateChapterProgressInDB response', res);
+      }
+    );
+    await updateChapterIndexInDB(trackToUpdate.bookId, track);
   });
   TrackPlayer.addEventListener(Event.PlaybackState, async (event) => {
-    //TODO: get the current track.bookId and current position and update the DB
     if (
       event.state === State.Paused ||
       event.state === State.Stopped ||

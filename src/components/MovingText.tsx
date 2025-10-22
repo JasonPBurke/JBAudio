@@ -57,7 +57,6 @@ export const MovingText = ({
         animatedStyle,
         shouldAnimate && {
           width: 9999,
-          paddingLeft: 8,
         },
       ]}
     >
