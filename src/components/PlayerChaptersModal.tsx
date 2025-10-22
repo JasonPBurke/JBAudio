@@ -19,10 +19,11 @@ import { defaultStyles } from '@/styles';
 import { Book, Chapter } from '@/types/Book';
 import { Logs } from 'lucide-react-native';
 import { MovingText } from './MovingText';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import TrackPlayer, { useActiveTrack } from 'react-native-track-player';
-import { useBook, useBookById } from '@/store/library';
-import database from '@/db';
-import BookModel from '@/db/models/Book';
+// import { useBook, useBookById } from '@/store/library';
+// import database from '@/db';
+// import BookModel from '@/db/models/Book';
 
 type PlayerChaptersModalProps = {
   handlePresentPress: () => void;
@@ -41,6 +42,8 @@ export const PlayerChaptersModal = ({
 }: PlayerChaptersModalProps) => {
   const snapPoints = useMemo(() => ['40%', '70%'], []);
 
+  const { bottom } = useSafeAreaInsets();
+
   const renderBackdrop = useCallback(
     (props: any) => (
       <BottomSheetBackdrop
@@ -54,25 +57,6 @@ export const PlayerChaptersModal = ({
   );
 
   const activeTrack = useActiveTrack();
-  // console.log('activeTrack', activeTrack?.url);
-
-  // const bookFromZustand = useBookById(book?.bookId ?? '');
-  // const bookFromDb = database.collections
-  //   .get<BookModel>('books')
-  //   .find(book?.bookId ?? '');
-
-  // useEffect(() => {
-  //   if (book && bookFromZustand) {
-  //     console.log(
-  //       'DB currentChapterIndex:',
-  //       book.bookProgress.currentChapterIndex
-  //     );
-  //     console.log(
-  //       'Zustand currentChapterIndex:',
-  //       bookFromZustand.bookProgress.currentChapterIndex
-  //     );
-  //   }
-  // }, [book, bookFromZustand]);
 
   if (!activeTrack) {
     return (
@@ -107,7 +91,8 @@ export const PlayerChaptersModal = ({
 
       <BottomSheetModal
         enablePanDownToClose={true}
-        backgroundStyle={{ backgroundColor: bgColor }}
+        backgroundStyle={{ backgroundColor: '#0e0e16' }} //#151422
+        style={{ paddingBottom: 10, marginBottom: 10 }}
         handleIndicatorStyle={{
           // borderColor: colors.textMuted,
           // borderWidth: StyleSheet.hairlineWidth,
@@ -119,11 +104,13 @@ export const PlayerChaptersModal = ({
         index={0}
         snapPoints={snapPoints}
       >
-        <ChapterList
-          book={book}
-          activeTrackUrl={activeTrack?.url}
-          onChapterSelect={onChapterSelect}
-        />
+        <View style={{ flex: 1, marginBottom: bottom - 12 }}>
+          <ChapterList
+            book={book}
+            activeTrackUrl={activeTrack?.url}
+            onChapterSelect={onChapterSelect}
+          />
+        </View>
       </BottomSheetModal>
     </View>
   );
@@ -207,7 +194,7 @@ const ChapterList = ({
           // getItemLayout={getItemLayout}
           // ref={flatListRef}
           style={{ flex: 1 }}
-          ItemSeparatorComponent={() => <View style={{ height: 2 }} />}
+          ItemSeparatorComponent={() => <View style={{ height: 3 }} />}
           showsVerticalScrollIndicator={false}
         />
       ) : (
@@ -230,6 +217,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
   },
   trackTitleContainer: {
     overflow: 'hidden',
@@ -244,7 +233,7 @@ const styles = StyleSheet.create({
   chapterItem: {
     paddingVertical: 13,
     paddingHorizontal: 13,
-    backgroundColor: colors.background,
+    backgroundColor: '#22273b',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',

@@ -96,6 +96,7 @@ const styles = StyleSheet.create({
     height: 50,
     width: 50,
     borderRadius: 3,
+    marginLeft: 4,
   },
   bookTitleContainer: {
     flex: 1,
