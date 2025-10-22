@@ -11,9 +11,12 @@ interface LibraryState {
   setAuthors: (authors: Author[]) => void;
   getAuthors: () => Author[];
   playbackProgress: Record<string, number>; // New: Stores real-time playback progress
-  // New: Action to update playback progress
+  playbackIndex: Record<string, number>; // New: Stores real-time playback progress
+
   setPlaybackProgress: (bookId: string, progress: number) => void;
+  setPlaybackIndex: (bookId: string, index: number) => void;
   getPlaybackProgress: (bookId: string) => number;
+  getPlaybackIndex: (bookId: string) => number;
   init: () => () => void; // Function to initialize and return cleanup
   updateBookChapterIndex: (
     bookId: string,
@@ -24,6 +27,7 @@ interface LibraryState {
 export const useLibraryStore = create<LibraryState>()((set, get) => ({
   authors: [],
   playbackProgress: {}, // Initialize new state
+  playbackIndex: {}, // Initialize new state
   setAuthors: (authors) => set({ authors }),
   getAuthors: () => get().authors,
 
@@ -36,8 +40,30 @@ export const useLibraryStore = create<LibraryState>()((set, get) => ({
       },
     })),
 
+  setPlaybackIndex: (bookId: string, index: number) =>
+    set((state) => ({
+      playbackIndex: {
+        ...state.playbackIndex,
+        [bookId]: index,
+      },
+    })),
+
+  //! better to save to store state then update the DB???
+  updateBookChapterIndex: async (bookId: string, chapterIndex: number) => {
+    await database.write(async () => {
+      const book = await database.collections
+        .get<BookModel>('books')
+        .find(bookId);
+      await book.update((record) => {
+        record.currentChapterIndex = chapterIndex;
+      });
+    });
+  },
+
   getPlaybackProgress: (bookId: string) => get().playbackProgress[bookId],
   //! temp till I know and can confirm the progress is passed to the DB so that when two books are started, I can switch between them with both of their chapter and progress are working
+
+  getPlaybackIndex: (bookId: string) => get().playbackIndex[bookId],
 
   init: () => {
     const authorsCollection =
@@ -113,17 +139,6 @@ export const useLibraryStore = create<LibraryState>()((set, get) => ({
     return () => {
       subscriptions.forEach((sub) => sub.unsubscribe());
     };
-  },
-  //! better to save to store state then update the DB???
-  updateBookChapterIndex: async (bookId: string, chapterIndex: number) => {
-    await database.write(async () => {
-      const book = await database.collections
-        .get<BookModel>('books')
-        .find(bookId);
-      await book.update((record) => {
-        record.currentChapterIndex = chapterIndex;
-      });
-    });
   },
 }));
 

@@ -41,6 +41,7 @@ type PlayerButtonProps = {
   fontSize?: number;
   top?: number;
   right?: number;
+  left?: number;
 };
 
 export const PlayerControls = ({ style }: PlayerControlsProps) => {
@@ -48,11 +49,16 @@ export const PlayerControls = ({ style }: PlayerControlsProps) => {
     <View style={[styles.controlsContainer, style]}>
       <View style={styles.playerRow}>
         <PlaybackSpeed iconSize={25} />
-        <SeekBackButton iconSize={35} top={5} right={11} fontSize={12} />
+        <SeekBackButton iconSize={42} top={17} right={22} fontSize={15} />
 
         <PlayPauseButton iconSize={70} />
 
-        <SeekForwardButton iconSize={35} top={5} right={11} fontSize={12} />
+        <SeekForwardButton
+          iconSize={42}
+          top={17}
+          right={22}
+          fontSize={15}
+        />
         <SleepTimer iconSize={25} />
       </View>
     </View>
@@ -62,6 +68,8 @@ export const PlayerControls = ({ style }: PlayerControlsProps) => {
 export const PlayPauseButton = ({
   style,
   iconSize = 50,
+  top = 10,
+  left = 10,
 }: PlayerButtonProps) => {
   const { playing } = useIsPlaying();
   const playButtonScale = useSharedValue(playing ? 0 : 1);
@@ -90,6 +98,8 @@ export const PlayPauseButton = ({
       opacity: playButtonScale.value,
       transform: [{ scale: playButtonScale.value }],
       position: 'absolute',
+      left: left,
+      top: top,
     };
   });
 
@@ -98,30 +108,40 @@ export const PlayPauseButton = ({
       opacity: pauseButtonScale.value,
       transform: [{ scale: pauseButtonScale.value }],
       position: 'absolute',
+      left: left,
+      top: top,
     };
   });
 
   return (
-    <View style={[{ height: iconSize, width: iconSize }, style]}>
-      <Pressable hitSlop={30} onPress={onButtonPress}>
-        <Animated.View style={animatedPlayButtonStyle}>
-          <Play
-            size={iconSize}
-            color={colors.primary}
-            strokeWidth={1.5}
-            absoluteStrokeWidth
-          />
-        </Animated.View>
-        <Animated.View style={animatedPauseButtonStyle}>
-          <Pause
-            size={iconSize}
-            color={colors.primary}
-            strokeWidth={1.5}
-            absoluteStrokeWidth
-          />
-        </Animated.View>
-      </Pressable>
-    </View>
+    <Pressable
+      style={[
+        {
+          height: iconSize * 1.35,
+          width: iconSize * 1.35,
+        },
+        style,
+      ]}
+      // hitSlop={30}
+      onPress={onButtonPress}
+    >
+      <Animated.View style={animatedPlayButtonStyle}>
+        <Play
+          size={iconSize}
+          color={colors.primary}
+          strokeWidth={1.5}
+          absoluteStrokeWidth
+        />
+      </Animated.View>
+      <Animated.View style={animatedPauseButtonStyle}>
+        <Pause
+          size={iconSize}
+          color={colors.primary}
+          strokeWidth={1.5}
+          absoluteStrokeWidth
+        />
+      </Animated.View>
+    </Pressable>
   );
 };
 
@@ -134,8 +154,9 @@ export const SeekBackButton = ({
   const seekDuration = 30;
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.7}
+    <Pressable
+      style={{ padding: 10 }}
+      hitSlop={30}
       onPress={async () => {
         const currentPosition = await TrackPlayer.getProgress().then(
           (progress) => progress.position
@@ -156,11 +177,12 @@ export const SeekBackButton = ({
           fontSize: fontSize,
           top: top,
           right: right,
+          color: colors.icon,
         }}
       >
         {seekDuration}
       </Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
@@ -173,8 +195,9 @@ export const SeekForwardButton = ({
   const seekDuration = 30;
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.7}
+    <Pressable
+      style={{ padding: 10 }}
+      hitSlop={30}
       onPress={async () => {
         const currentPosition = await TrackPlayer.getProgress().then(
           (progress) => progress.position
@@ -195,11 +218,12 @@ export const SeekForwardButton = ({
           fontSize: fontSize,
           top: top,
           right: right,
+          color: colors.icon,
         }}
       >
         {seekDuration}
       </Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 

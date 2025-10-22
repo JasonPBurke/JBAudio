@@ -14,6 +14,19 @@ export const updateChapterProgressInDB = async (
   }
 };
 
+export const updateChapterIndexInDB = async (
+  bookId: string,
+  index: number
+) => {
+  const book = (await database.collections
+    .get('books')
+    .find(bookId)) as Book;
+
+  if (book) {
+    await book.updateCurrentChapterIndex(index);
+  }
+};
+
 export const getChapterProgressInDB = async (bookId: string) => {
   const book = (await database.collections
     .get('books')

@@ -21,7 +21,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import TrackPlayer, {
   Track,
-  // useActiveTrack,
+  useActiveTrack,
+  useIsPlaying,
 } from 'react-native-track-player';
 import { useQueueStore } from '@/store/queue';
 import { formatDate } from '@/helpers/miscellaneous';
@@ -45,6 +46,11 @@ const TitleDetails = () => {
 
   const book = useBook(author, bookTitle);
 
+  const { playing } = useIsPlaying();
+  const isActiveBook =
+    useActiveTrack()?.url ===
+    book?.chapters[book.bookProgress.currentChapterIndex].url;
+
   // useEffect(() => {
   //   RNImage.getSize(book?.artwork || unknownBookImageUri, (w, h) => {
   //     setImageSize({ width: w, height: h });
@@ -56,10 +62,14 @@ const TitleDetails = () => {
   );
 
   const progress = useBookProgress(book?.bookId!);
-  console.log('progress', progress);
+  // console.log('progress', progress);
+  console.log('here');
 
   const handlePressPlay = async (book: BookType | undefined) => {
     if (!book) return;
+    console.log('isActiveBook', isActiveBook);
+    console.log('playing', playing);
+    if (isActiveBook && playing) return;
 
     // Fetch the latest book data from the database to get the most current chapter index
     const latestBookFromDB = await database.collections

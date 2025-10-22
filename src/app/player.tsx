@@ -40,14 +40,6 @@ const PlayerScreen = () => {
 
       //! update state store an rely on the observer to update the db is better??
       await updateBookChapterIndex(book.bookId, chapterIndex);
-      // await database.write(async () => {
-      //   const bookRecord = await database.collections
-      //     .get<BookModel>('books')
-      //     .find(book.bookId!); // Add non-null assertion
-      //   await bookRecord.update((record) => {
-      //     record.currentChapterIndex = chapterIndex;
-      //   });
-      // });
 
       bottomSheetModalRef.current?.close();
     },
@@ -108,9 +100,6 @@ const PlayerScreen = () => {
       }
     >
       <View style={styles.overlayContainer}>
-        {/* <View
-          style={{ flex: 1, marginTop: top + 70, marginBottom: bottom }}
-          > */}
         <View style={styles.artworkImageContainer}>
           <DismissPlayerSymbol />
           <Image
@@ -136,7 +125,6 @@ const PlayerScreen = () => {
 
           <PlayerControls style={{ marginTop: 50 }} />
         </View>
-        {/* </View> */}
       </View>
     </LinearGradient>
   );

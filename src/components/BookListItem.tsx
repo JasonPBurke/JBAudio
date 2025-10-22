@@ -22,18 +22,18 @@ import TrackPlayer, {
 import { Book as BookType } from '@/types/Book';
 import Book from '@/db/models/Book';
 
-import { Play } from 'lucide-react-native';
-// import { Ionicons } from '@expo/vector-icons';
+import { Play, EllipsisVertical } from 'lucide-react-native';
 import LoaderKitView from 'react-native-loader-kit';
 import { useRouter } from 'expo-router';
-import Animated, {
+import {
+  // Animated,
   SharedValue,
-  useAnimatedStyle,
-  withTiming,
+  // useAnimatedStyle,
+  // withTiming,
 } from 'react-native-reanimated';
 import { useQueueStore } from '@/store/queue';
-import { EllipsisVertical } from 'lucide-react-native';
 import database from '@/db';
+import { getChapterProgressInDB } from '@/db/chapterQueries';
 
 export type BookListItemProps = {
   book: BookType;
@@ -61,8 +61,9 @@ export const BookListItem = memo(function BookListItem({
       .get<Book>('books')
       .find(book.bookId!);
 
+    //! GET THE DATA EITHER FROM THE DB OR FROM THE STATE NOT A MIX
     const chapterIndex = latestBookFromDB.currentChapterIndex;
-    const chapterProgress = latestBookFromDB.currentChapterProgress;
+    const progress = await getChapterProgressInDB(book.bookId!);
 
     if (chapterIndex === -1) return;
 
@@ -78,14 +79,18 @@ export const BookListItem = memo(function BookListItem({
         album: book.bookTitle,
         bookId: book.bookId,
       }));
+
+      console.log('progress', progress);
+      console.log('chapterIndex', chapterIndex);
       await TrackPlayer.add(tracks);
       await TrackPlayer.skip(chapterIndex);
-      await TrackPlayer.seekTo(chapterProgress || 0);
+      await TrackPlayer.seekTo(progress || 0);
       await TrackPlayer.play();
       setActiveBookId(bookId);
     } else {
       await TrackPlayer.skip(chapterIndex);
-      await TrackPlayer.seekTo(chapterProgress || 0);
+      await TrackPlayer.seekTo(progress || 0);
+
       await TrackPlayer.play();
     }
   };

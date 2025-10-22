@@ -33,6 +33,8 @@ import {
   updateChapterProgressInDB,
   getChapterProgressInDB,
 } from '@/db/chapterQueries';
+import { store } from 'expo-router/build/global-state/router-store';
+import { useLibraryStore } from '@/store/library';
 
 export type BookListItemProps = {
   book: BookType;
@@ -67,21 +69,26 @@ export const BookGridItem = memo(function BookListItem({
       .get<Book>('books')
       .find(book.bookId!);
 
+    console.log(
+      'latestBookFromDB.currentChapterProgress',
+      latestBookFromDB.currentChapterProgress
+    );
+    console.log(
+      'latestBookFromDB.currentChapterIndex',
+      latestBookFromDB.currentChapterIndex
+    );
+
+    //! GET THE DATA EITHER FROM THE DB OR FROM THE STATE NOT A MIX
     const chapterIndex = latestBookFromDB.currentChapterIndex;
+    const progress = await getChapterProgressInDB(book.bookId!);
+
     if (chapterIndex === -1) return;
 
     const isChangingBook = bookId !== activeBookId;
 
     if (isChangingBook) {
-      const activeBookId = await TrackPlayer.getActiveTrack().then(
-        (res) => res?.bookId
-      );
-      const activeChapterPosition = (await TrackPlayer.getProgress())
-        .position;
-      if (activeBookId) {
-        //* add to DB
-        updateChapterProgressInDB(activeBookId, activeChapterPosition);
-      }
+      console.log('changing book');
+
       await TrackPlayer.reset();
       //! should these tracks be built at the useSEFS.tsx and added to the DB on first scan?
       const tracks: Track[] = book.chapters.map((chapter) => ({
@@ -93,15 +100,19 @@ export const BookGridItem = memo(function BookListItem({
         bookId: book.bookId,
       }));
 
-      const progress = await getChapterProgressInDB(book.bookId!);
+      console.log('progress', progress);
+      console.log('chapterIndex', chapterIndex);
       await TrackPlayer.add(tracks);
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(progress || 0);
       await TrackPlayer.play();
       setActiveBookId(bookId);
     } else {
+      console.log('not changing book');
+      console.log('playing', playing);
+      console.log('isActiveBook', isActiveBook);
       await TrackPlayer.skip(chapterIndex);
-      // await TrackPlayer.seekTo(chapterProgress || 0); //!should this be here?
+      await TrackPlayer.seekTo(progress || 0);
       await TrackPlayer.play();
     }
   };
@@ -230,8 +241,8 @@ const styles = StyleSheet.create({
   },
   trackPlayingImageIcon: {
     position: 'absolute',
-    left: 11,
-    bottom: 8,
+    left: 7,
+    bottom: 7,
     width: 20,
     height: 20,
   },
