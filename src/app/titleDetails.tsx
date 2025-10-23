@@ -61,7 +61,7 @@ const TitleDetails = () => {
     book?.artwork || unknownBookImageUri
   );
 
-  const progress = useBookProgress(book?.bookId!);
+  // const progress = useBookProgress(book?.bookId!);
   // console.log('progress', progress);
   console.log('here');
 
