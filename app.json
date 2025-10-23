@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "sonicbooks",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fuzzylogic42.JBAudio"
@@ -30,7 +30,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      ["@morrowdigital/watermelondb-expo-plugin", { "disableJsi": true }],
+      ["@morrowdigital/watermelondb-expo-plugin", { "disableJsi": false }],
       [
         "expo-build-properties",
         {

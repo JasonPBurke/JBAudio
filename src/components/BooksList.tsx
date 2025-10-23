@@ -39,10 +39,7 @@ const BooksList = ({ authors }: BookListProps) => {
       {allBooks.length > 0 && (
         <View style={{ flex: 1 }}>
           <FlashList<Book>
-            estimatedItemSize={49}
             data={allBooks}
-            // disableAutoLayout={true}
-            // recycleItems={true}
             //! onViewableItemsChanged is a reanimated function to animate the list
             // onViewableItemsChanged={({ viewableItems: vItems }) => {
             //   viewableItems.value = vItems;
@@ -55,10 +52,7 @@ const BooksList = ({ authors }: BookListProps) => {
                 bookId={book.chapters[0].url}
               />
             )}
-            keyExtractor={(item) =>
-              // console.log('item.chapters[0].url', item.chapters[0].url),
-              item.chapters[0].url
-            }
+            keyExtractor={(item) => item.chapters[0].url}
             showsVerticalScrollIndicator={false}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingTop: 12, paddingBottom: 82 }}

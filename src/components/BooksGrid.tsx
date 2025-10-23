@@ -1,13 +1,10 @@
-import {
-  MasonryFlashList,
-  MasonryFlashListProps,
-} from '@shopify/flash-list';
+import { FlashList, FlashListProps } from '@shopify/flash-list';
 import { View, Text } from 'react-native';
 import { utilsStyles } from '@/styles';
 import { Author, Book } from '@/types/Book';
 import { BookGridItem } from './BookGridItem';
 
-export type BookGridProps = Partial<MasonryFlashListProps<Book>> & {
+export type BookGridProps = Partial<FlashListProps<Book>> & {
   authors: Author[];
 };
 
@@ -18,7 +15,7 @@ export const BooksGrid = ({ authors }: BookGridProps) => {
     <View
     // style={{ height: 250 }}
     >
-      <MasonryFlashList
+      <FlashList
         data={allBooks}
         renderItem={({ item: book }) => (
           <BookGridItem
@@ -27,7 +24,7 @@ export const BooksGrid = ({ authors }: BookGridProps) => {
             // flowDirection='column'
           />
         )}
-        estimatedItemSize={250}
+        masonry
         numColumns={3}
         keyExtractor={(item) => item.chapters[0].url}
         // ItemSeparatorComponent={() => <View style={{ width: 12 }} />}

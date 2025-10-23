@@ -9,8 +9,11 @@ import { BookGridItem } from '@/components/BookGridItem';
 import { utilsStyles } from '@/styles';
 import { Book, Author } from '@/types/Book';
 import { colors, fontSize } from '@/constants/tokens';
-import { FlashList, FlashListProps } from '@shopify/flash-list';
-import { LegendList, LegendListProps } from '@legendapp/list';
+import {
+  FlashList,
+  FlashListProps,
+  useMappingHelper,
+} from '@shopify/flash-list';
 
 import { ChevronRight } from 'lucide-react-native';
 import { memo } from 'react';
@@ -22,6 +25,7 @@ export type BookListProps = Partial<FlashListProps<Book>> & {
 
 const BooksHome = ({ authors }: BookListProps) => {
   const allBooks = authors.flatMap((author) => author.books);
+  const { getMappingKey } = useMappingHelper();
 
   // const handleBookSelect = async (selectedBook: Book) => {
   //   const chapterIndex = selectedBook.bookProgress.currentChapterIndex;
@@ -73,7 +77,6 @@ const BooksHome = ({ authors }: BookListProps) => {
             </Pressable>
             <View style={styles.listContainer}>
               <FlashList<Book>
-                estimatedItemSize={80}
                 contentContainerStyle={{ paddingLeft: 14 }}
                 data={allBooks}
                 // recycleItems={true}
@@ -100,8 +103,11 @@ const BooksHome = ({ authors }: BookListProps) => {
           </View>
 
           {/* Authors Sections */}
-          {authors.map((author) => (
-            <View key={author.name} style={{ gap: 12 }}>
+          {authors.map((author, index) => (
+            <View
+              key={getMappingKey(author.name, index)}
+              style={{ gap: 12 }}
+            >
               <Pressable
                 style={{ paddingVertical: 6 }}
                 android_ripple={{
@@ -122,7 +128,6 @@ const BooksHome = ({ authors }: BookListProps) => {
               </Pressable>
               <View style={styles.listContainer}>
                 <FlashList<Book>
-                  estimatedItemSize={80}
                   contentContainerStyle={{
                     paddingLeft: 14,
                   }}
