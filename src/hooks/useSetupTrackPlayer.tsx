@@ -7,14 +7,16 @@ import TrackPlayer, {
 } from 'react-native-track-player';
 import * as MediaLibrary from 'expo-media-library';
 
-async function requestAudioPermission() {
+async function requestAudioPermission(): Promise<
+  'granted' | 'denied' | 'undetermined'
+> {
   const { status } = await MediaLibrary.requestPermissionsAsync();
   if (status === 'granted') {
-    // Permission granted, you can now access audio files
     console.log('Audio access granted!');
+    return 'granted';
   } else {
-    // Permission denied
     console.log('Audio access denied.');
+    return 'denied';
   }
 }
 
@@ -44,23 +46,30 @@ const setupPlayer = async () => {
   await TrackPlayer.setRepeatMode(RepeatMode.Off); //* probably want this set to off not queue
 };
 
+import { usePermission } from '@/contexts/PermissionContext';
+
 export const useSetupTrackPlayer = ({
   onLoad,
 }: {
   onLoad?: () => void;
 }) => {
   const isInitialized = useRef(false);
+  const { setAudioPermissionStatus } = usePermission();
 
   useEffect(() => {
-    requestAudioPermission();
-    setupPlayer()
-      .then(() => {
-        isInitialized.current = true;
-        onLoad?.();
-      })
-      .catch((error) => {
-        isInitialized.current = false;
-        console.error(error);
-      });
-  }, [onLoad]);
+    requestAudioPermission().then((status) => {
+      setAudioPermissionStatus(status);
+      if (status === 'granted') {
+        setupPlayer()
+          .then(() => {
+            isInitialized.current = true;
+            onLoad?.();
+          })
+          .catch((error) => {
+            isInitialized.current = false;
+            console.error(error);
+          });
+      }
+    });
+  }, [onLoad, setAudioPermissionStatus]);
 };

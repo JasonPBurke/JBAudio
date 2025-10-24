@@ -58,6 +58,7 @@ export const usePopulateDatabase = () => {
                 .prepareCreate((book) => {
                   book.title = bookData.bookTitle;
                   book.artwork = bookData.artwork || unknownBookImageUri;
+                  book.bookDuration = bookData.bookDuration || 0; // Add bookDuration
                   book.currentChapterIndex =
                     bookData.bookProgress.currentChapterIndex || 0;
                   book.currentChapterProgress =
@@ -82,6 +83,7 @@ export const usePopulateDatabase = () => {
               batchOperations.push(
                 bookRecord.prepareUpdate((book: Book) => {
                   book.artwork = bookData.artwork || unknownBookImageUri;
+                  book.bookDuration = bookData.bookDuration || 0; // Update bookDuration
                   book.currentChapterIndex =
                     bookData.bookProgress.currentChapterIndex || 0;
                   book.currentChapterProgress =
@@ -117,6 +119,7 @@ export const usePopulateDatabase = () => {
                 .prepareCreate((chapter: Chapter) => {
                   chapter.title = chapterData.chapterTitle;
                   chapter.chapterNumber = chapterData.chapterNumber;
+                  chapter.chapterDuration = chapterData.chapterDuration; // Add chapterDuration
                   chapter.url = chapterData.url;
                   // Set the foreign key relationship
                   (chapter._raw as any).book_id = bookRecord.id;

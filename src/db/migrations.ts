@@ -1,6 +1,7 @@
 import {
   createTable,
   schemaMigrations,
+  addColumns,
 } from '@nozbe/watermelondb/Schema/migrations';
 
 export default schemaMigrations({
@@ -46,6 +47,35 @@ export default schemaMigrations({
             { name: 'chapter_number', type: 'number' },
             { name: 'url', type: 'string' },
           ],
+        }),
+      ],
+    },
+    {
+      toVersion: 3,
+      steps: [
+        addColumns({
+          table: 'books',
+          columns: [
+            {
+              name: 'book_duration',
+              type: 'number',
+              isOptional: false,
+            },
+          ],
+          // @ts-ignore: WatermelonDB expects defaultValue here for non-optional columns
+          defaultValue: 0,
+        }),
+        addColumns({
+          table: 'chapters',
+          columns: [
+            {
+              name: 'chapter_duration',
+              type: 'number',
+              isOptional: false,
+            },
+          ],
+          // @ts-ignore: WatermelonDB expects defaultValue here for non-optional columns
+          defaultValue: 0,
         }),
       ],
     },

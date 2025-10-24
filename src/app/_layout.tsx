@@ -14,6 +14,7 @@ import {
 import playbackService from '@/setup/service';
 import { DatabaseProvider } from '@nozbe/watermelondb/DatabaseProvider';
 import database from '@/db';
+import { PermissionProvider } from '@/contexts/PermissionContext';
 
 TrackPlayer.registerPlaybackService(() => playbackService);
 //! THIS IS TO TEMP SUPPRESS REANIMATED WARNINGS OF WRITING TO 'VALUE' DURING COMPONENT RERENDER
@@ -81,4 +82,10 @@ const RootNavigation = () => {
   );
 };
 
-export default App;
+export default function WrappedApp() {
+  return (
+    <PermissionProvider>
+      <App />
+    </PermissionProvider>
+  );
+}

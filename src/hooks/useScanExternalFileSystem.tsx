@@ -3,14 +3,17 @@ import * as RNFS from '@dr.pogodin/react-native-fs';
 import {
   getMetadata,
   getArtwork,
-  // MetadataPresets,
+  MediaMetadata,
+  MetadataPresets,
   MediaMetadataPublicFields,
 } from '@missingcore/react-native-metadata-retriever';
 import { useEffect } from 'react';
+import TrackPlayer from 'react-native-track-player';
 // import { useLibraryStore } from '@/store/library';
 import database from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import { usePopulateDatabase } from './usePopulateDatabase';
+import { usePermission } from '@/contexts/PermissionContext';
 // import { v4 as uuidv4 } from 'uuid';
 // import * as Crypto from 'expo-crypto';
 // import MediaInfoFactory from 'mediainfo.js';
@@ -21,8 +24,10 @@ import { usePopulateDatabase } from './usePopulateDatabase';
 
 export const useScanExternalFileSystem = () => {
   const path = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing`;
+  const testPath = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing/Wind.m4b`;
   // const { setAuthors } = useLibraryStore();
   const { populateDatabase } = usePopulateDatabase();
+  const { audioPermissionStatus } = usePermission(); // Move usePermission here
 
   useEffect(() => {
     const handleReadDirectory = async (path: string, files: any[] = []) => {
@@ -90,6 +95,8 @@ export const useScanExternalFileSystem = () => {
           // MetadataPresets.standard
         );
 
+        // const chapterDuration = await getTrackDuration(filePath);
+
         const bookTitleBackup = filePath
           .substring(0, filePath.lastIndexOf('/'))
           .split('/')
@@ -113,6 +120,8 @@ export const useScanExternalFileSystem = () => {
           artworkUri: artworkUri,
           totalTrackCount: totalTrackCount,
           ctime: new Date(),
+          // chapterDuration: chapterDuration,
+          chapterDuration: 0, //! TEMP!!
         };
       } catch (error) {
         console.error(`Error extracting metadata for ${filePath}`, error);
@@ -120,9 +129,26 @@ export const useScanExternalFileSystem = () => {
           title: filePath.split('/').pop(),
           author: 'Unknown Author',
           trackNumber: 0,
+          chapterDuration: 0, // Default value for now
         };
       }
     };
+
+    // const getTrackDuration = async (filePath: string): Promise<number> => {
+    //   try {
+    //     await TrackPlayer.add({ url: filePath });
+    //     const track = await TrackPlayer.getTrack(0); // Assuming it's the first and only track added
+    //     console.log('track', track);
+    //     const duration = await getTrackDuration(filePath);
+    //     console.log('duration', duration);
+    //     await TrackPlayer.remove(0); // Clean up
+    //     // console.log('track duration', track?.title, track?.duration);
+    //     return track?.duration || 0;
+    //   } catch (error) {
+    //     console.error(`Error getting duration for ${filePath}`, error);
+    //     return 0;
+    //   }
+    // };
 
     const handleBookSort = (books: any) => {
       const sortedBookAuthors = books.sort(
@@ -156,10 +182,11 @@ export const useScanExternalFileSystem = () => {
 
           if (!bookEntry) {
             bookEntry = {
-              bookId: book.uri, // Assign the URL of the first chapter as bookId
+              bookId: book.url, // Assign the URL of the first chapter as bookId
               author: book.author,
               bookTitle: book.bookTitle,
               chapters: [],
+              bookDuration: 0, // Initialize bookDuration
               artwork: null,
               bookProgress: {
                 currentChapterIndex: 0,
@@ -179,22 +206,28 @@ export const useScanExternalFileSystem = () => {
             authorEntry.books.push(bookEntry);
           }
 
-          const chapter: Chapter = {
-            author: book.author,
-            bookTitle: book.bookTitle,
-            chapterTitle: book.chapterTitle,
-            chapterNumber: book.chapterNumber,
-            url: book.url,
-          };
+          if (bookEntry) {
+            const chapter: Chapter = {
+              author: book.author,
+              bookTitle: book.bookTitle,
+              chapterTitle: book.chapterTitle,
+              chapterNumber: book.chapterNumber,
+              chapterDuration: book.chapterDuration,
+              url: book.url,
+            };
 
-          bookEntry.chapters.push(chapter);
-          if (bookEntry.chapters.length > 1) {
-            bookEntry.chapters.sort(
-              (
-                a: { chapterNumber: number },
-                b: { chapterNumber: number }
-              ) => a.chapterNumber - b.chapterNumber
-            );
+            bookEntry.chapters.push(chapter);
+            // Add chapter duration to book duration
+            bookEntry.bookDuration += chapter.chapterDuration;
+
+            if (bookEntry.chapters.length > 1) {
+              bookEntry.chapters.sort(
+                (
+                  a: { chapterNumber: number },
+                  b: { chapterNumber: number }
+                ) => a.chapterNumber - b.chapterNumber
+              );
+            }
           }
 
           return acc;
@@ -237,11 +270,13 @@ export const useScanExternalFileSystem = () => {
       const sortedLibraryWithArtwork = await extractArtwork(sortedLibrary);
       //! ON FRESH INSTALL, POPULATE DATABASE RUNS BEFORE AUDIO ACCESS IS GRANTED LEAVING THE DATABASE EMPTY AND NO BOOKS IN THE LIBRARY TO DISPLAY
       //! WHEN APP IS RELOADED, POPULATE DATABASE RUNS AFTER THE AUDIO ACCESS IS GRANTED AND THE DATABASE IS POPULATED WITH BOOKS
-      console.log('sortedLibraryWithArtwork', sortedLibraryWithArtwork);
+      // console.log('sortedLibraryWithArtwork', sortedLibraryWithArtwork);
       //! IF STATEMENT DID NOT WORK...
       await populateDatabase(sortedLibraryWithArtwork);
     };
 
-    scanDirectory(path);
-  }, [path, populateDatabase]);
+    if (audioPermissionStatus === 'granted') {
+      scanDirectory(path);
+    }
+  }, [path, populateDatabase, audioPermissionStatus]);
 };

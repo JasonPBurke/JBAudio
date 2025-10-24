@@ -10,7 +10,7 @@ export type Book = {
   author: string;
   bookTitle: string;
   chapters: Chapter[];
-  //! bookDuration: number;
+  bookDuration: number;
   artwork: string | null;
   bookProgress: {
     currentChapterIndex: number; //* on queueChange, update this to the current index
@@ -34,7 +34,7 @@ export type Chapter = {
   bookTitle: string;
   chapterTitle: string;
   chapterNumber: number;
-  //! chapterDuration: number;
+  chapterDuration: number;
   url: string;
 };
 
