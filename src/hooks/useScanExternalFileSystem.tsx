@@ -237,6 +237,8 @@ export const useScanExternalFileSystem = () => {
       const sortedLibraryWithArtwork = await extractArtwork(sortedLibrary);
       //! ON FRESH INSTALL, POPULATE DATABASE RUNS BEFORE AUDIO ACCESS IS GRANTED LEAVING THE DATABASE EMPTY AND NO BOOKS IN THE LIBRARY TO DISPLAY
       //! WHEN APP IS RELOADED, POPULATE DATABASE RUNS AFTER THE AUDIO ACCESS IS GRANTED AND THE DATABASE IS POPULATED WITH BOOKS
+      console.log('sortedLibraryWithArtwork', sortedLibraryWithArtwork);
+      //! IF STATEMENT DID NOT WORK...
       await populateDatabase(sortedLibraryWithArtwork);
     };
 
