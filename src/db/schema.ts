@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 2,
+  version: 3,
   tables: [
     tableSchema({
       name: 'authors',
@@ -13,6 +13,7 @@ export default appSchema({
         { name: 'author_id', type: 'string', isIndexed: true },
         { name: 'title', type: 'string' },
         { name: 'artwork', type: 'string', isOptional: true },
+        { name: 'book_duration', type: 'number' },
         {
           name: 'current_chapter_index',
           type: 'number',
@@ -39,6 +40,7 @@ export default appSchema({
         { name: 'book_id', type: 'string', isIndexed: true },
         { name: 'title', type: 'string' },
         { name: 'chapter_number', type: 'number' },
+        { name: 'chapter_duration', type: 'number' },
         { name: 'url', type: 'string' },
       ],
     }),
