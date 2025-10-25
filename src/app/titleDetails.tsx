@@ -25,7 +25,10 @@ import TrackPlayer, {
   useIsPlaying,
 } from 'react-native-track-player';
 import { useQueueStore } from '@/store/queue';
-import { formatDate } from '@/helpers/miscellaneous';
+import {
+  formatDate,
+  formatSecondsToMinutes,
+} from '@/helpers/miscellaneous';
 import ModalComponent from '@/components/ModalComponent';
 import { useState } from 'react';
 import { Book as BookType } from '@/types/Book';
@@ -63,7 +66,6 @@ const TitleDetails = () => {
 
   // const progress = useBookProgress(book?.bookId!);
   // console.log('progress', progress);
-  console.log('here');
 
   const handlePressPlay = async (book: BookType | undefined) => {
     if (!book) return;
@@ -237,26 +239,29 @@ const TitleDetails = () => {
               </View>
             </View>
             <View style={styles.inlineInfoContainer}>
-              <Text>Added on:</Text>
+              <Text style={{ color: colors.text }}>Added on:</Text>
               <Text style={styles.bookInfoText}>
                 {formatDate(book?.metadata.ctime)}
               </Text>
             </View>
             <View style={styles.inlineInfoContainer}>
-              <Text>Total Audio Files:</Text>
+              <Text style={{ color: colors.text }}>Total Audio Files:</Text>
               <Text style={styles.bookInfoText}>
                 {book?.metadata.totalTrackCount || book?.chapters.length}
               </Text>
             </View>
-            <View>
-              <Text>Duration: </Text>
+            <View style={styles.inlineInfoContainer}>
+              <Text style={{ color: colors.text }}>Duration: </Text>
+              <Text style={styles.bookInfoText}>
+                {formatSecondsToMinutes(book?.bookDuration || 0)}
+              </Text>
             </View>
             <View style={styles.inlineInfoContainer}>
-              <Text>Release year:</Text>
+              <Text style={{ color: colors.text }}>Release year:</Text>
               <Text style={styles.bookInfoText}>{book?.metadata.year}</Text>
             </View>
             <View style={styles.inlineInfoContainer}>
-              <Text>Description: </Text>
+              <Text style={{ color: colors.text }}>Description: </Text>
               <Text style={styles.bookInfoText}>
                 {book?.metadata.description}
               </Text>
@@ -343,14 +348,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignSelf: 'center',
     marginBottom: 20,
-
-    // position: 'absolute',
-    // top: 6,
-    // left: 10,
-    // padding: 4,
-    // color: colors.icon,
-    // borderRadius: 50,
-    // backgroundColor: 'rgba(0,0,0,0.35)',
   },
   trackPlayingImageIcon: {
     position: 'absolute',
@@ -364,7 +361,6 @@ const styles = StyleSheet.create({
   },
   testButton: {
     position: 'absolute',
-    // top: '25%',
     bottom: 0,
     left: 20,
     padding: 10,
@@ -386,17 +382,9 @@ const styles = StyleSheet.create({
   metadataModal: {
     flex: 1 / 3,
     margin: 20,
-    // backgroundColor: 'white',
     borderRadius: 12,
     padding: 35,
     alignItems: 'center',
-    // shadowColor: '#000',
-    // shadowOffset: {
-    //   width: 0,
-    //   height: 2,
-    // },
-    // shadowOpacity: 0.25,
-    // shadowRadius: 4,
     elevation: 5,
   },
 });

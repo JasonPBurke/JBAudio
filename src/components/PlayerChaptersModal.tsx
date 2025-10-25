@@ -21,6 +21,7 @@ import { Logs } from 'lucide-react-native';
 import { MovingText } from './MovingText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import TrackPlayer, { useActiveTrack } from 'react-native-track-player';
+import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 // import { useBook, useBookById } from '@/store/library';
 // import database from '@/db';
 // import BookModel from '@/db/models/Book';
@@ -160,8 +161,14 @@ const ChapterList = ({
       {book?.chapters && book.chapters.length > 0 ? (
         <BottomSheetFlatList
           data={book.chapters}
-          keyExtractor={(item) => item.url}
-          renderItem={({ item, index }) => {
+          keyExtractor={(item: Chapter) => item.url}
+          renderItem={({
+            item,
+            index,
+          }: {
+            item: Chapter;
+            index: number;
+          }) => {
             const isFirstChapter = index === 0;
             const isLastChapter = index === book.chapters.length - 1;
             return (
@@ -187,7 +194,9 @@ const ChapterList = ({
                   {item.chapterTitle}
                 </Text>
                 {/* // item.duration */}
-                <Text style={styles.chapterDuration}>{'12:34'}</Text>
+                <Text style={styles.chapterDuration}>
+                  {formatSecondsToMinutes(item.chapterDuration)}
+                </Text>
               </Pressable>
             );
           }}
