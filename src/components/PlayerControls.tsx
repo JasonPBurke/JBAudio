@@ -291,7 +291,13 @@ export const PlaybackSpeed = ({ iconSize = 30 }: PlayerButtonProps) => {
       />
 
       <Text
-        style={{ position: 'absolute', bottom: 14, left: 22, fontSize: 10 }}
+        style={{
+          position: 'absolute',
+          bottom: 14,
+          left: 22,
+          fontSize: 10,
+          color: colors.icon,
+        }}
       >
         {speedRates[currentIndex]}x
       </Text>

@@ -69,8 +69,8 @@ const TitleDetails = () => {
 
   const handlePressPlay = async (book: BookType | undefined) => {
     if (!book) return;
-    console.log('isActiveBook', isActiveBook);
-    console.log('playing', playing);
+    // console.log('isActiveBook', isActiveBook);
+    // console.log('playing', playing);
     if (isActiveBook && playing) return;
 
     // Fetch the latest book data from the database to get the most current chapter index

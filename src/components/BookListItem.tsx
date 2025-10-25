@@ -80,8 +80,8 @@ export const BookListItem = memo(function BookListItem({
         bookId: book.bookId,
       }));
 
-      console.log('progress', progress);
-      console.log('chapterIndex', chapterIndex);
+      // console.log('progress', progress);
+      // console.log('chapterIndex', chapterIndex);
       await TrackPlayer.add(tracks);
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(progress || 0);
