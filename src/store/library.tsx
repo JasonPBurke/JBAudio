@@ -94,6 +94,7 @@ export const useLibraryStore = create<LibraryState>()((set, get) => ({
                       bookTitle: bookModel.title,
                       chapterTitle: chapterModel.title,
                       chapterNumber: chapterModel.chapterNumber,
+                      chapterDuration: chapterModel.chapterDuration,
                       url: chapterModel.url,
                     })
                   );
@@ -104,6 +105,7 @@ export const useLibraryStore = create<LibraryState>()((set, get) => ({
                     bookTitle: bookModel.title,
                     chapters: chaptersData,
                     artwork: bookModel.artwork,
+                    bookDuration: bookModel.bookDuration,
                     bookProgress: {
                       currentChapterIndex: bookModel.currentChapterIndex,
                       currentChapterProgress:

@@ -8,7 +8,7 @@ import {
   MediaMetadataPublicFields,
 } from '@missingcore/react-native-metadata-retriever';
 import { useEffect } from 'react';
-import TrackPlayer from 'react-native-track-player';
+import TrackPlayer, { useProgress } from 'react-native-track-player';
 // import { useLibraryStore } from '@/store/library';
 import database from '@/db';
 import { Q } from '@nozbe/watermelondb';
@@ -23,6 +23,7 @@ import { usePermission } from '@/contexts/PermissionContext';
 //*  '/Audiobooks' from the path and replace it with the user's chosen folder
 
 export const useScanExternalFileSystem = () => {
+  const { duration } = useProgress(100);
   const path = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing`;
   const testPath = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing/Wind.m4b`;
   // const { setAuthors } = useLibraryStore();
@@ -95,7 +96,8 @@ export const useScanExternalFileSystem = () => {
           // MetadataPresets.standard
         );
 
-        // const chapterDuration = await getTrackDuration(filePath);
+        const chapterDuration = await getTrackDuration(filePath);
+        // console.log('chapterDuration', chapterDuration);
 
         const bookTitleBackup = filePath
           .substring(0, filePath.lastIndexOf('/'))
@@ -120,8 +122,7 @@ export const useScanExternalFileSystem = () => {
           artworkUri: artworkUri,
           totalTrackCount: totalTrackCount,
           ctime: new Date(),
-          // chapterDuration: chapterDuration,
-          chapterDuration: 0, //! TEMP!!
+          chapterDuration: chapterDuration,
         };
       } catch (error) {
         console.error(`Error extracting metadata for ${filePath}`, error);
@@ -134,21 +135,29 @@ export const useScanExternalFileSystem = () => {
       }
     };
 
-    // const getTrackDuration = async (filePath: string): Promise<number> => {
-    //   try {
-    //     await TrackPlayer.add({ url: filePath });
-    //     const track = await TrackPlayer.getTrack(0); // Assuming it's the first and only track added
-    //     console.log('track', track);
-    //     const duration = await getTrackDuration(filePath);
-    //     console.log('duration', duration);
-    //     await TrackPlayer.remove(0); // Clean up
-    //     // console.log('track duration', track?.title, track?.duration);
-    //     return track?.duration || 0;
-    //   } catch (error) {
-    //     console.error(`Error getting duration for ${filePath}`, error);
-    //     return 0;
-    //   }
-    // };
+    const getTrackDuration = async (filePath: string): Promise<number> => {
+      try {
+        await TrackPlayer.load({ url: filePath });
+        let duration = 0;
+        const startTime = Date.now();
+        const timeout = 500; // 500ms timeout
+
+        while (Date.now() - startTime < timeout) {
+          const progress = await TrackPlayer.getProgress();
+          if (progress.duration > 0) {
+            duration = progress.duration;
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 50)); // Wait 50ms before re-checking
+        }
+
+        await TrackPlayer.reset(); // Clean up
+        return duration;
+      } catch (error) {
+        console.error(`Error getting duration for ${filePath}`, error);
+        return 0;
+      }
+    };
 
     const handleBookSort = (books: any) => {
       const sortedBookAuthors = books.sort(
@@ -160,12 +169,6 @@ export const useScanExternalFileSystem = () => {
           nameA.localeCompare(nameB);
         }
       );
-
-      // const generateUUID = () => {
-      //   return uuidv4({
-      //     random: Crypto.getRandomValues(new Uint8Array(16)),
-      //   });
-      // };
 
       const sortedBookTitles = sortedBookAuthors.reduce(
         (acc: Author[], book: any) => {
