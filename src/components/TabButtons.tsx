@@ -8,12 +8,13 @@ import {
 import { colors } from '@/constants/tokens';
 import { useEffect, useState } from 'react';
 import { observeTotalBookCount } from '@/db/bookQueries';
+import { scheduleOnRN } from 'react-native-worklets';
 import Animated, {
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+
 export type TabButtonsType = {
   title: string;
 };
@@ -58,7 +59,7 @@ const TabButtons = ({
         buttonMeasurements[index].x,
         {},
         () => {
-          runOnJS(handlePress)(index);
+          scheduleOnRN(handlePress, index);
         }
       );
       tabWidth.value = withTiming(buttonMeasurements[index].width);

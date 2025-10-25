@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { StyleSheet } from 'react-native';
 import TabButtons, { TabButtonsType } from '@/components/TabButtons';
 
 export enum CustomTabs {
@@ -30,5 +29,3 @@ const TabScreen = () => {
 };
 
 export default TabScreen;
-
-const styles = StyleSheet.create({});
