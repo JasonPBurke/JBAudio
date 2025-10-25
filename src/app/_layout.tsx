@@ -35,7 +35,7 @@ const App = () => {
   });
 
   //* for debugging
-  // useLogTrackPlayerState();
+  useLogTrackPlayerState();
 
   return (
     <SafeAreaProvider>

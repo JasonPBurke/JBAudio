@@ -41,15 +41,19 @@ export const usePopulateDatabase = () => {
           // Process books for this author
           for (const bookData of authorData.books) {
             // Check if book already exists for this author
-            const existingBooks = await database
+            const allAuthorBooks = await database
               .get<Book>('books')
-              .query(
-                Q.where('title', bookData.bookTitle),
-                Q.where('author_id', authorRecord.id)
-              )
+              .query(Q.where('author_id', authorRecord.id))
               .fetch();
 
-            let bookRecord = existingBooks[0];
+            let bookRecord = allAuthorBooks.find(
+              (book) =>
+                book.title.trim().toLowerCase() ===
+                  bookData.bookTitle.trim().toLowerCase() &&
+                book.chapters.some(
+                  (chapter) => chapter.url === bookData.chapters[0].url
+                )
+            );
 
             // Create or update book
             if (!bookRecord) {
