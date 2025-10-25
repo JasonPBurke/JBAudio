@@ -6,6 +6,7 @@ import TrackPlayer, {
   RepeatMode,
 } from 'react-native-track-player';
 import * as MediaLibrary from 'expo-media-library';
+import { usePermission } from '@/contexts/PermissionContext';
 
 async function requestAudioPermission(): Promise<
   'granted' | 'denied' | 'undetermined'
@@ -45,8 +46,6 @@ const setupPlayer = async () => {
   // await TrackPlayer.setVolume(0.5);
   await TrackPlayer.setRepeatMode(RepeatMode.Off); //* probably want this set to off not queue
 };
-
-import { usePermission } from '@/contexts/PermissionContext';
 
 export const useSetupTrackPlayer = ({
   onLoad,

@@ -7,12 +7,12 @@ import {
   View,
 } from 'react-native';
 import {
-  Grip,
+  // Grip,
   Library,
   List,
   Search,
   Settings2,
-  TextAlignJustify,
+  // TextAlignJustify,
 } from 'lucide-react-native';
 import TabScreen from '@/components/TabScreen';
 

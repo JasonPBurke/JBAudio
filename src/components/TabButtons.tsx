@@ -6,7 +6,8 @@ import {
   View,
 } from 'react-native';
 import { colors } from '@/constants/tokens';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { observeTotalBookCount } from '@/db/bookQueries';
 import Animated, {
   runOnJS,
   useAnimatedStyle,
@@ -34,6 +35,15 @@ const TabButtons = ({
     { width: number; x: number }[]
   >([]);
   const [tabbarHeight, setTabbarHeight] = useState(0);
+  const [bookCount, setBookCount] = useState(0);
+
+  useEffect(() => {
+    const subscription = observeTotalBookCount().subscribe((count) => {
+      setBookCount(count);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const tabPositionX = useSharedValue(0);
   const tabWidth = useSharedValue(0);
@@ -110,7 +120,7 @@ const TabButtons = ({
               onLayout={(event) => onButtonLayout(event, index)}
             >
               <Text style={{ ...styles.buttonText, color: color }}>
-                {button.title} (123)
+                {button.title} ({bookCount})
               </Text>
             </Pressable>
           );

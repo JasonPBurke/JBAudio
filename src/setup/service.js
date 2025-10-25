@@ -1,8 +1,8 @@
 import TrackPlayer, {
   Event,
-  useActiveTrack,
-  useTrackPlayerEvents,
-  usePlaybackState,
+  // useActiveTrack,
+  // useTrackPlayerEvents,
+  // usePlaybackState,
   State,
 } from 'react-native-track-player';
 import { useLibraryStore } from '@/store/library';
@@ -11,14 +11,11 @@ import {
   updateChapterIndexInDB,
 } from '@/db/chapterQueries';
 
-// create a local reference for the `setPlaybackProgress` function
-// const setPlaybackProgress = useLibraryStore.getState().setPlaybackProgress;
-// const setPlaybackIndex = useLibraryStore.getState().setPlaybackIndex;
 const {
   setPlaybackIndex,
   setPlaybackProgress,
-  getPlaybackIndex,
-  getPlaybackProgress,
+  // getPlaybackIndex,
+  // getPlaybackProgress,
 } = useLibraryStore.getState();
 
 export default module.exports = async function () {
@@ -48,9 +45,6 @@ export default module.exports = async function () {
     async ({ position, track }) => {
       //? event {"buffered": 107.232, "duration": 4626.991, "position": 0.526, "track": 3}
       const trackToUpdate = await TrackPlayer.getTrack(track);
-      // console.log('event', position);
-      // console.log('trackToUpdate', trackToUpdate.bookId);
-      // console.log('PlaybackProgressUpdated on book:', trackToUpdate.name);
 
       //? trackToUpdate ["title", "album", "url", "artwork", "bookId", "artist"]
       // write progress to the zustand store
@@ -64,17 +58,10 @@ export default module.exports = async function () {
     //?trackToUpdate.bookId ["title", "album", "url", "artwork", "bookId", "artist"]
     const trackToUpdate = await TrackPlayer.getTrack(track);
     // Perform the WatermelonDB update here
-    // console.log('POSSIBLE BOOK CHANGE');
     setPlaybackProgress(trackToUpdate.bookId, position);
     setPlaybackIndex(trackToUpdate.bookId, track);
 
-    // console.log(getPlaybackProgress(trackToUpdate.bookId));
-
-    await updateChapterProgressInDB(trackToUpdate.bookId, process).then(
-      (res) => {
-        // console.log('updateChapterProgressInDB response', res);
-      }
-    );
+    await updateChapterProgressInDB(trackToUpdate.bookId, process);
     await updateChapterIndexInDB(trackToUpdate.bookId, track);
   });
   TrackPlayer.addEventListener(Event.PlaybackState, async (event) => {
