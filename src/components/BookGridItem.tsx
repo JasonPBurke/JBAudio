@@ -69,14 +69,14 @@ export const BookGridItem = memo(function BookListItem({
       .get<Book>('books')
       .find(book.bookId!);
 
-    console.log(
-      'latestBookFromDB.currentChapterProgress',
-      latestBookFromDB.currentChapterProgress
-    );
-    console.log(
-      'latestBookFromDB.currentChapterIndex',
-      latestBookFromDB.currentChapterIndex
-    );
+    // console.log(
+    //   'latestBookFromDB.currentChapterProgress',
+    //   latestBookFromDB.currentChapterProgress
+    // );
+    // console.log(
+    //   'latestBookFromDB.currentChapterIndex',
+    //   latestBookFromDB.currentChapterIndex
+    // );
 
     //! GET THE DATA EITHER FROM THE DB OR FROM THE STATE NOT A MIX
     const chapterIndex = latestBookFromDB.currentChapterIndex;
@@ -87,7 +87,7 @@ export const BookGridItem = memo(function BookListItem({
     const isChangingBook = bookId !== activeBookId;
 
     if (isChangingBook) {
-      console.log('changing book');
+      // console.log('changing book');
 
       await TrackPlayer.reset();
       //! should these tracks be built at the useSEFS.tsx and added to the DB on first scan?
@@ -100,17 +100,17 @@ export const BookGridItem = memo(function BookListItem({
         bookId: book.bookId,
       }));
 
-      console.log('progress', progress);
-      console.log('chapterIndex', chapterIndex);
+      // console.log('progress', progress);
+      // console.log('chapterIndex', chapterIndex);
       await TrackPlayer.add(tracks);
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(progress || 0);
       await TrackPlayer.play();
       setActiveBookId(bookId);
     } else {
-      console.log('not changing book');
-      console.log('playing', playing);
-      console.log('isActiveBook', isActiveBook);
+      // console.log('not changing book');
+      // console.log('playing', playing);
+      // console.log('isActiveBook', isActiveBook);
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(progress || 0);
       await TrackPlayer.play();

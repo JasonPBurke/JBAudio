@@ -1,8 +1,11 @@
 export const formatSecondsToMinutes = (totalSeconds: number) => {
-  const dateObj = new Date(totalSeconds * 1000);
-  const hours = dateObj.getUTCHours();
-  const minutes = dateObj.getUTCMinutes();
-  const seconds = dateObj.getSeconds();
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+  // const dateObj = new Date(totalSeconds * 1000);
+  // const hours = dateObj.getUTCHours();
+  // const minutes = dateObj.getUTCMinutes();
+  // const seconds = dateObj.getSeconds();
 
   const formattedHours = String(hours).padStart(2, '0');
   const formattedMinutes = String(minutes).padStart(2, '0');

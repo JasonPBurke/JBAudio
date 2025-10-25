@@ -64,7 +64,7 @@ export default module.exports = async function () {
     //?trackToUpdate.bookId ["title", "album", "url", "artwork", "bookId", "artist"]
     const trackToUpdate = await TrackPlayer.getTrack(track);
     // Perform the WatermelonDB update here
-    console.log('POSSIBLE BOOK CHANGE');
+    // console.log('POSSIBLE BOOK CHANGE');
     setPlaybackProgress(trackToUpdate.bookId, position);
     setPlaybackIndex(trackToUpdate.bookId, track);
 
@@ -72,7 +72,7 @@ export default module.exports = async function () {
 
     await updateChapterProgressInDB(trackToUpdate.bookId, process).then(
       (res) => {
-        console.log('updateChapterProgressInDB response', res);
+        // console.log('updateChapterProgressInDB response', res);
       }
     );
     await updateChapterIndexInDB(trackToUpdate.bookId, track);
