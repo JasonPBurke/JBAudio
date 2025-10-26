@@ -31,6 +31,8 @@ export default class Book extends Model {
   @field('total_track_count') totalTrackCount!: number;
   @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date | null;
+  @field('artwork_height') artworkHeight!: number | null;
+  @field('artwork_width') artworkWidth!: number | null;
 
   @relation('authors', 'author_id') author!: Author;
   @children('chapters') chapters!: Chapter[];

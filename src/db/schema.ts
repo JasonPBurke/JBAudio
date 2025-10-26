@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 3,
+  version: 4,
   tables: [
     tableSchema({
       name: 'authors',
@@ -32,6 +32,8 @@ export default appSchema({
         { name: 'total_track_count', type: 'number' },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
+        { name: 'artwork_height', type: 'number', isOptional: true },
+        { name: 'artwork_width', type: 'number', isOptional: true },
       ],
     }),
     tableSchema({

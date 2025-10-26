@@ -62,6 +62,8 @@ export const usePopulateDatabase = () => {
                 .prepareCreate((book) => {
                   book.title = bookData.bookTitle;
                   book.artwork = bookData.artwork || unknownBookImageUri;
+                  book.artworkHeight = bookData.artworkHeight || null;
+                  book.artworkWidth = bookData.artworkWidth || null;
                   book.bookDuration = bookData.bookDuration || 0; // Add bookDuration
                   book.currentChapterIndex =
                     bookData.bookProgress.currentChapterIndex || 0;
@@ -83,10 +85,12 @@ export const usePopulateDatabase = () => {
                 });
               batchOperations.push(bookRecord);
             } else {
-              // Update existing book
+              // Update existing book //! DO I WANT TO UPDATE AN EXISTING BOOK???
               batchOperations.push(
                 bookRecord.prepareUpdate((book: Book) => {
                   book.artwork = bookData.artwork || unknownBookImageUri;
+                  book.artworkHeight = bookData.artworkHeight || null;
+                  book.artworkWidth = bookData.artworkWidth || null;
                   book.bookDuration = bookData.bookDuration || 0; // Update bookDuration
                   book.currentChapterIndex =
                     bookData.bookProgress.currentChapterIndex || 0;

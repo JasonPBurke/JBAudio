@@ -79,9 +79,12 @@ const BooksHome = ({ authors }: BookListProps) => {
               <FlashList<Book>
                 contentContainerStyle={{ paddingLeft: 14 }}
                 data={allBooks}
-                // recycleItems={true}
                 renderItem={({ item: book }) => (
-                  <BookGridItem book={book} bookId={book.chapters[0].url} />
+                  <BookGridItem
+                    book={book}
+                    bookId={book.chapters[0].url}
+                    flowDirection='row'
+                  />
                 )}
                 keyExtractor={(item) => item.chapters[0].url}
                 horizontal={true}
@@ -140,6 +143,7 @@ const BooksHome = ({ authors }: BookListProps) => {
                     <BookGridItem
                       book={book}
                       bookId={book.chapters[0].url}
+                      flowDirection='row'
                     />
                   )}
                   keyExtractor={(item) => item.chapters[0].url}
