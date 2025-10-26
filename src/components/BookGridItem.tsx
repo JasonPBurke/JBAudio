@@ -1,6 +1,5 @@
 import { unknownBookImageUri } from '@/constants/images';
 import {
-  // Dimensions,
   Pressable,
   StyleSheet,
   Text,
@@ -11,7 +10,6 @@ import {
 import { memo, useEffect, useState } from 'react';
 // import FastImage from '@d11/react-native-fast-image';
 import { Image } from 'expo-image';
-// import { useLibraryStore } from '@/store/library';
 
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
@@ -30,21 +28,20 @@ import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
 import database from '@/db';
 import {
-  updateChapterProgressInDB,
+  // updateChapterProgressInDB,
   getChapterProgressInDB,
 } from '@/db/chapterQueries';
-import { store } from 'expo-router/build/global-state/router-store';
-import { useLibraryStore } from '@/store/library';
 
 export type BookListItemProps = {
   book: BookType;
   bookId: string;
-  // flowDirection: 'row' | 'column';
+  flowDirection: 'row' | 'column';
 };
 
 export const BookGridItem = memo(function BookListItem({
   book,
   bookId,
+  flowDirection,
 }: BookListItemProps) {
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const router = useRouter();
@@ -55,28 +52,18 @@ export const BookGridItem = memo(function BookListItem({
     useActiveTrack()?.url ===
     book.chapters[book.bookProgress.currentChapterIndex].url;
 
-  // const { getPlaybackProgress } = useLibraryStore();
-
   useEffect(() => {
     RNImage.getSize(book.artwork || unknownBookImageUri, (w, h) => {
       setImageSize({ width: w, height: h });
     });
   }, [book.artwork]);
+  console.log('book image size', book.artworkHeight, book.artworkWidth);
 
   const handlePressPlay = async (book: BookType) => {
     // Fetch the latest book data from the database to get the most current chapter index
     const latestBookFromDB = await database
       .get<Book>('books')
       .find(book.bookId!);
-
-    // console.log(
-    //   'latestBookFromDB.currentChapterProgress',
-    //   latestBookFromDB.currentChapterProgress
-    // );
-    // console.log(
-    //   'latestBookFromDB.currentChapterIndex',
-    //   latestBookFromDB.currentChapterIndex
-    // );
 
     //! GET THE DATA EITHER FROM THE DB OR FROM THE STATE NOT A MIX
     const chapterIndex = latestBookFromDB.currentChapterIndex;
@@ -100,17 +87,12 @@ export const BookGridItem = memo(function BookListItem({
         bookId: book.bookId,
       }));
 
-      // console.log('progress', progress);
-      // console.log('chapterIndex', chapterIndex);
       await TrackPlayer.add(tracks);
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(progress || 0);
       await TrackPlayer.play();
       setActiveBookId(bookId);
     } else {
-      // console.log('not changing book');
-      // console.log('playing', playing);
-      // console.log('isActiveBook', isActiveBook);
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(progress || 0);
       await TrackPlayer.play();
@@ -169,13 +151,6 @@ export const BookGridItem = memo(function BookListItem({
               }}
               hitSlop={25}
             >
-              {/* <Ionicons
-                // style={styles.trackPausedIcon}
-                name='headset-outline'
-                size={18}
-                color={colors.icon}
-                onPress={() => handlePressPlay(book)}
-              /> */}
               <Play
                 size={18}
                 color={colors.icon}

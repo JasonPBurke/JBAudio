@@ -1,29 +1,23 @@
-import { Author, Book, Chapter } from '@/types/Book';
+import { Author, Chapter } from '@/types/Book';
 import * as RNFS from '@dr.pogodin/react-native-fs';
 import {
   getMetadata,
   getArtwork,
-  MediaMetadata,
-  MetadataPresets,
   MediaMetadataPublicFields,
 } from '@missingcore/react-native-metadata-retriever';
 import { useEffect } from 'react';
 import TrackPlayer, { useProgress } from 'react-native-track-player';
-// import { useLibraryStore } from '@/store/library';
 import database from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import { usePopulateDatabase } from './usePopulateDatabase';
 import { usePermission } from '@/contexts/PermissionContext';
-// import { v4 as uuidv4 } from 'uuid';
-// import * as Crypto from 'expo-crypto';
-// import MediaInfoFactory from 'mediainfo.js';
-// import RNFetchBlob from 'react-native-blob-util';
+import { Image as RNImage } from 'react-native';
+import { unknownBookImageUri } from '@/constants/images';
 
 //* if we implement the user being able to choose their own folder, we remove the
 //*  '/Audiobooks' from the path and replace it with the user's chosen folder
 
 export const useScanExternalFileSystem = () => {
-  const { duration } = useProgress(100);
   const path = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing`;
   const testPath = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing/Wind.m4b`;
   // const { setAuthors } = useLibraryStore();
@@ -191,6 +185,8 @@ export const useScanExternalFileSystem = () => {
               chapters: [],
               bookDuration: 0, // Initialize bookDuration
               artwork: null,
+              artworkHeight: null,
+              artworkWidth: null,
               bookProgress: {
                 currentChapterIndex: 0,
                 currentChapterProgress: 0,
@@ -249,13 +245,49 @@ export const useScanExternalFileSystem = () => {
                 const firstChapter = book.chapters[0];
                 try {
                   const artwork = await getArtwork(firstChapter.url);
-                  return { ...book, artwork: artwork };
+                  let artworkWidth: number | null = null;
+                  let artworkHeight: number | null = null;
+
+                  if (artwork) {
+                    await new Promise<void>((resolve) => {
+                      RNImage.getSize(
+                        artwork,
+                        (w, h) => {
+                          artworkWidth = w;
+                          artworkHeight = h;
+                          resolve();
+                        },
+                        (error) => {
+                          console.error(
+                            `Error getting image size for ${artwork}`,
+                            error
+                          );
+                          resolve();
+                        }
+                      );
+                    });
+                  } else {
+                    //! currently hardcoded based on the unknown_track image
+                    artworkWidth = 500;
+                    artworkHeight = 500;
+                  }
+                  return {
+                    ...book,
+                    artwork: artwork,
+                    artworkWidth,
+                    artworkHeight,
+                  };
                 } catch (error) {
                   console.error(
                     `Error extracting artwork for ${firstChapter.url}`,
                     error
                   );
-                  return { ...book, artwork: null };
+                  return {
+                    ...book,
+                    artwork: null,
+                    artworkWidth: null,
+                    artworkHeight: null,
+                  };
                 }
               }
               return { ...book, artwork: null };
@@ -271,10 +303,6 @@ export const useScanExternalFileSystem = () => {
       const result = await handleReadDirectory(path);
       const sortedLibrary = handleBookSort(result);
       const sortedLibraryWithArtwork = await extractArtwork(sortedLibrary);
-      //! ON FRESH INSTALL, POPULATE DATABASE RUNS BEFORE AUDIO ACCESS IS GRANTED LEAVING THE DATABASE EMPTY AND NO BOOKS IN THE LIBRARY TO DISPLAY
-      //! WHEN APP IS RELOADED, POPULATE DATABASE RUNS AFTER THE AUDIO ACCESS IS GRANTED AND THE DATABASE IS POPULATED WITH BOOKS
-      // console.log('sortedLibraryWithArtwork', sortedLibraryWithArtwork);
-      //! IF STATEMENT DID NOT WORK...
       await populateDatabase(sortedLibraryWithArtwork);
     };
 

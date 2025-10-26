@@ -7,6 +7,55 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      toVersion: 4,
+      steps: [
+        addColumns({
+          table: 'books',
+          columns: [
+            {
+              name: 'artwork_height',
+              type: 'number',
+              isOptional: true,
+            },
+            {
+              name: 'artwork_width',
+              type: 'number',
+              isOptional: true,
+            },
+          ],
+        }),
+      ],
+    },
+    {
+      toVersion: 3,
+      steps: [
+        addColumns({
+          table: 'books',
+          columns: [
+            {
+              name: 'book_duration',
+              type: 'number',
+              isOptional: false,
+            },
+          ],
+          // @ts-ignore: WatermelonDB expects defaultValue here for non-optional columns
+          defaultValue: 0,
+        }),
+        addColumns({
+          table: 'chapters',
+          columns: [
+            {
+              name: 'chapter_duration',
+              type: 'number',
+              isOptional: false,
+            },
+          ],
+          // @ts-ignore: WatermelonDB expects defaultValue here for non-optional columns
+          defaultValue: 0,
+        }),
+      ],
+    },
+    {
       toVersion: 2,
       steps: [
         createTable({
@@ -47,35 +96,6 @@ export default schemaMigrations({
             { name: 'chapter_number', type: 'number' },
             { name: 'url', type: 'string' },
           ],
-        }),
-      ],
-    },
-    {
-      toVersion: 3,
-      steps: [
-        addColumns({
-          table: 'books',
-          columns: [
-            {
-              name: 'book_duration',
-              type: 'number',
-              isOptional: false,
-            },
-          ],
-          // @ts-ignore: WatermelonDB expects defaultValue here for non-optional columns
-          defaultValue: 0,
-        }),
-        addColumns({
-          table: 'chapters',
-          columns: [
-            {
-              name: 'chapter_duration',
-              type: 'number',
-              isOptional: false,
-            },
-          ],
-          // @ts-ignore: WatermelonDB expects defaultValue here for non-optional columns
-          defaultValue: 0,
         }),
       ],
     },

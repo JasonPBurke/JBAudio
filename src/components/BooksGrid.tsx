@@ -21,7 +21,7 @@ export const BooksGrid = ({ authors }: BookGridProps) => {
           <BookGridItem
             book={book}
             bookId={book.chapters[0].url}
-            // flowDirection='column'
+            flowDirection='column'
           />
         )}
         masonry

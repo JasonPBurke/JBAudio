@@ -12,6 +12,8 @@ export type Book = {
   chapters: Chapter[];
   bookDuration: number;
   artwork: string | null;
+  artworkHeight: number | null;
+  artworkWidth: number | null;
   bookProgress: {
     currentChapterIndex: number; //* on queueChange, update this to the current index
     currentChapterProgress: number | null; //* update 1000/5000ms as play progresses
