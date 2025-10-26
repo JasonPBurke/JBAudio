@@ -10,6 +10,7 @@ export type BookGridProps = Partial<FlashListProps<Book>> & {
 
 export const BooksGrid = ({ authors }: BookGridProps) => {
   const allBooks = authors.flatMap((author) => author.books);
+  const numColumns = 2;
 
   return (
     <View
@@ -22,10 +23,11 @@ export const BooksGrid = ({ authors }: BookGridProps) => {
             book={book}
             bookId={book.chapters[0].url}
             flowDirection='column'
+            numColumns={numColumns}
           />
         )}
         masonry
-        numColumns={3}
+        numColumns={numColumns}
         keyExtractor={(item) => item.chapters[0].url}
         // ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
         showsVerticalScrollIndicator={false}

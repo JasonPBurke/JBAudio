@@ -6,6 +6,7 @@ import {
   TouchableHighlight,
   View,
   Image as RNImage,
+  Dimensions,
 } from 'react-native';
 import { memo, useEffect, useState } from 'react';
 // import FastImage from '@d11/react-native-fast-image';
@@ -36,14 +37,16 @@ export type BookListItemProps = {
   book: BookType;
   bookId: string;
   flowDirection: 'row' | 'column';
+  numColumns?: number;
 };
 
 export const BookGridItem = memo(function BookListItem({
   book,
   bookId,
   flowDirection,
+  numColumns = 0,
 }: BookListItemProps) {
-  const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
+  // const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const router = useRouter();
   const { playing } = useIsPlaying();
 
@@ -52,11 +55,20 @@ export const BookGridItem = memo(function BookListItem({
     useActiveTrack()?.url ===
     book.chapters[book.bookProgress.currentChapterIndex].url;
 
-  useEffect(() => {
-    RNImage.getSize(book.artwork || unknownBookImageUri, (w, h) => {
-      setImageSize({ width: w, height: h });
-    });
-  }, [book.artwork]);
+  const { width: screenWidth } = Dimensions.get('window');
+
+  const ITEM_MARGIN_HORIZONTAL = 10;
+  const NUM_COLUMNS = numColumns;
+
+  const ITEM_WIDTH_COLUMN =
+    (screenWidth - ITEM_MARGIN_HORIZONTAL * (NUM_COLUMNS + 1)) /
+    NUM_COLUMNS;
+
+  // useEffect(() => {
+  //   RNImage.getSize(book.artwork || unknownBookImageUri, (w, h) => {
+  //     setImageSize({ width: w, height: h });
+  //   });
+  // }, [book.artwork]);
   console.log('book image size', book.artworkHeight, book.artworkWidth);
 
   const handlePressPlay = async (book: BookType) => {
@@ -110,24 +122,46 @@ export const BookGridItem = memo(function BookListItem({
   };
 
   return (
-    <TouchableHighlight onPress={handlePress}>
+    <TouchableHighlight
+      style={{ alignItems: 'center' }}
+      onPress={handlePress}
+    >
       <View
         style={[
-          {
-            height: 250,
-            width: imageSize.height
-              ? (imageSize.width / imageSize.height) * 150
-              : 0,
-          },
+          flowDirection === 'row'
+            ? {
+                height: 250,
+                width: book.artworkHeight
+                  ? (book.artworkWidth! / book.artworkHeight) * 150
+                  : 0,
+              }
+            : {
+                width: ITEM_WIDTH_COLUMN,
+                height: book.artworkWidth
+                  ? (book.artworkHeight! / book.artworkWidth) *
+                      ITEM_WIDTH_COLUMN +
+                    50
+                  : 0,
+              },
         ]}
       >
         <View
-          style={{
-            height: 150,
-            width: imageSize.height
-              ? (imageSize.width / imageSize.height) * 150
-              : 0,
-          }}
+          style={[
+            flowDirection === 'row'
+              ? {
+                  height: 150,
+                  width: book.artworkHeight
+                    ? (book.artworkWidth! / book.artworkHeight) * 150
+                    : 0,
+                }
+              : {
+                  width: ITEM_WIDTH_COLUMN,
+                  height: book.artworkWidth
+                    ? (book.artworkHeight! / book.artworkWidth) *
+                      ITEM_WIDTH_COLUMN
+                    : 0,
+                },
+          ]}
         >
           <Image
             source={book.artwork ?? unknownBookImageUri}
@@ -163,9 +197,12 @@ export const BookGridItem = memo(function BookListItem({
         <View
           style={{
             ...styles.bookInfoContainer,
-            width: imageSize.height
-              ? (imageSize.width / imageSize.height) * 150 - 10
-              : 0,
+            width:
+              flowDirection === 'row'
+                ? book.artworkHeight
+                  ? (book.artworkWidth! / book.artworkHeight) * 150 - 10
+                  : 0
+                : ITEM_WIDTH_COLUMN,
           }}
         >
           <Text
