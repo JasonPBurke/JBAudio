@@ -6,17 +6,17 @@ import { BookGridItem } from './BookGridItem';
 
 export type BookGridProps = Partial<FlashListProps<Book>> & {
   authors: Author[];
+  // allBooks: Book[];
 };
 
 export const BooksGrid = ({ authors }: BookGridProps) => {
   const allBooks = authors.flatMap((author) => author.books);
-  const numColumns = 2;
+  // console.log('allBooks in grid', allBooks.length);
+  const numColumns = 3;
 
   return (
-    <View
-    // style={{ height: 250 }}
-    >
-      <FlashList
+    <View>
+      <FlashList<Book>
         data={allBooks}
         renderItem={({ item: book }) => (
           <BookGridItem
@@ -29,7 +29,8 @@ export const BooksGrid = ({ authors }: BookGridProps) => {
         masonry
         numColumns={numColumns}
         keyExtractor={(item) => item.chapters[0].url}
-        // ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+        ListFooterComponent={<View style={{ height: 82 }} />}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
         ListEmptyComponent={

@@ -31,8 +31,6 @@ const LibraryScreen = () => {
 
   const library = useAuthors();
 
-  // console.log('LibraryScreen library state:', library);
-
   // const filteredBooks = useMemo(() => {
   //   if (!search) return library;
   //   return library.filter(bookTitleFilter(search));
