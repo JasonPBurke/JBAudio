@@ -69,7 +69,7 @@ export const BookGridItem = memo(function BookListItem({
   //     setImageSize({ width: w, height: h });
   //   });
   // }, [book.artwork]);
-  console.log('book image size', book.artworkHeight, book.artworkWidth);
+  // console.log('book image size', book.artworkHeight, book.artworkWidth);
 
   const handlePressPlay = async (book: BookType) => {
     // Fetch the latest book data from the database to get the most current chapter index

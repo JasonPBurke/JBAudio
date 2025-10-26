@@ -7,13 +7,14 @@ import {
 } from 'react-native';
 import { colors } from '@/constants/tokens';
 import { useEffect, useState } from 'react';
-import { observeTotalBookCount } from '@/db/bookQueries';
+import { observeTotalBookCount, getTotalBookCount } from '@/db/bookQueries';
 import { scheduleOnRN } from 'react-native-worklets';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import { get } from 'react-native/Libraries/TurboModule/TurboModuleRegistry';
 
 export type TabButtonsType = {
   title: string;
@@ -45,6 +46,14 @@ const TabButtons = ({
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const getBookCount = async () => {
+    const count = await getTotalBookCount();
+    // setBookCount(count);
+    return count;
+  };
+  const testBookCount = getBookCount().then((count) => count);
+  console.log('testBookCount', testBookCount);
 
   const tabPositionX = useSharedValue(0);
   const tabWidth = useSharedValue(0);

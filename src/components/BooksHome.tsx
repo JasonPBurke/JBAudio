@@ -18,6 +18,7 @@ import {
 import { ChevronRight } from 'lucide-react-native';
 import { memo, useState } from 'react';
 import { BooksGrid } from './BooksGrid';
+import BooksHorizontal from './BooksHorizontal';
 // import { withObservables } from '@nozbe/watermelondb/react';
 
 export type BookListProps = Partial<FlashListProps<Book>> & {
@@ -79,36 +80,10 @@ const BooksHome = ({ authors }: BookListProps) => {
               </View>
             </Pressable>
             {showBooksGrid ? (
-              <BooksGrid authors={authors} />
+              (console.log('allbooks', allBooks.length),
+              (<BooksGrid authors={authors} />))
             ) : (
-              <View style={styles.listContainer}>
-                <FlashList<Book>
-                  contentContainerStyle={{ paddingLeft: 14 }}
-                  data={allBooks}
-                  renderItem={({ item: book }) => (
-                    <BookGridItem
-                      book={book}
-                      bookId={book.chapters[0].url}
-                      flowDirection='row'
-                    />
-                  )}
-                  keyExtractor={(item) => item.chapters[0].url}
-                  horizontal={true}
-                  showsHorizontalScrollIndicator={false}
-                  showsVerticalScrollIndicator={false}
-                  ItemSeparatorComponent={() => (
-                    <View style={{ width: 12 }} />
-                  )}
-                  ListFooterComponent={<View style={{ width: 12 }} />}
-                  ListEmptyComponent={
-                    <View>
-                      <Text style={utilsStyles.emptyComponent}>
-                        No books found
-                      </Text>
-                    </View>
-                  }
-                />
-              </View>
+              <BooksHorizontal allBooks={allBooks} />
             )}
           </View>
 
@@ -136,37 +111,7 @@ const BooksHome = ({ authors }: BookListProps) => {
                   />
                 </View>
               </Pressable>
-              <View style={styles.listContainer}>
-                <FlashList<Book>
-                  contentContainerStyle={{
-                    paddingLeft: 14,
-                  }}
-                  ItemSeparatorComponent={() => (
-                    <View style={{ width: 12 }} />
-                  )}
-                  data={author.books}
-                  // recycleItems={true}
-                  renderItem={({ item: book }) => (
-                    <BookGridItem
-                      book={book}
-                      bookId={book.chapters[0].url}
-                      flowDirection='row'
-                    />
-                  )}
-                  keyExtractor={(item) => item.chapters[0].url}
-                  horizontal={true}
-                  showsHorizontalScrollIndicator={false}
-                  showsVerticalScrollIndicator={false}
-                  ListFooterComponent={<View style={{ width: 12 }} />}
-                  ListEmptyComponent={
-                    <View>
-                      <Text style={utilsStyles.emptyComponent}>
-                        No books found
-                      </Text>
-                    </View>
-                  }
-                />
-              </View>
+              <BooksHorizontal allBooks={author.books} />
             </View>
           ))}
         </View>
@@ -192,9 +137,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.base,
     color: colors.text,
     maxWidth: '95%',
-  },
-  listContainer: {
-    height: 200,
   },
   containerGap: {
     gap: 12,
