@@ -1,6 +1,6 @@
 import BooksList from '@/components/BooksList';
 import BooksHome from '@/components/BooksHome';
-// import { BooksGrid } from '@/components/BooksGrid';
+import { BooksGrid } from '@/components/BooksGrid';
 // import { useNavigationSearch } from '@/hooks/useNavigationSearch';
 import { defaultStyles } from '@/styles';
 import React, { useEffect, useMemo } from 'react';
@@ -47,7 +47,7 @@ const LibraryScreen = () => {
           {!toggleView ? (
             <BooksHome authors={library} scrollEnabled={false} />
           ) : (
-            <BooksList authors={library} scrollEnabled={false} />
+            <BooksGrid authors={library} scrollEnabled={false} />
           )}
         </ScrollView>
       </SafeAreaView>
