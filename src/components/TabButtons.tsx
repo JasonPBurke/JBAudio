@@ -14,7 +14,6 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { get } from 'react-native/Libraries/TurboModule/TurboModuleRegistry';
 
 export type TabButtonsType = {
   title: string;
@@ -46,14 +45,6 @@ const TabButtons = ({
 
     return () => subscription.unsubscribe();
   }, []);
-
-  const getBookCount = async () => {
-    const count = await getTotalBookCount();
-    // setBookCount(count);
-    return count;
-  };
-  const testBookCount = getBookCount().then((count) => count);
-  console.log('testBookCount', testBookCount);
 
   const tabPositionX = useSharedValue(0);
   const tabWidth = useSharedValue(0);
