@@ -7,24 +7,22 @@ import {
   View,
 } from 'react-native';
 import {
-  // Grip,
+  Grip,
   Library,
   List,
   Search,
   Settings2,
-  // TextAlignJustify,
 } from 'lucide-react-native';
 import TabScreen from '@/components/TabScreen';
 
 type headerProps = {
-  setToggleView: React.Dispatch<React.SetStateAction<boolean>>;
-  toggleView: boolean;
+  setToggleView: React.Dispatch<React.SetStateAction<number>>;
+  toggleView: number;
 };
 
 const Header = ({ toggleView, setToggleView }: headerProps) => {
   const handleToggleView = () => {
-    setToggleView((prevState) => !prevState);
-    // setToggleView(toggleView === 0 ? 1 : toggleView === 1 ? 2 : 0);
+    setToggleView((prevState) => (prevState + 1) % 3);
   };
   return (
     <View style={styles.container}>
@@ -49,7 +47,17 @@ const Header = ({ toggleView, setToggleView }: headerProps) => {
             absoluteStrokeWidth
           />
           <Pressable hitSlop={10} style={{ padding: 4 }}>
-            {toggleView ? (
+            {toggleView === 0 && (
+              <Library
+                style={{ transform: [{ rotateY: '180deg' }] }}
+                size={24}
+                color={colors.icon}
+                strokeWidth={1.5}
+                absoluteStrokeWidth
+                onPress={handleToggleView}
+              />
+            )}
+            {toggleView === 1 && (
               <List
                 size={24}
                 color={colors.icon}
@@ -57,9 +65,9 @@ const Header = ({ toggleView, setToggleView }: headerProps) => {
                 absoluteStrokeWidth
                 onPress={handleToggleView}
               />
-            ) : (
-              <Library
-                style={{ transform: [{ rotateY: '180deg' }] }}
+            )}
+            {toggleView === 2 && (
+              <Grip
                 size={24}
                 color={colors.icon}
                 strokeWidth={1.5}
