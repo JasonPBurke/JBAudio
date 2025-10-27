@@ -86,7 +86,7 @@ const BooksHome = ({ authors }: BookListProps) => {
             {activeGridSection === 'recentlyAdded' ? (
               <BooksGrid authors={authors} />
             ) : (
-              <BooksHorizontal allBooks={allBooks} />
+              <BooksHorizontal authors={authors} allBooks={allBooks} />
             )}
           </View>
 
@@ -121,7 +121,10 @@ const BooksHome = ({ authors }: BookListProps) => {
               {activeGridSection === author.name ? (
                 <BooksGrid authors={[author]} />
               ) : (
-                <BooksHorizontal allBooks={author.books} />
+                <BooksHorizontal
+                  authors={[author]}
+                  allBooks={author.books}
+                />
               )}
             </View>
           ))}
