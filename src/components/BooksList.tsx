@@ -70,10 +70,10 @@ const BooksList = ({ authors }: BookListProps) => {
               <BookListItem
                 viewableItems={viewableItems}
                 book={book}
-                bookId={book.chapters[0].url}
+                bookId={book.bookId!}
               />
             )}
-            keyExtractor={(item) => item.chapters[0].url}
+            keyExtractor={(item) => item.bookId!}
             showsVerticalScrollIndicator={false}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingTop: 12, paddingBottom: 82 }}

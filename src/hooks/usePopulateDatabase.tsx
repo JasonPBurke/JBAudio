@@ -51,7 +51,7 @@ export const usePopulateDatabase = () => {
                 book.title.trim().toLowerCase() ===
                   bookData.bookTitle.trim().toLowerCase() &&
                 book.chapters.some(
-                  (chapter) => chapter.url === bookData.chapters[0].url
+                  (chapter) => chapter.url === bookData.bookId
                 )
             );
 
