@@ -42,11 +42,11 @@ const BooksHorizontal = ({ authors }: BookHorizontalProps) => {
         renderItem={({ item: book }) => (
           <BookGridItem
             book={book}
-            bookId={book.chapters[0].url}
+            bookId={book.bookId!}
             flowDirection='row'
           />
         )}
-        keyExtractor={(item) => item.chapters[0].url}
+        keyExtractor={(item) => item.bookId!}
         horizontal={true}
         showsHorizontalScrollIndicator={false}
         showsVerticalScrollIndicator={false}

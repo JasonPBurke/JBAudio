@@ -42,14 +42,14 @@ export const BooksGrid = ({ authors }: BookGridProps) => {
         renderItem={({ item: book }) => (
           <BookGridItem
             book={book}
-            bookId={book.chapters[0].url}
+            bookId={book.bookId!}
             flowDirection='column'
             numColumns={numColumns}
           />
         )}
         masonry
         numColumns={numColumns}
-        keyExtractor={(item) => item.chapters[0].url}
+        keyExtractor={(item) => item.bookId!}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         ListFooterComponent={<View style={{ height: 82 }} />}
         showsVerticalScrollIndicator={false}

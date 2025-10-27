@@ -16,7 +16,8 @@ import {
   IterationCcw,
   IterationCw,
   Gauge,
-  Bell,
+  Bell, // Commented out Bell icon
+  Hourglass, // Added Hourglass icon
   SkipBack,
   SkipForward,
 } from 'lucide-react-native';
@@ -310,7 +311,7 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
 
   // console.log('timerOn', timerOn); //! resets on player close
 
-  const rotation = useSharedValue(0);
+  const rotation = useSharedValue(0); // For Hourglass rotation
   const opacity1 = useSharedValue(0);
   const opacity2 = useSharedValue(0);
   const opacity3 = useSharedValue(0);
@@ -376,6 +377,8 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
       withTiming(-10, { duration: 100 }),
       withTiming(10, { duration: 200 }),
       withTiming(0, { duration: 100 })
+      //! for Hourglass rotation
+      // rotation.value = withTiming(rotation.value + 180, { duration: 300 });
     );
   };
 
