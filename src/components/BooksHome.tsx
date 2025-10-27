@@ -26,7 +26,9 @@ export type BookListProps = Partial<FlashListProps<Book>> & {
 };
 
 const BooksHome = ({ authors }: BookListProps) => {
-  const [showBooksGrid, setShowBooksGrid] = useState(false);
+  const [activeGridSection, setActiveGridSection] = useState<string | null>(
+    null
+  );
 
   const allBooks = authors.flatMap((author) => author.books);
   const { getMappingKey } = useMappingHelper();
@@ -67,7 +69,9 @@ const BooksHome = ({ authors }: BookListProps) => {
                 color: '#cccccc28',
               }}
               onPress={() => {
-                setShowBooksGrid((prev) => !prev);
+                setActiveGridSection((prev) =>
+                  prev === 'recentlyAdded' ? null : 'recentlyAdded'
+                );
               }}
             >
               <View style={styles.titleBar}>
@@ -79,9 +83,8 @@ const BooksHome = ({ authors }: BookListProps) => {
                 />
               </View>
             </Pressable>
-            {showBooksGrid ? (
-              (console.log('allbooks', allBooks.length),
-              (<BooksGrid authors={authors} />))
+            {activeGridSection === 'recentlyAdded' ? (
+              <BooksGrid authors={authors} />
             ) : (
               <BooksHorizontal allBooks={allBooks} />
             )}
@@ -98,7 +101,11 @@ const BooksHome = ({ authors }: BookListProps) => {
                 android_ripple={{
                   color: '#cccccc28',
                 }}
-                onPress={() => {}}
+                onPress={() => {
+                  setActiveGridSection((prev) =>
+                    prev === author.name ? null : author.name
+                  );
+                }}
               >
                 <View style={styles.titleBar}>
                   <Text numberOfLines={1} style={styles.titleText}>
@@ -111,7 +118,11 @@ const BooksHome = ({ authors }: BookListProps) => {
                   />
                 </View>
               </Pressable>
-              <BooksHorizontal allBooks={author.books} />
+              {activeGridSection === author.name ? (
+                <BooksGrid authors={[author]} />
+              ) : (
+                <BooksHorizontal allBooks={author.books} />
+              )}
             </View>
           ))}
         </View>
