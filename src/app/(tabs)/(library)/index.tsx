@@ -12,7 +12,7 @@ import { useScanExternalFileSystem } from '@/hooks/useScanExternalFileSystem';
 import { useAuthors, useLibraryStore } from '@/store/library';
 
 const LibraryScreen = () => {
-  const [toggleView, setToggleView] = React.useState(false);
+  const [toggleView, setToggleView] = React.useState(0);
 
   useScanExternalFileSystem(); // Call the hook to trigger scanning and store update
 
@@ -42,9 +42,13 @@ const LibraryScreen = () => {
         {/* MOVE HEADER ABOVE SCROLL VIEW TO DOCK IT AT TOP OF SCREEN */}
         <Header setToggleView={setToggleView} toggleView={toggleView} />
         <ScrollView>
-          {!toggleView ? (
+          {toggleView === 0 && (
             <BooksHome authors={library} scrollEnabled={false} />
-          ) : (
+          )}
+          {toggleView === 1 && (
+            <BooksList authors={library} scrollEnabled={false} />
+          )}
+          {toggleView === 2 && (
             <BooksGrid authors={library} scrollEnabled={false} />
           )}
         </ScrollView>

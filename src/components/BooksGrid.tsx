@@ -12,7 +12,7 @@ export type BookGridProps = Partial<FlashListProps<Book>> & {
 export const BooksGrid = ({ authors }: BookGridProps) => {
   const allBooks = authors.flatMap((author) => author.books);
   // console.log('allBooks in grid', allBooks.length);
-  const numColumns = 3;
+  const numColumns = 2;
 
   return (
     <View>
