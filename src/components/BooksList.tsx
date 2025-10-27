@@ -17,7 +17,28 @@ export type BookListProps = Partial<FlashListProps<Book>> & {
 };
 
 const BooksList = ({ authors }: BookListProps) => {
-  const allBooks = authors.flatMap((author) => author.books);
+  const allBooks = authors
+    .flatMap((author) => author.books)
+    .sort((a, b) => {
+      // Sort by creationDate (descending)
+      if (a.metadata.ctime && b.metadata.ctime) {
+        if (a.metadata.ctime > b.metadata.ctime) return -1;
+        if (a.metadata.ctime < b.metadata.ctime) return 1;
+      }
+
+      // Then sort by author first name (ascending)
+      const authorA = authors.find((author) =>
+        author.books.some((book) => book.bookId === a.bookId)
+      );
+      const authorB = authors.find((author) =>
+        author.books.some((book) => book.bookId === b.bookId)
+      );
+
+      if (authorA && authorB) {
+        return authorA.name.localeCompare(authorB.name);
+      }
+      return 0;
+    });
   const setAuthors = useLibraryStore((state) => state.setAuthors);
 
   useEffect(() => {
