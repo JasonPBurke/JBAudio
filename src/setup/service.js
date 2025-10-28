@@ -48,23 +48,26 @@ export default module.exports = async function () {
 
       //? trackToUpdate ["title", "album", "url", "artwork", "bookId", "artist"]
       // write progress to the zustand store
-      setPlaybackProgress(trackToUpdate.bookId, position);
+      setPlaybackProgress(trackToUpdate.bookId, position - 1);
     }
   );
   // New listener for when a track finishes
   //! also happens on a book change!!!! DO NOT RESET PROGRESS AND INDEX
   TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async (event) => {
     const { track, position } = event;
+    const steppedPosition = position - 1;
     //?trackToUpdate.bookId ["title", "album", "url", "artwork", "bookId", "artist"]
     const trackToUpdate = await TrackPlayer.getTrack(track);
     // Perform the WatermelonDB update here
-    setPlaybackProgress(trackToUpdate.bookId, position);
+    setPlaybackProgress(trackToUpdate.bookId, steppedPosition);
     setPlaybackIndex(trackToUpdate.bookId, track);
 
-    await updateChapterProgressInDB(trackToUpdate.bookId, process);
+    await updateChapterProgressInDB(trackToUpdate.bookId, steppedPosition);
     await updateChapterIndexInDB(trackToUpdate.bookId, track);
   });
+
   TrackPlayer.addEventListener(Event.PlaybackState, async (event) => {
+    console.log('PlaybackState', event);
     if (
       event.state === State.Paused ||
       event.state === State.Stopped ||
@@ -72,7 +75,7 @@ export default module.exports = async function () {
     ) {
       const { bookId } = await TrackPlayer.getActiveTrack();
       const { position } = await TrackPlayer.getProgress();
-      await updateChapterProgressInDB(bookId, position);
+      await updateChapterProgressInDB(bookId, position - 1);
     }
   });
 
