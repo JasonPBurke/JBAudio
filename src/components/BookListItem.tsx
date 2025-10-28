@@ -25,30 +25,18 @@ import Book from '@/db/models/Book';
 import { Play, EllipsisVertical } from 'lucide-react-native';
 import LoaderKitView from 'react-native-loader-kit';
 import { useRouter } from 'expo-router';
-import {
-  // Animated,
-  SharedValue,
-  // useAnimatedStyle,
-  // withTiming,
-} from 'react-native-reanimated';
 import { useQueueStore } from '@/store/queue';
 import database from '@/db';
 import { getChapterProgressInDB } from '@/db/chapterQueries';
 
 export type BookListItemProps = {
   book: BookType;
-  bookId: string;
-  viewableItems: SharedValue<ViewToken[]>;
 };
 
 export const BookListItem = memo(function BookListItem({
   book,
-  bookId,
-  viewableItems,
 }: BookListItemProps) {
-  const isActiveBook =
-    useActiveTrack()?.url ===
-    book.chapters[book.bookProgress.currentChapterIndex].url;
+  const isActiveBook = useActiveTrack()?.bookId === book.bookId;
   const { playing } = useIsPlaying();
   const router = useRouter();
   const author = book.author;
@@ -67,7 +55,7 @@ export const BookListItem = memo(function BookListItem({
 
     if (chapterIndex === -1) return;
 
-    const isChangingBook = bookId !== activeBookId;
+    const isChangingBook = book.bookId !== activeBookId;
 
     if (isChangingBook) {
       await TrackPlayer.reset();
@@ -86,7 +74,7 @@ export const BookListItem = memo(function BookListItem({
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(progress || 0);
       await TrackPlayer.play();
-      setActiveBookId(bookId);
+      setActiveBookId(book.bookId!);
     } else {
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(progress || 0);
@@ -95,7 +83,7 @@ export const BookListItem = memo(function BookListItem({
     }
   };
 
-  const encodedBookId = encodeURIComponent(bookId);
+  const encodedBookId = encodeURIComponent(book.bookId!);
   const encodedAuthor = encodeURIComponent(author);
   const encodedBookTitle = encodeURIComponent(bookTitle);
 

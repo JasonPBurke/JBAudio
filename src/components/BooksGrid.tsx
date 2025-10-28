@@ -42,7 +42,6 @@ export const BooksGrid = ({ authors, standAlone }: BookGridProps) => {
         renderItem={({ item: book }) => (
           <BookGridItem
             book={book}
-            bookId={book.bookId!}
             flowDirection='column'
             numColumns={numColumns}
           />
