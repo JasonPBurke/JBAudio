@@ -9,7 +9,7 @@ import { Book, Author } from '@/types/Book';
 import { colors, fontSize } from '@/constants/tokens';
 import { FlashListProps, useMappingHelper } from '@shopify/flash-list';
 
-import { ChevronRight } from 'lucide-react-native';
+import { ChevronDown, ChevronRight } from 'lucide-react-native';
 import { memo, useState } from 'react';
 import { BooksGrid } from './BooksGrid';
 import BooksHorizontal from './BooksHorizontal';
@@ -27,11 +27,6 @@ const BooksHome = ({ authors }: BookListProps) => {
   const allBooks = authors.flatMap((author) => author.books);
   const { getMappingKey } = useMappingHelper();
 
-  // const handleBookSelect = async (selectedBook: Book) => {
-  //   const chapterIndex = selectedBook.bookProgress.currentChapterIndex;
-  //   if (chapterIndex === -1) return;
-  // };
-
   authors.sort((a, b) => {
     const nameA = a.name.toUpperCase();
     const nameB = b.name.toUpperCase();
@@ -40,11 +35,6 @@ const BooksHome = ({ authors }: BookListProps) => {
     if (nameA > nameB) return 1;
     return 0;
   });
-
-  // const handleRecentlyAddedPress = (authors: Author[]) => {
-  //   console.log('handleRecentlyAddedPress');
-  //   return <BooksList authors={authors} />;
-  // };
 
   return (
     //? need to put a loader if allBooks.length === 0
@@ -73,7 +63,13 @@ const BooksHome = ({ authors }: BookListProps) => {
                 <ChevronRight
                   size={24}
                   color={colors.icon}
-                  style={{ marginRight: 12 }}
+                  style={{
+                    marginRight: 12,
+                    transform:
+                      activeGridSection === 'recentlyAdded'
+                        ? [{ rotate: '90deg' }]
+                        : [],
+                  }}
                 />
               </View>
             </Pressable>
@@ -108,7 +104,13 @@ const BooksHome = ({ authors }: BookListProps) => {
                   <ChevronRight
                     size={24}
                     color={colors.icon}
-                    style={{ marginRight: 12 }}
+                    style={{
+                      marginRight: 12,
+                      transform:
+                        activeGridSection === author.name
+                          ? [{ rotate: '90deg' }]
+                          : [],
+                    }}
                   />
                 </View>
               </Pressable>
