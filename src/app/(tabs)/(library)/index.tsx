@@ -49,7 +49,11 @@ const LibraryScreen = () => {
             <BooksList authors={library} scrollEnabled={false} />
           )}
           {toggleView === 2 && (
-            <BooksGrid authors={library} scrollEnabled={false} />
+            <BooksGrid
+              authors={library}
+              scrollEnabled={false}
+              standAlone={true}
+            />
           )}
         </ScrollView>
       </SafeAreaView>

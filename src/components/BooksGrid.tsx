@@ -6,10 +6,10 @@ import { BookGridItem } from './BookGridItem';
 
 export type BookGridProps = Partial<FlashListProps<Book>> & {
   authors: Author[];
-  // allBooks: Book[];
+  standAlone?: boolean;
 };
 
-export const BooksGrid = ({ authors }: BookGridProps) => {
+export const BooksGrid = ({ authors, standAlone }: BookGridProps) => {
   const allBooks = authors
     .flatMap((author) => author.books)
     .sort((a, b) => {
@@ -51,7 +51,9 @@ export const BooksGrid = ({ authors }: BookGridProps) => {
         numColumns={numColumns}
         keyExtractor={(item) => item.bookId!}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-        ListFooterComponent={<View style={{ height: 82 }} />}
+        ListFooterComponent={
+          standAlone ? <View style={{ height: 82 }} /> : null
+        }
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
         ListEmptyComponent={

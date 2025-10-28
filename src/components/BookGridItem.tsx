@@ -186,7 +186,15 @@ export const BookGridItem = memo(function BookListItem({
               hitSlop={25}
             >
               <Play
-                size={flowDirection === 'row' ? 20 : 28}
+                size={
+                  flowDirection === 'row'
+                    ? 20
+                    : numColumns === 1
+                      ? 36
+                      : numColumns === 2
+                        ? 28
+                        : 22
+                } //* 24 is the 3 column size
                 color={colors.icon}
                 strokeWidth={1}
                 absoluteStrokeWidth
