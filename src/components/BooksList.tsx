@@ -1,16 +1,12 @@
-import { Text, View, ViewToken } from 'react-native';
+import { Text, View } from 'react-native';
 import { BookListItem } from './BookListItem';
 import { utilsStyles } from '@/styles';
 import { Book, Author as AuthorType } from '@/types/Book';
 import { screenPadding } from '@/constants/tokens';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
-import { LegendList, LegendListProps } from '@legendapp/list';
-import { useSharedValue } from 'react-native-reanimated';
 import { useLibraryStore } from '@/store/library';
 import { useEffect, memo } from 'react';
 // import { withObservables } from '@nozbe/watermelondb/react';
-// import database from '@/db';
-// import Author from '@/db/models/Author';
 
 export type BookListProps = Partial<FlashListProps<Book>> & {
   authors: AuthorType[];
@@ -47,13 +43,6 @@ const BooksList = ({ authors }: BookListProps) => {
     }
   }, [authors, setAuthors]);
 
-  // const handleBookSelect = async (selectedBook: Book) => {
-  //   const chapterIndex = selectedBook.bookProgress.currentChapterIndex;
-  //   if (chapterIndex === -1) return;
-  // };
-
-  const viewableItems = useSharedValue<ViewToken[]>([]);
-
   return (
     //? need to put a loader if allBooks.length === 0
     <View style={{ flex: 1, paddingHorizontal: screenPadding.horizontal }}>
@@ -61,18 +50,7 @@ const BooksList = ({ authors }: BookListProps) => {
         <View style={{ flex: 1 }}>
           <FlashList<Book>
             data={allBooks}
-            //! onViewableItemsChanged is a reanimated function to animate the list
-            // onViewableItemsChanged={({ viewableItems: vItems }) => {
-            //   viewableItems.value = vItems;
-            // }}
-            renderItem={({ item: book }) => (
-              // console.log('book.bookId', book.bookId), //undefined
-              <BookListItem
-                viewableItems={viewableItems}
-                book={book}
-                bookId={book.bookId!}
-              />
-            )}
+            renderItem={({ item: book }) => <BookListItem book={book} />}
             keyExtractor={(item) => item.bookId!}
             showsVerticalScrollIndicator={false}
             showsHorizontalScrollIndicator={false}

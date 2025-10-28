@@ -35,25 +35,20 @@ import {
 
 export type BookListItemProps = {
   book: BookType;
-  bookId: string;
   flowDirection: 'row' | 'column';
   numColumns?: number;
 };
 
 export const BookGridItem = memo(function BookListItem({
   book,
-  bookId,
   flowDirection,
   numColumns = 0,
 }: BookListItemProps) {
-  // const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const router = useRouter();
   const { playing } = useIsPlaying();
 
   const { setActiveBookId, activeBookId } = useQueueStore();
-  const isActiveBook =
-    useActiveTrack()?.url ===
-    book.chapters[book.bookProgress.currentChapterIndex].url;
+  const isActiveBook = useActiveTrack()?.bookId === book.bookId;
 
   const { width: screenWidth } = Dimensions.get('window');
 
@@ -63,13 +58,6 @@ export const BookGridItem = memo(function BookListItem({
   const ITEM_WIDTH_COLUMN =
     (screenWidth - ITEM_MARGIN_HORIZONTAL * (NUM_COLUMNS + 1)) /
     NUM_COLUMNS;
-
-  // useEffect(() => {
-  //   RNImage.getSize(book.artwork || unknownBookImageUri, (w, h) => {
-  //     setImageSize({ width: w, height: h });
-  //   });
-  // }, [book.artwork]);
-  // console.log('book image size', book.artworkHeight, book.artworkWidth);
 
   const handlePressPlay = async (book: BookType) => {
     // Fetch the latest book data from the database to get the most current chapter index
@@ -83,7 +71,7 @@ export const BookGridItem = memo(function BookListItem({
 
     if (chapterIndex === -1) return;
 
-    const isChangingBook = bookId !== activeBookId;
+    const isChangingBook = book.bookId !== activeBookId;
 
     if (isChangingBook) {
       // console.log('changing book');
@@ -103,7 +91,7 @@ export const BookGridItem = memo(function BookListItem({
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(progress || 0);
       await TrackPlayer.play();
-      setActiveBookId(bookId);
+      setActiveBookId(book.bookId!);
     } else {
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(progress || 0);
@@ -111,7 +99,7 @@ export const BookGridItem = memo(function BookListItem({
     }
   };
 
-  const encodedBookId = encodeURIComponent(bookId);
+  const encodedBookId = encodeURIComponent(book.bookId!);
   const encodedAuthor = encodeURIComponent(book.author);
   const encodedBookTitle = encodeURIComponent(book.bookTitle);
 
@@ -261,7 +249,7 @@ const styles = StyleSheet.create({
   },
   trackPlayingImageIcon: {
     position: 'absolute',
-    left: 7,
+    right: 7,
     bottom: 7,
     width: 20,
     height: 20,
