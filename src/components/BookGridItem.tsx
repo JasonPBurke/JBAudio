@@ -186,7 +186,7 @@ export const BookGridItem = memo(function BookListItem({
               hitSlop={25}
             >
               <Play
-                size={18}
+                size={flowDirection === 'row' ? 20 : 28}
                 color={colors.icon}
                 strokeWidth={1}
                 absoluteStrokeWidth
@@ -261,6 +261,6 @@ const styles = StyleSheet.create({
   trackPausedIcon: {
     position: 'absolute',
     bottom: 2,
-    left: 2,
+    right: 2,
   },
 });

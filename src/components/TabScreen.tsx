@@ -14,8 +14,8 @@ const TabScreen = () => {
 
   const buttons: TabButtonsType[] = [
     { title: 'All' },
-    { title: 'Unread' },
-    { title: 'Started' },
+    { title: 'Unplayed' }, //Unread
+    { title: 'Playing' }, //Started
     { title: 'Finished' },
   ];
 

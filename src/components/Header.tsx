@@ -1,11 +1,5 @@
 import { colors } from '@/constants/tokens';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   Grip,
   Library,
