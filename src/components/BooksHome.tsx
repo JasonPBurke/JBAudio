@@ -5,15 +5,9 @@ import {
   Text,
   View,
 } from 'react-native';
-import { BookGridItem } from '@/components/BookGridItem';
-import { utilsStyles } from '@/styles';
 import { Book, Author } from '@/types/Book';
 import { colors, fontSize } from '@/constants/tokens';
-import {
-  FlashList,
-  FlashListProps,
-  useMappingHelper,
-} from '@shopify/flash-list';
+import { FlashListProps, useMappingHelper } from '@shopify/flash-list';
 
 import { ChevronRight } from 'lucide-react-native';
 import { memo, useState } from 'react';
