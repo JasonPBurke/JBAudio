@@ -1,22 +1,12 @@
-import TrackPlayer, {
-  Event,
-  // useActiveTrack,
-  // useTrackPlayerEvents,
-  // usePlaybackState,
-  State,
-} from 'react-native-track-player';
+import TrackPlayer, { Event, State } from 'react-native-track-player';
 import { useLibraryStore } from '@/store/library';
 import {
   updateChapterProgressInDB,
   updateChapterIndexInDB,
 } from '@/db/chapterQueries';
 
-const {
-  setPlaybackIndex,
-  setPlaybackProgress,
-  // getPlaybackIndex,
-  // getPlaybackProgress,
-} = useLibraryStore.getState();
+const { setPlaybackIndex, setPlaybackProgress } =
+  useLibraryStore.getState();
 
 export default module.exports = async function () {
   TrackPlayer.addEventListener(Event.RemotePlay, () => TrackPlayer.play());
@@ -25,7 +15,6 @@ export default module.exports = async function () {
   );
   TrackPlayer.addEventListener(Event.RemoteStop, () => TrackPlayer.stop());
   TrackPlayer.addEventListener(Event.RemoteSeek, ({ position }) => {
-    console.log('TrackPlayer.RemoteSeek', position);
     TrackPlayer.seekTo(position);
   });
   TrackPlayer.addEventListener(Event.RemoteJumpForward, () => {
@@ -40,6 +29,7 @@ export default module.exports = async function () {
   TrackPlayer.addEventListener(Event.RemotePrevious, () =>
     TrackPlayer.skipToPrevious()
   );
+
   TrackPlayer.addEventListener(
     Event.PlaybackProgressUpdated,
     async ({ position, track }) => {
@@ -51,8 +41,7 @@ export default module.exports = async function () {
       setPlaybackProgress(trackToUpdate.bookId, position - 1);
     }
   );
-  // New listener for when a track finishes
-  //! also happens on a book change!!!! DO NOT RESET PROGRESS AND INDEX
+
   TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async (event) => {
     const { track, position } = event;
     const steppedPosition = position - 1;
@@ -67,7 +56,6 @@ export default module.exports = async function () {
   });
 
   TrackPlayer.addEventListener(Event.PlaybackState, async (event) => {
-    console.log('PlaybackState', event);
     if (
       event.state === State.Paused ||
       event.state === State.Stopped ||

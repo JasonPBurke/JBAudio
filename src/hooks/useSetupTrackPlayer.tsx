@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import TrackPlayer, {
   AndroidAudioContentType,
   Capability,
-  // RatingType,
   RepeatMode,
 } from 'react-native-track-player';
 import * as MediaLibrary from 'expo-media-library';
@@ -30,6 +29,8 @@ const setupPlayer = async () => {
 
   await TrackPlayer.updateOptions({
     progressUpdateEventInterval: 1,
+    forwardJumpInterval: 30,
+    backwardJumpInterval: 30,
     capabilities: [
       Capability.Play,
       Capability.Pause,
@@ -39,12 +40,9 @@ const setupPlayer = async () => {
       Capability.SkipToPrevious,
       Capability.SeekTo,
     ],
-    forwardJumpInterval: 30,
-    backwardJumpInterval: 30,
   });
 
-  // await TrackPlayer.setVolume(0.5);
-  await TrackPlayer.setRepeatMode(RepeatMode.Off); //* probably want this set to off not queue
+  await TrackPlayer.setRepeatMode(RepeatMode.Off);
 };
 
 export const useSetupTrackPlayer = ({
