@@ -162,7 +162,17 @@ export const SeekBackButton = ({
         const currentPosition = await TrackPlayer.getProgress().then(
           (progress) => progress.position
         );
-        await TrackPlayer.seekTo(currentPosition - seekDuration);
+        const newPosition = currentPosition - seekDuration;
+        console.log('newPosition', newPosition);
+
+        if (newPosition < 0) {
+          await TrackPlayer.skipToPrevious();
+          const { duration } = await TrackPlayer.getProgress();
+          //? newPosition is negative, so we need to add it to the duration
+          await TrackPlayer.seekTo(duration + newPosition);
+        } else {
+          await TrackPlayer.seekTo(newPosition);
+        }
       }}
     >
       <IterationCw
@@ -200,10 +210,22 @@ export const SeekForwardButton = ({
       style={{ padding: 10 }}
       hitSlop={30}
       onPress={async () => {
-        const currentPosition = await TrackPlayer.getProgress().then(
-          (progress) => progress.position
-        );
-        await TrackPlayer.seekTo(currentPosition + seekDuration);
+        // const currentPosition = await TrackPlayer.getProgress().then(
+        //   (progress) => progress.position
+        // );
+        const { position, duration } = await TrackPlayer.getProgress();
+        const newPosition = position + seekDuration;
+        console.log('newPosition', newPosition);
+
+        if (newPosition > duration) {
+          const seekToTime = newPosition - duration;
+          console.log('seekToTime', seekToTime);
+          await TrackPlayer.skipToNext();
+          //? newPosition is negative, so we need to add it to the duration
+          await TrackPlayer.seekTo(seekToTime);
+        } else {
+          await TrackPlayer.seekTo(position + seekDuration);
+        }
       }}
     >
       <IterationCcw
@@ -274,16 +296,7 @@ export const PlaybackSpeed = ({ iconSize = 30 }: PlayerButtonProps) => {
   };
 
   return (
-    <TouchableOpacity
-      // style={{
-      //   // flexDirection: 'row',
-      //   justifyContent: 'center',
-      //   alignItems: 'center',
-      //   gap: 2,
-      // }}
-      activeOpacity={0.7}
-      onPress={handleSpeedRate}
-    >
+    <TouchableOpacity activeOpacity={0.7} onPress={handleSpeedRate}>
       <Gauge
         size={iconSize}
         color={colors.icon}
