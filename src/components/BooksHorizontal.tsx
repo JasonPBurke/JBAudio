@@ -6,11 +6,15 @@ import { BookGridItem } from './BookGridItem';
 import { utilsStyles } from '@/styles';
 
 export type BookHorizontalProps = Partial<FlashListProps<Book>> & {
-  allBooks: Book[];
+  // allBooks: Book[];
   authors: Author[];
+  flowDirection: 'row' | 'column';
 };
 
-const BooksHorizontal = ({ authors }: BookHorizontalProps) => {
+const BooksHorizontal = ({
+  authors,
+  flowDirection,
+}: BookHorizontalProps) => {
   const allBooks = authors
     .flatMap((author) => author.books)
     .sort((a, b) => {
@@ -42,14 +46,13 @@ const BooksHorizontal = ({ authors }: BookHorizontalProps) => {
         renderItem={({ item: book }) => (
           <BookGridItem
             book={book}
-            bookId={book.bookId!}
-            flowDirection='row'
+            // bookId={book.bookId!}
+            flowDirection={flowDirection}
           />
         )}
+        masonry={false}
         keyExtractor={(item) => item.bookId!}
         horizontal={true}
-        showsHorizontalScrollIndicator={false}
-        showsVerticalScrollIndicator={false}
         ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
         ListFooterComponent={<View style={{ width: 12 }} />}
         ListEmptyComponent={
