@@ -7,9 +7,14 @@ import { BookGridItem } from './BookGridItem';
 export type BookGridProps = Partial<FlashListProps<Book>> & {
   authors: Author[];
   standAlone?: boolean;
+  flowDirection: 'row' | 'column';
 };
 
-export const BooksGrid = ({ authors, standAlone }: BookGridProps) => {
+export const BooksGrid = ({
+  authors,
+  standAlone,
+  flowDirection,
+}: BookGridProps) => {
   const allBooks = authors
     .flatMap((author) => author.books)
     .sort((a, b) => {
@@ -42,8 +47,8 @@ export const BooksGrid = ({ authors, standAlone }: BookGridProps) => {
         renderItem={({ item: book }) => (
           <BookGridItem
             book={book}
-            flowDirection='column'
-            numColumns={numColumns}
+            flowDirection={flowDirection}
+            numColumns={numColumns} //! to calc item width
           />
         )}
         masonry
@@ -51,10 +56,8 @@ export const BooksGrid = ({ authors, standAlone }: BookGridProps) => {
         keyExtractor={(item) => item.bookId!}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         ListFooterComponent={
-          standAlone ? <View style={{ height: 82 }} /> : null
+          standAlone ? <View style={{ height: 82 }} /> : null //! will only be standalone
         }
-        showsVerticalScrollIndicator={false}
-        showsHorizontalScrollIndicator={false}
         ListEmptyComponent={
           <View>
             <Text style={utilsStyles.emptyComponent}>No books found</Text>

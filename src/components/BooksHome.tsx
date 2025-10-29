@@ -9,10 +9,11 @@ import { Book, Author } from '@/types/Book';
 import { colors, fontSize } from '@/constants/tokens';
 import { FlashListProps, useMappingHelper } from '@shopify/flash-list';
 
-import { ChevronDown, ChevronRight } from 'lucide-react-native';
+import { ChevronRight } from 'lucide-react-native';
 import { memo, useState } from 'react';
 import { BooksGrid } from './BooksGrid';
 import BooksHorizontal from './BooksHorizontal';
+import { Books } from './Books';
 // import { withObservables } from '@nozbe/watermelondb/react';
 
 export type BookListProps = Partial<FlashListProps<Book>> & {
@@ -20,6 +21,7 @@ export type BookListProps = Partial<FlashListProps<Book>> & {
 };
 
 const BooksHome = ({ authors }: BookListProps) => {
+  const numColumns = 2;
   const [activeGridSection, setActiveGridSection] = useState<string | null>(
     null
   );
@@ -35,6 +37,24 @@ const BooksHome = ({ authors }: BookListProps) => {
     if (nameA > nameB) return 1;
     return 0;
   });
+
+  const gridProps = {
+    masonry: true,
+    ListFooterComponent: () => <View style={{ height: 82 }} />,
+    ItemSeparatorComponent: () => <View style={{ height: 12 }} />,
+    contentContainerStyle: {},
+    numColumns: numColumns,
+    flowDirection: 'column' as const,
+  };
+
+  const horizontalProps = {
+    masonry: false,
+    ListFooterComponent: () => <View style={{ width: 12 }} />,
+    ItemSeparatorComponent: () => <View style={{ width: 12 }} />,
+    contentContainerStyle: { paddingLeft: 14 },
+    horizontal: true,
+    flowDirection: 'row' as const,
+  };
 
   return (
     //? need to put a loader if allBooks.length === 0
@@ -73,11 +93,17 @@ const BooksHome = ({ authors }: BookListProps) => {
                 />
               </View>
             </Pressable>
-            {activeGridSection === 'recentlyAdded' ? (
-              <BooksGrid authors={authors} />
+            {/* {activeGridSection === 'recentlyAdded' ? (
+              <BooksGrid authors={authors} flowDirection='column' />
             ) : (
-              <BooksHorizontal authors={authors} allBooks={allBooks} />
-            )}
+              <BooksHorizontal authors={authors} flowDirection='row' />
+            )} */}
+            <Books
+              {...(activeGridSection === 'recentlyAdded'
+                ? gridProps
+                : horizontalProps)}
+              authors={authors}
+            />
           </View>
 
           {/* Authors Sections */}
@@ -115,12 +141,9 @@ const BooksHome = ({ authors }: BookListProps) => {
                 </View>
               </Pressable>
               {activeGridSection === author.name ? (
-                <BooksGrid authors={[author]} />
+                <BooksGrid authors={[author]} flowDirection='column' />
               ) : (
-                <BooksHorizontal
-                  authors={[author]}
-                  allBooks={author.books}
-                />
+                <BooksHorizontal authors={[author]} flowDirection='row' />
               )}
             </View>
           ))}
