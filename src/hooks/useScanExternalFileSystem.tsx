@@ -6,20 +6,20 @@ import {
   MediaMetadataPublicFields,
 } from '@missingcore/react-native-metadata-retriever';
 import { useEffect } from 'react';
-import TrackPlayer, { useProgress } from 'react-native-track-player';
+import TrackPlayer from 'react-native-track-player';
 import database from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import { usePopulateDatabase } from './usePopulateDatabase';
 import { usePermission } from '@/contexts/PermissionContext';
 import { Image as RNImage } from 'react-native';
-import { unknownBookImageUri } from '@/constants/images';
+// import { unknownBookImageUri } from '@/constants/images';
 
 //* if we implement the user being able to choose their own folder, we remove the
 //*  '/Audiobooks' from the path and replace it with the user's chosen folder
 
 export const useScanExternalFileSystem = () => {
   const path = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing`;
-  const testPath = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing/Wind.m4b`;
+  // const testPath = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing/Wind.m4b`;
   // const { setAuthors } = useLibraryStore();
   const { populateDatabase } = usePopulateDatabase();
   const { audioPermissionStatus } = usePermission(); // Move usePermission here
