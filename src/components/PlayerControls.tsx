@@ -163,7 +163,6 @@ export const SeekBackButton = ({
           (progress) => progress.position
         );
         const newPosition = currentPosition - seekDuration;
-        console.log('newPosition', newPosition);
 
         if (newPosition < 0) {
           await TrackPlayer.skipToPrevious();
@@ -210,16 +209,11 @@ export const SeekForwardButton = ({
       style={{ padding: 10 }}
       hitSlop={30}
       onPress={async () => {
-        // const currentPosition = await TrackPlayer.getProgress().then(
-        //   (progress) => progress.position
-        // );
         const { position, duration } = await TrackPlayer.getProgress();
         const newPosition = position + seekDuration;
-        console.log('newPosition', newPosition);
 
         if (newPosition > duration) {
           const seekToTime = newPosition - duration;
-          console.log('seekToTime', seekToTime);
           await TrackPlayer.skipToNext();
           //? newPosition is negative, so we need to add it to the duration
           await TrackPlayer.seekTo(seekToTime);
