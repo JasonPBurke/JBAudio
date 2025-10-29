@@ -3,7 +3,6 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  // FlatList,
   ActivityIndicator,
 } from 'react-native';
 import {
@@ -13,18 +12,15 @@ import {
   BottomSheetModal,
   // BottomSheetView,
 } from '@gorhom/bottom-sheet';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { colors, screenPadding } from '@/constants/tokens';
+import { useCallback, useMemo } from 'react';
+import { colors } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import { Book, Chapter } from '@/types/Book';
 import { Logs } from 'lucide-react-native';
 import { MovingText } from './MovingText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import TrackPlayer, { useActiveTrack } from 'react-native-track-player';
+import { useActiveTrack } from 'react-native-track-player';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
-// import { useBook, useBookById } from '@/store/library';
-// import database from '@/db';
-// import BookModel from '@/db/models/Book';
 
 type PlayerChaptersModalProps = {
   handlePresentPress: () => void;
@@ -92,7 +88,7 @@ export const PlayerChaptersModal = ({
 
       <BottomSheetModal
         enablePanDownToClose={true}
-        backgroundStyle={{ backgroundColor: '#0e0e16' }} //#151422
+        backgroundStyle={{ backgroundColor: '#12121d' }} //#151422
         style={{ paddingBottom: 10, marginBottom: 10 }}
         handleIndicatorStyle={{
           // borderColor: colors.textMuted,
@@ -129,27 +125,6 @@ const ChapterList = ({
   const handleChapterChange = async (chapterIndex: number) => {
     onChapterSelect(chapterIndex);
   };
-
-  // const flatListRef = useRef<BottomSheetFlatListMethods>(null);
-  // const ITEM_HEIGHT = 45;
-
-  // useEffect(() => {
-  //   // Scroll to the desired index after the component mounts
-  //   if (flatListRef.current) {
-  //     const targetIndex = 25; // Example: scroll to the 26th item (index 25)
-  //     flatListRef.current.scrollToIndex({
-  //       index: targetIndex,
-  //       animated: false, // Set to true for a smooth scroll animation
-  //       viewPosition: 0.5, // Centers the item in the viewport (0 for top, 1 for bottom)
-  //     });
-  //   }
-  // }, []);
-
-  // const getItemLayout = (data: any, index: number) => ({
-  //   length: ITEM_HEIGHT,
-  //   offset: ITEM_HEIGHT * index,
-  //   index,
-  // });
 
   return (
     <View
