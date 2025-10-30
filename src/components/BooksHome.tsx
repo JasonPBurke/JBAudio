@@ -94,7 +94,7 @@ const BooksHome = ({ authors }: BookListProps) => {
             ) : (
               <BooksHorizontal authors={authors} flowDirection='row' />
             )}
-            //! Books was made to attempt animating between vert/horiz...
+            {/* //! Books was made to attempt animating between vert/horiz... */}
             {/* <Books
               {...(activeGridSection === 'recentlyAdded'
                 ? gridProps
