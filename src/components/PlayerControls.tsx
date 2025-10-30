@@ -389,8 +389,17 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
     );
   };
 
+  //TODO: bring up bottom sheet modal for sleep timer options
+  const handleLongPress = () => {
+    console.log('long press');
+  };
+
   return (
-    <TouchableOpacity activeOpacity={0.7} onPress={handlePress}>
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={handlePress}
+      onLongPress={handleLongPress}
+    >
       <Animated.View style={animatedBellStyle}>
         <Bell
           size={iconSize}

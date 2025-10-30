@@ -129,7 +129,6 @@ const PlayerScreen = () => {
             book={book}
             handlePresentPress={handlePresentPress}
             bottomSheetModalRef={bottomSheetModalRef}
-            bgColor={imageColors?.darkMuted ?? '#1C1C1C'}
             onChapterSelect={handleChapterSelect}
           />
           <PlayerProgressBar style={{ marginTop: 70 }} />
