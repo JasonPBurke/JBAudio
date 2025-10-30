@@ -7,6 +7,7 @@ module.exports = function (api) {
       ['@babel/plugin-transform-class-properties', { loose: true }],
       ['react-native-worklets/plugin'],
       // ['react-native-reanimated/plugin'],
+      ['babel-plugin-react-compiler'],
     ],
   };
 };

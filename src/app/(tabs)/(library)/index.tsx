@@ -53,6 +53,7 @@ const LibraryScreen = () => {
               authors={library}
               scrollEnabled={false}
               standAlone={true}
+              flowDirection='column'
             />
           )}
         </ScrollView>
