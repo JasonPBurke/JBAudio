@@ -12,7 +12,7 @@ import { FlashListProps, useMappingHelper } from '@shopify/flash-list';
 import { ChevronRight } from 'lucide-react-native';
 import { memo, useState } from 'react';
 import { BooksGrid } from './BooksGrid';
-import BooksHorizontal from './BooksHorizontal';
+import { BooksHorizontal } from './BooksHorizontal';
 import { Books } from './Books';
 // import { withObservables } from '@nozbe/watermelondb/react';
 
@@ -58,11 +58,7 @@ const BooksHome = ({ authors }: BookListProps) => {
 
   return (
     //? need to put a loader if allBooks.length === 0
-    <ScrollView
-      style={{ flex: 1 }}
-      showsVerticalScrollIndicator={false}
-      showsHorizontalScrollIndicator={false}
-    >
+    <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
       {/* Recently Added Section */}
       {allBooks.length > 0 && (
         <View style={{ gap: 12, marginBottom: 82 }}>
@@ -93,17 +89,18 @@ const BooksHome = ({ authors }: BookListProps) => {
                 />
               </View>
             </Pressable>
-            {/* {activeGridSection === 'recentlyAdded' ? (
+            {activeGridSection === 'recentlyAdded' ? (
               <BooksGrid authors={authors} flowDirection='column' />
             ) : (
               <BooksHorizontal authors={authors} flowDirection='row' />
-            )} */}
-            <Books
+            )}
+            //! Books was made to attempt animating between vert/horiz...
+            {/* <Books
               {...(activeGridSection === 'recentlyAdded'
                 ? gridProps
                 : horizontalProps)}
               authors={authors}
-            />
+            /> */}
           </View>
 
           {/* Authors Sections */}

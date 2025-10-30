@@ -41,7 +41,7 @@ const LibraryScreen = () => {
       <SafeAreaView style={{ flex: 1 }}>
         {/* MOVE HEADER ABOVE SCROLL VIEW TO DOCK IT AT TOP OF SCREEN */}
         <Header setToggleView={setToggleView} toggleView={toggleView} />
-        <ScrollView>
+        <ScrollView showsVerticalScrollIndicator={false}>
           {toggleView === 0 && (
             <BooksHome authors={library} scrollEnabled={false} />
           )}

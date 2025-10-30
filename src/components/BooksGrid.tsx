@@ -54,6 +54,7 @@ export const BooksGrid = ({
         masonry
         numColumns={numColumns}
         keyExtractor={(item) => item.bookId!}
+        showsVerticalScrollIndicator={false}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         ListFooterComponent={
           standAlone ? <View style={{ height: 82 }} /> : null //! will only be standalone
