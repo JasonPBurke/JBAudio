@@ -11,7 +11,7 @@ export type BookHorizontalProps = Partial<FlashListProps<Book>> & {
   flowDirection: 'row' | 'column';
 };
 
-const BooksHorizontal = ({
+export const BooksHorizontal = ({
   authors,
   flowDirection,
 }: BookHorizontalProps) => {
@@ -53,6 +53,7 @@ const BooksHorizontal = ({
         masonry={false}
         keyExtractor={(item) => item.bookId!}
         horizontal={true}
+        showsHorizontalScrollIndicator={false}
         ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
         ListFooterComponent={<View style={{ width: 12 }} />}
         ListEmptyComponent={
@@ -65,7 +66,7 @@ const BooksHorizontal = ({
   );
 };
 
-export default BooksHorizontal;
+// export default BooksHorizontal;
 
 const styles = StyleSheet.create({
   listContainer: {

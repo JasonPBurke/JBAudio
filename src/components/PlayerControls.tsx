@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import TrackPlayer, {
   useIsPlaying,
-  useProgress,
+  // useProgress,
 } from 'react-native-track-player';
 import {
   Play,
@@ -17,7 +17,7 @@ import {
   IterationCw,
   Gauge,
   Bell, // Commented out Bell icon
-  Hourglass, // Added Hourglass icon
+  // Hourglass, // Added Hourglass icon
   SkipBack,
   SkipForward,
 } from 'lucide-react-native';
@@ -157,7 +157,7 @@ export const SeekBackButton = ({
   return (
     <Pressable
       style={{ padding: 10 }}
-      hitSlop={30}
+      // hitSlop={30}
       onPress={async () => {
         const currentPosition = await TrackPlayer.getProgress().then(
           (progress) => progress.position
@@ -207,7 +207,7 @@ export const SeekForwardButton = ({
   return (
     <Pressable
       style={{ padding: 10 }}
-      hitSlop={30}
+      // hitSlop={30}
       onPress={async () => {
         const { position, duration } = await TrackPlayer.getProgress();
         const newPosition = position + seekDuration;
