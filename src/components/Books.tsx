@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { utilsStyles } from '@/styles';
 import { Author, Book } from '@/types/Book';
 import { BookGridItem } from './BookGridItem';
-import { useState } from 'react';
 
 export type BooksProps = Partial<FlashListProps<Book>> & {
   authors: Author[];
