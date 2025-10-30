@@ -9,7 +9,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import TrackPlayer, { useActiveTrack } from 'react-native-track-player';
-// import FastImage from '@d11/react-native-fast-image';
+import { ShadowedView, shadowStyle } from 'react-native-fast-shadow';
 import { Image } from 'expo-image';
 import { unknownBookImageUri } from '@/constants/images';
 import { PlayerControls } from '@/components/PlayerControls';
@@ -46,6 +46,8 @@ const PlayerScreen = () => {
     [book?.bookId, updateBookChapterIndex]
   );
 
+  const imgHeight = book?.artworkHeight;
+  const imgWidth = book?.artworkWidth;
   const { imageColors } = usePlayerBackground(
     activeTrack?.artwork ?? unknownBookImageUri
   );
@@ -82,10 +84,6 @@ const PlayerScreen = () => {
       colors={
         imageColors
           ? [
-              // imageColors.vibrant,
-              // imageColors.lightVibrant,
-              // imageColors.darkMuted,
-              // imageColors.darkVibrant,
               imageColors.darkVibrant,
               imageColors.lightVibrant,
               imageColors.vibrant,
@@ -100,17 +98,30 @@ const PlayerScreen = () => {
       }
     >
       <View style={styles.overlayContainer}>
-        <View style={styles.artworkImageContainer}>
-          <DismissPlayerSymbol />
-          <Image
-            contentFit='contain'
-            source={{
-              uri: activeTrack?.artwork ?? unknownBookImageUri,
-              // priority: FastImage.priority.high,
-            }}
-            // resizeMode={FastImage.resizeMode.contain}
-            style={styles.artworkImage}
-          />
+        <DismissPlayerSymbol />
+        <View
+          style={{
+            ...styles.artworkImageContainer,
+            width: imgHeight
+              ? (imgWidth! / imgHeight) * FIXED_ARTWORK_HEIGHT
+              : 0,
+          }}
+        >
+          <ShadowedView
+            style={shadowStyle({
+              opacity: 0.4,
+              radius: 12,
+              offset: [5, 3],
+            })}
+          >
+            <Image
+              contentFit='contain'
+              source={{
+                uri: activeTrack?.artwork ?? unknownBookImageUri,
+              }}
+              style={styles.artworkImage}
+            />
+          </ShadowedView>
         </View>
 
         <View style={{ marginTop: 70 }}>
@@ -148,44 +159,27 @@ const DismissPlayerSymbol = () => {
   );
 };
 
+const FIXED_ARTWORK_HEIGHT = 350;
+
 const styles = StyleSheet.create({
   overlayContainer: {
     ...defaultStyles.container,
     paddingHorizontal: screenPadding.horizontal,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    // alignItems: 'center',
   },
   artworkImageContainer: {
+    marginVertical: 60,
     alignSelf: 'center',
-    height: '55%',
-    width: '95%',
+    height: FIXED_ARTWORK_HEIGHT,
   },
   artworkImage: {
-    marginTop: 60,
-    height: '75%',
+    height: FIXED_ARTWORK_HEIGHT,
     width: '100%',
     alignSelf: 'center',
     borderRadius: 6,
   },
-  // chapterTitleContainer: {
-  //   flexDirection: 'row',
-  //   justifyContent: 'center',
-  //   alignItems: 'center',
-  //   gap: 8,
-  // },
-  // trackTitleContainer: {
-  //   overflow: 'hidden',
-  //   maxWidth: '80%',
-
-  // },
-  // trackTitleText: {
-  //   flex: 1,
-  //   ...defaultStyles.text,
-  //   fontSize: 18,
-  //   fontWeight: '500',
-  // },
   backButton: {
-    marginBottom: 12,
+    marginBottom: 18,
     width: 55,
     height: 7,
     backgroundColor: '#1c1c1ca9',

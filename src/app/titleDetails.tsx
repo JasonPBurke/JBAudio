@@ -34,6 +34,7 @@ import { useState } from 'react';
 import { Book as BookType } from '@/types/Book';
 import database from '@/db';
 import Book from '@/db/models/Book';
+import { ShadowedView, shadowStyle } from 'react-native-fast-shadow';
 
 const TitleDetails = () => {
   const [showModal, setShowModal] = useState(false);
@@ -54,23 +55,14 @@ const TitleDetails = () => {
     useActiveTrack()?.url ===
     book?.chapters[book.bookProgress.currentChapterIndex].url;
 
-  // useEffect(() => {
-  //   RNImage.getSize(book?.artwork || unknownBookImageUri, (w, h) => {
-  //     setImageSize({ width: w, height: h });
-  //   });
-  // }, [book?.artwork]);
-
+  const imgHeight = book?.artworkHeight;
+  const imgWidth = book?.artworkWidth;
   const { imageColors } = usePlayerBackground(
     book?.artwork || unknownBookImageUri
   );
 
-  // const progress = useBookProgress(book?.bookId!);
-  // console.log('progress', progress);
-
   const handlePressPlay = async (book: BookType | undefined) => {
     if (!book) return;
-    // console.log('isActiveBook', isActiveBook);
-    // console.log('playing', playing);
     if (isActiveBook && playing) return;
 
     // Fetch the latest book data from the database to get the most current chapter index
@@ -174,20 +166,26 @@ const TitleDetails = () => {
         <View
           style={{
             ...styles.bookArtworkContainer,
-            // width: imageSize.height
-            //   ? (imageSize.width / imageSize.height) * 350
-            //   : 0,
+            width: imgHeight
+              ? (imgWidth! / imgHeight) * FIXED_ARTWORK_HEIGHT
+              : 0,
           }}
         >
-          <Image
-            contentFit='contain'
-            source={{
-              uri: book?.artwork ?? unknownBookImageUri,
-              // priority: FastImage.priority.normal,
-            }}
-            // resizeMode={FastImage.resizeMode.contain}
-            style={styles.bookArtworkImage}
-          />
+          <ShadowedView
+            style={shadowStyle({
+              opacity: 0.4,
+              radius: 12,
+              offset: [5, 3],
+            })}
+          >
+            <Image
+              contentFit='contain'
+              source={{
+                uri: book?.artwork ?? unknownBookImageUri,
+              }}
+              style={styles.bookArtworkImage}
+            />
+          </ShadowedView>
         </View>
         <View style={styles.bookInfoContainer}>
           <Pressable
@@ -292,6 +290,8 @@ const TitleDetails = () => {
 
 export default TitleDetails;
 
+const FIXED_ARTWORK_HEIGHT = 350;
+
 const styles = StyleSheet.create({
   bookContainer: {
     flex: 1,
@@ -302,13 +302,6 @@ const styles = StyleSheet.create({
     width: '100%',
     gap: 12,
   },
-  bookArtworkContainer: {
-    flex: 1,
-    height: '65%',
-    width: '90%',
-    paddingTop: 5,
-    marginBottom: 32,
-  },
   bookInfoContainer: {
     gap: 20,
     flex: 1,
@@ -316,10 +309,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     alignItems: 'center',
   },
+  bookArtworkContainer: {
+    // flex: 1,
+    height: FIXED_ARTWORK_HEIGHT,
+    paddingTop: 5,
+    marginBottom: 32,
+  },
   bookArtworkImage: {
-    height: '100%',
+    height: FIXED_ARTWORK_HEIGHT,
     width: '100%',
-    borderRadius: 10,
+    borderRadius: 8,
   },
   authorNarratorContainer: {
     flexDirection: 'row',
