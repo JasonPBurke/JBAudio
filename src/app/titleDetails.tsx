@@ -29,7 +29,7 @@ import {
   formatDate,
   formatSecondsToMinutes,
 } from '@/helpers/miscellaneous';
-import ModalComponent from '@/components/ModalComponent';
+import ModalComponent from '@/modals/ModalComponent';
 import { useState } from 'react';
 import { Book as BookType } from '@/types/Book';
 import database from '@/db';
@@ -38,7 +38,6 @@ import { ShadowedView, shadowStyle } from 'react-native-fast-shadow';
 
 const TitleDetails = () => {
   const [showModal, setShowModal] = useState(false);
-  // const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
 
   const router = useRouter();
   const { setActiveBookId, activeBookId } = useQueueStore();

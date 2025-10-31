@@ -16,7 +16,7 @@ import { PlayerControls } from '@/components/PlayerControls';
 import { PlayerProgressBar } from '@/components/PlayerProgressBar';
 import { usePlayerBackground } from '@/hooks/usePlayerBackground';
 import { LinearGradient } from 'expo-linear-gradient';
-import { PlayerChaptersModal } from '@/components/PlayerChaptersModal';
+import { PlayerChaptersModal } from '@/modals/PlayerChaptersModal';
 import { useCallback, useRef } from 'react';
 import { useBook, useLibraryStore } from '@/store/library';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
