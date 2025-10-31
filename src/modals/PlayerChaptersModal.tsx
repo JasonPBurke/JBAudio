@@ -15,10 +15,10 @@ import { colors } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import { Book } from '@/types/Book';
 import { Logs } from 'lucide-react-native';
-import { MovingText } from './MovingText';
+import { MovingText } from '../components/MovingText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useActiveTrack } from 'react-native-track-player';
-import { ChapterList } from './ChapterList';
+import { ChapterList } from '../components/ChapterList';
 
 type PlayerChaptersModalProps = {
   handlePresentPress: () => void;
