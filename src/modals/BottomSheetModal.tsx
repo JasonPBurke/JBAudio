@@ -1,5 +1,6 @@
 import {
   View,
+  Text,
   StyleSheet,
   Pressable,
   ActivityIndicator,
@@ -86,6 +87,8 @@ export const PlayerChaptersModal = ({
         backgroundStyle={{ backgroundColor: '#12121d' }} //#151422
         style={{ paddingBottom: 10, marginBottom: 10 }}
         handleIndicatorStyle={{
+          // borderColor: colors.textMuted,
+          // borderWidth: StyleSheet.hairlineWidth,
           backgroundColor: colors.textMuted,
         }}
         enableDynamicSizing={false}
@@ -94,13 +97,10 @@ export const PlayerChaptersModal = ({
         index={0}
         snapPoints={snapPoints}
       >
-        <View style={{ flex: 1, marginBottom: bottom - 12 }}>
-          <ChapterList
-            book={book}
-            activeTrackUrl={activeTrack?.url}
-            onChapterSelect={onChapterSelect}
-          />
+        <View>
+          <Text>Sleep Timer</Text>
         </View>
+        {/*//! PASS CHILDREN COMPONENTS TO BOTTOM SHEET MODAL HERE */}
       </BottomSheetModal>
     </View>
   );

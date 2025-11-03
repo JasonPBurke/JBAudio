@@ -16,13 +16,13 @@ import {
   IterationCcw,
   IterationCw,
   Gauge,
-  Bell, // Commented out Bell icon
-  // Hourglass, // Added Hourglass icon
+  Bell,
+  // Hourglass,
   SkipBack,
   SkipForward,
 } from 'lucide-react-native';
 import { colors } from '@/constants/tokens';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -31,6 +31,12 @@ import Animated, {
   withRepeat,
   Easing,
 } from 'react-native-reanimated';
+import {
+  BottomSheetBackdrop,
+  BottomSheetModal,
+} from '@gorhom/bottom-sheet';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import SleepTimerOptions from './SleepTimerOptions';
 
 type PlayerControlsProps = {
   style?: ViewStyle;
@@ -315,6 +321,9 @@ export const PlaybackSpeed = ({ iconSize = 30 }: PlayerButtonProps) => {
 
 export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
   const [timerOn, setTimerOn] = useState(false);
+  const { bottom } = useSafeAreaInsets();
+  const snapPoints = useMemo(() => ['40%'], []);
+  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
   // console.log('timerOn', timerOn); //! resets on player close
 
@@ -378,6 +387,18 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
     };
   });
 
+  const renderBackdrop = useCallback(
+    (props: any) => (
+      <BottomSheetBackdrop
+        {...props}
+        pressBehavior={'close'}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+      />
+    ),
+    []
+  );
+
   const handlePress = () => {
     setTimerOn(!timerOn);
     rotation.value = withSequence(
@@ -390,16 +411,33 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
   };
 
   //TODO: bring up bottom sheet modal for sleep timer options
-  const handleLongPress = () => {
-    console.log('long press');
-  };
+  // const handleLongPress = () => {
+  //   console.log('long press');
+  // };
+
+  const handlePresentModalPress = useCallback(() => {
+    bottomSheetModalRef.current?.present();
+  }, []);
 
   return (
     <TouchableOpacity
       activeOpacity={0.7}
       onPress={handlePress}
-      onLongPress={handleLongPress}
+      onLongPress={handlePresentModalPress}
     >
+      <BottomSheetModal
+        enablePanDownToClose={true}
+        backgroundStyle={{ backgroundColor: '#12121d' }}
+        style={{ paddingBottom: bottom + 10, marginBottom: bottom + 10 }}
+        handleIndicatorStyle={{ backgroundColor: colors.textMuted }}
+        enableDynamicSizing={false}
+        backdropComponent={renderBackdrop}
+        ref={bottomSheetModalRef}
+        index={0}
+        snapPoints={snapPoints}
+      >
+        <SleepTimerOptions />
+      </BottomSheetModal>
       <Animated.View style={animatedBellStyle}>
         <Bell
           size={iconSize}
