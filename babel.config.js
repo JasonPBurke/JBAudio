@@ -3,11 +3,11 @@ module.exports = function (api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
+      ['babel-plugin-react-compiler'],
       ['@babel/plugin-proposal-decorators', { legacy: true }],
       ['@babel/plugin-transform-class-properties', { loose: true }],
       ['react-native-worklets/plugin'],
       // ['react-native-reanimated/plugin'],
-      ['babel-plugin-react-compiler'],
     ],
   };
 };
