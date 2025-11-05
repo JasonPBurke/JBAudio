@@ -7,6 +7,24 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      toVersion: 5,
+      steps: [
+        createTable({
+          name: 'settings',
+          columns: [
+            { name: 'book_folder', type: 'string' },
+            { name: 'num_columns', type: 'number' },
+            { name: 'timer_duration', type: 'number', isOptional: true },
+            {
+              name: 'timer_fadeout_duration',
+              type: 'number',
+              isOptional: true,
+            },
+          ],
+        }),
+      ],
+    },
+    {
       toVersion: 4,
       steps: [
         addColumns({
