@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 4,
+  version: 5,
   tables: [
     tableSchema({
       name: 'authors',
@@ -44,6 +44,19 @@ export default appSchema({
         { name: 'chapter_number', type: 'number' },
         { name: 'chapter_duration', type: 'number' },
         { name: 'url', type: 'string' },
+      ],
+    }),
+    tableSchema({
+      name: 'settings',
+      columns: [
+        { name: 'book_folder', type: 'string' },
+        { name: 'num_columns', type: 'number' },
+        { name: 'timer_duration', type: 'number', isOptional: true },
+        {
+          name: 'timer_fadeout_duration',
+          type: 'number',
+          isOptional: true,
+        },
       ],
     }),
   ],
