@@ -1,18 +1,90 @@
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { colors, screenPadding } from '@/constants/tokens';
 import { useState } from 'react';
-import {
-  TimerPickerModal,
-  // TimerPickerModalProps,
-} from 'react-native-timer-picker';
+import { TimerPickerModal } from 'react-native-timer-picker';
 import { Settings, CirclePlus, CircleMinus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { updateTimerDuration } from '@/db/settingsQueries';
+import database from '@/db';
+import UserSettings from '@/db/models/Settings';
+import { useDatabase } from '@nozbe/watermelondb/hooks';
+import { useEffect } from 'react';
 
 const SleepTimerOptions = () => {
   const [showSlider, setShowSlider] = useState(false);
   const [customTimer, setCustomTimer] = useState({ hours: 0, minutes: 0 });
+  const [activeTimerDuration, setActiveTimerDuration] = useState<
+    number | null
+  >(null);
   const { bottom } = useSafeAreaInsets();
+  const presetTimers = [15, 30, 45, 60, 90, 120];
+
+  const db = useDatabase();
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const settingsCollection =
+        db.collections.get<UserSettings>('settings');
+      const settings = await settingsCollection.query().fetch();
+      if (settings.length > 0) {
+        setActiveTimerDuration(settings[0].timerDuration);
+      }
+    };
+
+    const observeSettings = db.collections
+      .get<UserSettings>('settings')
+      .query()
+      .observe();
+
+    const subscription = observeSettings.subscribe((settings) => {
+      if (settings.length > 0) {
+        const timerDuration = settings[0].timerDuration;
+        setActiveTimerDuration(timerDuration);
+
+        if (
+          timerDuration !== null &&
+          timerDuration !== 0 &&
+          !presetTimers.includes(timerDuration)
+        ) {
+          const hours = Math.floor(timerDuration / 60);
+          const minutes = timerDuration % 60;
+          setCustomTimer({ hours, minutes });
+        } else if (timerDuration === 0 || timerDuration === null) {
+          setCustomTimer({ hours: 0, minutes: 0 });
+        }
+      }
+    });
+
+    fetchSettings(); // Initial fetch
+    return () => subscription.unsubscribe();
+  }, [db, presetTimers]);
+
+  const handlePresetPress = async (duration: number) => {
+    if (activeTimerDuration === duration) {
+      await updateTimerDuration(null);
+      setActiveTimerDuration(null);
+    } else {
+      await updateTimerDuration(duration);
+      setActiveTimerDuration(duration);
+    }
+  };
+
+  const handleCustomTimerConfirm = async (value: {
+    hours: number;
+    minutes: number;
+  }) => {
+    const totalMinutes = value.hours * 60 + value.minutes;
+    if (totalMinutes === 0) {
+      await updateTimerDuration(null);
+      setActiveTimerDuration(null);
+    } else {
+      await updateTimerDuration(totalMinutes);
+      setActiveTimerDuration(totalMinutes);
+    }
+    setCustomTimer(value);
+    setShowSlider(false);
+  };
 
   return (
     <View style={[styles.container, { marginBottom: bottom }]}>
@@ -30,25 +102,61 @@ const SleepTimerOptions = () => {
 
       <View style={styles.buttonContainer}>
         <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.button}>
+          <TouchableOpacity
+            style={[
+              styles.button,
+              activeTimerDuration === 15 && styles.activeButton,
+            ]}
+            onPress={() => handlePresetPress(15)}
+          >
             <Text style={styles.buttonText}>15 mins</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.button}>
+          <TouchableOpacity
+            style={[
+              styles.button,
+              activeTimerDuration === 30 && styles.activeButton,
+            ]}
+            onPress={() => handlePresetPress(30)}
+          >
             <Text style={styles.buttonText}>30 mins</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.button}>
+          <TouchableOpacity
+            style={[
+              styles.button,
+              activeTimerDuration === 45 && styles.activeButton,
+            ]}
+            onPress={() => handlePresetPress(45)}
+          >
             <Text style={styles.buttonText}>45 mins</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.button}>
+          <TouchableOpacity
+            style={[
+              styles.button,
+              activeTimerDuration === 60 && styles.activeButton,
+            ]}
+            onPress={() => handlePresetPress(60)}
+          >
             <Text style={styles.buttonText}>1 hr</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.button}>
+          <TouchableOpacity
+            style={[
+              styles.button,
+              activeTimerDuration === 90 && styles.activeButton,
+            ]}
+            onPress={() => handlePresetPress(90)}
+          >
             <Text style={styles.buttonText}>1.5 hrs</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.button}>
+          <TouchableOpacity
+            style={[
+              styles.button,
+              activeTimerDuration === 120 && styles.activeButton,
+            ]}
+            onPress={() => handlePresetPress(120)}
+          >
             <Text style={styles.buttonText}>2 hrs</Text>
           </TouchableOpacity>
         </View>
@@ -91,7 +199,14 @@ const SleepTimerOptions = () => {
             </TouchableOpacity>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.customButton}
+            style={[
+              styles.customButton,
+              activeTimerDuration ===
+                customTimer.hours * 60 + customTimer.minutes &&
+              (customTimer.hours !== 0 || customTimer.minutes !== 0)
+                ? styles.activeButton
+                : null,
+            ]}
             onPress={() => setShowSlider(true)}
           >
             <Text
@@ -126,10 +241,7 @@ const SleepTimerOptions = () => {
         confirmButtonText='   Set   '
         LinearGradient={LinearGradient}
         onCancel={() => setShowSlider(false)}
-        onConfirm={(value) => {
-          setCustomTimer(value);
-          setShowSlider(false);
-        }}
+        onConfirm={handleCustomTimerConfirm}
         styles={{
           theme: 'dark',
           contentContainer: {},
@@ -185,6 +297,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    // boxShadow: '1px 1px 6px rgba(158, 128, 28, 0.541)',
   },
   buttonText: {
     color: colors.textMuted,
@@ -209,5 +322,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  activeButton: {
+    borderColor: colors.primary,
   },
 });

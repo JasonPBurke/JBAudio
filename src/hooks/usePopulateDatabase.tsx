@@ -4,6 +4,7 @@ import { Author as AuthorType } from '@/types/Book';
 import Author from '@/db/models/Author';
 import Book from '@/db/models/Book';
 import Chapter from '@/db/models/Chapter';
+import Settings from '@/db/models/Settings'; // Import Settings model
 import { unknownBookImageUri } from '@/constants/images';
 
 import { useCallback } from 'react';
@@ -18,6 +19,23 @@ export const usePopulateDatabase = () => {
 
         // Clear existing data (optional - remove if you want to preserve existing data)
         // await database.unsafeResetDatabase();
+
+        // Ensure a Settings record exists
+        const settingsCollection =
+          database.collections.get<Settings>('settings');
+        const existingSettings = await settingsCollection.query().fetch();
+
+        if (existingSettings.length === 0) {
+          const newSettings = settingsCollection.prepareCreate(
+            (settings) => {
+              settings.bookFolder = ''; // Default value
+              settings.numColumns = 2; // Default value
+              settings.timerDuration = null; // Default value
+              settings.timerFadeoutDuration = null; // Default value
+            }
+          );
+          batchOperations.push(newSettings);
+        }
 
         for (const authorData of authors) {
           // Check if author already exists
@@ -136,7 +154,7 @@ export const usePopulateDatabase = () => {
             }
           }
         }
-        await database.batch(...batchOperations);
+        await database.batch(batchOperations);
       });
 
       console.log('Database populated successfully');

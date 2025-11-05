@@ -7,6 +7,7 @@ import migrations from '@/db/migrations';
 import Author from './models/Author';
 import Book from './models/Book';
 import Chapter from './models/Chapter';
+import Settings from './models/Settings'; // Import the Settings model
 
 // First, create the adapter to the underlying database:
 const adapter = new SQLiteAdapter({
@@ -27,7 +28,7 @@ const adapter = new SQLiteAdapter({
 // Then, make a Watermelon database from it!
 const database = new Database({
   adapter,
-  modelClasses: [Author, Book, Chapter],
+  modelClasses: [Author, Book, Chapter, Settings],
 });
 
 export default database;
