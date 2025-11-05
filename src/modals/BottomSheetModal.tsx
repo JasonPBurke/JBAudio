@@ -87,9 +87,9 @@ export const PlayerChaptersModal = ({
         backgroundStyle={{ backgroundColor: '#12121d' }} //#151422
         style={{ paddingBottom: 10, marginBottom: 10 }}
         handleIndicatorStyle={{
-          // borderColor: colors.textMuted,
-          // borderWidth: StyleSheet.hairlineWidth,
-          backgroundColor: colors.textMuted,
+          borderColor: colors.textMuted,
+          borderWidth: StyleSheet.hairlineWidth,
+          // backgroundColor: colors.textMuted,
         }}
         enableDynamicSizing={false}
         backdropComponent={renderBackdrop}

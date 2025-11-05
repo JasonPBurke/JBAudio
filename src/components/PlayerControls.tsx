@@ -410,11 +410,6 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
     );
   };
 
-  //TODO: bring up bottom sheet modal for sleep timer options
-  // const handleLongPress = () => {
-  //   console.log('long press');
-  // };
-
   const handlePresentModalPress = useCallback(() => {
     bottomSheetModalRef.current?.present();
   }, []);
@@ -427,9 +422,13 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
     >
       <BottomSheetModal
         enablePanDownToClose={true}
-        backgroundStyle={{ backgroundColor: '#12121d' }}
+        backgroundStyle={{ backgroundColor: '#151520' }}
         style={{ paddingBottom: bottom + 10, marginBottom: bottom + 10 }}
-        handleIndicatorStyle={{ backgroundColor: colors.textMuted }}
+        handleIndicatorStyle={{
+          // backgroundColor: colors.textMuted,
+          borderColor: colors.textMuted,
+          borderWidth: StyleSheet.hairlineWidth,
+        }}
         enableDynamicSizing={false}
         backdropComponent={renderBackdrop}
         ref={bottomSheetModalRef}

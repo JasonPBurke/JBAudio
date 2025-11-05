@@ -1,7 +1,5 @@
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { colors, screenPadding } from '@/constants/tokens';
-// import { Slider } from 'react-native-awesome-slider';
-// import { useSharedValue } from 'react-native-reanimated';
 import { useState } from 'react';
 import {
   TimerPickerModal,
@@ -12,12 +10,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const SleepTimerOptions = () => {
-  // const progress = useSharedValue(15);
-  // const min = useSharedValue(0);
-  // const max = useSharedValue(240);
-  const { bottom } = useSafeAreaInsets();
   const [showSlider, setShowSlider] = useState(false);
   const [customTimer, setCustomTimer] = useState({ hours: 0, minutes: 0 });
+  const { bottom } = useSafeAreaInsets();
 
   return (
     <View style={[styles.container, { marginBottom: bottom }]}>
@@ -62,31 +57,59 @@ const SleepTimerOptions = () => {
           <TouchableOpacity
             style={[styles.button, styles.chapterEndButton]}
           >
-            <CircleMinus
-              size={24}
-              color={colors.textMuted}
-              strokeWidth={1.5}
-              absoluteStrokeWidth
-            />
+            <TouchableOpacity
+              style={{
+                padding: 10,
+                // paddingEnd: 0,
+                borderRadius: 4,
+              }}
+            >
+              <CircleMinus
+                size={28}
+                color={colors.textMuted}
+                strokeWidth={1.5}
+                absoluteStrokeWidth
+              />
+            </TouchableOpacity>
+            {/* //optionally below - 'End of n Chapters' w/ the padding start/end applied */}
             <Text style={styles.buttonText}>Chapter End</Text>
-            <CirclePlus
-              size={24}
-              color={colors.textMuted}
-              strokeWidth={1.5}
-              absoluteStrokeWidth
-            />
+            <TouchableOpacity
+              style={{
+                padding: 10,
+                // paddingStart: 0,
+                borderRadius: 4,
+                // borderColor: 'red',
+                // borderWidth: 1,
+              }}
+            >
+              <CirclePlus
+                size={28}
+                color={colors.textMuted}
+                strokeWidth={1.5}
+                absoluteStrokeWidth
+              />
+            </TouchableOpacity>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.customButton}
             onPress={() => setShowSlider(true)}
           >
-            <Text style={styles.buttonText}>Custom</Text>
+            <Text
+              style={[
+                styles.buttonText,
+                customTimer.hours === 0 && customTimer.minutes === 0
+                  ? { color: colors.textMuted }
+                  : { color: '#d8dee96f' },
+              ]}
+            >
+              Custom
+            </Text>
             {customTimer.hours === 0 && customTimer.minutes === 0 ? null : (
               <Text style={styles.buttonText}>
                 {customTimer.hours}:
                 {customTimer.minutes < 10
                   ? `0${customTimer.minutes}`
-                  : customTimer.minutes}
+                  : `${customTimer.minutes}`}
               </Text>
             )}
           </TouchableOpacity>
@@ -170,15 +193,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   chapterEndButton: {
+    flex: 2.8, // Span two buttons
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    flex: 2.5, // Span two buttons
+    justifyContent: 'space-between',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
   },
   customButton: {
     flex: 1, // Span one button
     backgroundColor: colors.background,
-    // paddingVertical: 12,
     paddingHorizontal: 8,
     marginHorizontal: 15,
     borderRadius: 4,
@@ -186,20 +209,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  sliderContainer: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 2,
-    borderColor: 'red',
-    overflow: 'hidden',
-    borderWidth: 1,
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    padding: 10,
-    zIndex: 1,
   },
 });

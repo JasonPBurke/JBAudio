@@ -1,4 +1,4 @@
-import { fontSize } from '@/constants/tokens';
+import { colors, fontSize } from '@/constants/tokens';
 import React from 'react';
 import {
   TouchableOpacity,
@@ -27,12 +27,12 @@ const ButtonComponent = ({ title = 'Modal', style, onClick }: Props) => {
 
 const styles = StyleSheet.create({
   button: {
-    width: 80,
-    height: 30,
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'black',
+    borderColor: colors.textMuted,
     borderRadius: 20,
   },
   buttonText: {

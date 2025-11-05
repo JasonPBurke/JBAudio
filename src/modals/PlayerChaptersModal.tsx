@@ -83,10 +83,12 @@ export const PlayerChaptersModal = ({
 
       <BottomSheetModal
         enablePanDownToClose={true}
-        backgroundStyle={{ backgroundColor: '#12121d' }} //#151422
+        backgroundStyle={{ backgroundColor: '#151520' }} //#12121d
         style={{ paddingBottom: 10, marginBottom: 10 }}
         handleIndicatorStyle={{
-          backgroundColor: colors.textMuted,
+          borderColor: colors.textMuted,
+          borderWidth: StyleSheet.hairlineWidth,
+          // backgroundColor: colors.textMuted,
         }}
         enableDynamicSizing={false}
         backdropComponent={renderBackdrop}
