@@ -90,7 +90,7 @@ export const PlayerChaptersModal = ({
           borderWidth: StyleSheet.hairlineWidth,
           // backgroundColor: colors.textMuted,
         }}
-        enableDynamicSizing={false}
+        // enableDynamicSizing={false}
         backdropComponent={renderBackdrop}
         ref={bottomSheetModalRef}
         index={0}
