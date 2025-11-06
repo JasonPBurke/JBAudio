@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 5,
+  version: 7,
   tables: [
     tableSchema({
       name: 'authors',
@@ -56,6 +56,24 @@ export default appSchema({
           name: 'timer_fadeout_duration',
           type: 'number',
           isOptional: true,
+        },
+        {
+          name: 'custom_timer',
+          type: 'number',
+          isOptional: true,
+        },
+        {
+          name: 'timer_chapters',
+          type: 'number',
+          isOptional: true,
+        },
+        {
+          name: 'last_active_book',
+          type: 'string',
+        },
+        {
+          name: 'timer_active',
+          type: 'boolean',
         },
       ],
     }),
