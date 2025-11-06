@@ -37,6 +37,7 @@ import {
 } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SleepTimerOptions from './SleepTimerOptions';
+import { useDatabase } from '@nozbe/watermelondb/hooks';
 
 type PlayerControlsProps = {
   style?: ViewStyle;
@@ -399,6 +400,9 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
     []
   );
 
+  //TODO: if timerDuration is not null, and timerActive is false, then turn on the timer and save value to DB
+  //TODO: if timerDuration is not null, and timerActive is true, then turn off the timer and save value to DB
+  //TODO: if timerDuration is null, and timerActive is false, then load the modal
   const handlePress = () => {
     setTimerOn(!timerOn);
     rotation.value = withSequence(

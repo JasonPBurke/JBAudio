@@ -6,6 +6,10 @@ export default class Settings extends Model {
 
   @text('book_folder') bookFolder!: string;
   @field('num_columns') numColumns!: number;
+  @field('timer_active') timerActive!: boolean;
   @field('timer_duration') timerDuration!: number | null;
+  @field('custom_timer') customTimer!: number | null;
   @field('timer_fadeout_duration') timerFadeoutDuration!: number | null;
+  @field('timer_chapters') timerChapters!: number | null;
+  @field('last_active_book') lastActiveBook!: string | null;
 }

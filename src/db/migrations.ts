@@ -7,6 +7,44 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      toVersion: 7,
+      steps: [
+        addColumns({
+          table: 'settings',
+          columns: [
+            {
+              name: 'timer_active',
+              type: 'boolean',
+            },
+          ],
+        }),
+      ],
+    },
+    {
+      toVersion: 6,
+      steps: [
+        addColumns({
+          table: 'settings',
+          columns: [
+            {
+              name: 'custom_timer',
+              type: 'number',
+              isOptional: true,
+            },
+            {
+              name: 'timer_chapters',
+              type: 'number',
+              isOptional: true,
+            },
+            {
+              name: 'last_active_book',
+              type: 'string',
+            },
+          ],
+        }),
+      ],
+    },
+    {
       toVersion: 5,
       steps: [
         createTable({

@@ -28,10 +28,15 @@ export const usePopulateDatabase = () => {
         if (existingSettings.length === 0) {
           const newSettings = settingsCollection.prepareCreate(
             (settings) => {
-              settings.bookFolder = ''; // Default value
-              settings.numColumns = 2; // Default value
-              settings.timerDuration = null; // Default value
-              settings.timerFadeoutDuration = null; // Default value
+              // Default values
+              settings.bookFolder = '';
+              settings.numColumns = 2;
+              settings.timerActive = false;
+              settings.timerDuration = null;
+              settings.timerFadeoutDuration = null;
+              settings.customTimer = null;
+              settings.timerChapters = null;
+              settings.lastActiveBook = null;
             }
           );
           batchOperations.push(newSettings);

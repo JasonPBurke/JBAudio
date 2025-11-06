@@ -5,8 +5,10 @@ import { TimerPickerModal } from 'react-native-timer-picker';
 import { Settings, CirclePlus, CircleMinus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { updateTimerDuration } from '@/db/settingsQueries';
-import database from '@/db';
+import {
+  updateTimerDuration,
+  updateCustomTimer,
+} from '@/db/settingsQueries';
 import UserSettings from '@/db/models/Settings';
 import { useDatabase } from '@nozbe/watermelondb/hooks';
 import { useEffect } from 'react';
@@ -18,7 +20,8 @@ const SleepTimerOptions = () => {
     number | null
   >(null);
   const { bottom } = useSafeAreaInsets();
-  const presetTimers = [15, 30, 45, 60, 90, 120];
+
+  console.log('activeTimerDuration', activeTimerDuration);
 
   const db = useDatabase();
 
@@ -29,6 +32,11 @@ const SleepTimerOptions = () => {
       const settings = await settingsCollection.query().fetch();
       if (settings.length > 0) {
         setActiveTimerDuration(settings[0].timerDuration);
+        if (settings[0].customTimer !== null) {
+          const hours = Math.floor(settings[0].customTimer / 60);
+          const minutes = settings[0].customTimer % 60;
+          setCustomTimer({ hours, minutes });
+        }
       }
     };
 
@@ -40,17 +48,14 @@ const SleepTimerOptions = () => {
     const subscription = observeSettings.subscribe((settings) => {
       if (settings.length > 0) {
         const timerDuration = settings[0].timerDuration;
+        const customTimerValue = settings[0].customTimer;
         setActiveTimerDuration(timerDuration);
 
-        if (
-          timerDuration !== null &&
-          timerDuration !== 0 &&
-          !presetTimers.includes(timerDuration)
-        ) {
-          const hours = Math.floor(timerDuration / 60);
-          const minutes = timerDuration % 60;
+        if (customTimerValue !== null) {
+          const hours = Math.floor(customTimerValue / 60);
+          const minutes = customTimerValue % 60;
           setCustomTimer({ hours, minutes });
-        } else if (timerDuration === 0 || timerDuration === null) {
+        } else {
           setCustomTimer({ hours: 0, minutes: 0 });
         }
       }
@@ -58,7 +63,7 @@ const SleepTimerOptions = () => {
 
     fetchSettings(); // Initial fetch
     return () => subscription.unsubscribe();
-  }, [db, presetTimers]);
+  }, [db]);
 
   const handlePresetPress = async (duration: number) => {
     if (activeTimerDuration === duration) {
@@ -77,9 +82,11 @@ const SleepTimerOptions = () => {
     const totalMinutes = value.hours * 60 + value.minutes;
     if (totalMinutes === 0) {
       await updateTimerDuration(null);
+      await updateCustomTimer(null, null);
       setActiveTimerDuration(null);
     } else {
       await updateTimerDuration(totalMinutes);
+      await updateCustomTimer(value.hours, value.minutes);
       setActiveTimerDuration(totalMinutes);
     }
     setCustomTimer(value);
@@ -207,7 +214,22 @@ const SleepTimerOptions = () => {
                 ? styles.activeButton
                 : null,
             ]}
-            onPress={() => setShowSlider(true)}
+            onPress={() => {
+              const totalCustomMinutes =
+                customTimer.hours * 60 + customTimer.minutes;
+              if (totalCustomMinutes === 0) {
+                setShowSlider(true);
+              } else {
+                handlePresetPress(totalCustomMinutes);
+              }
+            }}
+            onLongPress={() => {
+              const totalCustomMinutes =
+                customTimer.hours * 60 + customTimer.minutes;
+              if (totalCustomMinutes !== 0) {
+                setShowSlider(true);
+              }
+            }}
           >
             <Text
               style={[
