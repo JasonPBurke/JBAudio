@@ -41,6 +41,7 @@ import Settings from '@/db/models/Settings';
 import { getTimerSettings, updateTimerActive } from '@/db/settingsQueries';
 import { useDatabase, withObservables } from '@nozbe/watermelondb/react';
 import database from '@/db';
+import { useObserveWatermelonData } from '@/hooks/useObserveWatermelonData';
 
 type PlayerControlsProps = {
   style?: ViewStyle;
@@ -70,6 +71,7 @@ export const PlayerControls = ({ style }: PlayerControlsProps) => {
           right={22}
           fontSize={15}
         />
+        {/* <EnhancedSleepTimer iconSize={25} /> */}
         <SleepTimer iconSize={25} />
       </View>
     </View>
@@ -323,13 +325,15 @@ export const PlaybackSpeed = ({ iconSize = 30 }: PlayerButtonProps) => {
   );
 };
 
+// const enhance = withObservables([], ({ database }: any) => ({
+//   settings: database.get('settings').query().observe(),
+// }));
+
 export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
   const [timerOn, setTimerOn] = useState(false);
-  const [activeTimer, setActiveTimer] = useState(false);
-  const [customTimer, setCustomTimer] = useState({ hours: 0, minutes: 0 });
-  const [activeTimerDuration, setActiveTimerDuration] = useState<
-    number | null
-  >(null);
+  const isTimerActive = useObserveWatermelonData(database, 'settings');
+  const timerActiveValue = isTimerActive?.[0]?.timerActive;
+  // console.log('timerActiveValue', timerActiveValue);
   const { bottom } = useSafeAreaInsets();
   const snapPoints = useMemo(() => ['40%'], []);
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
@@ -340,7 +344,7 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
   const opacity3 = useSharedValue(0);
 
   useEffect(() => {
-    if (timerOn) {
+    if (timerActiveValue) {
       opacity1.value = withRepeat(
         withSequence(
           withTiming(1, { duration: 1500, easing: Easing.linear }),
@@ -374,7 +378,7 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
       opacity2.value = 0;
       opacity3.value = 0;
     }
-  }, [timerOn, opacity1, opacity2, opacity3]);
+  }, [timerActiveValue, opacity1, opacity2, opacity3]);
 
   const animatedStyle1 = useAnimatedStyle(() => {
     return { opacity: opacity1.value };
@@ -414,10 +418,10 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
       timerActive
     );
     if (timerDuration !== null && timerActive === false) {
-      setTimerOn(true);
+      // setTimerOn(true);
       await updateTimerActive(true);
     } else if (timerDuration !== null && timerActive === true) {
-      setTimerOn(false);
+      // setTimerOn(false);
       await updateTimerActive(false);
     } else if (timerDuration === null && timerActive === false) {
       handlePresentModalPress();
@@ -467,12 +471,12 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
       <Animated.View style={animatedBellStyle}>
         <Bell
           size={iconSize}
-          color={timerOn ? colors.primary : colors.icon}
+          color={timerActiveValue ? colors.primary : colors.icon}
           strokeWidth={1.5}
           absoluteStrokeWidth
         />
       </Animated.View>
-      {timerOn && (
+      {timerActiveValue && (
         <View>
           <Animated.Text
             style={[
@@ -521,6 +525,8 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
     </TouchableOpacity>
   );
 };
+
+// const EnhancedSleepTimer = enhance(SleepTimer);
 
 const styles = StyleSheet.create({
   controlsContainer: {
