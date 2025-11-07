@@ -330,10 +330,8 @@ export const PlaybackSpeed = ({ iconSize = 30 }: PlayerButtonProps) => {
 // }));
 
 export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
-  const [timerOn, setTimerOn] = useState(false);
   const isTimerActive = useObserveWatermelonData(database, 'settings');
   const timerActiveValue = isTimerActive?.[0]?.timerActive;
-  // console.log('timerActiveValue', timerActiveValue);
   const { bottom } = useSafeAreaInsets();
   const snapPoints = useMemo(() => ['40%'], []);
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
@@ -412,26 +410,13 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
 
   const handlePress = async () => {
     const { timerDuration, timerActive } = await getTimerSettings();
-    console.log(
-      'timerSettings in PlayerControls before press change',
-      timerDuration,
-      timerActive
-    );
     if (timerDuration !== null && timerActive === false) {
-      // setTimerOn(true);
       await updateTimerActive(true);
     } else if (timerDuration !== null && timerActive === true) {
-      // setTimerOn(false);
       await updateTimerActive(false);
     } else if (timerDuration === null && timerActive === false) {
       handlePresentModalPress();
     }
-    const newTimerSettings = await getTimerSettings();
-    console.log(
-      'timerSettings in PlayerControls after press change',
-      newTimerSettings
-    );
-    // setTimerOn(!timerOn);
     rotation.value = withSequence(
       withTiming(-10, { duration: 100 }),
       withTiming(10, { duration: 200 }),
@@ -476,7 +461,7 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
           absoluteStrokeWidth
         />
       </Animated.View>
-      {timerActiveValue && (
+      {/* {timerActiveValue && (
         <View>
           <Animated.Text
             style={[
@@ -521,7 +506,7 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
             z
           </Animated.Text>
         </View>
-      )}
+      )} */}
     </TouchableOpacity>
   );
 };
