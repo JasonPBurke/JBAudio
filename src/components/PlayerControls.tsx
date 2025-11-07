@@ -37,7 +37,10 @@ import {
 } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SleepTimerOptions from './SleepTimerOptions';
-import { useDatabase } from '@nozbe/watermelondb/hooks';
+import Settings from '@/db/models/Settings';
+import { getTimerSettings, updateTimerActive } from '@/db/settingsQueries';
+import { useDatabase, withObservables } from '@nozbe/watermelondb/react';
+import database from '@/db';
 
 type PlayerControlsProps = {
   style?: ViewStyle;
@@ -322,11 +325,14 @@ export const PlaybackSpeed = ({ iconSize = 30 }: PlayerButtonProps) => {
 
 export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
   const [timerOn, setTimerOn] = useState(false);
+  const [activeTimer, setActiveTimer] = useState(false);
+  const [customTimer, setCustomTimer] = useState({ hours: 0, minutes: 0 });
+  const [activeTimerDuration, setActiveTimerDuration] = useState<
+    number | null
+  >(null);
   const { bottom } = useSafeAreaInsets();
   const snapPoints = useMemo(() => ['40%'], []);
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
-
-  // console.log('timerOn', timerOn); //! resets on player close
 
   const rotation = useSharedValue(0); // For Hourglass rotation
   const opacity1 = useSharedValue(0);
@@ -400,11 +406,28 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
     []
   );
 
-  //TODO: if timerDuration is not null, and timerActive is false, then turn on the timer and save value to DB
-  //TODO: if timerDuration is not null, and timerActive is true, then turn off the timer and save value to DB
-  //TODO: if timerDuration is null, and timerActive is false, then load the modal
-  const handlePress = () => {
-    setTimerOn(!timerOn);
+  const handlePress = async () => {
+    const { timerDuration, timerActive } = await getTimerSettings();
+    console.log(
+      'timerSettings in PlayerControls before press change',
+      timerDuration,
+      timerActive
+    );
+    if (timerDuration !== null && timerActive === false) {
+      setTimerOn(true);
+      await updateTimerActive(true);
+    } else if (timerDuration !== null && timerActive === true) {
+      setTimerOn(false);
+      await updateTimerActive(false);
+    } else if (timerDuration === null && timerActive === false) {
+      handlePresentModalPress();
+    }
+    const newTimerSettings = await getTimerSettings();
+    console.log(
+      'timerSettings in PlayerControls after press change',
+      newTimerSettings
+    );
+    // setTimerOn(!timerOn);
     rotation.value = withSequence(
       withTiming(-10, { duration: 100 }),
       withTiming(10, { duration: 200 }),

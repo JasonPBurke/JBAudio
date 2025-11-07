@@ -8,6 +8,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   updateTimerDuration,
   updateCustomTimer,
+  updateTimerActive,
+  getTimerSettings,
 } from '@/db/settingsQueries';
 import UserSettings from '@/db/models/Settings';
 import { useDatabase } from '@nozbe/watermelondb/hooks';
@@ -21,10 +23,9 @@ const SleepTimerOptions = () => {
   >(null);
   const { bottom } = useSafeAreaInsets();
 
-  console.log('activeTimerDuration', activeTimerDuration);
+  // console.log('activeTimerDuration', activeTimerDuration);
 
   const db = useDatabase();
-
   useEffect(() => {
     const fetchSettings = async () => {
       const settingsCollection =
@@ -66,13 +67,25 @@ const SleepTimerOptions = () => {
   }, [db]);
 
   const handlePresetPress = async (duration: number) => {
+    const timerSettings = await getTimerSettings();
+    console.log(
+      'timerSettings in SleepTimerOptions before press update',
+      timerSettings
+    );
     if (activeTimerDuration === duration) {
       await updateTimerDuration(null);
+      await updateTimerActive(false);
       setActiveTimerDuration(null);
     } else {
       await updateTimerDuration(duration);
+      await updateTimerActive(true);
       setActiveTimerDuration(duration);
     }
+    const newTimerSettings = await getTimerSettings();
+    console.log(
+      'timerSettings in SleepTimerOptions after press update',
+      newTimerSettings
+    );
   };
 
   const handleCustomTimerConfirm = async (value: {
@@ -82,15 +95,19 @@ const SleepTimerOptions = () => {
     const totalMinutes = value.hours * 60 + value.minutes;
     if (totalMinutes === 0) {
       await updateTimerDuration(null);
+      await updateTimerActive(false);
       await updateCustomTimer(null, null);
       setActiveTimerDuration(null);
     } else {
       await updateTimerDuration(totalMinutes);
+      await updateTimerActive(true);
       await updateCustomTimer(value.hours, value.minutes);
       setActiveTimerDuration(totalMinutes);
     }
     setCustomTimer(value);
     setShowSlider(false);
+    const timerSettings = await getTimerSettings();
+    console.log('timerSettings in SleepTimerOptions', timerSettings);
   };
 
   return (
