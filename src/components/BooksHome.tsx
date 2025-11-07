@@ -14,7 +14,6 @@ import { memo, useState } from 'react';
 import { BooksGrid } from './BooksGrid';
 import { BooksHorizontal } from './BooksHorizontal';
 import { Books } from './Books';
-// import { withObservables } from '@nozbe/watermelondb/react';
 
 export type BookListProps = Partial<FlashListProps<Book>> & {
   authors: Author[];
@@ -38,23 +37,23 @@ const BooksHome = ({ authors }: BookListProps) => {
     return 0;
   });
 
-  const gridProps = {
-    masonry: true,
-    ListFooterComponent: () => <View style={{ height: 82 }} />,
-    ItemSeparatorComponent: () => <View style={{ height: 12 }} />,
-    contentContainerStyle: {},
-    numColumns: numColumns,
-    flowDirection: 'column' as const,
-  };
+  // const gridProps = {
+  //   masonry: true,
+  //   ListFooterComponent: () => <View style={{ height: 82 }} />,
+  //   ItemSeparatorComponent: () => <View style={{ height: 12 }} />,
+  //   contentContainerStyle: {},
+  //   numColumns: numColumns,
+  //   flowDirection: 'column' as const,
+  // };
 
-  const horizontalProps = {
-    masonry: false,
-    ListFooterComponent: () => <View style={{ width: 12 }} />,
-    ItemSeparatorComponent: () => <View style={{ width: 12 }} />,
-    contentContainerStyle: { paddingLeft: 14 },
-    horizontal: true,
-    flowDirection: 'row' as const,
-  };
+  // const horizontalProps = {
+  //   masonry: false,
+  //   ListFooterComponent: () => <View style={{ width: 12 }} />,
+  //   ItemSeparatorComponent: () => <View style={{ width: 12 }} />,
+  //   contentContainerStyle: { paddingLeft: 14 },
+  //   horizontal: true,
+  //   flowDirection: 'row' as const,
+  // };
 
   return (
     //? need to put a loader if allBooks.length === 0
