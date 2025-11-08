@@ -5,7 +5,7 @@ export async function updateTimerDuration(duration: number | null) {
   await database.write(async () => {
     const settingsCollection =
       database.collections.get<Settings>('settings');
-    // Assuming there's only one settings record, or we need to find the correct one
+
     const settingsRecord = await settingsCollection.query().fetch();
 
     if (settingsRecord.length > 0) {
@@ -13,7 +13,6 @@ export async function updateTimerDuration(duration: number | null) {
         record.timerDuration = duration;
       });
     } else {
-      // Handle case where no settings record exists, if necessary
       console.warn('No settings record found to update timerDuration.');
     }
   });
@@ -35,6 +34,23 @@ export async function updateCustomTimer(
       });
     } else {
       console.warn('No settings record found to update customTimer.');
+    }
+  });
+}
+
+export async function updateChapterTimer(timerChapters: number | null) {
+  await database.write(async () => {
+    const settingsCollection =
+      database.collections.get<Settings>('settings');
+
+    const settingsRecord = await settingsCollection.query().fetch();
+
+    if (settingsRecord.length > 0) {
+      await settingsRecord[0].update((record) => {
+        record.timerChapters = timerChapters;
+      });
+    } else {
+      console.warn('No settings record found to update timerChapters.');
     }
   });
 }
@@ -64,6 +80,7 @@ export async function getTimerSettings() {
     return {
       timerDuration: settings.timerDuration,
       timerActive: settings.timerActive,
+      timerChapters: settings.timerChapters,
     };
   }
   return { timerDuration: null, timerActive: false };

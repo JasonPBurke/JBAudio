@@ -5,25 +5,33 @@ import { TimerPickerModal } from 'react-native-timer-picker';
 import { Settings, CirclePlus, CircleMinus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { RefObject } from 'react';
 import {
   updateTimerDuration,
   updateCustomTimer,
+  updateChapterTimer,
   updateTimerActive,
-  getTimerSettings,
 } from '@/db/settingsQueries';
 import UserSettings from '@/db/models/Settings';
 import { useDatabase } from '@nozbe/watermelondb/hooks';
 import { useEffect } from 'react';
+import TrackPlayer from 'react-native-track-player';
 
-const SleepTimerOptions = () => {
+const SleepTimerOptions = ({
+  bottomSheetModalRef,
+}: {
+  bottomSheetModalRef: RefObject<BottomSheetModal | null>;
+}) => {
   const [showSlider, setShowSlider] = useState(false);
   const [customTimer, setCustomTimer] = useState({ hours: 0, minutes: 0 });
   const [activeTimerDuration, setActiveTimerDuration] = useState<
     number | null
   >(null);
+  const [chapterTimerActive, setChapterTimerActive] = useState(false);
+  const [chaptersToEnd, setChaptersToEnd] = useState(0);
+  const [maxChapters, setMaxChapters] = useState(0);
   const { bottom } = useSafeAreaInsets();
-
-  // console.log('activeTimerDuration', activeTimerDuration);
 
   const db = useDatabase();
   useEffect(() => {
@@ -33,6 +41,7 @@ const SleepTimerOptions = () => {
       const settings = await settingsCollection.query().fetch();
       if (settings.length > 0) {
         setActiveTimerDuration(settings[0].timerDuration);
+        setChapterTimerActive(settings[0].timerChapters !== null);
         if (settings[0].customTimer !== null) {
           const hours = Math.floor(settings[0].customTimer / 60);
           const minutes = settings[0].customTimer % 60;
@@ -62,30 +71,44 @@ const SleepTimerOptions = () => {
       }
     });
 
-    fetchSettings(); // Initial fetch
+    const updateMaxChapters = async () => {
+      const queue = await TrackPlayer.getQueue();
+      const currentTrackIndex = await TrackPlayer.getActiveTrackIndex();
+      if (currentTrackIndex === undefined) {
+        setMaxChapters(0);
+      } else {
+        setMaxChapters(queue.length - 1 - currentTrackIndex);
+      }
+    };
+
+    fetchSettings();
+    updateMaxChapters();
     return () => subscription.unsubscribe();
   }, [db]);
 
+  const handleChapterPlus = async () => {
+    setChaptersToEnd((prev) => Math.min(prev + 1, maxChapters));
+  };
+
+  const handleChapterMinus = () => {
+    setChaptersToEnd((prev) => Math.max(prev - 1, 0));
+  };
+
   const handlePresetPress = async (duration: number) => {
-    const timerSettings = await getTimerSettings();
-    console.log(
-      'timerSettings in SleepTimerOptions before press update',
-      timerSettings
-    );
     if (activeTimerDuration === duration) {
-      await updateTimerDuration(null);
       await updateTimerActive(false);
+      await updateTimerDuration(null);
       setActiveTimerDuration(null);
     } else {
-      await updateTimerDuration(duration);
       await updateTimerActive(true);
+      await updateTimerDuration(duration);
+      await updateChapterTimer(null);
+      setChapterTimerActive(false);
       setActiveTimerDuration(duration);
+      // setTimeout(() => {
+      //   bottomSheetModalRef.current?.close();
+      // }, 500);
     }
-    const newTimerSettings = await getTimerSettings();
-    console.log(
-      'timerSettings in SleepTimerOptions after press update',
-      newTimerSettings
-    );
   };
 
   const handleCustomTimerConfirm = async (value: {
@@ -94,21 +117,45 @@ const SleepTimerOptions = () => {
   }) => {
     const totalMinutes = value.hours * 60 + value.minutes;
     if (totalMinutes === 0) {
-      await updateTimerDuration(null);
       await updateTimerActive(false);
+      await updateTimerDuration(null);
       await updateCustomTimer(null, null);
+      await updateChapterTimer(null);
       setActiveTimerDuration(null);
     } else {
-      await updateTimerDuration(totalMinutes);
       await updateTimerActive(true);
+      await updateTimerDuration(totalMinutes);
       await updateCustomTimer(value.hours, value.minutes);
+      setChapterTimerActive(false);
       setActiveTimerDuration(totalMinutes);
+      // setTimeout(() => {
+      //   bottomSheetModalRef.current?.close();
+      // }, 500);
     }
     setCustomTimer(value);
     setShowSlider(false);
-    const timerSettings = await getTimerSettings();
-    console.log('timerSettings in SleepTimerOptions', timerSettings);
   };
+
+  const handleChapterTimerPress = async () => {
+    if (chapterTimerActive) {
+      await updateTimerActive(false);
+      await updateTimerDuration(null);
+      await updateChapterTimer(null);
+      setActiveTimerDuration(null);
+    } else {
+      await updateTimerActive(true);
+      await updateTimerDuration(null);
+      await updateChapterTimer(chaptersToEnd);
+      setActiveTimerDuration(null);
+      // setTimeout(() => {
+      //   bottomSheetModalRef.current?.close();
+      // }, 500);
+    }
+    setChapterTimerActive((prev) => !prev);
+  };
+
+  console.log('maxChapters', maxChapters);
+  console.log('chaptersToEnd', chaptersToEnd);
 
   return (
     <View style={[styles.container, { marginBottom: bottom }]}>
@@ -187,36 +234,52 @@ const SleepTimerOptions = () => {
 
         <View style={styles.buttonRow}>
           <TouchableOpacity
-            style={[styles.button, styles.chapterEndButton]}
+            onPress={handleChapterTimerPress}
+            style={[
+              styles.button,
+              styles.chapterEndButton,
+              chapterTimerActive && styles.activeButton,
+            ]}
           >
             <TouchableOpacity
               style={{
                 padding: 10,
-                // paddingEnd: 0,
+                paddingEnd: chaptersToEnd > 0 ? 0 : 10,
                 borderRadius: 4,
               }}
+              onPress={handleChapterMinus}
+              // disabled={chaptersToEnd === 0}
             >
               <CircleMinus
                 size={28}
-                color={colors.textMuted}
+                color={chaptersToEnd === 0 ? '#d8dee96f' : colors.textMuted}
                 strokeWidth={1.5}
                 absoluteStrokeWidth
               />
             </TouchableOpacity>
-            {/* //optionally below - 'End of n Chapters' w/ the padding start/end applied */}
-            <Text style={styles.buttonText}>Chapter End</Text>
+            <Text style={styles.buttonText}>
+              {chaptersToEnd === maxChapters && maxChapters > 0
+                ? 'End of Book'
+                : chaptersToEnd > 0
+                  ? `End of ${chaptersToEnd + 1} Chapters`
+                  : 'End of Chapter'}
+            </Text>
             <TouchableOpacity
               style={{
                 padding: 10,
-                // paddingStart: 0,
+                paddingStart: chaptersToEnd > 0 ? 0 : 10,
                 borderRadius: 4,
-                // borderColor: 'red',
-                // borderWidth: 1,
               }}
+              onPress={handleChapterPlus}
+              // disabled={chaptersToEnd >= maxChapters}
             >
               <CirclePlus
                 size={28}
-                color={colors.textMuted}
+                color={
+                  chaptersToEnd >= maxChapters
+                    ? '#d8dee96f'
+                    : colors.textMuted
+                }
                 strokeWidth={1.5}
                 absoluteStrokeWidth
               />
