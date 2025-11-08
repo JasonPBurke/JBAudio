@@ -1,9 +1,16 @@
 import TrackPlayer, { Event, State } from 'react-native-track-player';
 import { useLibraryStore } from '@/store/library';
 import {
+  getTimerSettings,
+  updateSleepTime,
+  updateTimerActive,
+  updateChapterTimer,
+} from '@/db/settingsQueries';
+import {
   updateChapterProgressInDB,
   updateChapterIndexInDB,
 } from '@/db/chapterQueries';
+import { timer } from 'rxjs';
 
 const { setPlaybackIndex, setPlaybackProgress } =
   useLibraryStore.getState();
@@ -39,6 +46,18 @@ export default module.exports = async function () {
       //? trackToUpdate ["title", "album", "url", "artwork", "bookId", "artist"]
       // write progress to the zustand store
       setPlaybackProgress(trackToUpdate.bookId, position - 1);
+
+      const { sleepTime, timerActive } = await getTimerSettings();
+
+      if (
+        sleepTime !== null &&
+        timerActive === true &&
+        sleepTime <= Date.now()
+      ) {
+        await TrackPlayer.pause();
+        updateTimerActive(false);
+        updateSleepTime(null);
+      }
     }
   );
 
@@ -65,27 +84,25 @@ export default module.exports = async function () {
       const { position } = await TrackPlayer.getProgress();
       await updateChapterProgressInDB(bookId, position - 1);
     }
+    if (event.state === State.Stopped) {
+      // console.log('Loading');
+      //! reset the chapter timer
+      await updateChapterTimer(null);
+      updateTimerActive(false);
+    }
   });
 
-  // TrackPlayer.addEventListener(
-  //   Event.PlaybackActiveTrackChanged,
-  //   async (event) => {
-  //     const { track, position } = event;
-  //     const trackToUpdate = await TrackPlayer.getTrack(track);
-
-  //     //* don't want to update state in this case, only DB
-  //     // setPlaybackProgress(event.track.bookId, event.lastPosition);
-  //     //* reset the DB progress to 0 when the track changes
-  //     await updateChapterProgressInDB(trackToUpdate.bookId, position);
-
-  //     // Perform the WatermelonDB update here
-  //     // await updateChapterProgressInDB(
-  //     //   console.log('using updateChapterProgressInDB'),
-  //     //   event.track.bookId,
-  //     //   event.lastPosition
-  //     // ).then((res) => {
-  //     //   console.log('updateChapterProgressInDB', res);
-  //     // });
-  //   }
-  // );
+  TrackPlayer.addEventListener(
+    Event.PlaybackActiveTrackChanged,
+    async (event) => {
+      const { timerChapters, timerActive } = await getTimerSettings();
+      // console.log('timerChapters', timerChapters);
+      if (timerActive && timerChapters !== null && timerChapters > 0) {
+        await updateChapterTimer(timerChapters - 1);
+      } else if (timerActive && timerChapters === 0) {
+        await TrackPlayer.pause();
+        updateTimerActive(false);
+      }
+    }
+  );
 };

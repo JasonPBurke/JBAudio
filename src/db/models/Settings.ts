@@ -8,6 +8,7 @@ export default class Settings extends Model {
   @field('num_columns') numColumns!: number;
   @field('timer_active') timerActive!: boolean;
   @field('timer_duration') timerDuration!: number | null;
+  @field('sleep_time') sleepTime!: number | null;
   @field('custom_timer') customTimer!: number | null;
   @field('timer_fadeout_duration') timerFadeoutDuration!: number | null;
   @field('timer_chapters') timerChapters!: number | null;

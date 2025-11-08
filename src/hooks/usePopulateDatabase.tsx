@@ -33,6 +33,7 @@ export const usePopulateDatabase = () => {
               settings.numColumns = 2;
               settings.timerActive = false;
               settings.timerDuration = null;
+              settings.sleepTime = null;
               settings.timerFadeoutDuration = null;
               settings.customTimer = null;
               settings.timerChapters = null;
