@@ -71,7 +71,6 @@ export const PlayerControls = ({ style }: PlayerControlsProps) => {
           right={22}
           fontSize={15}
         />
-        {/* <EnhancedSleepTimer iconSize={25} /> */}
         <SleepTimer iconSize={25} />
       </View>
     </View>
@@ -325,10 +324,6 @@ export const PlaybackSpeed = ({ iconSize = 30 }: PlayerButtonProps) => {
   );
 };
 
-// const enhance = withObservables([], ({ database }: any) => ({
-//   settings: database.get('settings').query().observe(),
-// }));
-
 export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
   const isTimerActive = useObserveWatermelonData(database, 'settings');
   const timerActiveValue = isTimerActive?.[0]?.timerActive;
@@ -340,6 +335,8 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
   const opacity1 = useSharedValue(0);
   const opacity2 = useSharedValue(0);
   const opacity3 = useSharedValue(0);
+
+  // console.log('in SleepTimer');
 
   useEffect(() => {
     if (timerActiveValue) {
@@ -409,10 +406,15 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
   );
 
   const handlePress = async () => {
-    const { timerDuration, timerActive } = await getTimerSettings();
+    const { timerDuration, timerActive, timerChapters } =
+      await getTimerSettings();
     if (timerDuration !== null && timerActive === false) {
       await updateTimerActive(true);
     } else if (timerDuration !== null && timerActive === true) {
+      await updateTimerActive(false);
+    } else if (timerChapters !== null && timerActive === false) {
+      await updateTimerActive(true);
+    } else if (timerChapters !== null && timerActive === true) {
       await updateTimerActive(false);
     } else if (timerDuration === null && timerActive === false) {
       handlePresentModalPress();
@@ -451,8 +453,9 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
         index={0}
         snapPoints={snapPoints}
       >
-        <SleepTimerOptions />
+        <SleepTimerOptions bottomSheetModalRef={bottomSheetModalRef} />
       </BottomSheetModal>
+
       <Animated.View style={animatedBellStyle}>
         <Bell
           size={iconSize}
@@ -510,8 +513,6 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
     </TouchableOpacity>
   );
 };
-
-// const EnhancedSleepTimer = enhance(SleepTimer);
 
 const styles = StyleSheet.create({
   controlsContainer: {
