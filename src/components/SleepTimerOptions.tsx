@@ -95,16 +95,19 @@ const SleepTimerOptions = ({
   };
 
   const handlePresetPress = async (duration: number) => {
-    if (activeTimerDuration === duration) {
+    //! convert to milliseconds (timestamp) before saving for timer calculation
+    const totalMilliseconds = duration * 60 * 1000;
+
+    if (activeTimerDuration === totalMilliseconds) {
       await updateTimerActive(false);
       await updateTimerDuration(null);
       setActiveTimerDuration(null);
     } else {
       await updateTimerActive(true);
-      await updateTimerDuration(duration);
+      await updateTimerDuration(totalMilliseconds);
       await updateChapterTimer(null);
       setChapterTimerActive(false);
-      setActiveTimerDuration(duration);
+      setActiveTimerDuration(totalMilliseconds);
       // setTimeout(() => {
       //   bottomSheetModalRef.current?.close();
       // }, 500);
@@ -115,8 +118,10 @@ const SleepTimerOptions = ({
     hours: number;
     minutes: number;
   }) => {
-    const totalMinutes = value.hours * 60 + value.minutes;
-    if (totalMinutes === 0) {
+    //! convert to milliseconds before saving for timer calculation
+    const totalMilliseconds =
+      value.hours * 60 * 60 * 1000 + value.minutes * 60 * 1000;
+    if (totalMilliseconds === 0) {
       await updateTimerActive(false);
       await updateTimerDuration(null);
       await updateCustomTimer(null, null);
@@ -124,10 +129,10 @@ const SleepTimerOptions = ({
       setActiveTimerDuration(null);
     } else {
       await updateTimerActive(true);
-      await updateTimerDuration(totalMinutes);
+      await updateTimerDuration(totalMilliseconds);
       await updateCustomTimer(value.hours, value.minutes);
       setChapterTimerActive(false);
-      setActiveTimerDuration(totalMinutes);
+      setActiveTimerDuration(totalMilliseconds);
       // setTimeout(() => {
       //   bottomSheetModalRef.current?.close();
       // }, 500);
@@ -154,8 +159,8 @@ const SleepTimerOptions = ({
     setChapterTimerActive((prev) => !prev);
   };
 
-  console.log('maxChapters', maxChapters);
-  console.log('chaptersToEnd', chaptersToEnd);
+  // console.log('maxChapters', maxChapters);
+  // console.log('chaptersToEnd', chaptersToEnd);
 
   return (
     <View style={[styles.container, { marginBottom: bottom }]}>
@@ -176,7 +181,8 @@ const SleepTimerOptions = ({
           <TouchableOpacity
             style={[
               styles.button,
-              activeTimerDuration === 15 && styles.activeButton,
+              //! check in milliseconds
+              activeTimerDuration === 15 * 60 * 1000 && styles.activeButton,
             ]}
             onPress={() => handlePresetPress(15)}
           >
@@ -185,7 +191,8 @@ const SleepTimerOptions = ({
           <TouchableOpacity
             style={[
               styles.button,
-              activeTimerDuration === 30 && styles.activeButton,
+              //! check in milliseconds
+              activeTimerDuration === 30 * 60 * 1000 && styles.activeButton,
             ]}
             onPress={() => handlePresetPress(30)}
           >
@@ -194,7 +201,8 @@ const SleepTimerOptions = ({
           <TouchableOpacity
             style={[
               styles.button,
-              activeTimerDuration === 45 && styles.activeButton,
+              //! check in milliseconds
+              activeTimerDuration === 45 * 60 * 1000 && styles.activeButton,
             ]}
             onPress={() => handlePresetPress(45)}
           >
@@ -206,7 +214,8 @@ const SleepTimerOptions = ({
           <TouchableOpacity
             style={[
               styles.button,
-              activeTimerDuration === 60 && styles.activeButton,
+              //! check in milliseconds
+              activeTimerDuration === 60 * 60 * 1000 && styles.activeButton,
             ]}
             onPress={() => handlePresetPress(60)}
           >
@@ -215,7 +224,8 @@ const SleepTimerOptions = ({
           <TouchableOpacity
             style={[
               styles.button,
-              activeTimerDuration === 90 && styles.activeButton,
+              //! check in milliseconds
+              activeTimerDuration === 90 * 60 * 1000 && styles.activeButton,
             ]}
             onPress={() => handlePresetPress(90)}
           >
@@ -224,7 +234,9 @@ const SleepTimerOptions = ({
           <TouchableOpacity
             style={[
               styles.button,
-              activeTimerDuration === 120 && styles.activeButton,
+              //! check in milliseconds
+              activeTimerDuration === 120 * 60 * 1000 &&
+                styles.activeButton,
             ]}
             onPress={() => handlePresetPress(120)}
           >
@@ -289,7 +301,8 @@ const SleepTimerOptions = ({
             style={[
               styles.customButton,
               activeTimerDuration ===
-                customTimer.hours * 60 + customTimer.minutes &&
+                customTimer.hours * 60 * 60 * 1000 +
+                  customTimer.minutes * 60 * 1000 &&
               (customTimer.hours !== 0 || customTimer.minutes !== 0)
                 ? styles.activeButton
                 : null,

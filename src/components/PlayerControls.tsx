@@ -6,10 +6,7 @@ import {
   ViewStyle,
   Pressable,
 } from 'react-native';
-import TrackPlayer, {
-  useIsPlaying,
-  // useProgress,
-} from 'react-native-track-player';
+import TrackPlayer, { useIsPlaying } from 'react-native-track-player';
 import {
   Play,
   Pause,
@@ -37,9 +34,7 @@ import {
 } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SleepTimerOptions from './SleepTimerOptions';
-import Settings from '@/db/models/Settings';
 import { getTimerSettings, updateTimerActive } from '@/db/settingsQueries';
-import { useDatabase, withObservables } from '@nozbe/watermelondb/react';
 import database from '@/db';
 import { useObserveWatermelonData } from '@/hooks/useObserveWatermelonData';
 
