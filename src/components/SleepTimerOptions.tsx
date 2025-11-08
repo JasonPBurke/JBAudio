@@ -12,6 +12,7 @@ import {
   updateCustomTimer,
   updateChapterTimer,
   updateTimerActive,
+  updateSleepTime,
 } from '@/db/settingsQueries';
 import UserSettings from '@/db/models/Settings';
 import { useDatabase } from '@nozbe/watermelondb/hooks';
@@ -29,7 +30,7 @@ const SleepTimerOptions = ({
     number | null
   >(null);
   const [chapterTimerActive, setChapterTimerActive] = useState(false);
-  const [chaptersToEnd, setChaptersToEnd] = useState(0);
+  const [chaptersToEnd, setChaptersToEnd] = useState<number>(0);
   const [maxChapters, setMaxChapters] = useState(0);
   const { bottom } = useSafeAreaInsets();
 
@@ -42,6 +43,7 @@ const SleepTimerOptions = ({
       if (settings.length > 0) {
         setActiveTimerDuration(settings[0].timerDuration);
         setChapterTimerActive(settings[0].timerChapters !== null);
+        setChaptersToEnd(settings[0].timerChapters || 0);
         if (settings[0].customTimer !== null) {
           const hours = Math.floor(settings[0].customTimer / 60);
           const minutes = settings[0].customTimer % 60;
@@ -87,10 +89,12 @@ const SleepTimerOptions = ({
   }, [db]);
 
   const handleChapterPlus = async () => {
+    updateChapterTimer(chaptersToEnd + 1);
     setChaptersToEnd((prev) => Math.min(prev + 1, maxChapters));
   };
 
   const handleChapterMinus = () => {
+    updateChapterTimer(chaptersToEnd - 1);
     setChaptersToEnd((prev) => Math.max(prev - 1, 0));
   };
 
@@ -99,12 +103,16 @@ const SleepTimerOptions = ({
     const totalMilliseconds = duration * 60 * 1000;
 
     if (activeTimerDuration === totalMilliseconds) {
+      //! deactivate timer
       await updateTimerActive(false);
       await updateTimerDuration(null);
+      await updateSleepTime(null);
       setActiveTimerDuration(null);
     } else {
+      //! activate timer
       await updateTimerActive(true);
       await updateTimerDuration(totalMilliseconds);
+      await updateSleepTime(Date.now() + totalMilliseconds);
       await updateChapterTimer(null);
       setChapterTimerActive(false);
       setActiveTimerDuration(totalMilliseconds);
@@ -122,14 +130,18 @@ const SleepTimerOptions = ({
     const totalMilliseconds =
       value.hours * 60 * 60 * 1000 + value.minutes * 60 * 1000;
     if (totalMilliseconds === 0) {
+      //! deactivate timer
       await updateTimerActive(false);
       await updateTimerDuration(null);
+      await updateSleepTime(null);
       await updateCustomTimer(null, null);
       await updateChapterTimer(null);
       setActiveTimerDuration(null);
     } else {
+      //! activate timer
       await updateTimerActive(true);
       await updateTimerDuration(totalMilliseconds);
+      await updateSleepTime(Date.now() + totalMilliseconds);
       await updateCustomTimer(value.hours, value.minutes);
       setChapterTimerActive(false);
       setActiveTimerDuration(totalMilliseconds);
@@ -141,13 +153,17 @@ const SleepTimerOptions = ({
     setShowSlider(false);
   };
 
+  console.log('chaptersToEnd', chaptersToEnd);
+
   const handleChapterTimerPress = async () => {
     if (chapterTimerActive) {
+      //! deactivate timer
       await updateTimerActive(false);
       await updateTimerDuration(null);
       await updateChapterTimer(null);
       setActiveTimerDuration(null);
     } else {
+      //! activate timer
       await updateTimerActive(true);
       await updateTimerDuration(null);
       await updateChapterTimer(chaptersToEnd);

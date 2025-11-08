@@ -34,7 +34,11 @@ import {
 } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SleepTimerOptions from './SleepTimerOptions';
-import { getTimerSettings, updateTimerActive } from '@/db/settingsQueries';
+import {
+  getTimerSettings,
+  updateSleepTime,
+  updateTimerActive,
+} from '@/db/settingsQueries';
 import database from '@/db';
 import { useObserveWatermelonData } from '@/hooks/useObserveWatermelonData';
 
@@ -405,8 +409,13 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
       await getTimerSettings();
     if (timerDuration !== null && timerActive === false) {
       await updateTimerActive(true);
+      //! THIS RESETS THE TIMER..IF I WANT TO USE THIS TO PAUSE THE TIMER AND LET IT
+      //! RESUME ON ACTIVATE PRESS, I NEED TO STORE THE TIMER DURATION MINUS ELAPSED
+      //! TIME IN THE DB
+      await updateSleepTime(Date.now() + timerDuration);
     } else if (timerDuration !== null && timerActive === true) {
       await updateTimerActive(false);
+      await updateSleepTime(null);
     } else if (timerChapters !== null && timerActive === false) {
       await updateTimerActive(true);
     } else if (timerChapters !== null && timerActive === true) {

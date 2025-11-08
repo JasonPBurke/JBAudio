@@ -1,6 +1,23 @@
 import database from '@/db';
 import Settings from '@/db/models/Settings';
 
+export async function updateSleepTime(duration: number | null) {
+  await database.write(async () => {
+    const settingsCollection =
+      database.collections.get<Settings>('settings');
+
+    const settingsRecord = await settingsCollection.query().fetch();
+
+    if (settingsRecord.length > 0) {
+      await settingsRecord[0].update((record) => {
+        record.sleepTime = duration;
+      });
+    } else {
+      console.warn('No settings record found to update sleepTime.');
+    }
+  });
+}
+
 export async function updateTimerDuration(duration: number | null) {
   await database.write(async () => {
     const settingsCollection =
@@ -81,6 +98,7 @@ export async function getTimerSettings() {
       timerDuration: settings.timerDuration,
       timerActive: settings.timerActive,
       timerChapters: settings.timerChapters,
+      sleepTime: settings.sleepTime,
     };
   }
   return { timerDuration: null, timerActive: false };
