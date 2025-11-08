@@ -85,8 +85,6 @@ export default module.exports = async function () {
       await updateChapterProgressInDB(bookId, position - 1);
     }
     if (event.state === State.Stopped) {
-      // console.log('Loading');
-      //! reset the chapter timer
       await updateChapterTimer(null);
       updateTimerActive(false);
     }
@@ -96,7 +94,6 @@ export default module.exports = async function () {
     Event.PlaybackActiveTrackChanged,
     async (event) => {
       const { timerChapters, timerActive } = await getTimerSettings();
-      // console.log('timerChapters', timerChapters);
       if (timerActive && timerChapters !== null && timerChapters > 0) {
         await updateChapterTimer(timerChapters - 1);
       } else if (timerActive && timerChapters === 0) {
