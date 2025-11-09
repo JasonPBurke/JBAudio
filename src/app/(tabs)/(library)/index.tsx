@@ -10,11 +10,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Header from '@/components/Header';
 import { useScanExternalFileSystem } from '@/hooks/useScanExternalFileSystem';
 import { useAuthors, useLibraryStore } from '@/store/library';
+import database from '@/db';
+import { reset } from 'node_modules/react-native-track-player/lib/typescript/src/trackPlayer';
 
 const LibraryScreen = () => {
   const [toggleView, setToggleView] = React.useState(0);
 
-  useScanExternalFileSystem(); // Call the hook to trigger scanning and store update
+  useScanExternalFileSystem();
 
   const initStore = useLibraryStore((state) => state.init);
   useEffect(() => {

@@ -300,15 +300,7 @@ export const useScanExternalFileSystem = () => {
     };
 
     const scanDirectory = async (path: string) => {
-      // console.time('handleReadDirectory');
-      // const startTime = Date.now();
-//       await database.unsafeResetDatabase();
-
       const result = await handleReadDirectory(path);
-      // const endTime = Date.now();
-      // console.timeEnd('handleReadDirectory');
-      // const elapsedTime = endTime - startTime; // Calculate the difference
-      // console.log(`Function executed in ${elapsedTime} milliseconds.`);
       const sortedLibrary = handleBookSort(result);
       const sortedLibraryWithArtwork = await extractArtwork(sortedLibrary);
       await populateDatabase(sortedLibraryWithArtwork);
