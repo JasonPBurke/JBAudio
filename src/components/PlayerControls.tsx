@@ -35,6 +35,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SleepTimerOptions from './SleepTimerOptions';
 import CountdownTimer from './CountdownTimer';
+import AnimatedZZZ from './animations/AnimatedZZZ';
 import {
   getTimerSettings,
   updateSleepTime,
@@ -61,16 +62,11 @@ export const PlayerControls = ({ style }: PlayerControlsProps) => {
     <View style={[styles.controlsContainer, style]}>
       <View style={styles.playerRow}>
         <PlaybackSpeed iconSize={25} />
-        <SeekBackButton iconSize={42} top={17} right={22} fontSize={15} />
+        <SeekBackButton iconSize={42} top={6} right={12} fontSize={15} />
 
         <PlayPauseButton iconSize={70} />
 
-        <SeekForwardButton
-          iconSize={42}
-          top={17}
-          right={22}
-          fontSize={15}
-        />
+        <SeekForwardButton iconSize={42} top={6} right={12} fontSize={15} />
         <SleepTimer iconSize={25} />
       </View>
     </View>
@@ -99,12 +95,10 @@ export const PlayPauseButton = ({
     }
   };
 
-  // Initialize scales on mount and update if 'playing' changes externally
   useEffect(() => {
     playButtonScale.value = playing ? 0 : 1;
     pauseButtonScale.value = playing ? 1 : 0;
-  }, [playing, playButtonScale, pauseButtonScale]); // Re-run effect if playing reference changes
-
+  }, [playing, playButtonScale, pauseButtonScale]);
   const animatedPlayButtonStyle = useAnimatedStyle(() => {
     return {
       opacity: playButtonScale.value,
@@ -164,45 +158,62 @@ export const SeekBackButton = ({
   fontSize,
 }: PlayerButtonProps) => {
   const seekDuration = 30;
+  const rotation = useSharedValue(0);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ rotateZ: `${rotation.value}deg` }],
+    };
+  });
+
+  const handlePress = async () => {
+    rotation.value = withSequence(
+      withTiming(10, { duration: 100 }),
+      withTiming(-2, { duration: 200 }),
+      withTiming(0, { duration: 100 })
+    );
+
+    const currentPosition = await TrackPlayer.getProgress().then(
+      (progress) => progress.position
+    );
+    const newPosition = currentPosition - seekDuration;
+
+    if (newPosition < 0) {
+      await TrackPlayer.skipToPrevious();
+      const { duration } = await TrackPlayer.getProgress();
+      //? newPosition is negative, so we need to add it to the duration
+      await TrackPlayer.seekTo(duration + newPosition);
+    } else {
+      await TrackPlayer.seekTo(newPosition);
+    }
+  };
 
   return (
     <Pressable
       style={{ padding: 10 }}
       // hitSlop={30}
-      onPress={async () => {
-        const currentPosition = await TrackPlayer.getProgress().then(
-          (progress) => progress.position
-        );
-        const newPosition = currentPosition - seekDuration;
-
-        if (newPosition < 0) {
-          await TrackPlayer.skipToPrevious();
-          const { duration } = await TrackPlayer.getProgress();
-          //? newPosition is negative, so we need to add it to the duration
-          await TrackPlayer.seekTo(duration + newPosition);
-        } else {
-          await TrackPlayer.seekTo(newPosition);
-        }
-      }}
+      onPress={handlePress}
     >
-      <IterationCw
-        size={iconSize}
-        color={colors.icon}
-        strokeWidth={1.5}
-        absoluteStrokeWidth
-      />
+      <Animated.View style={animatedStyle}>
+        <IterationCw
+          size={iconSize}
+          color={colors.icon}
+          strokeWidth={1.5}
+          absoluteStrokeWidth
+        />
 
-      <Text
-        style={{
-          ...styles.seekTime,
-          fontSize: fontSize,
-          top: top,
-          right: right,
-          color: colors.icon,
-        }}
-      >
-        {seekDuration}
-      </Text>
+        <Text
+          style={{
+            ...styles.seekTime,
+            fontSize: fontSize,
+            top: top,
+            right: right,
+            color: colors.icon,
+          }}
+        >
+          {seekDuration}
+        </Text>
+      </Animated.View>
     </Pressable>
   );
 };
@@ -214,43 +225,60 @@ export const SeekForwardButton = ({
   fontSize,
 }: PlayerButtonProps) => {
   const seekDuration = 30;
+  const rotation = useSharedValue(0);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ rotateZ: `${rotation.value}deg` }],
+    };
+  });
+
+  const handlePress = async () => {
+    rotation.value = withSequence(
+      withTiming(-10, { duration: 100 }), // Counter-clockwise rotation
+      withTiming(2, { duration: 200 }),
+      withTiming(0, { duration: 100 })
+    );
+
+    const { position, duration } = await TrackPlayer.getProgress();
+    const newPosition = position + seekDuration;
+
+    if (newPosition > duration) {
+      const seekToTime = newPosition - duration;
+      await TrackPlayer.skipToNext();
+      //? newPosition is negative, so we need to add it to the duration
+      await TrackPlayer.seekTo(seekToTime);
+    } else {
+      await TrackPlayer.seekTo(position + seekDuration);
+    }
+  };
 
   return (
     <Pressable
       style={{ padding: 10 }}
       // hitSlop={30}
-      onPress={async () => {
-        const { position, duration } = await TrackPlayer.getProgress();
-        const newPosition = position + seekDuration;
-
-        if (newPosition > duration) {
-          const seekToTime = newPosition - duration;
-          await TrackPlayer.skipToNext();
-          //? newPosition is negative, so we need to add it to the duration
-          await TrackPlayer.seekTo(seekToTime);
-        } else {
-          await TrackPlayer.seekTo(position + seekDuration);
-        }
-      }}
+      onPress={handlePress}
     >
-      <IterationCcw
-        size={iconSize}
-        color={colors.icon}
-        strokeWidth={1.5}
-        absoluteStrokeWidth
-      />
+      <Animated.View style={animatedStyle}>
+        <IterationCcw
+          size={iconSize}
+          color={colors.icon}
+          strokeWidth={1.5}
+          absoluteStrokeWidth
+        />
 
-      <Text
-        style={{
-          ...styles.seekTime,
-          fontSize: fontSize,
-          top: top,
-          right: right,
-          color: colors.icon,
-        }}
-      >
-        {seekDuration}
-      </Text>
+        <Text
+          style={{
+            ...styles.seekTime,
+            fontSize: fontSize,
+            top: top,
+            right: right,
+            color: colors.icon,
+          }}
+        >
+          {seekDuration}
+        </Text>
+      </Animated.View>
     </Pressable>
   );
 };
@@ -336,71 +364,16 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
   const rotation = useSharedValue(0); // For Hourglass rotation
   const countdownOpacity = useSharedValue(0);
   const countdownScale = useSharedValue(0.8);
-  const opacity1 = useSharedValue(0);
-  const opacity2 = useSharedValue(0);
-  const opacity3 = useSharedValue(0);
-
-  // console.log('timerDuration', timerDuration);
 
   useEffect(() => {
     if (timerActiveValue) {
       countdownOpacity.value = withTiming(0.5, { duration: 300 });
       countdownScale.value = withTiming(1, { duration: 300 });
-      opacity1.value = withRepeat(
-        withSequence(
-          withTiming(1, { duration: 1500, easing: Easing.linear }),
-          withTiming(0, { duration: 1500, easing: Easing.linear }),
-          withTiming(0, { duration: 3000, easing: Easing.linear }) // Hold for 2nd and 3rd z to fade in/out
-        ),
-        -1,
-        false
-      );
-      opacity2.value = withRepeat(
-        withSequence(
-          withTiming(0, { duration: 1500, easing: Easing.linear }), // Delay for first z
-          withTiming(1, { duration: 1500, easing: Easing.linear }),
-          withTiming(0, { duration: 1500, easing: Easing.linear }),
-          withTiming(0, { duration: 1500, easing: Easing.linear }) // Hold for 3rd z to fade in/out
-        ),
-        -1,
-        false
-      );
-      opacity3.value = withRepeat(
-        withSequence(
-          withTiming(0, { duration: 3000, easing: Easing.linear }), // Delay for first and second z
-          withTiming(1, { duration: 1500, easing: Easing.linear }),
-          withTiming(0, { duration: 1500, easing: Easing.linear })
-        ),
-        -1,
-        false
-      );
     } else {
       countdownOpacity.value = withTiming(0, { duration: 300 });
       countdownScale.value = withTiming(0.2, { duration: 300 });
-      opacity1.value = 0;
-      opacity2.value = 0;
-      opacity3.value = 0;
     }
-  }, [
-    timerActiveValue,
-    countdownOpacity,
-    countdownScale,
-    opacity1,
-    opacity2,
-    opacity3,
-  ]);
-
-  const animatedStyle1 = useAnimatedStyle(() => {
-    return { opacity: opacity1.value };
-  });
-
-  const animatedStyle2 = useAnimatedStyle(() => {
-    return { opacity: opacity2.value };
-  });
-
-  const animatedStyle3 = useAnimatedStyle(() => {
-    return { opacity: opacity3.value };
-  });
+  }, [timerActiveValue, countdownOpacity, countdownScale]);
 
   const animatedCountdownStyle = useAnimatedStyle(() => {
     return {
@@ -498,52 +471,9 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
           </Animated.View>
         )}
       </Animated.View>
-      {/* {timerActiveValue && (
-        <View>
-          <Animated.Text
-            style={[
-              {
-                position: 'absolute',
-                bottom: 14,
-                left: 22,
-                fontSize: 10,
-                color: colors.primary,
-              },
-              animatedStyle1,
-            ]}
-          >
-            z
-          </Animated.Text>
-          <Animated.Text
-            style={[
-              {
-                position: 'absolute',
-                bottom: 17,
-                left: 28,
-                fontSize: 11,
-                color: colors.primary,
-              },
-              animatedStyle2,
-            ]}
-          >
-            z
-          </Animated.Text>
-          <Animated.Text
-            style={[
-              {
-                position: 'absolute',
-                bottom: 21,
-                left: 34,
-                fontSize: 12,
-                color: colors.primary,
-              },
-              animatedStyle3,
-            ]}
-          >
-            z
-          </Animated.Text>
-        </View>
-      )} */}
+      {timerActiveValue && (
+        <AnimatedZZZ timerActiveValue={timerActiveValue} />
+      )}
     </TouchableOpacity>
   );
 };

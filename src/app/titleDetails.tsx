@@ -105,6 +105,7 @@ const TitleDetails = () => {
   const test = async (book: BookType | undefined) => {
     console.log('Pizza Time!');
   };
+  //
 
   //* LinearGradient imageColors options
   // 	{
