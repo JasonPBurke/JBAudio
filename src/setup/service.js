@@ -10,7 +10,6 @@ import {
   updateChapterProgressInDB,
   updateChapterIndexInDB,
 } from '@/db/chapterQueries';
-import { timer } from 'rxjs';
 
 const { setPlaybackIndex, setPlaybackProgress } =
   useLibraryStore.getState();
@@ -44,7 +43,6 @@ export default module.exports = async function () {
       const trackToUpdate = await TrackPlayer.getTrack(track);
 
       //? trackToUpdate ["title", "album", "url", "artwork", "bookId", "artist"]
-      // write progress to the zustand store
       setPlaybackProgress(trackToUpdate.bookId, position - 1);
 
       const { sleepTime, timerActive } = await getTimerSettings();

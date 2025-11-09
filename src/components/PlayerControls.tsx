@@ -34,6 +34,7 @@ import {
 } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SleepTimerOptions from './SleepTimerOptions';
+import CountdownTimer from './CountdownTimer';
 import {
   getTimerSettings,
   updateSleepTime,
@@ -324,21 +325,27 @@ export const PlaybackSpeed = ({ iconSize = 30 }: PlayerButtonProps) => {
 };
 
 export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
-  const isTimerActive = useObserveWatermelonData(database, 'settings');
-  const timerActiveValue = isTimerActive?.[0]?.timerActive;
+  const settingsCollection = useObserveWatermelonData(database, 'settings');
+  const timerActiveValue = settingsCollection?.[0]?.timerActive;
+  const timerDuration: number | null =
+    settingsCollection?.[0]?.timerDuration;
   const { bottom } = useSafeAreaInsets();
   const snapPoints = useMemo(() => ['40%'], []);
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
   const rotation = useSharedValue(0); // For Hourglass rotation
+  const countdownOpacity = useSharedValue(0);
+  const countdownScale = useSharedValue(0.8);
   const opacity1 = useSharedValue(0);
   const opacity2 = useSharedValue(0);
   const opacity3 = useSharedValue(0);
 
-  // console.log('in SleepTimer');
+  // console.log('timerDuration', timerDuration);
 
   useEffect(() => {
     if (timerActiveValue) {
+      countdownOpacity.value = withTiming(0.5, { duration: 300 });
+      countdownScale.value = withTiming(1, { duration: 300 });
       opacity1.value = withRepeat(
         withSequence(
           withTiming(1, { duration: 1500, easing: Easing.linear }),
@@ -368,11 +375,20 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
         false
       );
     } else {
+      countdownOpacity.value = withTiming(0, { duration: 300 });
+      countdownScale.value = withTiming(0.2, { duration: 300 });
       opacity1.value = 0;
       opacity2.value = 0;
       opacity3.value = 0;
     }
-  }, [timerActiveValue, opacity1, opacity2, opacity3]);
+  }, [
+    timerActiveValue,
+    countdownOpacity,
+    countdownScale,
+    opacity1,
+    opacity2,
+    opacity3,
+  ]);
 
   const animatedStyle1 = useAnimatedStyle(() => {
     return { opacity: opacity1.value };
@@ -384,6 +400,13 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
 
   const animatedStyle3 = useAnimatedStyle(() => {
     return { opacity: opacity3.value };
+  });
+
+  const animatedCountdownStyle = useAnimatedStyle(() => {
+    return {
+      opacity: countdownOpacity.value,
+      transform: [{ scale: countdownScale.value }],
+    };
   });
 
   const animatedBellStyle = useAnimatedStyle(() => {
@@ -467,6 +490,13 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
           strokeWidth={1.5}
           absoluteStrokeWidth
         />
+        {timerActiveValue && (
+          <Animated.View
+            style={[styles.countdownTimerContainer, animatedCountdownStyle]}
+          >
+            <CountdownTimer initialMilliseconds={timerDuration || 0} />
+          </Animated.View>
+        )}
       </Animated.View>
       {/* {timerActiveValue && (
         <View>
@@ -529,5 +559,11 @@ const styles = StyleSheet.create({
   },
   seekTime: {
     position: 'absolute',
+  },
+  countdownTimerContainer: {
+    position: 'absolute',
+    top: -20,
+    left: -8,
+    width: 32,
   },
 });
