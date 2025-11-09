@@ -21,21 +21,21 @@ import { useRouter } from 'expo-router';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { colors } from '@/constants/tokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBookById } from '@/store/library';
+import { BookTimeRemaining } from '@/components/BookTimeRemaining';
 
 export const FloatingPlayer = ({ style }: ViewProps) => {
-  const { duration, position } = useProgress(250);
-  const trackRemainingTime = formatSecondsToMinutes(duration - position);
+  // const { position } = useProgress(250);
   const { bottom } = useSafeAreaInsets();
 
   const router = useRouter();
-  const activeBook = useActiveTrack();
-  // const isActiveBook =
-  //   useActiveTrack()?.url ===
-  //   activeBook?.chapters[activeBook?.bookProgress.currentChapterIndex].url;
-  const lastActiveBook = useLastActiveTrack();
-  const displayedBook = activeBook ?? lastActiveBook;
+  const activeTrack = useActiveTrack();
+  const lastActiveTrack = useLastActiveTrack();
+  const displayedTrack = activeTrack ?? lastActiveTrack;
 
-  if (!displayedBook) {
+  const displayedBook = useBookById(displayedTrack?.bookId ?? '');
+
+  if (!displayedTrack || !displayedBook) {
     return null;
   }
 
@@ -69,15 +69,13 @@ export const FloatingPlayer = ({ style }: ViewProps) => {
         <View style={styles.bookTitleContainer}>
           <MovingText
             style={styles.bookTitle}
-            text={displayedBook.title ?? ''}
+            text={displayedBook.bookTitle ?? ''}
             animationThreshold={25}
           />
-          <Text style={styles.bookTimeRemaining}>
-            {trackRemainingTime} left
-          </Text>
+          <BookTimeRemaining />
         </View>
         <View style={styles.bookControlsContainer}>
-          <SeekBackButton iconSize={32} top={14} right={19} fontSize={12} />
+          <SeekBackButton iconSize={32} top={4} right={9} fontSize={12} />
           <PlayPauseButton iconSize={40} top={6} left={6} />
         </View>
       </>
@@ -107,11 +105,6 @@ const styles = StyleSheet.create({
     ...defaultStyles.text,
     fontSize: 18,
     fontWeight: '600',
-  },
-  bookTimeRemaining: {
-    ...defaultStyles.text,
-    fontSize: 12,
-    fontWeight: '400',
   },
   bookControlsContainer: {
     flexDirection: 'row',
