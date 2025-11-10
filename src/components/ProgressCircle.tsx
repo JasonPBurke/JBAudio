@@ -1,27 +1,57 @@
-import { Text } from 'react-native';
+import { Text, Animated, Easing } from 'react-native';
+import { useRef } from 'react';
 import { AnimatedCircularProgress } from 'react-native-circular-progress';
-import { colors } from '@/constants/tokens';
+// import { bookTimeRemaining } from './BookTimeRemaining';
 
 type ProgressCircleProps = {
   size: number;
 };
 
 const ProgressCircle = ({ size }: ProgressCircleProps) => {
+  const rotation = useRef(new Animated.Value(0)).current;
+  const circularProgressRef = useRef<AnimatedCircularProgress>(null);
+
+  const spin = () => {
+    rotation.setValue(0);
+    Animated.timing(rotation, {
+      toValue: 1,
+      duration: 4200,
+      easing: Easing.elastic(1),
+      useNativeDriver: true,
+    }).start(() => {
+      // Optionally, reset the rotation or perform other actions after the spin
+    });
+  };
+
+  const rotate = rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', `${6 * 360}deg`], // 6 rotations (6 * 360 = 2160)
+  });
+
+  // const timeRemaining = bookTimeRemaining();
+  // console.log('timeRemaining', timeRemaining);
+
   return (
     <AnimatedCircularProgress
-      style={{ position: 'absolute', bottom: 6, left: 6 }}
+      ref={circularProgressRef}
+      style={{
+        position: 'absolute',
+        bottom: 6,
+        left: 6,
+        transform: [{ rotateY: rotate }],
+      }}
       duration={3000}
       rotation={0}
       size={size}
       width={2}
       fill={100}
-      tintColor={colors.primary}
-      onAnimationComplete={() => console.log('onAnimationComplete')}
-      backgroundColor='#3d5875'
+      tintColor={'#ffb406b9'}
+      onAnimationComplete={spin}
+      backgroundColor='#3d5875a2'
       children={(value: any) => (
         <Text
           style={{
-            color: 'white',
+            color: '#d8dee9a4',
             fontSize: 12,
             fontWeight: 'bold',
             textAlign: 'center',

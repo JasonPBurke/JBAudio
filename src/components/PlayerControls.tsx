@@ -480,11 +480,14 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
 const styles = StyleSheet.create({
   controlsContainer: {
     width: '100%',
+    // borderColor: 'red',
+    // borderWidth: 1,
+    // paddingBottom: 20,
   },
   playerRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    alignItems: 'center',
+    alignItems: 'center', // Centers the row
   },
   seekTime: {
     position: 'absolute',
