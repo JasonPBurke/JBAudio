@@ -25,8 +25,6 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withSequence,
-  withRepeat,
-  Easing,
 } from 'react-native-reanimated';
 import {
   BottomSheetBackdrop,
@@ -433,8 +431,9 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
   }, []);
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.7}
+    <Pressable
+      hitSlop={20}
+      // activeOpacity={0.7}
       onPress={handlePress}
       onLongPress={handlePresentModalPress}
     >
@@ -474,7 +473,7 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
       {timerActiveValue && (
         <AnimatedZZZ timerActiveValue={timerActiveValue} />
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 

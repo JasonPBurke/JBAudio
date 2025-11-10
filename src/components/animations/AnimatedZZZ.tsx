@@ -7,7 +7,7 @@ import Animated, {
   withRepeat,
   Easing,
 } from 'react-native-reanimated';
-import { View, StyleSheet } from 'react-native';
+import { View } from 'react-native';
 import { colors } from '@/constants/tokens';
 
 type AnimatedZZZProps = {
@@ -34,8 +34,8 @@ const AnimatedZZZ = ({ timerActiveValue }: AnimatedZZZProps) => {
         withSequence(
           withTiming(0, { duration: 1500, easing: Easing.linear }),
           withTiming(1, { duration: 1500, easing: Easing.linear }),
-          withTiming(0, { duration: 1500, easing: Easing.linear }),
-          withTiming(0, { duration: 1500, easing: Easing.linear })
+          // withTiming(0, { duration: 1500, easing: Easing.linear }),
+          withTiming(0, { duration: 3000, easing: Easing.linear })
         ),
         -1,
         false
@@ -98,7 +98,7 @@ const AnimatedZZZ = ({ timerActiveValue }: AnimatedZZZProps) => {
       >
         z
       </Animated.Text>
-      <Animated.Text
+      {/* <Animated.Text
         style={[
           {
             position: 'absolute',
@@ -111,7 +111,7 @@ const AnimatedZZZ = ({ timerActiveValue }: AnimatedZZZProps) => {
         ]}
       >
         z
-      </Animated.Text>
+      </Animated.Text> */}
     </View>
   );
 };

@@ -1,7 +1,7 @@
 import { Text, StyleSheet } from 'react-native';
 import { useActiveTrack, useProgress } from 'react-native-track-player';
 import { useBookById } from '@/store/library';
-import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
+import { formatSecondsToHoursMinutes } from '@/helpers/miscellaneous';
 import { defaultStyles } from '@/styles';
 import { useLastActiveTrack } from '@/hooks/useLastActiveTrack';
 
@@ -27,7 +27,7 @@ export const BookTimeRemaining = () => {
     totalPlayedTimeInBook += position;
   }
 
-  const bookRemainingTime = formatSecondsToMinutes(
+  const bookRemainingTime = formatSecondsToHoursMinutes(
     displayedBook.bookDuration - totalPlayedTimeInBook
   );
 
