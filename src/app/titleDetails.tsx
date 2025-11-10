@@ -1,16 +1,8 @@
-import {
-  Text,
-  View,
-  StyleSheet,
-  // Image as RNImage,
-  Pressable,
-} from 'react-native';
-// import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { Text, View, StyleSheet, Pressable } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 // import { BlurView } from 'expo-blur';
 import { useBook } from '@/store/library';
-import { useBookProgress } from '@/hooks/useBookProgress';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-// import FastImage from '@d11/react-native-fast-image';
 import { Image } from 'expo-image';
 
 import { unknownBookImageUri } from '@/constants/images';
@@ -19,6 +11,7 @@ import { defaultStyles } from '@/styles';
 import { usePlayerBackground } from '@/hooks/usePlayerBackground';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { Play } from 'lucide-react-native';
 import TrackPlayer, {
   Track,
   useActiveTrack,
@@ -35,6 +28,7 @@ import { Book as BookType } from '@/types/Book';
 import database from '@/db';
 import Book from '@/db/models/Book';
 import { ShadowedView, shadowStyle } from 'react-native-fast-shadow';
+import { AnimatedCircularProgress } from 'react-native-circular-progress';
 
 const TitleDetails = () => {
   const [showModal, setShowModal] = useState(false);
@@ -102,10 +96,9 @@ const TitleDetails = () => {
     }
   };
 
-  const test = async (book: BookType | undefined) => {
-    console.log('Pizza Time!');
-  };
-  //
+  // const test = async (book: BookType | undefined) => {
+  //   console.log('Pizza Time!');
+  // };
 
   //* LinearGradient imageColors options
   // 	{
@@ -144,19 +137,25 @@ const TitleDetails = () => {
       }
     >
       <View style={styles.bookContainer}>
-        <Pressable
-          style={styles.trackPlayingImageIcon}
-          onPress={() => handlePressPlay(book)}
-        >
-          <Ionicons
-            name='headset-outline'
-            size={44}
-            color={colors.primary}
-          />
-        </Pressable>
-        <Pressable style={styles.testButton} onPress={() => test(book)}>
+        {(!isActiveBook || !playing) && (
+          <Animated.View
+            entering={FadeIn}
+            exiting={FadeOut}
+            style={styles.trackPlayingImageIcon}
+          >
+            <Pressable onPress={() => handlePressPlay(book)}>
+              <Play
+                size={44}
+                color={colors.primary}
+                strokeWidth={1.5}
+                absoluteStrokeWidth
+              />
+            </Pressable>
+          </Animated.View>
+        )}
+        {/* <Pressable style={styles.testButton} onPress={() => test(book)}>
           <Ionicons name='pizza' size={44} color={colors.primary} />
-        </Pressable>
+        </Pressable> */}
 
         <Pressable
           hitSlop={10}
@@ -209,7 +208,11 @@ const TitleDetails = () => {
                 >
                   Author
                 </Text>
-                <Text style={styles.bookInfoText}>{author}</Text>
+                <Text
+                  style={{ ...styles.bookInfoText, textAlign: 'center' }}
+                >
+                  {author}
+                </Text>
               </View>
               <View
                 style={{
@@ -231,7 +234,9 @@ const TitleDetails = () => {
                 >
                   Narrated by
                 </Text>
-                <Text style={styles.bookInfoText}>
+                <Text
+                  style={{ ...styles.bookInfoText, textAlign: 'center' }}
+                >
                   {book?.metadata.narrator}
                 </Text>
               </View>

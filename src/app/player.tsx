@@ -3,6 +3,7 @@ import { defaultStyles } from '@/styles';
 import {
   StyleSheet,
   View,
+  Text,
   ActivityIndicator,
   Pressable,
 } from 'react-native';
@@ -20,6 +21,8 @@ import { PlayerChaptersModal } from '@/modals/PlayerChaptersModal';
 import { useCallback, useRef } from 'react';
 import { useBook, useLibraryStore } from '@/store/library';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { AnimatedCircularProgress } from 'react-native-circular-progress';
+import ProgressCircle from '@/components/ProgressCircle';
 
 const PlayerScreen = () => {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
@@ -122,6 +125,7 @@ const PlayerScreen = () => {
               style={styles.artworkImage}
             />
           </ShadowedView>
+          <ProgressCircle size={50} />
         </View>
 
         <View style={{ marginTop: 70 }}>
