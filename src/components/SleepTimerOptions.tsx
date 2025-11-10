@@ -116,9 +116,9 @@ const SleepTimerOptions = ({
       await updateChapterTimer(null);
       setChapterTimerActive(false);
       setActiveTimerDuration(totalMilliseconds);
-      // setTimeout(() => {
-      //   bottomSheetModalRef.current?.close();
-      // }, 500);
+      setTimeout(() => {
+        bottomSheetModalRef.current?.close();
+      }, 250);
     }
   };
 
@@ -145,9 +145,9 @@ const SleepTimerOptions = ({
       await updateCustomTimer(value.hours, value.minutes);
       setChapterTimerActive(false);
       setActiveTimerDuration(totalMilliseconds);
-      // setTimeout(() => {
-      //   bottomSheetModalRef.current?.close();
-      // }, 500);
+      setTimeout(() => {
+        bottomSheetModalRef.current?.close();
+      }, 250);
     }
     setCustomTimer(value);
     setShowSlider(false);
@@ -168,9 +168,9 @@ const SleepTimerOptions = ({
       await updateTimerDuration(null);
       await updateChapterTimer(chaptersToEnd);
       setActiveTimerDuration(null);
-      // setTimeout(() => {
-      //   bottomSheetModalRef.current?.close();
-      // }, 500);
+      setTimeout(() => {
+        bottomSheetModalRef.current?.close();
+      }, 250);
     }
     setChapterTimerActive((prev) => !prev);
   };
