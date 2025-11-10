@@ -2,11 +2,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
-  Text,
   ViewProps,
 } from 'react-native';
-import { useActiveTrack, useProgress } from 'react-native-track-player';
-// import FastImage from '@d11/react-native-fast-image';
+import { useActiveTrack } from 'react-native-track-player';
 import { Image } from 'expo-image';
 
 import { unknownBookImageUri } from '@/constants/images';
@@ -18,14 +16,12 @@ import {
 import { useLastActiveTrack } from '@/hooks/useLastActiveTrack';
 import { MovingText } from '@/components/MovingText';
 import { useRouter } from 'expo-router';
-import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { colors } from '@/constants/tokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBookById } from '@/store/library';
 import { BookTimeRemaining } from '@/components/BookTimeRemaining';
 
 export const FloatingPlayer = ({ style }: ViewProps) => {
-  // const { position } = useProgress(250);
   const { bottom } = useSafeAreaInsets();
 
   const router = useRouter();
