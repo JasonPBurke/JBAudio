@@ -166,8 +166,8 @@ export const SeekBackButton = ({
 
   const handlePress = async () => {
     rotation.value = withSequence(
-      withTiming(10, { duration: 100 }),
-      withTiming(-2, { duration: 200 }),
+      withTiming(4, { duration: 100 }),
+      withTiming(-2, { duration: 100 }),
       withTiming(0, { duration: 100 })
     );
 
@@ -233,8 +233,8 @@ export const SeekForwardButton = ({
 
   const handlePress = async () => {
     rotation.value = withSequence(
-      withTiming(-10, { duration: 100 }), // Counter-clockwise rotation
-      withTiming(2, { duration: 200 }),
+      withTiming(-4, { duration: 100 }),
+      withTiming(2, { duration: 100 }),
       withTiming(0, { duration: 100 })
     );
 
@@ -480,14 +480,11 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
 const styles = StyleSheet.create({
   controlsContainer: {
     width: '100%',
-    // borderColor: 'red',
-    // borderWidth: 1,
-    // paddingBottom: 20,
   },
   playerRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    alignItems: 'center', // Centers the row
+    alignItems: 'center',
   },
   seekTime: {
     position: 'absolute',
