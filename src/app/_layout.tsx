@@ -15,6 +15,7 @@ import playbackService from '@/setup/service';
 import { DatabaseProvider } from '@nozbe/watermelondb/DatabaseProvider';
 import database from '@/db';
 import { PermissionProvider } from '@/contexts/PermissionContext';
+import settings from './settings';
 
 TrackPlayer.registerPlaybackService(() => playbackService);
 //! THIS IS TO TEMP SUPPRESS REANIMATED WARNINGS OF WRITING TO 'VALUE' DURING COMPONENT RERENDER
@@ -56,8 +57,15 @@ const RootNavigation = () => {
   return (
     <BottomSheetModalProvider>
       <Stack screenOptions={{ animation: 'fade_from_bottom' }}>
-        <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
-
+        <Stack.Screen name='(library)' options={{ headerShown: false }} />
+        <Stack.Screen
+          name='settings'
+          options={{
+            // headerShown: false,
+            presentation: 'modal',
+            animation: 'slide_from_left',
+          }}
+        />
         <Stack.Screen
           name='player'
           options={{
