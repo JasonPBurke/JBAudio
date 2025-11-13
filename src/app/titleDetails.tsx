@@ -1,6 +1,5 @@
 import { Text, View, StyleSheet, Pressable } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-// import { BlurView } from 'expo-blur';
 import { useBook } from '@/store/library';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
@@ -10,7 +9,6 @@ import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import { usePlayerBackground } from '@/hooks/usePlayerBackground';
 import { LinearGradient } from 'expo-linear-gradient';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { Play } from 'lucide-react-native';
 import TrackPlayer, {
   Track,

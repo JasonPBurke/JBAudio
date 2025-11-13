@@ -1,3 +1,4 @@
+import { FloatingPlayer } from '@/components/FloatingPlayer';
 import { StackScreenWithSearchBar } from '@/constants/layout';
 import { Stack } from 'expo-router';
 import { View } from 'react-native';
@@ -15,6 +16,14 @@ const LibraryScreenLayout = () => {
           }}
         />
       </Stack>
+      <FloatingPlayer
+        style={{
+          position: 'absolute',
+          left: 8,
+          right: 8,
+          bottom: 10,
+        }}
+      />
     </View>
   );
 };

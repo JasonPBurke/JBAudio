@@ -8,10 +8,15 @@ import {
   Settings2,
 } from 'lucide-react-native';
 import TabScreen from '@/components/TabScreen';
+import { router } from 'expo-router';
 
 type headerProps = {
   setToggleView: React.Dispatch<React.SetStateAction<number>>;
   toggleView: number;
+};
+
+const openSettingsDrawer = () => {
+  router.navigate(`/settings`);
 };
 
 const Header = ({ toggleView, setToggleView }: headerProps) => {
@@ -23,6 +28,7 @@ const Header = ({ toggleView, setToggleView }: headerProps) => {
       <View style={styles.header}>
         <View style={styles.headerGroup}>
           <Settings2
+            onPress={openSettingsDrawer}
             size={20}
             color={colors.icon}
             strokeWidth={1.0}
