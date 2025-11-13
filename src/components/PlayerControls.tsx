@@ -119,10 +119,16 @@ export const PlayPauseButton = ({
 
   return (
     <Pressable
+      // android_ripple={{
+      //   color: '#cccccc28',
+      // }}
       style={[
         {
           height: iconSize * 1.35,
           width: iconSize * 1.35,
+          // borderColor: 'red',
+          // borderWidth: 1,
+          borderRadius: 50,
         },
         style,
       ]}
@@ -188,6 +194,9 @@ export const SeekBackButton = ({
 
   return (
     <Pressable
+      // android_ripple={{
+      //   color: '#cccccc28',
+      // }}
       style={{ padding: 10 }}
       // hitSlop={30}
       onPress={handlePress}
@@ -253,6 +262,9 @@ export const SeekForwardButton = ({
 
   return (
     <Pressable
+      // android_ripple={{
+      //   color: '#cccccc28',
+      // }}
       style={{ padding: 10 }}
       // hitSlop={30}
       onPress={handlePress}
@@ -327,7 +339,12 @@ export const PlaybackSpeed = ({ iconSize = 30 }: PlayerButtonProps) => {
   };
 
   return (
-    <TouchableOpacity activeOpacity={0.7} onPress={handleSpeedRate}>
+    <Pressable
+      // android_ripple={{
+      //   color: '#cccccc28',
+      // }}
+      onPress={handleSpeedRate}
+    >
       <Gauge
         size={iconSize}
         color={colors.icon}
@@ -346,7 +363,7 @@ export const PlaybackSpeed = ({ iconSize = 30 }: PlayerButtonProps) => {
       >
         {speedRates[currentIndex]}x
       </Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
@@ -432,6 +449,9 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
 
   return (
     <Pressable
+      // android_ripple={{
+      //   color: '#cccccc28',
+      // }}
       hitSlop={20}
       // activeOpacity={0.7}
       onPress={handlePress}

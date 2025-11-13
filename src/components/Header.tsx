@@ -27,13 +27,14 @@ const Header = ({ toggleView, setToggleView }: headerProps) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerGroup}>
-          <Settings2
-            onPress={openSettingsDrawer}
-            size={20}
-            color={colors.icon}
-            strokeWidth={1.0}
-            absoluteStrokeWidth
-          />
+          <Pressable hitSlop={15} onPress={openSettingsDrawer}>
+            <Settings2
+              size={20}
+              color={colors.icon}
+              strokeWidth={1.0}
+              absoluteStrokeWidth
+            />
+          </Pressable>
 
           <Text style={{ color: colors.icon, fontSize: 20 }}>
             <Text style={{ color: '#FFB606' }}>S</Text>onicbooks
@@ -46,7 +47,15 @@ const Header = ({ toggleView, setToggleView }: headerProps) => {
             strokeWidth={1.5}
             absoluteStrokeWidth
           />
-          <Pressable hitSlop={10} style={{ padding: 4 }}>
+          <Pressable
+            hitSlop={15}
+            style={{
+              padding: 4,
+              // paddingEnd: 0,
+              // borderColor: 'red',
+              // borderWidth: 1,
+            }}
+          >
             {toggleView === 0 && (
               <Library
                 style={{ transform: [{ rotateY: '180deg' }] }}
