@@ -11,9 +11,9 @@ import Header from '@/components/Header';
 import { useScanExternalFileSystem } from '@/hooks/useScanExternalFileSystem';
 import { useAuthors, useLibraryStore } from '@/store/library';
 import database from '@/db';
-import { reset } from 'node_modules/react-native-track-player/lib/typescript/src/trackPlayer';
+import { FloatingPlayer } from '@/components/FloatingPlayer';
 
-const LibraryScreen = () => {
+const LibraryScreen = ({ navigation }: any) => {
   const [toggleView, setToggleView] = React.useState(0);
 
   useScanExternalFileSystem();
@@ -60,6 +60,14 @@ const LibraryScreen = () => {
           )}
         </ScrollView>
       </SafeAreaView>
+      <FloatingPlayer
+        style={{
+          position: 'absolute',
+          left: 8,
+          right: 8,
+          bottom: 10,
+        }}
+      />
     </View>
   );
 };
