@@ -15,6 +15,7 @@ import playbackService from '@/setup/service';
 import { DatabaseProvider } from '@nozbe/watermelondb/DatabaseProvider';
 import database from '@/db';
 import { PermissionProvider } from '@/contexts/PermissionContext';
+import { FloatingPlayer } from '@/components/FloatingPlayer';
 
 TrackPlayer.registerPlaybackService(() => playbackService);
 //! THIS IS TO TEMP SUPPRESS REANIMATED WARNINGS OF WRITING TO 'VALUE' DURING COMPONENT RERENDER
@@ -55,23 +56,18 @@ const App = () => {
 const RootNavigation = () => {
   return (
     <BottomSheetModalProvider>
-      <Stack screenOptions={{ animation: 'fade_from_bottom' }}>
-        <Stack.Screen name='(library)' options={{ headerShown: false }} />
-        <Stack.Screen
-          name='settings'
-          options={{
-            headerShown: false,
-            presentation: 'transparentModal',
-            animation: 'slide_from_left',
-          }}
-        />
+      <Stack
+        screenOptions={{
+          animation: 'fade_from_bottom',
+          headerShown: false,
+        }}
+      >
+        <Stack.Screen name='(drawer)' />
         <Stack.Screen
           name='player'
           options={{
             presentation: 'formSheet',
             sheetCornerRadius: 15,
-
-            headerShown: false,
           }}
         />
         <Stack.Screen
@@ -80,7 +76,6 @@ const RootNavigation = () => {
             sheetCornerRadius: 15,
             presentation: 'formSheet',
             // sheetAllowedDetents: [0.9, 1],
-            headerShown: false,
             animation: 'slide_from_bottom',
           }}
         />

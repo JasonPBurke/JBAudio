@@ -8,18 +8,21 @@ import {
   Settings2,
 } from 'lucide-react-native';
 import TabScreen from '@/components/TabScreen';
-import { router } from 'expo-router';
+import { useNavigation } from 'expo-router';
+import { DrawerActions } from '@react-navigation/native';
 
 type headerProps = {
   setToggleView: React.Dispatch<React.SetStateAction<number>>;
   toggleView: number;
 };
 
-const openSettingsDrawer = () => {
-  router.navigate(`/settings`);
-};
-
 const Header = ({ toggleView, setToggleView }: headerProps) => {
+  const navigation = useNavigation();
+
+  const openSettingsDrawer = () => {
+    // This will be updated to open the drawer
+    navigation.dispatch(DrawerActions.toggleDrawer());
+  };
   const handleToggleView = () => {
     setToggleView((prevState) => (prevState + 1) % 3);
   };
