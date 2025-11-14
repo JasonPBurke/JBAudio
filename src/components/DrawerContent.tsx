@@ -11,7 +11,7 @@ type Props = DrawerContentComponentProps;
 
 const DrawerContent = (props: Props) => {
   const handleSettingsPress = () => {
-    props.navigation.closeDrawer();
+    props.navigation.closeDrawer(); //? could leave the drawer open
     // Navigate to the settings screen using Expo Router's navigation
     props.navigation.navigate('settings');
   };
@@ -24,12 +24,12 @@ const DrawerContent = (props: Props) => {
       {/* Render default drawer items */}
       <DrawerItemList {...props} />
       {/* Custom Settings Button */}
-      {/* <TouchableOpacity
+      <TouchableOpacity
         style={styles.customItem}
         onPress={handleSettingsPress}
       >
         <Text style={styles.customItemText}>Settings</Text>
-      </TouchableOpacity> */}
+      </TouchableOpacity>
     </DrawerContentScrollView>
   );
 };
