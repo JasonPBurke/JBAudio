@@ -44,12 +44,12 @@ const Header = ({ toggleView, setToggleView }: headerProps) => {
           </Text>
         </View>
         <View style={styles.headerGroup}>
-          <Search
+          {/* <Search
             size={24}
             color={colors.icon}
             strokeWidth={1.5}
             absoluteStrokeWidth
-          />
+          /> */}
           <Pressable
             hitSlop={15}
             style={{

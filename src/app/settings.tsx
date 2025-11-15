@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import React from 'react';
 import { colors } from '@/constants/tokens';
 
-const SettingsScreen = () => {
+const SettingsScreen = ({ navigation }: any) => {
   return (
     <View style={styles.container}>
       <Text style={{ color: colors.text }}> my settings page</Text>
