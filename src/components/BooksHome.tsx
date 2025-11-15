@@ -195,10 +195,6 @@ const BooksHome = ({ authors }: BookListProps) => {
   );
 };
 
-// const enhance = withObservables(['authors'], ({ authors }) => ({
-//   authors,
-// }));
-
 export default memo(BooksHome);
 
 const styles = StyleSheet.create({
