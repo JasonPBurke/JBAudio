@@ -1,9 +1,8 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import {
   DrawerContentComponentProps,
   DrawerContentScrollView,
   DrawerItem,
-  DrawerItemList,
 } from '@react-navigation/drawer';
 import {
   X,
@@ -38,8 +37,6 @@ const DrawerContent = (props: Props) => {
         />
         <Sun size={30} color={colors.text} strokeWidth={1} />
       </View>
-      {/* Render default drawer items */}
-      {/* <DrawerItemList {...props} /> */}
       {/* Custom drawer items */}
       <DrawerItem
         label={'Scan Library'}
