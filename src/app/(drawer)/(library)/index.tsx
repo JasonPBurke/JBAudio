@@ -6,10 +6,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ScrollView,
   View,
+  Text,
   TextInput,
   StyleSheet,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Header from '@/components/Header';
@@ -24,6 +26,7 @@ import { useScanExternalFileSystem } from '@/hooks/useScanExternalFileSystem';
 import { useAuthors, useLibraryStore } from '@/store/library';
 import { FloatingPlayer } from '@/components/FloatingPlayer';
 import { colors } from '@/constants/tokens';
+import { X } from 'lucide-react-native';
 
 const SEARCH_HEIGHT = 65;
 
@@ -77,24 +80,35 @@ const LibraryScreen = ({ navigation }: any) => {
       <SafeAreaView style={{ flex: 1 }}>
         {/* MOVE HEADER ABOVE SCROLL VIEW TO DOCK IT AT TOP OF SCREEN */}
         <Header setToggleView={setToggleView} toggleView={toggleView} />
-        <Animated.View
-          style={[styles.searchContainer, searchContainerStyle]}
-        >
-          <TextInput
-            style={styles.searchInput}
-            placeholder='Search Library...'
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </Animated.View>
 
         <ScrollView
           ref={scrollViewRef}
           onScroll={handleScroll}
           scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingTop: SEARCH_HEIGHT }}
+          contentContainerStyle={{ paddingTop: 0 }}
         >
+          {/* Search Bar */}
+          <Animated.View
+            style={[styles.searchContainer, searchContainerStyle]}
+          >
+            <TextInput
+              style={styles.searchInput}
+              placeholder='Search Library...'
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              cursorColor={colors.primary}
+              selectionColor={colors.primary}
+            />
+            {searchQuery.length > 0 && ( // Conditionally render the clear button
+              <TouchableOpacity
+                onPress={() => setSearchQuery('')}
+                style={styles.clearButton}
+              >
+                <X size={21} color={colors.text} strokeWidth={1} />
+              </TouchableOpacity>
+            )}
+          </Animated.View>
           {toggleView === 0 && (
             <BooksHome authors={filteredLibrary} scrollEnabled={false} />
           )}
@@ -125,17 +139,32 @@ const LibraryScreen = ({ navigation }: any) => {
 
 const styles = StyleSheet.create({
   searchContainer: {
-    // The search bar is positioned below the header
-    // borderColor: 'red',
+    // width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    // justifyContent: 'space-between',
     // borderWidth: 1,
-    zIndex: -1,
+    // borderColor: '#ccc',
+    borderRadius: 5,
+    // paddingHorizontal: 10,
+    // margin: 10,
   },
   searchInput: {
-    backgroundColor: '#383838',
+    width: '95%',
+    backgroundColor: '#303030',
     borderRadius: 5,
     padding: 10,
     margin: 10,
     color: colors.textMuted,
+  },
+  clearButton: {
+    position: 'absolute',
+    right: 12,
+    padding: 5,
+  },
+  clearButtonText: {
+    fontSize: 16,
+    color: '#999',
   },
 });
 

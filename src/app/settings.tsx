@@ -14,10 +14,9 @@ export default SettingsScreen;
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 90,
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1f1f30',
+    backgroundColor: '#252525',
   },
 });

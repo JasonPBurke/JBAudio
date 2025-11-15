@@ -8,20 +8,11 @@ const DrawerLayout = () => {
       screenOptions={{
         swipeEdgeWidth: 0,
         drawerType: 'slide',
-        drawerStyle: {
-          width: '70%',
-          backgroundColor: '#1f1f30',
-        },
+        headerShown: false,
+        drawerStyle: { width: '70%' },
       }}
     >
-      <Drawer.Screen
-        name='(library)'
-        options={{ headerShown: false, title: 'Library' }}
-      />
-      <Drawer.Screen
-        name='settings'
-        options={{ headerShown: false, title: 'Settings' }}
-      />
+      <Drawer.Screen name='(library)' options={{ title: 'Library' }} />
     </Drawer>
   );
 };

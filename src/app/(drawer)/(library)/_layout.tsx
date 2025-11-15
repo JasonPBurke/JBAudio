@@ -1,4 +1,4 @@
-import { StackScreenWithSearchBar } from '../../../constants/layout';
+import { StackScreenWithSearchBar } from '@/constants/layout';
 import { Stack } from 'expo-router';
 import { View } from 'react-native';
 

@@ -18,6 +18,7 @@ import UserSettings from '@/db/models/Settings';
 import { useDatabase } from '@nozbe/watermelondb/hooks';
 import { useEffect } from 'react';
 import TrackPlayer from 'react-native-track-player';
+import { useRouter } from 'expo-router';
 
 const SleepTimerOptions = ({
   bottomSheetModalRef,
@@ -33,6 +34,7 @@ const SleepTimerOptions = ({
   const [chaptersToEnd, setChaptersToEnd] = useState<number>(0);
   const [maxChapters, setMaxChapters] = useState(0);
   const { bottom } = useSafeAreaInsets();
+  const router = useRouter();
 
   const db = useDatabase();
   useEffect(() => {
@@ -153,8 +155,6 @@ const SleepTimerOptions = ({
     setShowSlider(false);
   };
 
-  console.log('chaptersToEnd', chaptersToEnd);
-
   const handleChapterTimerPress = async () => {
     if (chapterTimerActive) {
       //! deactivate timer
@@ -188,6 +188,10 @@ const SleepTimerOptions = ({
             color={colors.primary}
             strokeWidth={1}
             absoluteStrokeWidth
+            onPress={() => {
+              bottomSheetModalRef.current?.close();
+              router.navigate('/settings');
+            }}
           />
         </TouchableOpacity>
       </View>

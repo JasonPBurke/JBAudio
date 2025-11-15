@@ -13,6 +13,8 @@ import {
   GalleryHorizontalEnd,
   RefreshCcw,
   BookOpenText,
+  ChartNoAxesCombined,
+  FileQuestionMark,
 } from 'lucide-react-native';
 import { colors } from '@/constants/tokens';
 import { useScanExternalFileSystem } from '@/hooks/useScanExternalFileSystem';
@@ -49,7 +51,7 @@ const DrawerContent = (props: Props) => {
         style={styles.drawerItem}
       />
       <DrawerItem
-        label={'FAQ'}
+        label={'Library Folder'}
         onPress={() => {}}
         icon={() => (
           <BookOpenText size={24} color={colors.text} strokeWidth={1} />
@@ -58,10 +60,19 @@ const DrawerContent = (props: Props) => {
         style={styles.drawerItem}
       />
       <DrawerItem
-        label={'History'}
+        label={'FAQ'}
         onPress={() => {}}
         icon={() => (
-          <GalleryHorizontalEnd
+          <FileQuestionMark size={24} color={colors.text} strokeWidth={1} />
+        )}
+        labelStyle={[styles.labelStyle, {}]}
+        style={styles.drawerItem}
+      />
+      <DrawerItem
+        label={'Book Stats'}
+        onPress={() => {}}
+        icon={() => (
+          <ChartNoAxesCombined
             size={24}
             color={colors.text}
             strokeWidth={1}
@@ -99,6 +110,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   drawerItem: {
+    paddingStart: 4,
     gap: 20,
     marginHorizontal: 10,
     marginBottom: 10,
