@@ -10,10 +10,11 @@ import { colors, fontSize } from '@/constants/tokens';
 import { FlashListProps, useMappingHelper } from '@shopify/flash-list';
 
 import { ChevronRight } from 'lucide-react-native';
-import { memo, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 import { BooksGrid } from './BooksGrid';
 import { BooksHorizontal } from './BooksHorizontal';
 import { Books } from './Books';
+import { utilsStyles } from '@/styles';
 
 export type BookListProps = Partial<FlashListProps<Book>> & {
   authors: Author[];
@@ -24,6 +25,8 @@ const BooksHome = ({ authors }: BookListProps) => {
   const [activeGridSection, setActiveGridSection] = useState<string | null>(
     null
   );
+  const scrollViewRef = useRef<ScrollView>(null);
+  const pressableRefs = useRef<Map<string, View | null>>(new Map());
 
   const allBooks = authors.flatMap((author) => author.books);
   const { getMappingKey } = useMappingHelper();
@@ -57,17 +60,36 @@ const BooksHome = ({ authors }: BookListProps) => {
 
   return (
     //? need to put a loader if allBooks.length === 0
-    <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      ref={scrollViewRef}
+      style={{ flex: 1 }}
+      showsVerticalScrollIndicator={false}
+    >
       {/* Recently Added Section */}
       {allBooks.length > 0 && (
         <View style={{ gap: 12, marginBottom: 82 }}>
           <View style={{ gap: 12 }}>
             <Pressable
+              ref={(el) => {
+                pressableRefs.current.set('recentlyAdded', el);
+              }}
               style={{ paddingVertical: 6 }}
               android_ripple={{
                 color: '#cccccc28',
               }}
               onPress={() => {
+                const pressable =
+                  pressableRefs.current.get('recentlyAdded');
+                if (pressable) {
+                  pressable.measure(
+                    (_x, _y, _width, _height, _pageX, pageY) => {
+                      scrollViewRef.current?.scrollTo({
+                        y: pageY,
+                        animated: false,
+                      });
+                    }
+                  );
+                }
                 setActiveGridSection((prev) =>
                   prev === 'recentlyAdded' ? null : 'recentlyAdded'
                 );
@@ -109,11 +131,32 @@ const BooksHome = ({ authors }: BookListProps) => {
               style={{ gap: 12 }}
             >
               <Pressable
+                ref={(el) => {
+                  pressableRefs.current.set(author.name, el);
+                }}
                 style={{ paddingVertical: 6 }}
                 android_ripple={{
                   color: '#cccccc28',
                 }}
                 onPress={() => {
+                  const pressable = pressableRefs.current.get(author.name);
+                  if (pressable) {
+                    pressable.measure(
+                      (
+                        _x: number,
+                        _y: number,
+                        _width: number,
+                        _height: number,
+                        _pageX: number,
+                        pageY: number
+                      ) => {
+                        scrollViewRef.current?.scrollTo({
+                          y: pageY,
+                          animated: false,
+                        });
+                      }
+                    );
+                  }
                   setActiveGridSection((prev) =>
                     prev === author.name ? null : author.name
                   );
@@ -144,6 +187,9 @@ const BooksHome = ({ authors }: BookListProps) => {
             </View>
           ))}
         </View>
+      )}
+      {allBooks.length === 0 && (
+        <Text style={utilsStyles.emptyComponent}>No books found</Text>
       )}
     </ScrollView>
   );
