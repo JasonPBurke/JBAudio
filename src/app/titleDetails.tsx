@@ -26,7 +26,7 @@ import { Book as BookType } from '@/types/Book';
 import database from '@/db';
 import Book from '@/db/models/Book';
 import { ShadowedView, shadowStyle } from 'react-native-fast-shadow';
-import { AnimatedCircularProgress } from 'react-native-circular-progress';
+import { saveArtwork } from '@/helpers/artwork';
 
 const TitleDetails = () => {
   const [showModal, setShowModal] = useState(false);
@@ -69,15 +69,21 @@ const TitleDetails = () => {
     const isChangingBook = book.bookId !== activeBookId;
 
     if (isChangingBook) {
+      // ! make it a helper function
+      // ! save artwork to settings db as local uri??
+      //! then use the local uri to set the artwork on the tracks
+      // ! this is for miniplayer artwork display
+      const artworkUri = await saveArtwork(book.artwork, book.bookTitle);
       await TrackPlayer.reset();
       const tracks: Track[] = book.chapters.map((chapter) => ({
         url: chapter.url,
         title: chapter.chapterTitle,
         artist: chapter.author,
-        artwork: book.artwork ?? unknownBookImageUri,
+        artwork: artworkUri ?? unknownBookImageUri,
         album: book.bookTitle,
         bookId: book.bookId,
       }));
+      // console.log('artwork', tracks[0].artwork);
       await TrackPlayer.add(tracks);
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(chapterProgress || 0);

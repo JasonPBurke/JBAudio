@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 8,
+  version: 9,
   tables: [
     tableSchema({
       name: 'authors',
@@ -75,6 +75,11 @@ export default appSchema({
         {
           name: 'last_active_book',
           type: 'string',
+        },
+        {
+          name: 'current_book_artwork_uri',
+          type: 'string',
+          isOptional: true,
         },
         {
           name: 'timer_active',

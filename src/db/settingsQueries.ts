@@ -103,3 +103,37 @@ export async function getTimerSettings() {
   }
   return { timerDuration: null, timerActive: false };
 }
+
+export async function updateCurrentBookArtworkUri(uri: string | null) {
+  await database.write(async () => {
+    const settingsCollection =
+      database.collections.get<Settings>('settings');
+
+    const settingsRecord = await settingsCollection.query().fetch();
+
+    if (settingsRecord.length > 0) {
+      await settingsRecord[0].update((record) => {
+        record.currentBookArtworkUri = uri;
+      });
+    } else {
+      console.warn(
+        'No settings record found to update currentBookArtworkUri.'
+      );
+    }
+  });
+}
+
+export async function getCurrentBookArtworkUri() {
+  const settingsCollection = database.collections.get<Settings>('settings');
+  const settingsRecord = await settingsCollection.query().fetch();
+
+  if (settingsRecord.length > 0) {
+    const settings = settingsRecord[0];
+    console.log(
+      'settings.currentBookArtworkUri',
+      settings.currentBookArtworkUri
+    );
+    return settings.currentBookArtworkUri;
+  }
+  return null;
+}
