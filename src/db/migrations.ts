@@ -7,6 +7,21 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      toVersion: 9,
+      steps: [
+        addColumns({
+          table: 'settings',
+          columns: [
+            {
+              name: 'current_book_artwork_uri',
+              type: 'string',
+              isOptional: true,
+            },
+          ],
+        }),
+      ],
+    },
+    {
       toVersion: 8,
       steps: [
         addColumns({

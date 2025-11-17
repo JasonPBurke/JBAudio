@@ -28,10 +28,8 @@ import { Play } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
 import database from '@/db';
-import {
-  // updateChapterProgressInDB,
-  getChapterProgressInDB,
-} from '@/db/chapterQueries';
+import { saveArtwork } from '@/helpers/artwork';
+import { getChapterProgressInDB } from '@/db/chapterQueries';
 
 export type BookListItemProps = {
   book: BookType;
@@ -74,15 +72,15 @@ export const BookGridItem = memo(function BookListItem({
     const isChangingBook = book.bookId !== activeBookId;
 
     if (isChangingBook) {
-      // console.log('changing book');
-
+      const artworkUri = await saveArtwork(book.artwork, book.bookTitle);
+      console.log('artworkUri in grid', artworkUri);
       await TrackPlayer.reset();
       //! should these tracks be built at the useSEFS.tsx and added to the DB on first scan?
       const tracks: Track[] = book.chapters.map((chapter) => ({
         url: chapter.url,
         title: chapter.chapterTitle,
         artist: chapter.author,
-        artwork: book.artwork ?? unknownBookImageUri,
+        artwork: artworkUri ?? unknownBookImageUri,
         album: book.bookTitle,
         bookId: book.bookId,
       }));

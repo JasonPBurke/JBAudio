@@ -61,7 +61,6 @@ const checkIfFileExists = async (path: string) => {
 
 const extractMetadata = async (filePath: string) => {
   // const decodedPath = decodeURIComponent(filePath);
-  console.log('filePath', filePath);
   try {
     const {
       year,
@@ -314,7 +313,7 @@ const removeMissingFiles = async (allFiles: string[]) => {
   for (const book of allBooks) {
     // @ts-expect-error
     const chapterCount = await book.chapters.fetchCount(); //! fetchCount() throws ts error
-    console.log('chapterCount', chapterCount);
+    // console.log('chapterCount', chapterCount);
     if (chapterCount === 0) {
       await database.write(async () => {
         await book.destroyPermanently();

@@ -28,6 +28,7 @@ import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
 import database from '@/db';
 import { getChapterProgressInDB } from '@/db/chapterQueries';
+import { saveArtwork } from '@/helpers/artwork';
 
 export type BookListItemProps = {
   book: BookType;
@@ -58,12 +59,14 @@ export const BookListItem = memo(function BookListItem({
     const isChangingBook = book.bookId !== activeBookId;
 
     if (isChangingBook) {
+      const artworkUri = await saveArtwork(book.artwork, book.bookTitle);
+
       await TrackPlayer.reset();
       const tracks: Track[] = book.chapters.map((chapter) => ({
         url: chapter.url,
         title: chapter.chapterTitle,
         artist: chapter.author,
-        artwork: book.artwork ?? unknownBookImageUri,
+        artwork: artworkUri ?? unknownBookImageUri,
         album: book.bookTitle,
         bookId: book.bookId,
       }));

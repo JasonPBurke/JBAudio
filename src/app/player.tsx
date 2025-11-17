@@ -52,8 +52,11 @@ const PlayerScreen = () => {
   const imgHeight = book?.artworkHeight;
   const imgWidth = book?.artworkWidth;
   const { imageColors } = usePlayerBackground(
-    activeTrack?.artwork ?? unknownBookImageUri
+    book?.artwork ?? unknownBookImageUri
   );
+
+  console.log('imageColors', JSON.stringify(imageColors, null, 2));
+  console.log('activeTrack.artwork', activeTrack?.artwork);
 
   // const { top, bottom } = useSafeAreaInsets();
 
