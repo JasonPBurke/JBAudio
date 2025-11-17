@@ -16,7 +16,7 @@ import {
   FileQuestionMark,
 } from 'lucide-react-native';
 import { colors } from '@/constants/tokens';
-import { useScanExternalFileSystem } from '@/hooks/useScanExternalFileSystem';
+import { scanLibrary } from '@/helpers/scanLibrary';
 
 type Props = DrawerContentComponentProps;
 
@@ -40,7 +40,7 @@ const DrawerContent = (props: Props) => {
       {/* Custom drawer items */}
       <DrawerItem
         label={'Scan Library'}
-        onPress={() => {}}
+        onPress={() => scanLibrary()}
         icon={() => (
           <RefreshCcw size={24} color={colors.text} strokeWidth={1} />
         )}
@@ -93,7 +93,7 @@ const DrawerContent = (props: Props) => {
 
 const styles = StyleSheet.create({
   drawerContainer: {
-    backgroundColor: '#252525',
+    backgroundColor: colors.modalBackground,
   },
   drawerHeader: {
     padding: 10,

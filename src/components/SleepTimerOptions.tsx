@@ -379,7 +379,9 @@ const SleepTimerOptions = ({
         onConfirm={handleCustomTimerConfirm}
         styles={{
           theme: 'dark',
-          contentContainer: {},
+          contentContainer: {
+            backgroundColor: colors.modalBackground,
+          },
           button: { borderRadius: 4 },
           cancelButton: { backgroundColor: colors.background },
           confirmButton: {

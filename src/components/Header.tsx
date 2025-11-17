@@ -44,21 +44,7 @@ const Header = ({ toggleView, setToggleView }: headerProps) => {
           </Text>
         </View>
         <View style={styles.headerGroup}>
-          {/* <Search
-            size={24}
-            color={colors.icon}
-            strokeWidth={1.5}
-            absoluteStrokeWidth
-          /> */}
-          <Pressable
-            hitSlop={15}
-            style={{
-              padding: 4,
-              // paddingEnd: 0,
-              // borderColor: 'red',
-              // borderWidth: 1,
-            }}
-          >
+          <Pressable hitSlop={15} onPress={handleToggleView}>
             {toggleView === 0 && (
               <Library
                 style={{ transform: [{ rotateY: '180deg' }] }}
@@ -66,7 +52,6 @@ const Header = ({ toggleView, setToggleView }: headerProps) => {
                 color={colors.icon}
                 strokeWidth={1.5}
                 absoluteStrokeWidth
-                onPress={handleToggleView}
               />
             )}
             {toggleView === 1 && (
@@ -75,7 +60,6 @@ const Header = ({ toggleView, setToggleView }: headerProps) => {
                 color={colors.icon}
                 strokeWidth={1.5}
                 absoluteStrokeWidth
-                onPress={handleToggleView}
               />
             )}
             {toggleView === 2 && (
@@ -84,7 +68,6 @@ const Header = ({ toggleView, setToggleView }: headerProps) => {
                 color={colors.icon}
                 strokeWidth={1.5}
                 absoluteStrokeWidth
-                onPress={handleToggleView}
               />
             )}
           </Pressable>
