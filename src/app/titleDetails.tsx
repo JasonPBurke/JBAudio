@@ -1,9 +1,9 @@
 import { Text, View, StyleSheet, Pressable } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useBook } from '@/store/library';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
-
+import { DismissIndicator } from '@/components/DismissIndicator';
 import { unknownBookImageUri } from '@/constants/images';
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
@@ -30,8 +30,6 @@ import { saveArtwork } from '@/helpers/artwork';
 
 const TitleDetails = () => {
   const [showModal, setShowModal] = useState(false);
-
-  const router = useRouter();
   const { setActiveBookId, activeBookId } = useQueueStore();
   const { bookId, author, bookTitle } = useLocalSearchParams<{
     author: string;
@@ -100,10 +98,6 @@ const TitleDetails = () => {
     }
   };
 
-  // const test = async (book: BookType | undefined) => {
-  //   console.log('Pizza Time!');
-  // };
-
   //* LinearGradient imageColors options
   // 	{
   //   "average": "#393734",
@@ -157,15 +151,8 @@ const TitleDetails = () => {
             </Pressable>
           </Animated.View>
         )}
-        {/* <Pressable style={styles.testButton} onPress={() => test(book)}>
-          <Ionicons name='pizza' size={44} color={colors.primary} />
-        </Pressable> */}
 
-        <Pressable
-          hitSlop={10}
-          style={styles.backButton}
-          onPress={() => router.back()}
-        />
+        <DismissIndicator />
         <View
           style={{
             ...styles.bookArtworkContainer,
@@ -346,31 +333,11 @@ const styles = StyleSheet.create({
     ...defaultStyles.text,
     fontSize: fontSize.sm,
   },
-  backButton: {
-    width: 55,
-    height: 7,
-    backgroundColor: '#1c1c1ca9',
-    borderRadius: 50,
-    borderColor: colors.textMuted,
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignSelf: 'center',
-    marginBottom: 20,
-  },
   trackPlayingImageIcon: {
     position: 'absolute',
     // top: '25%',
     bottom: 0,
     right: 20,
-    padding: 10,
-    backgroundColor: '#1c1c1c7f',
-    borderRadius: 50,
-    zIndex: 10,
-  },
-  testButton: {
-    position: 'absolute',
-    bottom: 0,
-    left: 20,
     padding: 10,
     backgroundColor: '#1c1c1c7f',
     borderRadius: 50,
@@ -388,7 +355,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   metadataModal: {
-    flex: 1 / 3,
+    flex: 1,
     margin: 20,
     borderRadius: 12,
     padding: 35,
