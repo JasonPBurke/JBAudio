@@ -181,7 +181,7 @@ const SleepTimerOptions = ({
   return (
     <View style={[styles.container, { marginBottom: bottom }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Sleep Timer Options</Text>
+        <Text style={styles.title}>Timer Options</Text>
         <TouchableOpacity>
           <Settings
             size={24}

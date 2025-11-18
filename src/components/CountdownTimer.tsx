@@ -4,14 +4,19 @@ import { View, Text, StyleSheet } from 'react-native';
 
 const CountdownTimer = ({
   initialMilliseconds,
+  timerChapters,
 }: {
   initialMilliseconds: number;
+  timerChapters: number | null;
 }) => {
   const initialMinutes = convertMillisecondsToMinutes(initialMilliseconds);
   const [time, setTime] = useState<number>(initialMinutes);
   const timerRef = useRef<number>(0); // Use a ref to store the interval ID
 
+  // console.log('timerChapters', timerChapters);
+  // console.log('initialMinutes', initialMilliseconds);
   useEffect(() => {
+    if (timerChapters && initialMilliseconds === 0) return;
     setTime(initialMinutes); // Set initial time when initialMinutes changes
     timerRef.current = setInterval(() => {
       setTime((prevTime) => {
@@ -24,29 +29,7 @@ const CountdownTimer = ({
     }, 60000); // Update every minute
 
     return () => clearInterval(timerRef.current);
-  }, [initialMinutes]); // Re-run effect when initialMinutes changes
-
-  // const formatTime = (totalMinutes: number) => {
-  //   if (totalMinutes <= 0) {
-  //     // return '0m';
-  //     return '';
-  //   }
-
-  //   const hours = Math.floor(totalMinutes / 60);
-  //   const minutes = totalMinutes % 60;
-
-  //   let formattedString = '';
-
-  //   if (hours > 0) {
-  //     formattedString += `${hours}h`;
-  //   }
-
-  //   if (minutes > 0) {
-  //     formattedString += `${minutes}m`;
-  //   }
-
-  //   return formattedString;
-  // };
+  }, [initialMinutes, timerChapters]); // Re-run effect when initialMinutes changes
 
   const formatTime = (totalMinutes: number) => {
     const hours = Math.floor(totalMinutes / 60);
@@ -58,7 +41,11 @@ const CountdownTimer = ({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.timerText}>{formatTime(time)}</Text>
+      <Text style={styles.timerText}>
+        {timerChapters && initialMilliseconds === 0
+          ? `${timerChapters} Ch`
+          : formatTime(time)}
+      </Text>
     </View>
   );
 };

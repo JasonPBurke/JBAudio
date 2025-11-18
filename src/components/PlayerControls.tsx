@@ -372,6 +372,8 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
   const timerActiveValue = settingsCollection?.[0]?.timerActive;
   const timerDuration: number | null =
     settingsCollection?.[0]?.timerDuration;
+  const timerChapters: number | null =
+    settingsCollection?.[0]?.timerChapters;
   const { bottom } = useSafeAreaInsets();
   const snapPoints = useMemo(() => ['40%'], []);
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
@@ -453,7 +455,6 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
       //   color: '#cccccc28',
       // }}
       hitSlop={20}
-      // activeOpacity={0.7}
       onPress={handlePress}
       onLongPress={handlePresentModalPress}
     >
@@ -461,10 +462,14 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
         enablePanDownToClose={true}
         backgroundStyle={{ backgroundColor: '#151520' }}
         style={{ paddingBottom: bottom + 10, marginBottom: bottom + 10 }}
-        handleIndicatorStyle={{
-          // backgroundColor: colors.textMuted,
-          borderColor: colors.textMuted,
-          borderWidth: StyleSheet.hairlineWidth,
+        handleComponent={() => {
+          return (
+            <Pressable
+              hitSlop={10}
+              style={styles.handleIndicator}
+              onPress={() => bottomSheetModalRef.current?.dismiss()}
+            />
+          );
         }}
         enableDynamicSizing={false}
         backdropComponent={renderBackdrop}
@@ -486,7 +491,10 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
           <Animated.View
             style={[styles.countdownTimerContainer, animatedCountdownStyle]}
           >
-            <CountdownTimer initialMilliseconds={timerDuration || 0} />
+            <CountdownTimer
+              initialMilliseconds={timerDuration || 0}
+              timerChapters={timerChapters! + 1 || null}
+            />
           </Animated.View>
         )}
       </Animated.View>
@@ -514,5 +522,17 @@ const styles = StyleSheet.create({
     top: -20,
     left: -8,
     width: 32,
+  },
+  handleIndicator: {
+    marginBottom: 6,
+    marginTop: 12,
+    width: 55,
+    height: 7,
+    backgroundColor: '#1c1c1ca9',
+    borderRadius: 50,
+    borderColor: colors.textMuted,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignSelf: 'center',
   },
 });
