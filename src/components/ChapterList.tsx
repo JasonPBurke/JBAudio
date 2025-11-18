@@ -23,6 +23,8 @@ export const ChapterList = ({
       style={{
         flex: 1,
         padding: 20,
+        paddingTop: 12,
+        paddingBottom: 12,
       }}
     >
       {book?.chapters && book.chapters.length > 0 ? (
@@ -43,10 +45,10 @@ export const ChapterList = ({
                 onPress={() => handleChapterChange(index)}
                 style={{
                   ...styles.chapterItem,
-                  borderBottomLeftRadius: isLastChapter ? 20 : 0,
-                  borderBottomRightRadius: isLastChapter ? 20 : 0,
-                  borderTopLeftRadius: isFirstChapter ? 20 : 0,
-                  borderTopRightRadius: isFirstChapter ? 20 : 0,
+                  borderBottomLeftRadius: isLastChapter ? 14 : 0,
+                  borderBottomRightRadius: isLastChapter ? 14 : 0,
+                  borderTopLeftRadius: isFirstChapter ? 14 : 0,
+                  borderTopRightRadius: isFirstChapter ? 14 : 0,
                 }}
               >
                 <Text
@@ -69,7 +71,7 @@ export const ChapterList = ({
           }}
           // getItemLayout={getItemLayout}
           // ref={flatListRef}
-          style={{ flex: 1 }}
+          style={{ flex: 1, borderRadius: 4 }}
           ItemSeparatorComponent={() => <View style={{ height: 3 }} />}
           showsVerticalScrollIndicator={false}
         />

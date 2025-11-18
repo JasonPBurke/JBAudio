@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors } from '@/constants/tokens';
 
+//? = (sheetRef: React.ForwardedRef<BottomSheetModal>) =>
 export const DismissIndicator = () => {
   const { top } = useSafeAreaInsets();
   const router = useRouter();
