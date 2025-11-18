@@ -1,7 +1,7 @@
 import { Text, View, StyleSheet, Pressable } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useBook } from '@/store/library';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
 import { DismissIndicator } from '@/components/DismissIndicator';
 import { unknownBookImageUri } from '@/constants/images';
@@ -152,7 +152,12 @@ const TitleDetails = () => {
           </Animated.View>
         )}
 
-        <DismissIndicator />
+        <Pressable
+          hitSlop={10}
+          style={styles.dismissIndicator}
+          onPress={() => router.back()}
+        />
+        {/* <DismissIndicator /> */}
         <View
           style={{
             ...styles.bookArtworkContainer,
@@ -361,5 +366,16 @@ const styles = StyleSheet.create({
     padding: 35,
     alignItems: 'center',
     elevation: 5,
+  },
+  dismissIndicator: {
+    marginBottom: 18,
+    width: 55,
+    height: 7,
+    backgroundColor: '#1c1c1ca9',
+    borderRadius: 50,
+    borderColor: colors.textMuted,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignSelf: 'center',
   },
 });

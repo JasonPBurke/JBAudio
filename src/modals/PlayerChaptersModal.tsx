@@ -17,6 +17,7 @@ import { MovingText } from '../components/MovingText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useActiveTrack } from 'react-native-track-player';
 import { ChapterList } from '../components/ChapterList';
+import { router } from 'expo-router';
 
 type PlayerChaptersModalProps = {
   handlePresentPress: () => void;
@@ -83,8 +84,23 @@ export const PlayerChaptersModal = ({
       <BottomSheetModal
         enablePanDownToClose={true}
         backgroundStyle={{ backgroundColor: '#151520' }} //#12121d
-        // handleComponent={DismissIndicator}
-        handleIndicatorStyle={styles.handleIndicator}
+        handleComponent={() => {
+          return (
+            <Pressable
+              hitSlop={10}
+              style={styles.handleIndicator}
+              onPress={() => {
+                if (
+                  bottomSheetModalRef &&
+                  'current' in bottomSheetModalRef
+                ) {
+                  bottomSheetModalRef.current?.dismiss();
+                }
+              }}
+            />
+          );
+        }}
+        // handleIndicatorStyle={styles.handleIndicator}
         enableDynamicSizing={false}
         backdropComponent={renderBackdrop}
         ref={bottomSheetModalRef}
@@ -123,6 +139,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   handleIndicator: {
+    marginTop: 12,
     borderColor: colors.textMuted,
     borderWidth: 1,
     width: 55,
