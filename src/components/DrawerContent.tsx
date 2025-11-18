@@ -40,7 +40,10 @@ const DrawerContent = (props: Props) => {
       {/* Custom drawer items */}
       <DrawerItem
         label={'Scan Library'}
-        onPress={() => scanLibrary()}
+        onPress={() => {
+          scanLibrary();
+          props.navigation.closeDrawer();
+        }}
         icon={() => (
           <RefreshCcw size={24} color={colors.text} strokeWidth={1} />
         )}
