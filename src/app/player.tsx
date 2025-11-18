@@ -3,7 +3,6 @@ import { defaultStyles } from '@/styles';
 import {
   StyleSheet,
   View,
-  Text,
   ActivityIndicator,
   Pressable,
 } from 'react-native';
@@ -23,6 +22,7 @@ import { useBook, useLibraryStore } from '@/store/library';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 // import ProgressCircle from '@/components/ProgressCircle';
 import { BookTimeRemaining } from '@/components/BookTimeRemaining';
+import { DismissIndicator } from '@/components/DismissIndicator';
 
 const PlayerScreen = () => {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
@@ -44,7 +44,7 @@ const PlayerScreen = () => {
       //! update state store an rely on the observer to update the db is better??
       await updateBookChapterIndex(book.bookId, chapterIndex);
 
-      bottomSheetModalRef.current?.close();
+      bottomSheetModalRef.current?.dismiss(); // .close()
     },
     [book?.bookId, updateBookChapterIndex]
   );
@@ -54,9 +54,6 @@ const PlayerScreen = () => {
   const { imageColors } = usePlayerBackground(
     book?.artwork ?? unknownBookImageUri
   );
-
-  console.log('imageColors', JSON.stringify(imageColors, null, 2));
-  console.log('activeTrack.artwork', activeTrack?.artwork);
 
   // const { top, bottom } = useSafeAreaInsets();
 
@@ -104,7 +101,7 @@ const PlayerScreen = () => {
       }
     >
       <View style={styles.overlayContainer}>
-        <DismissPlayerSymbol />
+        <DismissIndicator />
         <View
           style={{
             ...styles.artworkImageContainer,
@@ -151,22 +148,6 @@ const PlayerScreen = () => {
 
 export default PlayerScreen;
 
-const DismissPlayerSymbol = () => {
-  const { top } = useSafeAreaInsets();
-  const router = useRouter();
-  const handlePress = () => {
-    router.back();
-  };
-
-  return (
-    <Pressable
-      hitSlop={10}
-      style={{ ...styles.backButton, top: top + 8 }}
-      onPress={handlePress}
-    />
-  );
-};
-
 const FIXED_ARTWORK_HEIGHT = 350;
 
 const styles = StyleSheet.create({
@@ -185,17 +166,6 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
     borderRadius: 6,
-  },
-  backButton: {
-    marginBottom: 18,
-    width: 55,
-    height: 7,
-    backgroundColor: '#1c1c1ca9',
-    borderRadius: 50,
-    borderColor: colors.textMuted,
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignSelf: 'center',
   },
   chapterItem: {
     paddingVertical: 10,

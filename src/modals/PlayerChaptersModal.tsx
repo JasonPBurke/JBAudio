@@ -7,7 +7,6 @@ import {
 import {
   BottomSheetBackdrop,
   BottomSheetModal,
-  BottomSheetView,
 } from '@gorhom/bottom-sheet';
 import { useCallback, useMemo } from 'react';
 import { colors } from '@/constants/tokens';
@@ -84,13 +83,9 @@ export const PlayerChaptersModal = ({
       <BottomSheetModal
         enablePanDownToClose={true}
         backgroundStyle={{ backgroundColor: '#151520' }} //#12121d
-        style={{ paddingBottom: 10, marginBottom: 10 }}
-        handleIndicatorStyle={{
-          borderColor: colors.textMuted,
-          borderWidth: StyleSheet.hairlineWidth,
-          // backgroundColor: colors.textMuted,
-        }}
-        // enableDynamicSizing={false}
+        // handleComponent={DismissIndicator}
+        handleIndicatorStyle={styles.handleIndicator}
+        enableDynamicSizing={false}
         backdropComponent={renderBackdrop}
         ref={bottomSheetModalRef}
         index={0}
@@ -126,5 +121,15 @@ const styles = StyleSheet.create({
     ...defaultStyles.text,
     fontSize: 18,
     fontWeight: '500',
+  },
+  handleIndicator: {
+    borderColor: colors.textMuted,
+    borderWidth: 1,
+    width: 55,
+    height: 7,
+    backgroundColor: '#1c1c1ca9',
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignSelf: 'center',
   },
 });
