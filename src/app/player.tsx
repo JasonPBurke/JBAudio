@@ -1,13 +1,6 @@
 import { colors, screenPadding } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
-import {
-  StyleSheet,
-  View,
-  ActivityIndicator,
-  Pressable,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { StyleSheet, View, ActivityIndicator } from 'react-native';
 import TrackPlayer, { useActiveTrack } from 'react-native-track-player';
 import { ShadowedView, shadowStyle } from 'react-native-fast-shadow';
 import { Image } from 'expo-image';
@@ -54,8 +47,6 @@ const PlayerScreen = () => {
   const { imageColors } = usePlayerBackground(
     book?.artwork ?? unknownBookImageUri
   );
-
-  // const { top, bottom } = useSafeAreaInsets();
 
   if (!activeTrack) {
     return (
@@ -120,7 +111,7 @@ const PlayerScreen = () => {
             <Image
               contentFit='contain'
               source={{
-                uri: activeTrack?.artwork ?? unknownBookImageUri,
+                uri: book?.artwork ?? unknownBookImageUri,
               }}
               style={styles.artworkImage}
             />
