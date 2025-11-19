@@ -4,7 +4,6 @@ import { BooksGrid } from '@/components/BooksGrid';
 import { defaultStyles } from '@/styles';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ScrollView,
   View,
   Text,
   TextInput,
@@ -21,7 +20,9 @@ import Animated, {
   withTiming,
   interpolate,
   Extrapolation,
+  useAnimatedScrollHandler,
 } from 'react-native-reanimated';
+import { ScrollView } from 'react-native-gesture-handler';
 import { useScanExternalFileSystem } from '@/hooks/useScanExternalFileSystem';
 import { useAuthors, useLibraryStore } from '@/store/library';
 import { FloatingPlayer } from '@/components/FloatingPlayer';
@@ -34,7 +35,7 @@ const LibraryScreen = ({ navigation }: any) => {
   const [toggleView, setToggleView] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const scrollY = useSharedValue(0);
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<Animated.ScrollView>(null);
 
   useScanExternalFileSystem();
 
@@ -58,9 +59,11 @@ const LibraryScreen = ({ navigation }: any) => {
     // return library.filter(bookTitleFilter(searchQuery));
   }, [searchQuery, library]);
 
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    scrollY.value = event.nativeEvent.contentOffset.y;
-  };
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
 
   const searchContainerStyle = useAnimatedStyle(() => {
     const translateY = interpolate(
@@ -70,8 +73,16 @@ const LibraryScreen = ({ navigation }: any) => {
       Extrapolation.CLAMP
     );
 
+    const opacity = interpolate(
+      scrollY.value,
+      [0, 20],
+      [1, 0],
+      Extrapolation.CLAMP
+    );
+
     return {
       transform: [{ translateY }],
+      opacity,
     };
   });
 
@@ -81,9 +92,9 @@ const LibraryScreen = ({ navigation }: any) => {
         {/* MOVE HEADER ABOVE SCROLL VIEW TO DOCK IT AT TOP OF SCREEN */}
         <Header setToggleView={setToggleView} toggleView={toggleView} />
 
-        <ScrollView
+        <Animated.ScrollView
           ref={scrollViewRef}
-          onScroll={handleScroll}
+          onScroll={scrollHandler}
           scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingTop: 0 }}
@@ -123,7 +134,7 @@ const LibraryScreen = ({ navigation }: any) => {
               flowDirection='column'
             />
           )}
-        </ScrollView>
+        </Animated.ScrollView>
       </SafeAreaView>
       <FloatingPlayer
         style={{

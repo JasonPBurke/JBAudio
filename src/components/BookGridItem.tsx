@@ -5,11 +5,9 @@ import {
   Text,
   TouchableHighlight,
   View,
-  Image as RNImage,
   Dimensions,
 } from 'react-native';
-import { memo, useEffect, useState } from 'react';
-// import FastImage from '@d11/react-native-fast-image';
+import { memo } from 'react';
 import { Image } from 'expo-image';
 
 import { colors, fontSize } from '@/constants/tokens';
@@ -73,7 +71,7 @@ export const BookGridItem = memo(function BookListItem({
 
     if (isChangingBook) {
       const artworkUri = await saveArtwork(book.artwork, book.bookTitle);
-      console.log('artworkUri in grid', artworkUri);
+      // console.log('artworkUri in grid', artworkUri);
       await TrackPlayer.reset();
       //! should these tracks be built at the useSEFS.tsx and added to the DB on first scan?
       const tracks: Track[] = book.chapters.map((chapter) => ({

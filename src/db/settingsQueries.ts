@@ -88,6 +88,53 @@ export async function updateTimerActive(active: boolean) {
   });
 }
 
+export async function updateTimerFadeoutDuration(duration: number | null) {
+  await database.write(async () => {
+    const settingsCollection =
+      database.collections.get<Settings>('settings');
+
+    const settingsRecord = await settingsCollection.query().fetch();
+
+    if (settingsRecord.length > 0) {
+      await settingsRecord[0].update((record) => {
+        record.timerFadeoutDuration = duration;
+      });
+    } else {
+      console.warn(
+        'No settings record found to update timerFadeoutDuration.'
+      );
+    }
+  });
+}
+
+export async function updateNumColumns(numColumns: number) {
+  await database.write(async () => {
+    const settingsCollection =
+      database.collections.get<Settings>('settings');
+
+    const settingsRecord = await settingsCollection.query().fetch();
+
+    if (settingsRecord.length > 0) {
+      await settingsRecord[0].update((record) => {
+        record.numColumns = numColumns;
+      });
+    } else {
+      console.warn('No settings record found to update numColumns.');
+    }
+  });
+}
+
+export async function getNumColumns() {
+  const settingsCollection = database.collections.get<Settings>('settings');
+  const settingsRecord = await settingsCollection.query().fetch();
+
+  if (settingsRecord.length > 0) {
+    const settings = settingsRecord[0];
+    return settings.numColumns;
+  }
+  return null;
+}
+
 export async function getTimerSettings() {
   const settingsCollection = database.collections.get<Settings>('settings');
   const settingsRecord = await settingsCollection.query().fetch();
