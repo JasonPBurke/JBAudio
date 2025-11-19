@@ -21,9 +21,9 @@ export type BookListProps = Partial<FlashListProps<Book>> & {
 };
 
 const BooksHome = ({ authors }: BookListProps) => {
-  const numColumns = 2;
+  // const numColumns = 2;
   const [activeGridSection, setActiveGridSection] = useState<string | null>(
-    null
+    'recentlyAdded' // null for horizontal on load
   );
   const scrollViewRef = useRef<ScrollView>(null);
   const pressableRefs = useRef<Map<string, View | null>>(new Map());
