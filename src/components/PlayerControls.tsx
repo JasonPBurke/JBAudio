@@ -31,7 +31,7 @@ import {
   BottomSheetModal,
 } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import SleepTimerOptions from './SleepTimerOptions';
+import SleepTimerOptions from '../modals/SleepTimerOptions';
 import CountdownTimer from './CountdownTimer';
 import AnimatedZZZ from './animations/AnimatedZZZ';
 import {

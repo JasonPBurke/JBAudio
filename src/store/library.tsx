@@ -159,6 +159,7 @@ export const useBookById = (bookId: string) =>
     for (const author of state.authors) {
       for (const book of author.books) {
         if (book.bookId === bookId) {
+          console.log('found book');
           return book;
         }
       }

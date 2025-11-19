@@ -124,6 +124,17 @@ export async function updateNumColumns(numColumns: number) {
   });
 }
 
+export async function getTimerFadeoutDuration() {
+  const settingsCollection = database.collections.get<Settings>('settings');
+  const settingsRecord = await settingsCollection.query().fetch();
+
+  if (settingsRecord.length > 0) {
+    const settings = settingsRecord[0];
+    return settings.timerFadeoutDuration;
+  }
+  return null;
+}
+
 export async function getNumColumns() {
   const settingsCollection = database.collections.get<Settings>('settings');
   const settingsRecord = await settingsCollection.query().fetch();
