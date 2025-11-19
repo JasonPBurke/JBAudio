@@ -48,16 +48,40 @@ const LibraryScreen = ({ navigation }: any) => {
 
   const library = useAuthors();
 
+  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/gi, '');
+
   const filteredLibrary = useMemo(() => {
     if (!searchQuery) return library;
-    return library.filter((author) =>
-      // author.name.toLowerCase().includes(searchQuery.toLowerCase())
-      author.books.some((book) =>
-        book.bookTitle.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    );
-    // return library.filter(bookTitleFilter(searchQuery));
+    const qRaw = searchQuery.toLowerCase();
+    const qNorm = normalize(searchQuery);
+    return library.reduce((acc, author) => {
+      const authorMatch = author.name.toLowerCase().includes(qRaw);
+      if (authorMatch) {
+        // Include all books for authors that match by name
+        acc.push(author);
+        return acc;
+      }
+      const matchingBooks = author.books.filter((book) =>
+        normalize(book.bookTitle).includes(qNorm)
+      );
+      if (matchingBooks.length > 0) {
+        // Include only titles that match for authors that don't match by name
+        acc.push({ ...author, books: matchingBooks });
+      }
+      return acc;
+    }, [] as typeof library);
   }, [searchQuery, library]);
+
+  // const filteredLibrary = useMemo(() => {
+  //   if (!searchQuery) return library;
+  //   return library.filter((author) =>
+  //     // author.name.toLowerCase().includes(searchQuery.toLowerCase())
+  //     author.books.some((book) =>
+  //       book.bookTitle.toLowerCase().includes(searchQuery.toLowerCase())
+  //     )
+  //   );
+  //   // return library.filter(bookTitleFilter(searchQuery));
+  // }, [searchQuery, library]);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -75,7 +99,7 @@ const LibraryScreen = ({ navigation }: any) => {
 
     const opacity = interpolate(
       scrollY.value,
-      [0, 20],
+      [0, 25],
       [1, 0],
       Extrapolation.CLAMP
     );
