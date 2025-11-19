@@ -84,6 +84,7 @@ const styles = StyleSheet.create({
   container: {
     paddingVertical: 4,
     gap: 16,
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
