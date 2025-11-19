@@ -106,15 +106,22 @@ export const BookGridItem = memo(function BookListItem({
   };
 
   return (
-    <TouchableHighlight
-      style={{ alignItems: 'center' }}
+    <Pressable
+      android_ripple={{
+        color: '#cccccc28',
+        foreground: true,
+      }}
+      style={{
+        paddingTop: 4,
+        alignItems: 'center',
+      }}
       onPress={handlePress}
     >
       <View
         style={[
           flowDirection === 'row'
             ? {
-                height: 250,
+                height: 200, //250
                 width: book.artworkHeight
                   ? (book.artworkWidth! / book.artworkHeight) * 150
                   : 0,
@@ -124,7 +131,7 @@ export const BookGridItem = memo(function BookListItem({
                 height: book.artworkWidth
                   ? (book.artworkHeight! / book.artworkWidth) *
                       ITEM_WIDTH_COLUMN +
-                    50
+                    60
                   : 0,
               },
         ]}
@@ -153,11 +160,52 @@ export const BookGridItem = memo(function BookListItem({
             contentFit='contain'
           />
           {isActiveBook && playing ? (
-            <LoaderKitView
-              style={styles.trackPlayingImageIcon}
-              name={'LineScaleParty'}
-              color={colors.primary}
-            />
+            <View
+              style={[
+                styles.trackPlayingImageIcon,
+                {
+                  width:
+                    flowDirection === 'row'
+                      ? 20
+                      : numColumns === 1
+                        ? 32
+                        : numColumns === 2
+                          ? 24
+                          : 18,
+                  padding:
+                    flowDirection === 'row'
+                      ? 20
+                      : numColumns === 1
+                        ? 24
+                        : numColumns === 2
+                          ? 20
+                          : 17,
+                  borderRadius: 4,
+                  backgroundColor: '#1c1c1c96',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                },
+              ]}
+            >
+              <LoaderKitView
+                style={[
+                  // styles.trackPlayingImageIcon,
+                  {
+                    width:
+                      flowDirection === 'row'
+                        ? 20
+                        : numColumns === 1
+                          ? 32
+                          : numColumns === 2
+                            ? 24
+                            : 18,
+                    aspectRatio: 1,
+                  },
+                ]}
+                name={'LineScaleParty'}
+                color={colors.primary}
+              />
+            </View>
           ) : (
             <Pressable
               onPress={() => handlePressPlay(book)}
@@ -198,23 +246,44 @@ export const BookGridItem = memo(function BookListItem({
           }}
         >
           <Text
-            numberOfLines={2}
+            numberOfLines={numColumns === 1 ? 1 : 2}
             style={{
               ...styles.bookTitleText,
               color: isActiveBook ? '#ffb406be' : colors.text,
+              fontSize:
+                flowDirection === 'row'
+                  ? fontSize.xs
+                  : numColumns === 1
+                    ? fontSize.lg
+                    : numColumns === 2
+                      ? fontSize.sm
+                      : 14,
             }}
           >
             {book.bookTitle}
           </Text>
 
           {book.author && (
-            <Text numberOfLines={1} style={styles.bookAuthorText}>
+            <Text
+              numberOfLines={1}
+              style={{
+                ...styles.bookAuthorText,
+                fontSize:
+                  flowDirection === 'row'
+                    ? 10
+                    : numColumns === 1
+                      ? fontSize.sm
+                      : numColumns === 2
+                        ? fontSize.xs
+                        : fontSize.xs,
+              }}
+            >
               {book.author}
             </Text>
           )}
         </View>
       </View>
-    </TouchableHighlight>
+    </Pressable>
   );
 });
 
@@ -228,27 +297,23 @@ const styles = StyleSheet.create({
     height: 50,
     justifyContent: 'flex-start',
     alignItems: 'flex-start',
-    paddingLeft: 5,
+    paddingHorizontal: 4,
   },
   bookTitleText: {
     ...defaultStyles.text,
-    fontSize: fontSize.xs,
     fontWeight: '600',
-    maxWidth: '90%',
+    maxWidth: '100%',
     marginTop: 2,
   },
   bookAuthorText: {
-    ...defaultStyles.text,
     color: colors.textMuted,
-    fontSize: 10,
     marginTop: 4,
   },
   trackPlayingImageIcon: {
     position: 'absolute',
-    right: 7,
-    bottom: 7,
-    width: 20,
-    height: 20,
+    right: 2,
+    bottom: 2,
+    aspectRatio: 1,
   },
   trackPausedIcon: {
     position: 'absolute',
