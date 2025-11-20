@@ -22,6 +22,7 @@ export const BookTimeRemaining = ({
 
   //! find a way to call this only when the book changes
   const displayedBook = useBookById(displayedTrack?.bookId ?? '');
+  // console.log('book time remaining component');
 
   if (!displayedTrack || !displayedBook) {
     return null;

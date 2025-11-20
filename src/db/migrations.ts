@@ -7,6 +7,21 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      toVersion: 10,
+      steps: [
+        addColumns({
+          table: 'settings',
+          columns: [
+            {
+              name: 'library_paths',
+              type: 'string',
+              isOptional: true,
+            },
+          ],
+        }),
+      ],
+    },
+    {
       toVersion: 9,
       steps: [
         addColumns({
