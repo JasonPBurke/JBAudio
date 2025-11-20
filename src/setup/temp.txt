@@ -1,0 +1,41 @@
+// const fadeoutTimePoints = [
+      //   0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.75, 0.85, 0.9, 0.95, 0.96, 0.97, 0.98,
+      //   0.99, 1,
+      // ];
+      // const fadeoutPercentages = [
+      //   95, 90, 85, 80, 75, 65, 50, 40, 30, 25, 20, 15, 10, 5, 0,
+      // ];
+      // const fadeoutTimes = [{0: 95}, {.1: 90}, {.2: 85}, {.3: 80}, {.4: 75}, {.5: 65}, {.75: 50}, {.85: 40}, {.9: 30}, {.95: 25}, {.96: 20}, {.97: 15}, {.98: 10}, {.99: 5}, {1: 0}]
+
+      //! this is a starting point and will fine tune later
+      // const fadeoutTimePoints = [.01, 0.2, 0.4, 0.6, 0.8, 1]; // 1 = beginFadeout 0=stop
+      // const fadeoutPercentages = [.9, .8, .6, .4, .2, 0];
+
+      // const fadeoutTimePointsReversed = [.8, .6, .4, .2, .01];
+      // const fadeoutPercentagesReversed = [.20, .40, .60, .80, .90];
+
+       //* fadeout timer logic
+      if (sleepTime !== null && timerActive && fadeoutDuration !== null) {
+        const fadeoutTimePoints = [
+          0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0,
+        ];
+        const fadeoutPercentages = [
+          0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0,
+        ];
+
+        if (beginFadeout <= Date.now()) {
+          console.log('in fadeout check');
+          for (let i = 0; i < fadeoutTimePoints.length; i++) {
+            const timePoint = fadeoutTimePoints[i];
+            const percentage = fadeoutPercentages[i];
+            const fadeOutTime = sleepTime - fadeoutDuration * timePoint;
+
+            if (Date.now() >= fadeOutTime) {
+              TrackPlayer.setVolume(percentage);
+              break;
+            }
+          }
+        }
+      }
+    }
+  );
