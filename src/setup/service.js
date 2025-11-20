@@ -20,7 +20,21 @@ let fadeState = {
   isFading: false,
   baselineVolume: 1,
   lastAppliedVolume: 1,
+  lastSetVolumeAt: 0,
 };
+
+// Cached timer settings to avoid DB reads each tick
+let cachedTimer = {
+  sleepTime: null,
+  timerActive: false,
+  fadeoutDuration: 0,
+  lastRefreshedAt: 0,
+};
+
+// Refresh interval for cached settings (ms)
+const SETTINGS_REFRESH_INTERVAL = 1000; // 1s is enough for UI updates
+// Throttle interval for volume updates (ms)
+const VOLUME_THROTTLE_MS = 100;
 
 export default module.exports = async function () {
   TrackPlayer.addEventListener(Event.RemotePlay, () => TrackPlayer.play());
@@ -53,8 +67,22 @@ export default module.exports = async function () {
       //? trackToUpdate ["title", "album", "url", "artwork", "bookId", "artist"]
       setPlaybackProgress(trackToUpdate.bookId, position - 1);
 
-      const { sleepTime, timerActive } = await getTimerSettings();
-      const fadeoutDuration = await getTimerFadeoutDuration();
+      // Refresh cached settings at most every SETTINGS_REFRESH_INTERVAL
+      const nowTs = Date.now();
+      if (
+        !cachedTimer.lastRefreshedAt ||
+        nowTs - cachedTimer.lastRefreshedAt >= SETTINGS_REFRESH_INTERVAL
+      ) {
+        const { sleepTime, timerActive } = await getTimerSettings();
+        const fadeoutDuration = await getTimerFadeoutDuration();
+        cachedTimer.sleepTime = sleepTime;
+        cachedTimer.timerActive = !!timerActive;
+        cachedTimer.fadeoutDuration =
+          typeof fadeoutDuration === 'number' ? fadeoutDuration : 0;
+        cachedTimer.lastRefreshedAt = nowTs;
+      }
+
+      const { sleepTime, timerActive, fadeoutDuration } = cachedTimer;
 
       // Single source of truth for stopping at or after sleep time for both fade and non-fade
       if (
@@ -63,34 +91,31 @@ export default module.exports = async function () {
         sleepTime <= Date.now()
       ) {
         // End of timer reached: ensure pause and cleanup
-        fadeState.isFading = false;
-        fadeState.baselineVolume = 1;
-        // Set volume to 0 only if fade was used; otherwise leave as-is
-        if (typeof fadeoutDuration === 'number' && fadeoutDuration > 0) {
+        const usedFade =
+          typeof fadeoutDuration === 'number' && fadeoutDuration > 0;
+
+        // If fading was enabled, ensure we end at silence at exactly sleep time
+        if (usedFade) {
           await TrackPlayer.setVolume(0);
         }
+
         await TrackPlayer.pause();
-        await TrackPlayer.setVolume(1);
+
+        // In this app model, internal TrackPlayer volume is always 1 except during fade.
+        // Restore it to 1 so next playback is audible and consistent.
+        if (usedFade) {
+          await TrackPlayer.setVolume(1);
+        }
+
+        // Cleanup state (reflect restored volume = 1)
+        fadeState.isFading = false;
+        fadeState.lastAppliedVolume = 1;
+        fadeState.baselineVolume = 1;
+
         updateTimerActive(false);
         updateSleepTime(null);
         return; // nothing more to do on this tick
       }
-
-      // const fadeoutTimePoints = [
-      //   0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.75, 0.85, 0.9, 0.95, 0.96, 0.97, 0.98,
-      //   0.99, 1,
-      // ];
-      // const fadeoutPercentages = [
-      //   95, 90, 85, 80, 75, 65, 50, 40, 30, 25, 20, 15, 10, 5, 0,
-      // ];
-      // const fadeoutTimes = [{0: 95}, {.1: 90}, {.2: 85}, {.3: 80}, {.4: 75}, {.5: 65}, {.75: 50}, {.85: 40}, {.9: 30}, {.95: 25}, {.96: 20}, {.97: 15}, {.98: 10}, {.99: 5}, {1: 0}]
-
-      //! this is a starting point and will fine tune later
-      // const fadeoutTimePoints = [.01, 0.2, 0.4, 0.6, 0.8, 1]; // 1 = beginFadeout 0=stop
-      // const fadeoutPercentages = [.9, .8, .6, .4, .2, 0];
-
-      // const fadeoutTimePointsReversed = [.8, .6, .4, .2, .01];
-      // const fadeoutPercentagesReversed = [.20, .40, .60, .80, .90];
 
       //* fadeout timer logic
       if (
@@ -112,20 +137,9 @@ export default module.exports = async function () {
           // Entering fade window: capture baseline once
           if (!fadeState.isFading) {
             fadeState.isFading = true;
-            try {
-              const currentVol = await TrackPlayer.getVolume?.();
-              if (typeof currentVol === 'number') {
-                fadeState.baselineVolume = Math.max(
-                  0,
-                  Math.min(1, currentVol)
-                );
-              } else {
-                fadeState.baselineVolume = 1;
-              }
-            } catch {
-              fadeState.baselineVolume = 1;
-            }
-            fadeState.lastAppliedVolume = fadeState.baselineVolume;
+            // In this app, TrackPlayer internal volume is always 1 before fade.
+            fadeState.baselineVolume = 1;
+            fadeState.lastAppliedVolume = 1;
           }
           // Compute linear fade from baseline -> 0
           const t = Math.min(
@@ -134,10 +148,15 @@ export default module.exports = async function () {
           );
           const volume = Math.max(0, fadeState.baselineVolume * (1 - t));
 
-          // Only set if change is meaningful
-          if (Math.abs(volume - fadeState.lastAppliedVolume) >= 0.01) {
+          // Only set if change is meaningful and respect throttle
+          const nowSet = Date.now();
+          if (
+            Math.abs(volume - fadeState.lastAppliedVolume) >= 0.01 &&
+            nowSet - fadeState.lastSetVolumeAt >= VOLUME_THROTTLE_MS
+          ) {
             await TrackPlayer.setVolume(volume);
             fadeState.lastAppliedVolume = volume;
+            fadeState.lastSetVolumeAt = nowSet;
           }
         }
         // When now >= sleepTime the earlier single-source block already handled stopping/cleanup

@@ -20,15 +20,18 @@ import {
   updateNumColumns,
   updateTimerFadeoutDuration,
   getTimerFadeoutDuration,
+  getTimerSettings,
 } from '@/db/settingsQueries';
 
 const SettingsScreen = ({ navigation }: any) => {
   const [selectedColIndex, setSelectedColIndex] = useState(0);
   const [fadeoutDuration, setFadeoutDuration] = useState('10');
+  const [maxFadeMinutes, setMaxFadeMinutes] = useState<number>(30);
   const [modalVisible, setModalVisible] = useState(false);
   const router = useRouter();
   //! calculate length based off currentTimer (max of 30) or 30 as default
-  const numbers = Array.from({ length: 30 }, (_, index) => index + 1);
+  //! the fadeout duration should always max out at the currentTimer value if > 30 or 30
+  const numbers = Array.from({ length: Math.max(0, maxFadeMinutes) }, (_, index) => index + 1);
 
   useFocusEffect(
     useCallback(() => {
@@ -44,21 +47,32 @@ const SettingsScreen = ({ navigation }: any) => {
           console.error('Failed to fetch number of columns:', error);
         }
         try {
-          const DbFadeoutValue = await getTimerFadeoutDuration(); // ms or null
-          let fadeoutValue = DbFadeoutValue;
-          if (DbFadeoutValue !== null) {
-            fadeoutValue = Math.floor(DbFadeoutValue / 60000);
+          // Get current fadeout value (ms or null)
+          const DbFadeoutValue = await getTimerFadeoutDuration();
+          let fadeoutValueMinutes: number | null = DbFadeoutValue !== null ? Math.floor(DbFadeoutValue / 60000) : null;
+
+          // Get current timer settings to derive cap (minutes)
+          const { timerDuration } = await getTimerSettings();
+          const timerDurationMinutes = timerDuration !== null ? Math.floor(timerDuration / 60000) : null;
+
+          // Compute cap: min(timerDurationMinutes, 30); default 30 when timer not set
+          const cap = Math.min(30, timerDurationMinutes ?? 30);
+          if (isActive) setMaxFadeMinutes(cap);
+
+          // If stored fadeout exceeds cap, correct it in DB and UI
+          if (fadeoutValueMinutes !== null && fadeoutValueMinutes > cap) {
+            await updateTimerFadeoutDuration(cap > 0 ? cap * 60000 : null);
+            fadeoutValueMinutes = cap > 0 ? cap : null;
           }
-          console.log('fadeoutValue in settings', fadeoutValue);
-          if (isActive && fadeoutValue) {
-            setFadeoutDuration(fadeoutValue.toString());
-            console.log('fadeoutDuration in settings', fadeoutDuration);
-          }
-          if (isActive && fadeoutValue === null) {
+
+          // Update picker selection
+          if (isActive && fadeoutValueMinutes !== null && fadeoutValueMinutes > 0) {
+            setFadeoutDuration(fadeoutValueMinutes.toString());
+          } else if (isActive) {
             setFadeoutDuration('');
           }
         } catch (error) {
-          console.error('Failed to fetch fadeout duration:', error);
+          console.error('Failed to fetch fadeout/timer settings:', error);
         }
       };
       console.log('fetchSettingsState');
