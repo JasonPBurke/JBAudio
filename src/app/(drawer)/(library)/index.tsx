@@ -5,11 +5,8 @@ import { defaultStyles } from '@/styles';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
-  Text,
   TextInput,
   StyleSheet,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,12 +14,10 @@ import Header from '@/components/Header';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withTiming,
   interpolate,
   Extrapolation,
   useAnimatedScrollHandler,
 } from 'react-native-reanimated';
-import { ScrollView } from 'react-native-gesture-handler';
 import { useScanExternalFileSystem } from '@/hooks/useScanExternalFileSystem';
 import { useAuthors, useLibraryStore } from '@/store/library';
 import { FloatingPlayer } from '@/components/FloatingPlayer';
@@ -48,40 +43,33 @@ const LibraryScreen = ({ navigation }: any) => {
 
   const library = useAuthors();
 
-  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/gi, '');
+  const normalize = (s: string) =>
+    s.toLowerCase().replace(/[^a-z0-9]/gi, '');
 
   const filteredLibrary = useMemo(() => {
     if (!searchQuery) return library;
     const qRaw = searchQuery.toLowerCase();
     const qNorm = normalize(searchQuery);
-    return library.reduce((acc, author) => {
-      const authorMatch = author.name.toLowerCase().includes(qRaw);
-      if (authorMatch) {
-        // Include all books for authors that match by name
-        acc.push(author);
+    return library.reduce(
+      (acc, author) => {
+        const authorMatch = author.name.toLowerCase().includes(qRaw);
+        if (authorMatch) {
+          // Include all books for authors that match by name
+          acc.push(author);
+          return acc;
+        }
+        const matchingBooks = author.books.filter((book) =>
+          normalize(book.bookTitle).includes(qNorm)
+        );
+        if (matchingBooks.length > 0) {
+          // Include only titles that match for authors that don't match by name
+          acc.push({ ...author, books: matchingBooks });
+        }
         return acc;
-      }
-      const matchingBooks = author.books.filter((book) =>
-        normalize(book.bookTitle).includes(qNorm)
-      );
-      if (matchingBooks.length > 0) {
-        // Include only titles that match for authors that don't match by name
-        acc.push({ ...author, books: matchingBooks });
-      }
-      return acc;
-    }, [] as typeof library);
+      },
+      [] as typeof library
+    );
   }, [searchQuery, library]);
-
-  // const filteredLibrary = useMemo(() => {
-  //   if (!searchQuery) return library;
-  //   return library.filter((author) =>
-  //     // author.name.toLowerCase().includes(searchQuery.toLowerCase())
-  //     author.books.some((book) =>
-  //       book.bookTitle.toLowerCase().includes(searchQuery.toLowerCase())
-  //     )
-  //   );
-  //   // return library.filter(bookTitleFilter(searchQuery));
-  // }, [searchQuery, library]);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -174,15 +162,9 @@ const LibraryScreen = ({ navigation }: any) => {
 
 const styles = StyleSheet.create({
   searchContainer: {
-    // width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    // justifyContent: 'space-between',
-    // borderWidth: 1,
-    // borderColor: '#ccc',
     borderRadius: 5,
-    // paddingHorizontal: 10,
-    // margin: 10,
   },
   searchInput: {
     width: '95%',

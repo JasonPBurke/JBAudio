@@ -4,6 +4,7 @@ import { useBookById } from '@/store/library';
 import { formatSecondsToHoursMinutes } from '@/helpers/miscellaneous';
 import { useLastActiveTrack } from '@/hooks/useLastActiveTrack';
 import { colors } from '@/constants/tokens';
+import { useMemo } from 'react';
 
 type BookTimeRemainingProps = {
   size?: number;
@@ -19,6 +20,7 @@ export const BookTimeRemaining = ({
   const lastActiveTrack = useLastActiveTrack();
   const displayedTrack = activeTrack ?? lastActiveTrack;
 
+  //! find a way to call this only when the book changes
   const displayedBook = useBookById(displayedTrack?.bookId ?? '');
 
   if (!displayedTrack || !displayedBook) {
