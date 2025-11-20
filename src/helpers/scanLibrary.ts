@@ -13,6 +13,7 @@ import database from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import { Image as RNImage } from 'react-native';
 import { populateDatabase } from '@/hooks/usePopulateDatabase';
+import { getLibraryPaths } from '@/db/settingsQueries';
 
 const handleReadDirectory = async (
   path: string,
@@ -338,11 +339,26 @@ const removeMissingFiles = async (allFiles: string[]) => {
 
 export const scanLibrary = async () => {
   console.log('Scanning library');
-  const path = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing`;
-  const singleBookPath = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing/The Fall of Hyperion`;
-  const { newFiles, allFiles } = await handleReadDirectory(singleBookPath);
-  await removeMissingFiles(allFiles);
-  const sortedLibrary = handleBookSort(newFiles);
+  const libraryPaths = await getLibraryPaths();
+
+  if (!libraryPaths || libraryPaths.length === 0) {
+    console.log('No library paths configured. Aborting scan.');
+    return;
+  }
+
+  let combinedNewFiles: any[] = [];
+  let combinedAllFiles: string[] = [];
+
+  for (const path of libraryPaths) {
+    const { newFiles, allFiles } = await handleReadDirectory(
+      RNFS.ExternalStorageDirectoryPath + '/' + path
+    );
+    combinedNewFiles = combinedNewFiles.concat(newFiles);
+    combinedAllFiles = combinedAllFiles.concat(allFiles);
+  }
+
+  await removeMissingFiles(combinedAllFiles);
+  const sortedLibrary = handleBookSort(combinedNewFiles);
   const sortedLibraryWithArtwork = await extractArtwork(sortedLibrary);
   await populateDatabase(sortedLibraryWithArtwork);
 };

@@ -17,6 +17,8 @@ import {
 } from 'lucide-react-native';
 import { colors } from '@/constants/tokens';
 import { scanLibrary } from '@/helpers/scanLibrary';
+import { directoryPicker } from '@/helpers/directoryPicker';
+import { getLibraryPaths } from '@/db/settingsQueries';
 
 type Props = DrawerContentComponentProps;
 
@@ -52,7 +54,11 @@ const DrawerContent = (props: Props) => {
       />
       <DrawerItem
         label={'Library Folder'}
-        onPress={() => {}}
+        onPress={async () => {
+          console.log('in library folder');
+          await directoryPicker();
+          props.navigation.closeDrawer();
+        }}
         icon={() => (
           <BookOpenText size={24} color={colors.text} strokeWidth={1} />
         )}

@@ -1,5 +1,9 @@
 import { Model } from '@nozbe/watermelondb';
-import { field, text } from '@nozbe/watermelondb/decorators';
+import { field, json, text } from '@nozbe/watermelondb/decorators';
+
+const sanitizeLibraryPaths = (rawPaths: any): string[] => {
+  return Array.isArray(rawPaths) ? rawPaths.map(String) : [];
+};
 
 export default class Settings extends Model {
   static table = 'settings';
@@ -14,4 +18,5 @@ export default class Settings extends Model {
   @field('timer_chapters') timerChapters!: number | null;
   @field('last_active_book') lastActiveBook!: string | null;
   @field('current_book_artwork_uri') currentBookArtworkUri!: string | null;
+  @json('library_paths', sanitizeLibraryPaths) libraryPaths!: string[];
 }

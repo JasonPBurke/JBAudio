@@ -146,6 +146,40 @@ export async function getNumColumns() {
   return null;
 }
 
+export async function updateLibraryPaths(paths: string[]) {
+  await database.write(async () => {
+    const settingsCollection =
+      database.collections.get<Settings>('settings');
+    const settingsRecords = await settingsCollection.query().fetch();
+
+    if (settingsRecords.length > 0) {
+      await settingsRecords[0].update((record) => {
+        record.libraryPaths = paths;
+      });
+    } else {
+      // If no settings record exists, create one.
+      await settingsCollection.create((setting) => {
+        setting.libraryPaths = paths;
+        // Set defaults for other non-nullable fields
+        setting.bookFolder = ''; // Not used, but non-nullable
+        setting.numColumns = 2;
+        setting.timerActive = false;
+      });
+    }
+  });
+}
+
+export async function getLibraryPaths() {
+  const settingsCollection = database.collections.get<Settings>('settings');
+  const settingsRecord = await settingsCollection.query().fetch();
+
+  if (settingsRecord.length > 0) {
+    const settings = settingsRecord[0];
+    return settings.libraryPaths;
+  }
+  return null;
+}
+
 export async function getTimerSettings() {
   const settingsCollection = database.collections.get<Settings>('settings');
   const settingsRecord = await settingsCollection.query().fetch();
