@@ -27,13 +27,14 @@ const SettingsScreen = ({ navigation }: any) => {
   const [fadeoutDuration, setFadeoutDuration] = useState('10');
   const [modalVisible, setModalVisible] = useState(false);
   const router = useRouter();
+  //! calculate length based off currentTimer (max of 30) or 30 as default
   const numbers = Array.from({ length: 30 }, (_, index) => index + 1);
 
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
 
-      const fetchNumColumns = async () => {
+      const fetchSettingsState = async () => {
         try {
           const colValue = await getNumColumns();
           if (isActive && colValue) {
@@ -43,11 +44,15 @@ const SettingsScreen = ({ navigation }: any) => {
           console.error('Failed to fetch number of columns:', error);
         }
         try {
-          const fadeoutValue = await getTimerFadeoutDuration();
-          console.log('fadeoutValue', fadeoutValue);
+          const DbFadeoutValue = await getTimerFadeoutDuration(); // ms or null
+          let fadeoutValue = DbFadeoutValue;
+          if (DbFadeoutValue !== null) {
+            fadeoutValue = Math.floor(DbFadeoutValue / 60000);
+          }
+          console.log('fadeoutValue in settings', fadeoutValue);
           if (isActive && fadeoutValue) {
             setFadeoutDuration(fadeoutValue.toString());
-            console.log('fadeoutDuration', fadeoutDuration);
+            console.log('fadeoutDuration in settings', fadeoutDuration);
           }
           if (isActive && fadeoutValue === null) {
             setFadeoutDuration('');
@@ -56,8 +61,8 @@ const SettingsScreen = ({ navigation }: any) => {
           console.error('Failed to fetch fadeout duration:', error);
         }
       };
-
-      fetchNumColumns();
+      console.log('fetchSettingsState');
+      fetchSettingsState();
 
       return () => {
         isActive = false;
@@ -123,7 +128,7 @@ const SettingsScreen = ({ navigation }: any) => {
             onValueChange={(itemValue, itemIndex) => {
               setFadeoutDuration(itemValue);
               if (itemIndex > 0) {
-                updateTimerFadeoutDuration(itemIndex);
+                updateTimerFadeoutDuration(itemIndex * 60000); // converting to ms
               } else {
                 updateTimerFadeoutDuration(null);
               }

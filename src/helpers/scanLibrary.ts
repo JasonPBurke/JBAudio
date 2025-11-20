@@ -339,7 +339,8 @@ const removeMissingFiles = async (allFiles: string[]) => {
 export const scanLibrary = async () => {
   console.log('Scanning library');
   const path = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing`;
-  const { newFiles, allFiles } = await handleReadDirectory(path);
+  const singleBookPath = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing/The Fall of Hyperion`;
+  const { newFiles, allFiles } = await handleReadDirectory(singleBookPath);
   await removeMissingFiles(allFiles);
   const sortedLibrary = handleBookSort(newFiles);
   const sortedLibraryWithArtwork = await extractArtwork(sortedLibrary);
