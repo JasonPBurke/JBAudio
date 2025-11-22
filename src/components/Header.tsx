@@ -85,7 +85,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     gap: 16,
     backgroundColor: colors.background,
-    elevation: 5,
     // borderBlockEndColor: colors.primary,
     // borderBottomWidth: StyleSheet.hairlineWidth,
   },

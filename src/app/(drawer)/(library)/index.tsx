@@ -32,6 +32,10 @@ const LibraryScreen = ({ navigation }: any) => {
   const scrollY = useSharedValue(0);
   const scrollViewRef = useRef<Animated.ScrollView>(null);
 
+  const [activeGridSection, setActiveGridSection] = useState<string | null>(
+    'recentlyAdded' // null for horizontal on load
+  );
+
   useScanExternalFileSystem();
 
   const initStore = useLibraryStore((state) => state.init);
@@ -133,7 +137,12 @@ const LibraryScreen = ({ navigation }: any) => {
             )}
           </Animated.View>
           {toggleView === 0 && (
-            <BooksHome authors={filteredLibrary} scrollEnabled={false} />
+            <BooksHome
+              authors={filteredLibrary}
+              scrollEnabled={false}
+              setActiveGridSection={setActiveGridSection}
+              activeGridSection={activeGridSection}
+            />
           )}
           {toggleView === 1 && (
             <BooksList authors={filteredLibrary} scrollEnabled={false} />

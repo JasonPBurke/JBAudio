@@ -72,7 +72,7 @@ const DrawerContent = (props: Props) => {
           <FileQuestionMark size={24} color={colors.text} strokeWidth={1} />
         )}
         labelStyle={[styles.labelStyle, {}]}
-        style={styles.drawerItem}
+        style={[styles.drawerItem, { opacity: 0.4 }]}
       />
       <DrawerItem
         label={'Book Stats'}
@@ -85,7 +85,7 @@ const DrawerContent = (props: Props) => {
           />
         )}
         labelStyle={[styles.labelStyle, {}]}
-        style={styles.drawerItem}
+        style={[styles.drawerItem, { opacity: 0.4 }]}
       />
       <DrawerItem
         label={'Settings'}
