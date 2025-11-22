@@ -41,7 +41,9 @@ export const BooksHorizontal = ({
   return (
     <View style={styles.listContainer}>
       <FlashList<Book>
-        contentContainerStyle={{ paddingLeft: 14 }}
+        contentContainerStyle={{
+          paddingBottom: 6,
+        }}
         data={allBooks}
         renderItem={({ item: book }) => (
           <BookGridItem
@@ -50,12 +52,9 @@ export const BooksHorizontal = ({
             flowDirection={flowDirection}
           />
         )}
-        masonry={false}
         keyExtractor={(item) => item.bookId!}
         horizontal={true}
         showsHorizontalScrollIndicator={false}
-        ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
-        ListFooterComponent={<View style={{ width: 12 }} />}
         ListEmptyComponent={
           <View>
             <Text style={utilsStyles.emptyComponent}>No books found</Text>
@@ -70,6 +69,6 @@ export const BooksHorizontal = ({
 
 const styles = StyleSheet.create({
   listContainer: {
-    height: 200,
+    height: 220,
   },
 });

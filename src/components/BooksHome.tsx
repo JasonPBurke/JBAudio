@@ -18,13 +18,19 @@ import { utilsStyles } from '@/styles';
 
 export type BookListProps = Partial<FlashListProps<Book>> & {
   authors: Author[];
+  setActiveGridSection: React.Dispatch<React.SetStateAction<string | null>>;
+  activeGridSection: string | null;
 };
 
-const BooksHome = ({ authors }: BookListProps) => {
+const BooksHome = ({
+  authors,
+  setActiveGridSection,
+  activeGridSection,
+}: BookListProps) => {
   // const numColumns = 2;
-  const [activeGridSection, setActiveGridSection] = useState<string | null>(
-    'recentlyAdded' // null for horizontal on load
-  );
+  // const [activeGridSection, setActiveGridSection] = useState<string | null>(
+  //   'recentlyAdded' // null for horizontal on load
+  // );
   const scrollViewRef = useRef<ScrollView>(null);
   const pressableRefs = useRef<Map<string, View | null>>(new Map());
 
@@ -85,7 +91,7 @@ const BooksHome = ({ authors }: BookListProps) => {
                     (_x, _y, _width, _height, _pageX, pageY) => {
                       scrollViewRef.current?.scrollTo({
                         y: pageY,
-                        animated: false,
+                        animated: true,
                       });
                     }
                   );
@@ -152,7 +158,7 @@ const BooksHome = ({ authors }: BookListProps) => {
                       ) => {
                         scrollViewRef.current?.scrollTo({
                           y: pageY,
-                          animated: false,
+                          animated: true,
                         });
                       }
                     );

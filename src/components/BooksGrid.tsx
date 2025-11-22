@@ -68,13 +68,10 @@ export const BooksGrid = ({
       return 0;
     });
 
-  // const numColumns = 2;
-  // const numColumns = getNumColumns();
-
   return (
     <View>
       <FlashList<Book>
-        data={allBooks}
+        data={allBooks} //! can i pass in the books ids in an array instead of book objects?
         renderItem={({ item: book }) => (
           <BookGridItem
             book={book}

@@ -109,21 +109,28 @@ export const BookGridItem = memo(function BookListItem({
     <Pressable
       android_ripple={{
         color: '#cccccc28',
-        foreground: true,
+        foreground: false,
       }}
       style={{
         paddingTop: 4,
         alignItems: 'center',
+        // elevation: 5,
+        marginBottom: 8,
       }}
       onPress={handlePress}
     >
       <View
         style={[
+          {
+            // borderColor: 'blue',
+            // borderWidth: 1,
+            alignItems: 'center',
+          },
           flowDirection === 'row'
             ? {
-                height: 200, //250
+                height: 205, //202
                 width: book.artworkHeight
-                  ? (book.artworkWidth! / book.artworkHeight) * 150
+                  ? (book.artworkWidth! / book.artworkHeight) * 160
                   : 0,
               }
             : {
@@ -131,7 +138,7 @@ export const BookGridItem = memo(function BookListItem({
                 height: book.artworkWidth
                   ? (book.artworkHeight! / book.artworkWidth) *
                       ITEM_WIDTH_COLUMN +
-                    60
+                    75
                   : 0,
               },
         ]}
@@ -140,16 +147,18 @@ export const BookGridItem = memo(function BookListItem({
           style={[
             flowDirection === 'row'
               ? {
-                  height: 150,
+                  height: 140,
                   width: book.artworkHeight
-                    ? (book.artworkWidth! / book.artworkHeight) * 150
+                    ? (book.artworkWidth! / book.artworkHeight) * 140
                     : 0,
                 }
               : {
-                  width: ITEM_WIDTH_COLUMN,
+                  paddingTop: 10,
+                  width: ITEM_WIDTH_COLUMN + 2,
                   height: book.artworkWidth
                     ? (book.artworkHeight! / book.artworkWidth) *
-                      ITEM_WIDTH_COLUMN
+                        ITEM_WIDTH_COLUMN +
+                      12
                     : 0,
                 },
           ]}
