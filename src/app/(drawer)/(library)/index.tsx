@@ -139,18 +139,21 @@ const LibraryScreen = ({ navigation }: any) => {
           {toggleView === 0 && (
             <BooksHome
               authors={filteredLibrary}
-              scrollEnabled={false}
+              // scrollEnabled={false}
               setActiveGridSection={setActiveGridSection}
               activeGridSection={activeGridSection}
             />
           )}
           {toggleView === 1 && (
-            <BooksList authors={filteredLibrary} scrollEnabled={false} />
+            <BooksList
+              authors={filteredLibrary}
+              //  scrollEnabled={false}
+            />
           )}
           {toggleView === 2 && (
             <BooksGrid
               authors={filteredLibrary}
-              scrollEnabled={false}
+              // scrollEnabled={false}
               standAlone={true}
               flowDirection='column'
             />
