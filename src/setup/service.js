@@ -99,6 +99,7 @@ export default module.exports = async function () {
           await TrackPlayer.setVolume(0);
         }
 
+        await TrackPlayer.setVolume(0);
         await TrackPlayer.pause();
 
         // In this app model, internal TrackPlayer volume is always 1 except during fade.
@@ -200,6 +201,7 @@ export default module.exports = async function () {
       if (timerActive && timerChapters !== null && timerChapters > 0) {
         await updateChapterTimer(timerChapters - 1);
       } else if (timerActive && timerChapters === 0) {
+        await TrackPlayer.setVolume(0);
         await TrackPlayer.pause();
         updateTimerActive(false);
       }
