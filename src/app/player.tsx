@@ -33,6 +33,7 @@ const PlayerScreen = () => {
 
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.play();
+      await TrackPlayer.setVolume(1);
 
       //! update state store an rely on the observer to update the db is better??
       await updateBookChapterIndex(book.bookId, chapterIndex);

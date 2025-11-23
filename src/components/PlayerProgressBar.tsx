@@ -36,6 +36,17 @@ export const PlayerProgressBar = ({ style }: ViewProps) => {
     }
   }, [position, duration, isSliding.value]);
 
+  const handleSeek = async (value: number) => {
+    if (isSliding.value) {
+      isSliding.value = false;
+    }
+    await TrackPlayer.seekTo(value * duration);
+    setTrackElapsedTime(formatSecondsToMinutes(value * duration));
+    setTrackRemainingTime(
+      formatSecondsToMinutes(duration - value * duration)
+    );
+  };
+
   return (
     <View style={style}>
       <Slider
@@ -64,19 +75,11 @@ export const PlayerProgressBar = ({ style }: ViewProps) => {
           </View>
         )}
         onSlidingStart={() => (isSliding.value = true)}
-        onSlidingComplete={async (value) => {
-          if (!isSliding.value) return;
-          isSliding.value = false;
-
-          await TrackPlayer.seekTo(value * duration);
-          setTrackElapsedTime(formatSecondsToMinutes(value * duration));
-          setTrackRemainingTime(
-            formatSecondsToMinutes(duration - value * duration)
-          );
-        }}
+        onSlidingComplete={handleSeek}
         onValueChange={(value) => {
           setBubbleElapsedTime(formatSecondsToMinutes(value * duration));
         }}
+        // onTap={() => handleSeek(progress.value)}
       />
       <View style={styles.timeRow}>
         <Text style={styles.timeText}>{trackElapsedTime}</Text>
