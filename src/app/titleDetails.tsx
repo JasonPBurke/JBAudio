@@ -86,6 +86,8 @@ const TitleDetails = () => {
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(chapterProgress || 0);
       await TrackPlayer.play();
+      await TrackPlayer.setVolume(1);
+
       if (book.bookId) {
         setActiveBookId(book.bookId);
       }
@@ -95,6 +97,7 @@ const TitleDetails = () => {
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(chapterProgress || 0);
       await TrackPlayer.play();
+      await TrackPlayer.setVolume(1);
     }
   };
 

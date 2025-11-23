@@ -87,11 +87,13 @@ export const BookGridItem = memo(function BookListItem({
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(progress || 0);
       await TrackPlayer.play();
+      await TrackPlayer.setVolume(1);
       setActiveBookId(book.bookId!);
     } else {
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(progress || 0);
       await TrackPlayer.play();
+      await TrackPlayer.setVolume(1);
     }
   };
 
