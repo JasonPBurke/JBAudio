@@ -436,13 +436,16 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
     } else if (timerDuration !== null && timerActive === true) {
       await updateTimerActive(false);
       await updateSleepTime(null);
+      await TrackPlayer.setVolume(1); //? if fade out has started
     } else if (timerChapters !== null && timerActive === false) {
       await updateTimerActive(true);
     } else if (timerChapters !== null && timerActive === true) {
+      await TrackPlayer.setVolume(1); //? if fade out has started
       await updateTimerActive(false);
     } else if (timerDuration === null && timerActive === false) {
       handlePresentModalPress();
     }
+
     rotation.value = withSequence(
       withTiming(-10, { duration: 100 }),
       withTiming(10, { duration: 200 }),
