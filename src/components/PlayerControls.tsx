@@ -85,11 +85,18 @@ export const PlayPauseButton = ({
     if (playing) {
       playButtonScale.value = withTiming(1, { duration: 200 });
       pauseButtonScale.value = withTiming(0, { duration: 200 });
-      await TrackPlayer.pause();
+      await TrackPlayer.setVolume(0);
+      setTimeout(async () => {
+        await TrackPlayer.pause();
+      }, 100);
     } else {
       playButtonScale.value = withTiming(0, { duration: 200 });
       pauseButtonScale.value = withTiming(1, { duration: 200 });
       await TrackPlayer.play();
+      await TrackPlayer.setVolume(0.5);
+      setTimeout(async () => {
+        await TrackPlayer.setVolume(1);
+      }, 100);
     }
   };
 
