@@ -13,7 +13,10 @@ export const saveArtwork = async (
   // handle base64 data
   if (artworkData.startsWith('data:image')) {
     const pureBase64 = artworkData.replace(/^data:image\/\w+;base64,/, '');
-    const path = `${RNFS.TemporaryDirectoryPath}/${bookTitle ?? 'current_artwork'}.jpg`;
+    const sanitizedBookTitle = bookTitle
+      ? bookTitle.replace(/[^\w.]/g, '_')
+      : 'current_artwork';
+    const path = `${RNFS.TemporaryDirectoryPath}/${sanitizedBookTitle}.jpg`;
 
     try {
       await RNFS.writeFile(path, pureBase64, 'base64');
