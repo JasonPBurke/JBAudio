@@ -38,6 +38,7 @@ import {
   getTimerSettings,
   updateSleepTime,
   updateTimerActive,
+  updateTimerFadeoutDuration,
 } from '@/db/settingsQueries';
 import database from '@/db';
 import { useObserveWatermelonData } from '@/hooks/useObserveWatermelonData';
@@ -425,10 +426,13 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
   );
 
   const handlePress = async () => {
-    const { timerDuration, timerActive, timerChapters } =
+    const { timerDuration, timerActive, timerChapters, fadeoutDuration } =
       await getTimerSettings();
     if (timerDuration !== null && timerActive === false) {
       await updateTimerActive(true);
+      if (fadeoutDuration && fadeoutDuration > timerDuration) {
+        await updateTimerFadeoutDuration(timerDuration);
+      }
       //! THIS RESETS THE TIMER..IF I WANT TO USE THIS TO PAUSE THE TIMER AND LET IT
       //! RESUME ON ACTIVATE PRESS, I NEED TO STORE THE TIMER DURATION MINUS ELAPSED
       //! TIME IN THE DB

@@ -125,6 +125,14 @@ export default module.exports = async function () {
         typeof fadeoutDuration === 'number' &&
         fadeoutDuration > 0
       ) {
+        if (now < beginFadeout && fadeState.isFading) {
+          // If the timer is reset to be longer than the fadeout,
+          // and a fade was already in progress, reset volume to 1.
+          await TrackPlayer.setVolume(1);
+          fadeState.isFading = false;
+          fadeState.lastAppliedVolume = 1;
+          fadeState.baselineVolume = 1;
+        }
         const now = Date.now();
         const beginFadeout = sleepTime - fadeoutDuration;
 

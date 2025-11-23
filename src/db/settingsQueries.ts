@@ -191,6 +191,7 @@ export async function getTimerSettings() {
       timerActive: settings.timerActive,
       timerChapters: settings.timerChapters,
       sleepTime: settings.sleepTime,
+      fadeoutDuration: settings.timerFadeoutDuration,
     };
   }
   return { timerDuration: null, timerActive: false };
