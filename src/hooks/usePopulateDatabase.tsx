@@ -131,7 +131,7 @@ export const populateDatabase = async (authors: AuthorType[]) => {
           .fetch();
 
         for (const chapter of existingChapters) {
-          batchOperations.push(chapter.prepareMarkAsDeleted());
+          await chapter.markAsDeleted();
         }
 
         // Create chapters for this book
