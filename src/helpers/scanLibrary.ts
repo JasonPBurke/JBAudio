@@ -14,6 +14,7 @@ import { Q } from '@nozbe/watermelondb';
 import { Image as RNImage } from 'react-native';
 import { populateDatabase } from '@/hooks/usePopulateDatabase';
 import { getLibraryPaths } from '@/db/settingsQueries';
+import { analyzeFileWithMediaInfo } from './mediainfo';
 
 const handleReadDirectory = async (
   path: string,
@@ -340,6 +341,14 @@ const removeMissingFiles = async (allFiles: string[]) => {
 export const scanLibrary = async () => {
   console.log('Scanning library');
   const libraryPaths = await getLibraryPaths();
+  const testPath = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing/The Devils.m4b`;
+
+  const testRes = async (testPath: string) => {
+    return await analyzeFileWithMediaInfo(testPath);
+  };
+
+  const testRes2 = await testRes(testPath);
+  console.log('testRes', testRes2);
 
   if (!libraryPaths || libraryPaths.length === 0) {
     console.log('No library paths configured. Aborting scan.');
