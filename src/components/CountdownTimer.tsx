@@ -1,40 +1,48 @@
 import { colors } from '@/constants/tokens';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useObserveWatermelonData } from '@/hooks/useObserveWatermelonData';
+import database from '@/db';
 
 const CountdownTimer = ({
-  initialMilliseconds,
   timerChapters,
 }: {
-  initialMilliseconds: number;
   timerChapters: number | null;
 }) => {
-  const initialMinutes = convertMillisecondsToMinutes(initialMilliseconds);
-  const [time, setTime] = useState<number>(initialMinutes);
-  const timerRef = useRef<number>(0); // Use a ref to store the interval ID
+  const settingsCollection = useObserveWatermelonData(database, 'settings');
+  const sleepTime = settingsCollection?.[0]?.sleepTime;
 
-  // console.log('timerChapters', timerChapters);
-  // console.log('initialMinutes', initialMilliseconds);
+  const [remainingTime, setRemainingTime] = useState('');
+
   useEffect(() => {
-    if (timerChapters && initialMilliseconds === 0) return;
-    setTime(initialMinutes); // Set initial time when initialMinutes changes
-    timerRef.current = setInterval(() => {
-      setTime((prevTime) => {
-        if (prevTime <= 0) {
-          clearInterval(timerRef.current); // Stop the timer when it reaches 0
-          return 0;
-        }
-        return prevTime - 1;
-      });
-    }, 60000); // Update every minute
+    const updateRemainingTime = () => {
+      if (sleepTime) {
+        const now = Date.now();
+        const remainingMilliseconds = Math.max(0, sleepTime - now);
+        setRemainingTime(formatTime(remainingMilliseconds));
+      } else {
+        setRemainingTime('');
+      }
+    };
 
-    return () => clearInterval(timerRef.current);
-  }, [initialMinutes, timerChapters]); // Re-run effect when initialMinutes changes
+    updateRemainingTime(); // Initial update
+    const intervalId = setInterval(updateRemainingTime, 1000); // Update every second
 
-  const formatTime = (totalMinutes: number) => {
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    return `${hours.toString().padStart(2, '0')}:${minutes
+    return () => clearInterval(intervalId);
+  }, [sleepTime]);
+
+  const formatTime = (milliseconds: number) => {
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60; // Keep seconds for 1-second updates
+
+    if (hours > 0) {
+      return `${hours.toString().padStart(2, '0')}:${minutes
+        .toString()
+        .padStart(2, '0')}`;
+    }
+    return `${minutes.toString().padStart(2, '0')}:${seconds
       .toString()
       .padStart(2, '0')}`;
   };
@@ -42,9 +50,9 @@ const CountdownTimer = ({
   return (
     <View style={styles.container}>
       <Text style={styles.timerText}>
-        {timerChapters && initialMilliseconds === 0
+        {timerChapters && !sleepTime
           ? `${timerChapters} Ch`
-          : formatTime(time)}
+          : remainingTime || '00:00'}
       </Text>
     </View>
   );
@@ -63,8 +71,3 @@ const styles = StyleSheet.create({
 });
 
 export default CountdownTimer;
-
-function convertMillisecondsToMinutes(milliseconds: number) {
-  const minutes = milliseconds / 60000;
-  return minutes;
-}
