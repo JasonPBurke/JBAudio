@@ -505,10 +505,7 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
           <Animated.View
             style={[styles.countdownTimerContainer, animatedCountdownStyle]}
           >
-            <CountdownTimer
-              initialMilliseconds={timerDuration || 0}
-              timerChapters={timerChapters! + 1 || null}
-            />
+            <CountdownTimer timerChapters={timerChapters! + 1 || null} />
           </Animated.View>
         )}
       </Animated.View>
