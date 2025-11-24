@@ -64,6 +64,7 @@ const RootNavigation = () => {
         }}
       >
         <Stack.Screen name='(drawer)' />
+        <Stack.Screen name='testScreen' />
         <Stack.Screen
           name='player'
           options={{

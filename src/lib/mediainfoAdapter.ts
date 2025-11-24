@@ -1,4 +1,3 @@
-
 import ExpoMediaInfoModule from '../../modules/expo-media-info';
 import { Platform } from 'react-native';
 
@@ -30,4 +29,15 @@ export async function getMediaInfo(uri: string): Promise<MediaInfoResult> {
   }
 
   return { raw: result, json: parsed };
+}
+
+//TODO: create a getCover function that uses the MediaInfo module
+export async function getCover(uri: string): Promise<string> {
+  if (Platform.OS !== 'android' && Platform.OS !== 'ios') {
+    throw new Error('getCover is only supported on native platforms');
+  }
+
+  const result = await ExpoMediaInfoModule.getCover(uri);
+
+  return result;
 }

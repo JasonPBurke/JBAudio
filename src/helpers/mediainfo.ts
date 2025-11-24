@@ -33,7 +33,9 @@ export async function analyzeFileWithMediaInfo(
 
   const general = tracks.find((t) => t['@type'] === 'General') || {};
   const audio = tracks.find((t) => t['@type'] === 'Audio') || {};
+  //! this needs to account for multiple menu tracks menu1 and menu2
   const menu = tracks.find((t) => t['@type'] === 'Menu') || {};
+  const image = tracks.find((t) => t['@type'] === 'Image') || {};
 
   const durationMs =
     numberFrom(general.Duration) || numberFrom(audio.Duration);

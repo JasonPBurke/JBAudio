@@ -14,6 +14,7 @@ import {
   BookOpenText,
   ChartNoAxesCombined,
   FileQuestionMark,
+  TestTube,
 } from 'lucide-react-native';
 import { colors } from '@/constants/tokens';
 import { scanLibrary } from '@/helpers/scanLibrary';
@@ -26,6 +27,10 @@ const DrawerContent = (props: Props) => {
   const handleSettingsPress = () => {
     // props.navigation.closeDrawer(); //? could leave the drawer open
     props.navigation.navigate('settings');
+  };
+
+  const handleTestScreenPress = () => {
+    props.navigation.navigate('testScreen');
   };
 
   return (
@@ -92,6 +97,15 @@ const DrawerContent = (props: Props) => {
         onPress={handleSettingsPress}
         icon={() => (
           <Settings size={24} color={colors.text} strokeWidth={1} />
+        )}
+        labelStyle={[styles.labelStyle, {}]}
+        style={styles.drawerItem}
+      />
+      <DrawerItem
+        label={'Test Screen'}
+        onPress={handleTestScreenPress}
+        icon={() => (
+          <TestTube size={24} color={colors.text} strokeWidth={1} />
         )}
         labelStyle={[styles.labelStyle, {}]}
         style={styles.drawerItem}

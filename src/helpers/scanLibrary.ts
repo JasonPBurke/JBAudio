@@ -341,11 +341,13 @@ const removeMissingFiles = async (allFiles: string[]) => {
 export const scanLibrary = async () => {
   console.log('Scanning library');
   const libraryPaths = await getLibraryPaths();
-  const testPath = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing/The Devils.m4b`;
+  const testPath = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing/Lamora.m4b`;
 
   const testRes = async (testPath: string) => {
     return await analyzeFileWithMediaInfo(testPath);
   };
+
+  console.log(`Requesting media info in scanLibrary for: ${testPath}`);
 
   const testRes2 = await testRes(testPath);
   console.log('testRes', testRes2);
