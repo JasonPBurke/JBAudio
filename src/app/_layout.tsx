@@ -15,7 +15,9 @@ import playbackService from '@/setup/service';
 import { DatabaseProvider } from '@nozbe/watermelondb/DatabaseProvider';
 import database from '@/db';
 import { PermissionProvider } from '@/contexts/PermissionContext';
+import { ensureMediaInfo } from '@/lib/mediainfoAdapter';
 
+ensureMediaInfo(); //? load mediainfo.js once
 TrackPlayer.registerPlaybackService(() => playbackService);
 //! THIS IS TO TEMP SUPPRESS REANIMATED WARNINGS OF WRITING TO 'VALUE' DURING COMPONENT RERENDER
 configureReanimatedLogger({
