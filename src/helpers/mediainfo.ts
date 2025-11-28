@@ -34,6 +34,7 @@ export async function analyzeFileWithMediaInfo(
   const general = tracks.find((t) => t['@type'] === 'General') || {};
   const audio = tracks.find((t) => t['@type'] === 'Audio') || {};
   //! this needs to account for multiple menu tracks menu1 and menu2
+  //TODO const menus = tracks.filter((t) => t['@type'] === 'Menu');
   const menu = tracks.find((t) => t['@type'] === 'Menu') || {};
   const image = tracks.find((t) => t['@type'] === 'Image') || {};
 
@@ -54,6 +55,8 @@ export async function analyzeFileWithMediaInfo(
   const disc = numberFrom(general.Part_Position);
 
   const chapters: { startMs: number; title?: string }[] = [];
+  //TODO for (const menu of menus) {}
+  //! get the names for the menu begins and menu names
   if (menu && Array.isArray(menu.Chapters_Pos_Begin)) {
     const begins: number[] = (menu.Chapters_Pos_Begin || [])
       .map(numberFrom)
