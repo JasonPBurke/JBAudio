@@ -6,19 +6,25 @@ import {
 } from '../lib/mediainfoAdapter';
 
 export type ExtractedMetadata = {
-  container?: string;
+  fileFormat?: string;
   durationMs?: number;
-  bitrate?: number;
-  codec?: string;
-  channels?: number;
-  sampleRate?: number;
   title?: string;
   album?: string;
-  artist?: string;
-  track?: number;
-  disc?: number;
+  author?: string;
+  narrator?: string;
+  releaseDate?: string;
+  description?: string;
+  copyright?: string;
   chapters?: { startMs: number; title?: string }[];
   raw: MediaInfoResult;
+  // bitrate?: number;
+  // codec?: string;
+  // channels?: number;
+  // sampleRate?: number;
+  // disc?: number;
+  // track?: number;
+  // imgWidth?: number;
+  // imgHeight?: number;
 };
 
 export async function analyzeFileWithMediaInfo(
@@ -26,36 +32,48 @@ export async function analyzeFileWithMediaInfo(
 ): Promise<ExtractedMetadata> {
   await ensureMediaInfo();
   const res = await getMediaInfo(uri);
-  // console.log('res', res);
   const json = (res.json || {}) as any;
   const media = json.media || {};
   const tracks: any[] = media.track || [];
+  // console.log('tracks', JSON.stringify(tracks, null, 2));
 
   const general = tracks.find((t) => t['@type'] === 'General') || {};
   const audio = tracks.find((t) => t['@type'] === 'Audio') || {};
   //! this needs to account for multiple menu tracks menu1 and menu2
   //TODO const menus = tracks.filter((t) => t['@type'] === 'Menu');
   const menu = tracks.find((t) => t['@type'] === 'Menu') || {};
-  const image = tracks.find((t) => t['@type'] === 'Image') || {};
+  //! not getting image track returned by mediainfo
+  // const image = tracks.find((t) => t['@type'] === 'Image') || {};
 
+  // const bitrate =
+  //   numberFrom(audio.BitRate) || numberFrom(general.OverallBitRate);
+  // const sampleRate = numberFrom(audio.SamplingRate);
+  // const channels = numberFrom(audio.Channels);
+  // const codec = audio.Format || audio.CodecID || general.CodecID;
+  // const disc = numberFrom(general.Part_Position);
   const durationMs =
     numberFrom(general.Duration) || numberFrom(audio.Duration);
-  const bitrate =
-    numberFrom(audio.BitRate) || numberFrom(general.OverallBitRate);
-  const sampleRate = numberFrom(audio.SamplingRate);
-  const channels = numberFrom(audio.Channels);
-  const codec = audio.Format || audio.CodecID || general.CodecID;
-  const container = general.Format;
-
+  const fileFormat = general.Format;
+  const releaseDate =
+    general.rldt ||
+    general.Original_Date ||
+    general.Recorded_Date ||
+    general.Tagged_Date ||
+    general.Original_Year;
+  const description = general.Comment || general.Title_More;
   const title = general.Track || general.Title;
   const album = general.Album;
-  const artist =
-    general.Performer || general.Artist || general.Album_Performer;
-  const track = numberFrom(general.Track_Position);
-  const disc = numberFrom(general.Part_Position);
+  const author =
+    general.Artist || general.Album_Performer || general.Performer;
+  const copyright = general.Copyright;
+  const narrator =
+    general.Composer || general.nrt || general.Album_Performer;
+  // const track = numberFrom(general.Track_Position);
+  // const imgWidth = numberFrom(image.Width);
+  // const imgHeight = numberFrom(image.Height);
 
   const chapters: { startMs: number; title?: string }[] = [];
-  //TODO for (const menu of menus) {}
+  //TODO for (const menu of menus) {} ??
   //! get the names for the menu begins and menu names
   if (menu && Array.isArray(menu.Chapters_Pos_Begin)) {
     const begins: number[] = (menu.Chapters_Pos_Begin || [])
@@ -70,19 +88,25 @@ export async function analyzeFileWithMediaInfo(
   }
 
   return {
-    container,
+    fileFormat,
     durationMs,
-    bitrate,
-    codec,
-    channels,
-    sampleRate,
     title,
     album,
-    artist,
-    track,
-    disc,
+    author,
+    narrator,
+    releaseDate,
+    description,
+    copyright,
     chapters,
     raw: res,
+    // imgWidth,
+    // imgHeight,
+    // track,
+    // bitrate,
+    // codec,
+    // channels,
+    // sampleRate,
+    // disc,
   };
 }
 
