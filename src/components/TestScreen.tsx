@@ -11,7 +11,8 @@ export default function MediaInfoTester() {
 
   const handleGetMediaInfo = async () => {
     try {
-      const fileUri = '/storage/emulated/0/Audiobooks/testing/Lamora.m4b';
+      const fileUri =
+        '/storage/emulated/0/Audiobooks/testing/The Devils.m4b';
 
       console.log(`Requesting media info in TestScreen for: ${fileUri}`);
       setMediaInfo('');
