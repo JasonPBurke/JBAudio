@@ -342,7 +342,7 @@ export const scanLibrary = async () => {
   const libraryPaths = await getLibraryPaths();
 
   //* Testing Block ... do not delete
-  const testPath = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing/The Devils.m4b`;
+  const testPath = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/TJ Klune/Cerulean Chronicles 01 - The House in the Cerulean Sea.m4b`;
 
   const testRes = async (testPath: string) => {
     return await analyzeFileWithMediaInfo(testPath);
@@ -351,7 +351,7 @@ export const scanLibrary = async () => {
   console.log(`Requesting media info in scanLibrary for: ${testPath}`);
 
   const testRes2 = await testRes(testPath);
-  console.log('testRes', testRes2);
+  console.log('testRes', JSON.stringify(testRes2, null, 2));
   //* End Testing Block
 
   if (!libraryPaths || libraryPaths.length === 0) {

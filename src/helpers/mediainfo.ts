@@ -16,7 +16,7 @@ export type ExtractedMetadata = {
   description?: string;
   copyright?: string;
   chapters?: { startMs: number; title?: string }[];
-  raw: MediaInfoResult;
+  // raw: MediaInfoResult;
   // bitrate?: number;
   // codec?: string;
   // channels?: number;
@@ -26,6 +26,25 @@ export type ExtractedMetadata = {
   // imgWidth?: number;
   // imgHeight?: number;
 };
+
+function parseTimestamp(timestamp: string): number | undefined {
+  if (!timestamp.startsWith('_')) {
+    return undefined;
+  }
+  // format is _HH_MM_SS_MS
+  const parts = timestamp.substring(1).split('_');
+  if (parts.length !== 4) {
+    return undefined;
+  }
+
+  const [hours, minutes, seconds, milliseconds] = parts.map(Number);
+
+  if ([hours, minutes, seconds, milliseconds].some(isNaN)) {
+    return undefined;
+  }
+
+  return (hours * 3600 + minutes * 60 + seconds) * 1000 + milliseconds;
+}
 
 export async function analyzeFileWithMediaInfo(
   uri: string
@@ -39,9 +58,7 @@ export async function analyzeFileWithMediaInfo(
 
   const general = tracks.find((t) => t['@type'] === 'General') || {};
   const audio = tracks.find((t) => t['@type'] === 'Audio') || {};
-  //! this needs to account for multiple menu tracks menu1 and menu2
-  //TODO const menus = tracks.filter((t) => t['@type'] === 'Menu');
-  const menu = tracks.find((t) => t['@type'] === 'Menu') || {};
+  const menus = tracks.filter((t) => t['@type'] === 'Menu');
   //! not getting image track returned by mediainfo
   // const image = tracks.find((t) => t['@type'] === 'Image') || {};
 
@@ -72,19 +89,48 @@ export async function analyzeFileWithMediaInfo(
   // const imgWidth = numberFrom(image.Width);
   // const imgHeight = numberFrom(image.Height);
 
+  console.log('menus', menus);
+
   const chapters: { startMs: number; title?: string }[] = [];
-  //TODO for (const menu of menus) {} ??
-  //! get the names for the menu begins and menu names
-  if (menu && Array.isArray(menu.Chapters_Pos_Begin)) {
-    const begins: number[] = (menu.Chapters_Pos_Begin || [])
-      .map(numberFrom)
-      .filter(Boolean) as number[];
-    const names: string[] = Array.isArray(menu.Chapters_Name)
-      ? menu.Chapters_Name
-      : [];
-    for (let i = 0; i < begins.length; i++) {
-      chapters.push({ startMs: begins[i], title: names[i] });
+  for (const menu of menus) {
+    // This handles the format where chapters are in the `extra` object
+    if (menu.extra && typeof menu.extra === 'object') {
+      for (const key in menu.extra) {
+        // Keys are like _00_08_25_939
+        if (key.startsWith('_')) {
+          const startMs = parseTimestamp(key);
+          const title = menu.extra[key];
+          if (startMs !== undefined && typeof title === 'string') {
+            chapters.push({ startMs, title });
+          }
+        }
+      }
     }
+
+    //! don't think this is needed
+    // This handles the format where chapters are in `Chapters_Pos_Begin`
+    if (Array.isArray(menu.Chapters_Pos_Begin)) {
+      const begins: number[] = (menu.Chapters_Pos_Begin || [])
+        .map(numberFrom)
+        .filter((n: any): n is number => n !== undefined);
+      const names: string[] = Array.isArray(menu.Chapters_Name)
+        ? menu.Chapters_Name
+        : [];
+      for (let i = 0; i < begins.length; i++) {
+        // Avoid adding duplicates if a file has chapters in multiple formats
+        if (!chapters.some((c) => c.startMs === begins[i])) {
+          chapters.push({
+            startMs: begins[i],
+            title: names[i] || `Chapter ${i + 1}`,
+          });
+        }
+      }
+    }
+  }
+
+  // Sort chapters by start time, as they may be parsed from different sources
+  if (chapters.length > 0) {
+    chapters.sort((a, b) => a.startMs - b.startMs);
   }
 
   return {
@@ -98,7 +144,7 @@ export async function analyzeFileWithMediaInfo(
     description,
     copyright,
     chapters,
-    raw: res,
+    // raw: res,
     // imgWidth,
     // imgHeight,
     // track,
