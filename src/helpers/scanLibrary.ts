@@ -62,7 +62,6 @@ const checkIfFileExists = async (path: string) => {
 };
 
 const extractMetadata = async (filePath: string) => {
-  // const decodedPath = decodeURIComponent(filePath);
   try {
     const {
       year,
@@ -341,6 +340,8 @@ const removeMissingFiles = async (allFiles: string[]) => {
 export const scanLibrary = async () => {
   console.log('Scanning library');
   const libraryPaths = await getLibraryPaths();
+
+  //* Testing Block ... do not delete
   const testPath = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/testing/The Devils.m4b`;
 
   const testRes = async (testPath: string) => {
@@ -351,6 +352,7 @@ export const scanLibrary = async () => {
 
   const testRes2 = await testRes(testPath);
   console.log('testRes', testRes2);
+  //* End Testing Block
 
   if (!libraryPaths || libraryPaths.length === 0) {
     console.log('No library paths configured. Aborting scan.');
