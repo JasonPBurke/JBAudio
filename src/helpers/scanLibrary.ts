@@ -3,12 +3,7 @@ import AuthorModel from '@/db/models/Author';
 import BookModel from '@/db/models/Book';
 import ChapterModel from '@/db/models/Chapter';
 import * as RNFS from '@dr.pogodin/react-native-fs';
-import {
-  getMetadata,
-  getArtwork,
-  MediaMetadataPublicFields,
-} from '@missingcore/react-native-metadata-retriever';
-import TrackPlayer from 'react-native-track-player';
+import { getArtwork } from '@missingcore/react-native-metadata-retriever';
 import database from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import { Image as RNImage } from 'react-native';
@@ -36,10 +31,7 @@ const handleReadDirectory = async (
         const fileExists = await checkIfFileExists(item.path);
         if (!fileExists) {
           const metadata = await extractMetadata(item.path);
-          newFiles.push({
-            ...metadata,
-            url: item.path,
-          });
+          newFiles.push(...metadata);
         }
       }
     }
@@ -63,88 +55,77 @@ const checkIfFileExists = async (path: string) => {
 
 const extractMetadata = async (filePath: string) => {
   try {
-    const {
-      year,
-      trackNumber,
-      totalTrackCount,
-      artist,
-      albumArtist,
-      writer,
-      albumTitle,
-      title,
-      displayTitle,
-      composer, // Read by
-      // artworkData,
-      artworkUri,
-      description,
-      genre,
-      sampleRate,
-    } = await getMetadata(
-      filePath,
-      MediaMetadataPublicFields
-      // MetadataPresets.standard
-    );
-
-    const chapterDuration = await getTrackDuration(filePath);
-    // console.log('chapterDuration', chapterDuration);
-
+    const metadata = await analyzeFileWithMediaInfo(filePath);
+    const chapters = metadata.chapters || [];
     const bookTitleBackup = filePath
       .substring(0, filePath.lastIndexOf('/'))
       .split('/')
       .pop();
 
-    return {
-      //? bookTitle: metadata.albumTitle  chapterTitle: metadata.title
-      author: artist || albumArtist || writer || 'Unknown Author',
-      narrator: composer || 'Unknown Voice Artist',
-      bookTitle: albumTitle || displayTitle || bookTitleBackup,
-      chapterTitle:
-        title ||
-        displayTitle ||
-        albumTitle ||
-        filePath.split('/').pop()?.split('.')[0],
-      chapterNumber: trackNumber || 0,
-      year: year,
-      description: description,
-      genre: genre,
-      sampleRate: sampleRate,
-      artworkUri: artworkUri,
-      totalTrackCount: totalTrackCount,
-      ctime: new Date(),
-      chapterDuration: chapterDuration,
-    };
+    if (chapters.length > 0) {
+      // This is a multi-chapter file (e.g. m4b)
+      return chapters.map((chapter, index) => {
+        const nextChapter = chapters[index + 1];
+        const chapterEndMs = nextChapter
+          ? nextChapter.startMs
+          : metadata.durationMs || 0;
+        const chapterDuration = (chapterEndMs - chapter.startMs) / 1000;
+
+        return {
+          author: metadata.author || 'Unknown Author',
+          narrator: metadata.narrator || 'Unknown Voice Artist',
+          bookTitle: metadata.album || bookTitleBackup,
+          chapterTitle: chapter.title || `Chapter ${index + 1}`,
+          chapterNumber: index + 1,
+          year: metadata.releaseDate,
+          description: metadata.description,
+          genre: undefined, // Not available in mediainfo
+          sampleRate: undefined, // Not available in mediainfo
+          artworkUri: null, // Will be extracted later
+          totalTrackCount: chapters.length,
+
+          ctime: new Date(),
+          chapterDuration: chapterDuration,
+          url: filePath,
+        };
+      });
+    } else {
+      // This is a single-chapter file (e.g. mp3)
+      const chapterDuration = metadata.durationMs
+        ? metadata.durationMs / 1000
+        : 0;
+      return [
+        {
+          author: metadata.author || 'Unknown Author',
+          narrator: metadata.narrator || 'Unknown Voice Artist',
+          bookTitle: metadata.album || bookTitleBackup,
+          chapterTitle:
+            metadata.title || filePath.split('/').pop()?.split('.')[0],
+          chapterNumber: metadata.trackPosition || 1,
+          year: metadata.releaseDate,
+          description: metadata.description,
+          genre: undefined,
+          sampleRate: undefined,
+          artworkUri: null,
+          totalTrackCount: 1,
+
+          ctime: new Date(),
+          chapterDuration: chapterDuration,
+          url: filePath,
+        },
+      ];
+    }
   } catch (error) {
     console.error(`Error extracting metadata for ${filePath}`, error);
-    return {
-      title: filePath.split('/').pop(),
-      author: 'Unknown Author',
-      trackNumber: 0,
-      chapterDuration: 0, // Default value for now
-    };
-  }
-};
-
-const getTrackDuration = async (filePath: string): Promise<number> => {
-  try {
-    await TrackPlayer.load({ url: filePath });
-    let duration = 0;
-    const startTime = Date.now();
-    const timeout = 500; // 500ms timeout
-
-    while (Date.now() - startTime < timeout) {
-      const progress = await TrackPlayer.getProgress();
-      if (progress.duration > 0) {
-        duration = progress.duration;
-        break;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 50)); // Wait 50ms before re-checking
-    }
-
-    await TrackPlayer.reset(); // Clean up
-    return duration;
-  } catch (error) {
-    console.error(`Error getting duration for ${filePath}`, error);
-    return 0;
+    return [
+      {
+        title: filePath.split('/').pop(),
+        author: 'Unknown Author',
+        trackNumber: 0,
+        chapterDuration: 0, // Default value for now
+        url: filePath,
+      },
+    ];
   }
 };
 
@@ -342,16 +323,16 @@ export const scanLibrary = async () => {
   const libraryPaths = await getLibraryPaths();
 
   //* Testing Block ... do not delete
-  const testPath = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/TJ Klune/Cerulean Chronicles 01 - The House in the Cerulean Sea.m4b`;
+  // const testPath = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/TJ Klune/Cerulean Chronicles 01 - The House in the Cerulean Sea.m4b`;
 
-  const testRes = async (testPath: string) => {
-    return await analyzeFileWithMediaInfo(testPath);
-  };
+  // const testRes = async (testPath: string) => {
+  //   return await analyzeFileWithMediaInfo(testPath);
+  // };
 
-  console.log(`Requesting media info in scanLibrary for: ${testPath}`);
+  // console.log(`Requesting media info in scanLibrary for: ${testPath}`);
 
-  const testRes2 = await testRes(testPath);
-  console.log('testRes', JSON.stringify(testRes2, null, 2));
+  // const testRes2 = await testRes(testPath);
+  // console.log('testRes', JSON.stringify(testRes2, null, 2));
   //* End Testing Block
 
   if (!libraryPaths || libraryPaths.length === 0) {
