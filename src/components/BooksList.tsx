@@ -1,40 +1,19 @@
 import { Text, View } from 'react-native';
 import { BookListItem } from './BookListItem';
 import { utilsStyles } from '@/styles';
-import { Book, Author as AuthorType } from '@/types/Book';
+import { Book, Author } from '@/types/Book';
 import { screenPadding } from '@/constants/tokens';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
 import { useLibraryStore } from '@/store/library';
 import { useEffect, memo } from 'react';
-// import { withObservables } from '@nozbe/watermelondb/react';
+import { useProcessedBooks } from '@/hooks/useProcessedBooks';
 
 export type BookListProps = Partial<FlashListProps<Book>> & {
-  authors: AuthorType[];
+  authors: Author[];
 };
 
 const BooksList = ({ authors }: BookListProps) => {
-  const allBooks = authors
-    .flatMap((author) => author.books)
-    .sort((a, b) => {
-      // Sort by creationDate (descending)
-      if (a.metadata.ctime && b.metadata.ctime) {
-        if (a.metadata.ctime > b.metadata.ctime) return -1;
-        if (a.metadata.ctime < b.metadata.ctime) return 1;
-      }
-
-      // Then sort by author first name (ascending)
-      const authorA = authors.find((author) =>
-        author.books.some((book) => book.bookId === a.bookId)
-      );
-      const authorB = authors.find((author) =>
-        author.books.some((book) => book.bookId === b.bookId)
-      );
-
-      if (authorA && authorB) {
-        return authorA.name.localeCompare(authorB.name);
-      }
-      return 0;
-    });
+  const allBooks = useProcessedBooks(authors);
   const setAuthors = useLibraryStore((state) => state.setAuthors);
 
   useEffect(() => {
@@ -80,9 +59,5 @@ const ItemDivider = () => (
     }}
   />
 );
-
-// const enhance = withObservables(['authors'], ({ authors }) => ({
-//   authors,
-// }));
 
 export default memo(BooksList);

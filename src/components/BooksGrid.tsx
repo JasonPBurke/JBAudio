@@ -1,12 +1,13 @@
 import { FlashList, FlashListProps } from '@shopify/flash-list';
 import { useFocusEffect } from '@react-navigation/native';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { View, Text } from 'react-native';
 
 import { utilsStyles } from '@/styles';
 import { Author, Book } from '@/types/Book';
 import { BookGridItem } from './BookGridItem';
 import { getNumColumns } from '@/db/settingsQueries';
+import { useProcessedBooks } from '@/hooks/useProcessedBooks';
 
 export type BookGridProps = Partial<FlashListProps<Book>> & {
   authors: Author[];
@@ -14,7 +15,7 @@ export type BookGridProps = Partial<FlashListProps<Book>> & {
   flowDirection: 'row' | 'column';
 };
 
-export const BooksGrid = ({
+const BooksGrid = ({
   authors,
   standAlone,
   flowDirection,
@@ -45,54 +46,36 @@ export const BooksGrid = ({
     }, [])
   );
 
-  const allBooks = authors
-    .flatMap((author) => author.books)
-    .sort((a, b) => {
-      // Sort by creationDate (descending)
-      if (a.metadata.ctime && b.metadata.ctime) {
-        if (a.metadata.ctime > b.metadata.ctime) return -1;
-        if (a.metadata.ctime < b.metadata.ctime) return 1;
-      }
+  const allBooks = useProcessedBooks(authors);
 
-      // Then sort by author first name (ascending)
-      const authorA = authors.find((author) =>
-        author.books.some((book) => book.bookId === a.bookId)
-      );
-      const authorB = authors.find((author) =>
-        author.books.some((book) => book.bookId === b.bookId)
-      );
-
-      if (authorA && authorB) {
-        return authorA.name.localeCompare(authorB.name);
-      }
-      return 0;
-    });
+  const renderBookItem = useCallback(
+    ({ item: book }: { item: Book }) => (
+      <BookGridItem
+        book={book}
+        flowDirection={flowDirection}
+        numColumns={numColumns}
+      />
+    ),
+    [flowDirection, numColumns]
+  );
 
   return (
-    <View>
-      <FlashList<Book>
-        data={allBooks} //! can i pass in the books ids in an array instead of book objects?
-        renderItem={({ item: book }) => (
-          <BookGridItem
-            book={book}
-            flowDirection={flowDirection}
-            numColumns={numColumns} //! to calc item width
-          />
-        )}
-        masonry
-        numColumns={numColumns}
-        keyExtractor={(item) => item.bookId!}
-        showsVerticalScrollIndicator={false}
-        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-        ListFooterComponent={
-          standAlone ? <View style={{ height: 82 }} /> : null //! will only be standalone
-        }
-        ListEmptyComponent={
-          <View>
-            <Text style={utilsStyles.emptyComponent}>No books found</Text>
-          </View>
-        }
-      />
-    </View>
+    <FlashList<Book>
+      data={allBooks}
+      renderItem={renderBookItem}
+      masonry
+      numColumns={numColumns}
+      keyExtractor={(item) => item.bookId!}
+      showsVerticalScrollIndicator={false}
+      ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+      ListFooterComponent={
+        standAlone ? <View style={{ height: 82 }} /> : null
+      }
+      ListEmptyComponent={
+        <Text style={utilsStyles.emptyComponent}>No books found</Text>
+      }
+    />
   );
 };
+
+export default memo(BooksGrid);
