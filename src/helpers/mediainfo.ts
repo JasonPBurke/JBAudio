@@ -16,6 +16,7 @@ export type ExtractedMetadata = {
   description?: string;
   copyright?: string;
   chapters?: { startMs: number; title?: string }[];
+  trackPosition?: number;
   // raw: MediaInfoResult;
   // bitrate?: number;
   // codec?: string;
@@ -68,8 +69,11 @@ export async function analyzeFileWithMediaInfo(
   // const channels = numberFrom(audio.Channels);
   // const codec = audio.Format || audio.CodecID || general.CodecID;
   // const disc = numberFrom(general.Part_Position);
-  const durationMs =
+  const durationInSeconds =
     numberFrom(general.Duration) || numberFrom(audio.Duration);
+  const durationMs = durationInSeconds
+    ? durationInSeconds * 1000
+    : undefined;
   const fileFormat = general.Format;
   const releaseDate =
     general.rldt ||
@@ -85,6 +89,7 @@ export async function analyzeFileWithMediaInfo(
   const copyright = general.Copyright;
   const narrator =
     general.Composer || general.nrt || general.Album_Performer;
+  const trackPosition = numberFrom(general.Track_Position);
   // const track = numberFrom(general.Track_Position);
   // const imgWidth = numberFrom(image.Width);
   // const imgHeight = numberFrom(image.Height);
@@ -144,6 +149,7 @@ export async function analyzeFileWithMediaInfo(
     description,
     copyright,
     chapters,
+    trackPosition,
     // raw: res,
     // imgWidth,
     // imgHeight,

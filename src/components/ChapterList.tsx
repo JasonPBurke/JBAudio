@@ -18,6 +18,9 @@ export const ChapterList = ({
     onChapterSelect(chapterIndex);
   };
 
+  console.log('here');
+  console.log('book.chapters[0]', book?.chapters?.[0].chapterNumber);
+
   return (
     <View
       style={{
@@ -30,7 +33,7 @@ export const ChapterList = ({
       {book?.chapters && book.chapters.length > 0 ? (
         <BottomSheetFlatList
           data={book.chapters}
-          keyExtractor={(item: Chapter) => item.url}
+          keyExtractor={(item: Chapter) => `${item.url}-${item.chapterNumber}`}
           renderItem={({
             item,
             index,
