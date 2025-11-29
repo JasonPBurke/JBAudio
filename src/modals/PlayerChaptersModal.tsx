@@ -15,9 +15,8 @@ import { Book } from '@/types/Book';
 import { Logs } from 'lucide-react-native';
 import { MovingText } from '../components/MovingText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useActiveTrack } from 'react-native-track-player';
+import { useCurrentChapter } from '@/hooks/useCurrentChapter';
 import { ChapterList } from '../components/ChapterList';
-import { router } from 'expo-router';
 
 type PlayerChaptersModalProps = {
   handlePresentPress: () => void;
@@ -48,9 +47,9 @@ export const PlayerChaptersModal = ({
     []
   );
 
-  const activeTrack = useActiveTrack();
+  const currentChapter = useCurrentChapter();
 
-  if (!activeTrack) {
+  if (!currentChapter) {
     return (
       <View style={[defaultStyles.container, { justifyContent: 'center' }]}>
         <ActivityIndicator color={colors.icon} />
@@ -74,7 +73,7 @@ export const PlayerChaptersModal = ({
 
         <View style={styles.trackTitleContainer}>
           <MovingText
-            text={activeTrack.title ?? ''}
+            text={currentChapter.chapterTitle ?? ''}
             animationThreshold={34}
             style={styles.trackTitleText}
           />
@@ -110,7 +109,7 @@ export const PlayerChaptersModal = ({
         <View style={{ flex: 1, marginBottom: bottom - 12 }}>
           <ChapterList
             book={book}
-            activeTrackUrl={activeTrack?.url}
+            activeChapter={currentChapter}
             onChapterSelect={onChapterSelect}
           />
         </View>

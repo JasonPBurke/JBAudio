@@ -143,6 +143,7 @@ export const populateDatabase = async (authors: AuthorType[]) => {
               chapter.chapterNumber = chapterData.chapterNumber;
               chapter.chapterDuration = chapterData.chapterDuration; // Add chapterDuration
               chapter.url = chapterData.url;
+              chapter.startMs = chapterData.startMs;
               // Set the foreign key relationship
               (chapter._raw as any).book_id = bookRecord.id;
             });

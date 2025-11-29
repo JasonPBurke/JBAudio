@@ -93,8 +93,10 @@ export const useLibraryStore = create<LibraryState>()((set, get) => ({
                       author: authorModel.name,
                       bookTitle: bookModel.title,
                       chapterTitle: chapterModel.title,
+      
                       chapterNumber: chapterModel.chapterNumber,
                       chapterDuration: chapterModel.chapterDuration,
+                      startMs: chapterModel.startMs,
                       url: chapterModel.url,
                     })
                   );

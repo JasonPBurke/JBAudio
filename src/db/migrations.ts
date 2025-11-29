@@ -7,6 +7,21 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      toVersion: 11,
+      steps: [
+        addColumns({
+          table: 'chapters',
+          columns: [
+            {
+              name: 'start_ms',
+              type: 'number',
+              isOptional: true,
+            },
+          ],
+        }),
+      ],
+    },
+    {
       toVersion: 10,
       steps: [
         addColumns({
