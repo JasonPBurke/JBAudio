@@ -60,7 +60,6 @@ const DrawerContent = (props: Props) => {
       <DrawerItem
         label={'Library Folder'}
         onPress={async () => {
-          console.log('in library folder');
           await directoryPicker();
           props.navigation.closeDrawer();
         }}

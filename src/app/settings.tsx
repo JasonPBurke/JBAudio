@@ -31,7 +31,10 @@ const SettingsScreen = ({ navigation }: any) => {
   const router = useRouter();
   //! calculate length based off currentTimer (max of 30) or 30 as default
   //! the fadeout duration should always max out at the currentTimer value if > 30 or 30
-  const numbers = Array.from({ length: Math.max(0, maxFadeMinutes) }, (_, index) => index + 1);
+  const numbers = Array.from(
+    { length: Math.max(0, maxFadeMinutes) },
+    (_, index) => index + 1
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -49,11 +52,17 @@ const SettingsScreen = ({ navigation }: any) => {
         try {
           // Get current fadeout value (ms or null)
           const DbFadeoutValue = await getTimerFadeoutDuration();
-          let fadeoutValueMinutes: number | null = DbFadeoutValue !== null ? Math.floor(DbFadeoutValue / 60000) : null;
+          let fadeoutValueMinutes: number | null =
+            DbFadeoutValue !== null
+              ? Math.floor(DbFadeoutValue / 60000)
+              : null;
 
           // Get current timer settings to derive cap (minutes)
           const { timerDuration } = await getTimerSettings();
-          const timerDurationMinutes = timerDuration !== null ? Math.floor(timerDuration / 60000) : null;
+          const timerDurationMinutes =
+            timerDuration !== null
+              ? Math.floor(timerDuration / 60000)
+              : null;
 
           // Compute cap: min(timerDurationMinutes, 30); default 30 when timer not set
           const cap = Math.min(30, timerDurationMinutes ?? 30);
@@ -66,7 +75,11 @@ const SettingsScreen = ({ navigation }: any) => {
           }
 
           // Update picker selection
-          if (isActive && fadeoutValueMinutes !== null && fadeoutValueMinutes > 0) {
+          if (
+            isActive &&
+            fadeoutValueMinutes !== null &&
+            fadeoutValueMinutes > 0
+          ) {
             setFadeoutDuration(fadeoutValueMinutes.toString());
           } else if (isActive) {
             setFadeoutDuration('');
@@ -75,7 +88,6 @@ const SettingsScreen = ({ navigation }: any) => {
           console.error('Failed to fetch fadeout/timer settings:', error);
         }
       };
-      console.log('fetchSettingsState');
       fetchSettingsState();
 
       return () => {

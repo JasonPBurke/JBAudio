@@ -1,42 +1,21 @@
 import { StyleSheet, Text, View } from 'react-native';
-import React from 'react';
+import React, { memo } from 'react';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
 import { Author, Book } from '@/types/Book';
 import { BookGridItem } from './BookGridItem';
 import { utilsStyles } from '@/styles';
+import { useProcessedBooks } from '@/hooks/useProcessedBooks';
 
 export type BookHorizontalProps = Partial<FlashListProps<Book>> & {
-  // allBooks: Book[];
   authors: Author[];
   flowDirection: 'row' | 'column';
 };
 
-export const BooksHorizontal = ({
+const BooksHorizontal = ({
   authors,
   flowDirection,
 }: BookHorizontalProps) => {
-  const allBooks = authors
-    .flatMap((author) => author.books)
-    .sort((a, b) => {
-      // Sort by creationDate (descending)
-      if (a.metadata.ctime && b.metadata.ctime) {
-        if (a.metadata.ctime > b.metadata.ctime) return -1;
-        if (a.metadata.ctime < b.metadata.ctime) return 1;
-      }
-
-      // Then sort by author first name (ascending)
-      const authorA = authors.find((author) =>
-        author.books.some((book) => book.bookId === a.bookId)
-      );
-      const authorB = authors.find((author) =>
-        author.books.some((book) => book.bookId === b.bookId)
-      );
-
-      if (authorA && authorB) {
-        return authorA.name.localeCompare(authorB.name);
-      }
-      return 0;
-    });
+  const allBooks = useProcessedBooks(authors);
 
   return (
     <View style={styles.listContainer}>
@@ -46,11 +25,7 @@ export const BooksHorizontal = ({
         }}
         data={allBooks}
         renderItem={({ item: book }) => (
-          <BookGridItem
-            book={book}
-            // bookId={book.bookId!}
-            flowDirection={flowDirection}
-          />
+          <BookGridItem book={book} flowDirection={flowDirection} />
         )}
         keyExtractor={(item) => item.bookId!}
         horizontal={true}
@@ -65,7 +40,7 @@ export const BooksHorizontal = ({
   );
 };
 
-// export default BooksHorizontal;
+export default memo(BooksHorizontal);
 
 const styles = StyleSheet.create({
   listContainer: {
