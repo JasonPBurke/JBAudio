@@ -27,6 +27,7 @@ import database from '@/db';
 import Book from '@/db/models/Book';
 import { ShadowedView, shadowStyle } from 'react-native-fast-shadow';
 import { saveArtwork } from '@/helpers/artwork';
+import { ScrollView } from 'react-native-gesture-handler';
 
 const TitleDetails = () => {
   const [showModal, setShowModal] = useState(false);
@@ -185,7 +186,10 @@ const TitleDetails = () => {
             />
           </ShadowedView>
         </View>
-        <View style={styles.bookInfoContainer}>
+        <ScrollView
+          style={styles.bookInfoContainer}
+          showsVerticalScrollIndicator={false}
+        >
           <Pressable
             onLongPress={() => setShowModal(true)}
             style={styles.bookInfoContainer}
@@ -231,7 +235,7 @@ const TitleDetails = () => {
                     color: imageColors?.muted || colors.textMuted,
                   }}
                 >
-                  Narrated by
+                  Read by
                 </Text>
                 <Text
                   style={{ ...styles.bookInfoText, textAlign: 'center' }}
@@ -269,7 +273,6 @@ const TitleDetails = () => {
               </Text>
             </View>
           </Pressable>
-
           <ModalComponent
             isVisible={showModal}
             onBackdropPress={() => setShowModal(false)}
@@ -286,7 +289,7 @@ const TitleDetails = () => {
           >
             <Text>build out edit metadata screen here</Text>
           </ModalComponent>
-        </View>
+        </ScrollView>
       </View>
     </LinearGradient>
   );
@@ -311,13 +314,11 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     paddingHorizontal: 20,
-    alignItems: 'center',
+    paddingVertical: 12,
   },
   bookArtworkContainer: {
-    // flex: 1,
     height: FIXED_ARTWORK_HEIGHT,
-    paddingTop: 5,
-    marginBottom: 32,
+    paddingTop: 12,
   },
   bookArtworkImage: {
     height: FIXED_ARTWORK_HEIGHT,
@@ -343,7 +344,6 @@ const styles = StyleSheet.create({
   },
   trackPlayingImageIcon: {
     position: 'absolute',
-    // top: '25%',
     bottom: 0,
     right: 20,
     padding: 10,

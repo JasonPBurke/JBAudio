@@ -94,7 +94,7 @@ export async function analyzeFileWithMediaInfo(
   // const imgWidth = numberFrom(image.Width);
   // const imgHeight = numberFrom(image.Height);
 
-  console.log('menus', menus);
+  // console.log('menus', menus);
 
   const chapters: { startMs: number; title?: string }[] = [];
   for (const menu of menus) {
