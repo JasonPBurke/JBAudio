@@ -54,19 +54,20 @@ export const useSetupTrackPlayer = ({
   const { setAudioPermissionStatus } = usePermission();
 
   useEffect(() => {
-    requestAudioPermission().then((status) => {
+    const setup = async () => {
+      const status = await requestAudioPermission();
       setAudioPermissionStatus(status);
       if (status === 'granted') {
-        setupPlayer()
-          .then(() => {
-            isInitialized.current = true;
-            onLoad?.();
-          })
-          .catch((error) => {
-            isInitialized.current = false;
-            console.error(error);
-          });
+        try {
+          await setupPlayer();
+          isInitialized.current = true;
+          onLoad?.();
+        } catch (error) {
+          isInitialized.current = false;
+          console.error('Error setting up track player:', error);
+        }
       }
-    });
+    };
+    setup();
   }, [onLoad, setAudioPermissionStatus]);
 };
