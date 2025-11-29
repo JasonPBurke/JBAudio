@@ -6,6 +6,7 @@ import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles, utilsStyles } from '@/styles';
 import { useEffect, useState } from 'react';
+import { useCurrentChapter } from '@/hooks/useCurrentChapter';
 
 export const PlayerProgressBar = ({ style }: ViewProps) => {
   const { duration, position } = useProgress(250);
@@ -20,30 +21,43 @@ export const PlayerProgressBar = ({ style }: ViewProps) => {
     formatSecondsToMinutes(duration - position)
   );
 
+  const currentChapter = useCurrentChapter();
+
+  const chapterDuration = currentChapter?.chapterDuration ?? duration;
+  const chapterPosition = currentChapter?.startMs
+    ? position - currentChapter.startMs / 1000
+    : position;
+
   const isSliding = useSharedValue(false);
   const progress = useSharedValue(0);
   const min = useSharedValue(0);
   const max = useSharedValue(1);
 
   if (!isSliding.value) {
-    progress.value = duration > 0 ? position / duration : 0;
+    progress.value =
+      chapterDuration > 0 ? chapterPosition / chapterDuration : 0;
   }
 
   useEffect(() => {
     if (!isSliding.value) {
-      setTrackElapsedTime(formatSecondsToMinutes(position));
-      setTrackRemainingTime(formatSecondsToMinutes(duration - position));
+      setTrackElapsedTime(formatSecondsToMinutes(chapterPosition));
+      setTrackRemainingTime(
+        formatSecondsToMinutes(chapterDuration - chapterPosition)
+      );
     }
-  }, [position, duration, isSliding.value]);
+  }, [chapterPosition, chapterDuration, isSliding.value]);
 
   const handleSeek = async (value: number) => {
     if (isSliding.value) {
       isSliding.value = false;
     }
-    await TrackPlayer.seekTo(value * duration);
-    setTrackElapsedTime(formatSecondsToMinutes(value * duration));
+    const seekPosition = currentChapter?.startMs
+      ? currentChapter.startMs / 1000 + value * chapterDuration
+      : value * chapterDuration;
+    await TrackPlayer.seekTo(seekPosition);
+    setTrackElapsedTime(formatSecondsToMinutes(value * chapterDuration));
     setTrackRemainingTime(
-      formatSecondsToMinutes(duration - value * duration)
+      formatSecondsToMinutes(chapterDuration - value * chapterDuration)
     );
   };
 
@@ -77,7 +91,9 @@ export const PlayerProgressBar = ({ style }: ViewProps) => {
         onSlidingStart={() => (isSliding.value = true)}
         onSlidingComplete={handleSeek}
         onValueChange={(value) => {
-          setBubbleElapsedTime(formatSecondsToMinutes(value * duration));
+          setBubbleElapsedTime(
+            formatSecondsToMinutes(value * chapterDuration)
+          );
         }}
         // onTap={() => handleSeek(progress.value)}
       />
