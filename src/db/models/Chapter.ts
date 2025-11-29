@@ -12,6 +12,7 @@ export default class Chapter extends Model {
   @text('title') title!: string;
   @field('chapter_number') chapterNumber!: number;
   @field('chapter_duration') chapterDuration!: number;
+  @field('start_ms') startMs?: number;
   @text('url') url!: string;
 
   @relation('books', 'book_id') book!: Book;

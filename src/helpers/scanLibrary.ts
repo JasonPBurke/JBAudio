@@ -86,6 +86,7 @@ const extractMetadata = async (filePath: string) => {
 
           ctime: new Date(),
           chapterDuration: chapterDuration,
+          startMs: chapter.startMs,
           url: filePath,
         };
       });
@@ -108,9 +109,9 @@ const extractMetadata = async (filePath: string) => {
           sampleRate: undefined,
           artworkUri: null,
           totalTrackCount: 1,
-
           ctime: new Date(),
           chapterDuration: chapterDuration,
+          startMs: 0,
           url: filePath,
         },
       ];
@@ -188,6 +189,7 @@ const handleBookSort = (books: any) => {
           chapterTitle: book.chapterTitle,
           chapterNumber: book.chapterNumber,
           chapterDuration: book.chapterDuration,
+          startMs: book.startMs,
           url: book.url,
         };
 

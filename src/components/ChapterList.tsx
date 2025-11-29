@@ -7,19 +7,16 @@ import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 
 export const ChapterList = ({
   book,
-  activeTrackUrl,
+  activeChapter,
   onChapterSelect,
 }: {
   book: Book | undefined;
-  activeTrackUrl: string | undefined;
+  activeChapter: Chapter | undefined;
   onChapterSelect: (chapterIndex: number) => void;
 }) => {
   const handleChapterChange = async (chapterIndex: number) => {
     onChapterSelect(chapterIndex);
   };
-
-  console.log('here');
-  console.log('book.chapters[0]', book?.chapters?.[0].chapterNumber);
 
   return (
     <View
@@ -43,6 +40,10 @@ export const ChapterList = ({
           }) => {
             const isFirstChapter = index === 0;
             const isLastChapter = index === book.chapters.length - 1;
+            const isActive =
+              activeChapter?.url === item.url &&
+              activeChapter?.chapterNumber === item.chapterNumber;
+
             return (
               <Pressable
                 onPress={() => handleChapterChange(index)}
@@ -57,10 +58,7 @@ export const ChapterList = ({
                 <Text
                   style={{
                     ...styles.chapterTitle,
-                    color:
-                      activeTrackUrl === item.url
-                        ? colors.primary
-                        : colors.textMuted,
+                    color: isActive ? colors.primary : colors.textMuted,
                   }}
                 >
                   {item.chapterTitle}

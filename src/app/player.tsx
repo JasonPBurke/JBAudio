@@ -29,18 +29,33 @@ const PlayerScreen = () => {
 
   const handleChapterSelect = useCallback(
     async (chapterIndex: number) => {
-      if (!book?.bookId) return;
+      if (!book?.bookId || !book.chapters) return;
 
-      await TrackPlayer.skip(chapterIndex);
+      // Check if it's a single-file book by comparing URLs of chapters
+      const isSingleFileBook =
+        book.chapters.length > 1 &&
+        book.chapters.every((c) => c.url === book.chapters[0].url);
+
+      console.log('isSingleFileBook', isSingleFileBook);
+
+      if (isSingleFileBook) {
+        const selectedChapter = book.chapters[chapterIndex];
+        console.log('selectedChapter', selectedChapter.startMs);
+        const seekTime = (selectedChapter.startMs || 0) / 1000;
+        console.log('seekTime', seekTime);
+        await TrackPlayer.seekTo(seekTime);
+      } else {
+        await TrackPlayer.skip(chapterIndex);
+      }
+
       await TrackPlayer.play();
       await TrackPlayer.setVolume(1);
 
-      //! update state store an rely on the observer to update the db is better??
       await updateBookChapterIndex(book.bookId, chapterIndex);
 
-      bottomSheetModalRef.current?.dismiss(); // .close()
+      bottomSheetModalRef.current?.dismiss();
     },
-    [book?.bookId, updateBookChapterIndex]
+    [book, updateBookChapterIndex]
   );
 
   const imgHeight = book?.artworkHeight;

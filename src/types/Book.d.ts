@@ -37,6 +37,7 @@ export type Chapter = {
   chapterTitle: string;
   chapterNumber: number;
   chapterDuration: number;
+  startMs?: number;
   url: string;
 };
 
