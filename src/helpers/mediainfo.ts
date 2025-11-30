@@ -88,7 +88,7 @@ export async function analyzeFileWithMediaInfo(
     general.Artist || general.Album_Performer || general.Performer;
   const copyright = general.Copyright;
   const narrator =
-    general.Composer || general.nrt || general.Album_Performer;
+    general.nrt || general.Composer || general.Album_Performer;
   const trackPosition = numberFrom(general.Track_Position);
   // const track = numberFrom(general.Track_Position);
   // const imgWidth = numberFrom(image.Width);

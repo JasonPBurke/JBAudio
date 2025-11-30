@@ -64,14 +64,11 @@ const parseCueFile = async (
     const chapters: { title: string; startMs: number }[] = [];
     let currentChapter: { title: string; startMs: number } | null = null;
 
-    console.log('totalDurationMs', totalDurationMs);
-
     const titleRegex = /^\s*TITLE\s*"(.*)"\s*$/;
     const indexRegex = /^\s*INDEX\s*01\s*(\d+):(\d+):(\d+)\s*$/;
 
     for (const line of lines) {
       const trimmedLine = line.trim();
-      console.log('trimmedLine', trimmedLine);
 
       if (trimmedLine.startsWith('TRACK')) {
         // When we see a new TRACK, push the previous one and start a new one.
@@ -82,36 +79,21 @@ const parseCueFile = async (
       }
 
       const titleMatch = trimmedLine.match(titleRegex);
-      console.log('the following lines are matching');
-      console.log('titleMatch', titleMatch);
-      console.log('currentChapter', currentChapter);
       if (titleMatch && currentChapter) {
-        console.log('inside the if statement for titleMatch');
         currentChapter.title = titleMatch[1];
       }
 
       const indexMatch = trimmedLine.match(indexRegex);
-      console.log('the following lines are matching');
-      console.log('indexMatch', indexMatch);
-      console.log('currentChapter', currentChapter);
       if (indexMatch && currentChapter) {
-        console.log('inside the if statement for indexMatch');
         const minutes = parseInt(indexMatch[1], 10);
         const seconds = parseInt(indexMatch[2], 10);
         const frames = parseInt(indexMatch[3], 10);
-        console.log('minutes', minutes);
-        console.log('seconds', seconds);
-        console.log('frames', frames);
         const startTimeMs =
           minutes * 60 * 1000 +
           seconds * 1000 +
           Math.round((frames / 75) * 1000);
-        console.log('startTimeMs', startTimeMs);
         currentChapter.startMs = startTimeMs;
       }
-
-      console.log('');
-      console.log('');
     }
 
     // Add the last chapter
@@ -142,8 +124,7 @@ const extractMetadata = async (filePath: string) => {
       const cueFileExists = await RNFS.exists(cueFilePath);
 
       if (cueFileExists) {
-        console.log(`Found CUE file for ${filePath}, parsing...`);
-        console.log('metadata.durationMs', metadata.durationMs);
+        // console.log(`Found CUE file for ${filePath}, parsing...`);
         const cueChapters = await parseCueFile(
           cueFilePath,
           metadata.durationMs || 0
@@ -415,19 +396,6 @@ const removeMissingFiles = async (allFiles: string[]) => {
 export const scanLibrary = async () => {
   console.log('Scanning library');
   const libraryPaths = await getLibraryPaths();
-
-  //* Testing Block ... do not delete
-  // const testPath = `${RNFS.ExternalStorageDirectoryPath}/Audiobooks/TJ Klune/Cerulean Chronicles 01 - The House in the Cerulean Sea.m4b`;
-
-  // const testRes = async (testPath: string) => {
-  //   return await analyzeFileWithMediaInfo(testPath);
-  // };
-
-  // console.log(`Requesting media info in scanLibrary for: ${testPath}`);
-
-  // const testRes2 = await testRes(testPath);
-  // console.log('testRes', JSON.stringify(testRes2, null, 2));
-  //* End Testing Block
 
   if (!libraryPaths || libraryPaths.length === 0) {
     console.log('No library paths configured. Aborting scan.');
