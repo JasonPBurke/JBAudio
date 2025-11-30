@@ -78,6 +78,21 @@ export const populateDatabase = async (authors: AuthorType[]) => {
               book.artwork = bookData.artwork || unknownBookImageUri;
               book.artworkHeight = bookData.artworkHeight || null;
               book.artworkWidth = bookData.artworkWidth || null;
+              book.coverColorAverage =
+                bookData.artworkColors.average || null;
+              book.coverColorDominant =
+                bookData.artworkColors.dominant || null;
+              book.coverColorVibrant =
+                bookData.artworkColors.vibrant || null;
+              book.coverColorDarkVibrant =
+                bookData.artworkColors.darkVibrant || null;
+              book.coverColorLightVibrant =
+                bookData.artworkColors.lightVibrant || null;
+              book.coverColorMuted = bookData.artworkColors.muted || null;
+              book.coverColorDarkMuted =
+                bookData.artworkColors.darkMuted || null;
+              book.coverColorLightMuted =
+                bookData.artworkColors.lightMuted || null;
               book.bookDuration = bookData.bookDuration || 0; // Add bookDuration
               book.currentChapterIndex =
                 bookData.bookProgress.currentChapterIndex || 0;
@@ -94,6 +109,7 @@ export const populateDatabase = async (authors: AuthorType[]) => {
                 0;
               book.createdAt = bookData.metadata.ctime || new Date();
               book.updatedAt = new Date();
+              book.bookProgressValue = 0;
               // Set the foreign key relationship
               (book._raw as any).author_id = authorRecord.id;
             });
@@ -105,6 +121,21 @@ export const populateDatabase = async (authors: AuthorType[]) => {
               book.artwork = bookData.artwork || unknownBookImageUri;
               book.artworkHeight = bookData.artworkHeight || null;
               book.artworkWidth = bookData.artworkWidth || null;
+              book.coverColorAverage =
+                bookData.artworkColors.average || null;
+              book.coverColorDominant =
+                bookData.artworkColors.dominant || null;
+              book.coverColorVibrant =
+                bookData.artworkColors.vibrant || null;
+              book.coverColorDarkVibrant =
+                bookData.artworkColors.darkVibrant || null;
+              book.coverColorLightVibrant =
+                bookData.artworkColors.lightVibrant || null;
+              book.coverColorMuted = bookData.artworkColors.muted || null;
+              book.coverColorDarkMuted =
+                bookData.artworkColors.darkMuted || null;
+              book.coverColorLightMuted =
+                bookData.artworkColors.lightMuted || null;
               book.bookDuration = bookData.bookDuration || 0; // Update bookDuration
               book.currentChapterIndex =
                 bookData.bookProgress.currentChapterIndex || 0;

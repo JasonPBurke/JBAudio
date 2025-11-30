@@ -37,8 +37,17 @@ const SETTINGS_REFRESH_INTERVAL = 1000; // 1s is enough for UI updates
 const VOLUME_THROTTLE_MS = 100;
 
 export default module.exports = async function () {
-  TrackPlayer.addEventListener(Event.RemotePlay, () => TrackPlayer.play());
-  TrackPlayer.addEventListener(Event.RemotePause, () =>
+  TrackPlayer.addEventListener(
+    Event.RemotePlay,
+    () => TrackPlayer.seekBy(-1),
+    TrackPlayer.play(),
+    TrackPlayer.setVolume(0.5),
+    TrackPlayer.setVolume(1)
+  );
+  TrackPlayer.addEventListener(
+    Event.RemotePause,
+    () => TrackPlayer.setVolume(0.5),
+    TrackPlayer.setVolume(0),
     TrackPlayer.pause()
   );
   TrackPlayer.addEventListener(Event.RemoteStop, () => TrackPlayer.stop());

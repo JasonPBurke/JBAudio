@@ -7,6 +7,85 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      toVersion: 13,
+      steps: [
+        addColumns({
+          table: 'books',
+          columns: [
+            {
+              name: 'cover_color_average',
+              type: 'string',
+              isOptional: true,
+            },
+            {
+              name: 'cover_color_dominant',
+              type: 'string',
+              isOptional: true,
+            },
+            {
+              name: 'cover_color_vibrant',
+              type: 'string',
+              isOptional: true,
+            },
+            {
+              name: 'cover_color_dark_vibrant',
+              type: 'string',
+              isOptional: true,
+            },
+            {
+              name: 'cover_color_light_vibrant',
+              type: 'string',
+              isOptional: true,
+            },
+            {
+              name: 'cover_color_muted',
+              type: 'string',
+              isOptional: true,
+            },
+            {
+              name: 'cover_color_dark_muted',
+              type: 'string',
+              isOptional: true,
+            },
+            {
+              name: 'cover_color_light_muted',
+              type: 'string',
+              isOptional: true,
+            },
+          ],
+        }),
+      ],
+    },
+    {
+      toVersion: 12,
+      steps: [
+        addColumns({
+          table: 'books',
+          columns: [
+            {
+              name: 'book_progress_value',
+              type: 'number',
+            },
+          ],
+        }),
+        addColumns({
+          table: 'settings',
+          columns: [
+            {
+              name: 'skip_back_duration',
+              type: 'number',
+              isOptional: true,
+            },
+            {
+              name: 'skip_forward_duration',
+              type: 'number',
+              isOptional: true,
+            },
+          ],
+        }),
+      ],
+    },
+    {
       toVersion: 11,
       steps: [
         addColumns({

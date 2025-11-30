@@ -33,6 +33,17 @@ export default class Book extends Model {
   @date('updated_at') updatedAt!: Date | null;
   @field('artwork_height') artworkHeight!: number | null;
   @field('artwork_width') artworkWidth!: number | null;
+  @field('book_progress_value') bookProgressValue!: number;
+  @field('cover_color_average') coverColorAverage!: string | null;
+  @field('cover_color_dominant') coverColorDominant!: string | null;
+  @field('cover_color_vibrant') coverColorVibrant!: string | null;
+  @field('cover_color_dark_vibrant') coverColorDarkVibrant!: string | null;
+  @field('cover_color_light_vibrant') coverColorLightVibrant!:
+    | string
+    | null;
+  @field('cover_color_muted') coverColorMuted!: string | null;
+  @field('cover_color_dark_muted') coverColorDarkMuted!: string | null;
+  @field('cover_color_light_muted') coverColorLightMuted!: string | null;
 
   @relation('authors', 'author_id') author!: Author;
   @children('chapters') chapters!: Chapter[];

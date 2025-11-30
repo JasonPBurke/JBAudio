@@ -21,6 +21,7 @@ async function requestAudioPermission(): Promise<
 }
 
 const setupPlayer = async () => {
+  const userJumpInterval = 30;
   await TrackPlayer.setupPlayer({
     autoHandleInterruptions: true,
     androidAudioContentType: AndroidAudioContentType.Speech,
@@ -29,8 +30,8 @@ const setupPlayer = async () => {
 
   await TrackPlayer.updateOptions({
     progressUpdateEventInterval: 1,
-    forwardJumpInterval: 30,
-    backwardJumpInterval: 30,
+    forwardJumpInterval: userJumpInterval,
+    backwardJumpInterval: userJumpInterval,
     capabilities: [
       Capability.Play,
       Capability.Pause,

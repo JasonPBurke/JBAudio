@@ -11,11 +11,9 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@config-plugins/react-native-blob-util": "11.0.0",
     "@dr.pogodin/react-native-fs": "^2.35.1",
     "@expo/vector-icons": "^14.1.0",
     "@gorhom/bottom-sheet": "^5.2.4",
-    "@legendapp/list": "^2.0.12",
     "@missingcore/react-native-metadata-retriever": "^1.1.0",
     "@morrowdigital/watermelondb-expo-plugin": "^2.3.3",
     "@nozbe/watermelondb": "^0.28.0",
@@ -38,7 +36,6 @@
     "expo-blur": "~14.1.5",
     "expo-build-properties": "~0.14.8",
     "expo-constants": "~17.1.7",
-    "expo-crypto": "~14.1.5",
     "expo-dev-client": "~5.2.4",
     "expo-file-system": "~18.1.11",
     "expo-font": "~13.3.2",
@@ -54,13 +51,11 @@
     "expo-system-ui": "~5.0.11",
     "expo-web-browser": "~14.2.0",
     "lucide-react-native": "^0.545.0",
-    "music-metadata": "^11.9.0",
     "react": "19.0.0",
     "react-compiler-runtime": "1.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.6",
     "react-native-awesome-slider": "^2.9.0",
-    "react-native-blob-util": "^0.22.2",
     "react-native-circular-progress": "^1.4.1",
     "react-native-edge-to-edge": "1.6.0",
     "react-native-fast-shadow": "^0.1.1",
@@ -79,7 +74,6 @@
     "react-native-webview": "13.13.5",
     "react-native-worklets": "^0.6.1",
     "ts-pattern": "^5.8.0",
-    "uuid": "^13.0.0",
     "zustand": "^5.0.8"
   },
   "devDependencies": {

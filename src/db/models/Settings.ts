@@ -10,6 +10,8 @@ export default class Settings extends Model {
 
   @text('book_folder') bookFolder!: string;
   @field('num_columns') numColumns!: number;
+  @field('skip_back_duration') skipBackDuration!: number | null;
+  @field('skip_forward_duration') skipForwardDuration!: number | null;
   @field('timer_active') timerActive!: boolean;
   @field('timer_duration') timerDuration!: number | null;
   @field('sleep_time') sleepTime!: number | null;

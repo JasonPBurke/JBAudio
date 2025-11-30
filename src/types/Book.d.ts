@@ -14,10 +14,21 @@ export type Book = {
   artwork: string | null;
   artworkHeight: number | null;
   artworkWidth: number | null;
+  artworkColors: {
+    average: string | null;
+    dominant: string | null;
+    vibrant: string | null;
+    darkVibrant: string | null;
+    lightVibrant: string | null;
+    muted: string | null;
+    darkMuted: string | null;
+    lightMuted: string | null;
+  };
   bookProgress: {
     currentChapterIndex: number; //* on queueChange, update this to the current index
     currentChapterProgress: number | null; //* update 1000/5000ms as play progresses
   };
+  bookProgressValue: number;
   metadata: {
     year: number | null;
     description: string | null;
