@@ -53,14 +53,106 @@ const checkIfFileExists = async (path: string) => {
   return matchingChapterUriCount > 0; // allows for boolean check
 };
 
+const parseCueFile = async (
+  cueFilePath: string,
+  totalDurationMs: number
+) => {
+  try {
+    const cueSheetContent = await RNFS.readFile(cueFilePath, 'utf8');
+    const lines = cueSheetContent.split('\n');
+
+    const chapters: { title: string; startMs: number }[] = [];
+    let currentChapter: { title: string; startMs: number } | null = null;
+
+    console.log('totalDurationMs', totalDurationMs);
+
+    const titleRegex = /^\s*TITLE\s*"(.*)"\s*$/;
+    const indexRegex = /^\s*INDEX\s*01\s*(\d+):(\d+):(\d+)\s*$/;
+
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      console.log('trimmedLine', trimmedLine);
+
+      if (trimmedLine.startsWith('TRACK')) {
+        // When we see a new TRACK, push the previous one and start a new one.
+        if (currentChapter) {
+          chapters.push(currentChapter);
+        }
+        currentChapter = { title: '', startMs: 0 };
+      }
+
+      const titleMatch = trimmedLine.match(titleRegex);
+      console.log('the following lines are matching');
+      console.log('titleMatch', titleMatch);
+      console.log('currentChapter', currentChapter);
+      if (titleMatch && currentChapter) {
+        console.log('inside the if statement for titleMatch');
+        currentChapter.title = titleMatch[1];
+      }
+
+      const indexMatch = trimmedLine.match(indexRegex);
+      console.log('the following lines are matching');
+      console.log('indexMatch', indexMatch);
+      console.log('currentChapter', currentChapter);
+      if (indexMatch && currentChapter) {
+        console.log('inside the if statement for indexMatch');
+        const minutes = parseInt(indexMatch[1], 10);
+        const seconds = parseInt(indexMatch[2], 10);
+        const frames = parseInt(indexMatch[3], 10);
+        console.log('minutes', minutes);
+        console.log('seconds', seconds);
+        console.log('frames', frames);
+        const startTimeMs =
+          minutes * 60 * 1000 +
+          seconds * 1000 +
+          Math.round((frames / 75) * 1000);
+        console.log('startTimeMs', startTimeMs);
+        currentChapter.startMs = startTimeMs;
+      }
+
+      console.log('');
+      console.log('');
+    }
+
+    // Add the last chapter
+    if (currentChapter) {
+      chapters.push(currentChapter);
+    }
+
+    return chapters.length > 0 ? chapters : null;
+  } catch (error) {
+    console.error(`Failed to parse CUE file ${cueFilePath}:`, error);
+    return null;
+  }
+};
+
 const extractMetadata = async (filePath: string) => {
   try {
     const metadata = await analyzeFileWithMediaInfo(filePath);
-    const chapters = metadata.chapters || [];
+    let chapters = metadata.chapters || [];
     const bookTitleBackup = filePath
       .substring(0, filePath.lastIndexOf('/'))
       .split('/')
       .pop();
+
+    // If no embedded chapters, check for a .cue file
+    if (chapters.length === 0) {
+      const cueFilePath =
+        filePath.substring(0, filePath.lastIndexOf('.')) + '.cue';
+      const cueFileExists = await RNFS.exists(cueFilePath);
+
+      if (cueFileExists) {
+        console.log(`Found CUE file for ${filePath}, parsing...`);
+        console.log('metadata.durationMs', metadata.durationMs);
+        const cueChapters = await parseCueFile(
+          cueFilePath,
+          metadata.durationMs || 0
+        );
+        if (cueChapters) {
+          chapters = cueChapters;
+        }
+      }
+    }
 
     if (chapters.length > 0) {
       // This is a multi-chapter file (e.g. m4b)
