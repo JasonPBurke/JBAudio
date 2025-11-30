@@ -36,13 +36,9 @@ const PlayerScreen = () => {
         book.chapters.length > 1 &&
         book.chapters.every((c) => c.url === book.chapters[0].url);
 
-      console.log('isSingleFileBook', isSingleFileBook);
-
       if (isSingleFileBook) {
         const selectedChapter = book.chapters[chapterIndex];
-        console.log('selectedChapter', selectedChapter.startMs);
         const seekTime = (selectedChapter.startMs || 0) / 1000;
-        console.log('seekTime', seekTime);
         await TrackPlayer.seekTo(seekTime);
       } else {
         await TrackPlayer.skip(chapterIndex);
