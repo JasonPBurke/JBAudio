@@ -19,6 +19,12 @@
       "env": {
         "ANDROID_SDK_ROOT": "/home/jason/Android/Sdk"
       }
+    },
+    "staging": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
     }
   },
   "submit": {

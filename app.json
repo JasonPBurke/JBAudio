@@ -42,7 +42,6 @@
           }
         }
       ],
-      "@config-plugins/react-native-blob-util",
       [
         "react-native-edge-to-edge",
         {

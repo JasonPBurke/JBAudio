@@ -237,10 +237,21 @@ const handleBookSort = (books: any) => {
           artwork: null,
           artworkHeight: null,
           artworkWidth: null,
+          artworkColors: {
+            average: null,
+            dominant: null,
+            vibrant: null,
+            darkVibrant: null,
+            lightVibrant: null,
+            muted: null,
+            darkMuted: null,
+            lightMuted: null,
+          },
           bookProgress: {
             currentChapterIndex: 0,
             currentChapterProgress: 0,
           },
+          bookProgressValue: 0,
           metadata: {
             year: book.year,
             description: book.description,

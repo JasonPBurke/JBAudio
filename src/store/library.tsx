@@ -93,7 +93,7 @@ export const useLibraryStore = create<LibraryState>()((set, get) => ({
                       author: authorModel.name,
                       bookTitle: bookModel.title,
                       chapterTitle: chapterModel.title,
-      
+
                       chapterNumber: chapterModel.chapterNumber,
                       chapterDuration: chapterModel.chapterDuration,
                       startMs: chapterModel.startMs,
@@ -109,12 +109,23 @@ export const useLibraryStore = create<LibraryState>()((set, get) => ({
                     artwork: bookModel.artwork,
                     artworkHeight: bookModel.artworkHeight,
                     artworkWidth: bookModel.artworkWidth,
+                    artworkColors: {
+                      average: bookModel.coverColorAverage,
+                      dominant: bookModel.coverColorDominant,
+                      vibrant: bookModel.coverColorVibrant,
+                      darkVibrant: bookModel.coverColorDarkVibrant,
+                      lightVibrant: bookModel.coverColorLightVibrant,
+                      muted: bookModel.coverColorMuted,
+                      darkMuted: bookModel.coverColorDarkMuted,
+                      lightMuted: bookModel.coverColorLightMuted,
+                    },
                     bookDuration: bookModel.bookDuration,
                     bookProgress: {
                       currentChapterIndex: bookModel.currentChapterIndex,
                       currentChapterProgress:
                         bookModel.currentChapterProgress,
                     },
+                    bookProgressValue: bookModel.bookProgressValue,
                     metadata: {
                       year: bookModel.year,
                       description: bookModel.description,

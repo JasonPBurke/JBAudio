@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 11,
+  version: 13,
   tables: [
     tableSchema({
       name: 'authors',
@@ -34,6 +34,47 @@ export default appSchema({
         { name: 'updated_at', type: 'number' },
         { name: 'artwork_height', type: 'number', isOptional: true },
         { name: 'artwork_width', type: 'number', isOptional: true },
+        { name: 'book_progress_value', type: 'number' },
+        {
+          name: 'cover_color_average',
+          type: 'string',
+          isOptional: true,
+        },
+        {
+          name: 'cover_color_dominant',
+          type: 'string',
+          isOptional: true,
+        },
+        {
+          name: 'cover_color_vibrant',
+          type: 'string',
+          isOptional: true,
+        },
+        {
+          name: 'cover_color_dark_vibrant',
+          type: 'string',
+          isOptional: true,
+        },
+        {
+          name: 'cover_color_light_vibrant',
+          type: 'string',
+          isOptional: true,
+        },
+        {
+          name: 'cover_color_muted',
+          type: 'string',
+          isOptional: true,
+        },
+        {
+          name: 'cover_color_dark_muted',
+          type: 'string',
+          isOptional: true,
+        },
+        {
+          name: 'cover_color_light_muted',
+          type: 'string',
+          isOptional: true,
+        },
       ],
     }),
     tableSchema({
@@ -89,6 +130,16 @@ export default appSchema({
         {
           name: 'library_paths',
           type: 'string',
+          isOptional: true,
+        },
+        {
+          name: 'skip_back_duration',
+          type: 'number',
+          isOptional: true,
+        },
+        {
+          name: 'skip_forward_duration',
+          type: 'number',
           isOptional: true,
         },
       ],
