@@ -64,8 +64,8 @@ export async function analyzeFileWithMediaInfo(
   const menus = tracks.filter((t) => t['@type'] === 'Menu');
   //! not getting image track returned by mediainfo
   // const image = tracks.find((t) => t['@type'] === 'Image') || {};
-  const cover = await getCover(uri);
-  console.log('cover', cover);
+  // const cover = await getCover(uri);
+  // console.log('cover', cover);
   // console.log('raw res', JSON.stringify(res, null, 2));
   // console.log('image', image);
 

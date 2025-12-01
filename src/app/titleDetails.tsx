@@ -87,7 +87,7 @@ const TitleDetails = () => {
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(chapterProgress || 0);
       await TrackPlayer.play();
-      await TrackPlayer.setVolume(1);
+      // await TrackPlayer.setVolume(1);
 
       if (book.bookId) {
         setActiveBookId(book.bookId);
@@ -98,7 +98,7 @@ const TitleDetails = () => {
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(chapterProgress || 0);
       await TrackPlayer.play();
-      await TrackPlayer.setVolume(1);
+      // await TrackPlayer.setVolume(1);
     }
   };
 
@@ -315,6 +315,7 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: 20,
     paddingVertical: 12,
+    paddingBottom: 80,
   },
   bookArtworkContainer: {
     height: FIXED_ARTWORK_HEIGHT,

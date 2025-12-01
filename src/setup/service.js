@@ -35,19 +35,13 @@ let cachedTimer = {
 const SETTINGS_REFRESH_INTERVAL = 1000; // 1s is enough for UI updates
 // Throttle interval for volume updates (ms)
 const VOLUME_THROTTLE_MS = 100;
+//! these will come from the settings db
+const skip_back_duration = 30;
+const skip_forward_duration = 30;
 
 export default module.exports = async function () {
-  TrackPlayer.addEventListener(
-    Event.RemotePlay,
-    () => TrackPlayer.seekBy(-1),
-    TrackPlayer.play(),
-    TrackPlayer.setVolume(0.5),
-    TrackPlayer.setVolume(1)
-  );
-  TrackPlayer.addEventListener(
-    Event.RemotePause,
-    () => TrackPlayer.setVolume(0.5),
-    TrackPlayer.setVolume(0),
+  TrackPlayer.addEventListener(Event.RemotePlay, () => TrackPlayer.play());
+  TrackPlayer.addEventListener(Event.RemotePause, () =>
     TrackPlayer.pause()
   );
   TrackPlayer.addEventListener(Event.RemoteStop, () => TrackPlayer.stop());
@@ -55,10 +49,10 @@ export default module.exports = async function () {
     TrackPlayer.seekTo(position);
   });
   TrackPlayer.addEventListener(Event.RemoteJumpForward, () => {
-    TrackPlayer.seekBy(30);
+    TrackPlayer.seekBy(skip_forward_duration);
   });
   TrackPlayer.addEventListener(Event.RemoteJumpBackward, () => {
-    TrackPlayer.seekBy(-30);
+    TrackPlayer.seekBy(-skip_back_duration);
   });
   TrackPlayer.addEventListener(Event.RemoteNext, () =>
     TrackPlayer.skipToNext()
