@@ -67,6 +67,9 @@ export const BookGridItem = memo(function BookListItem({
     if (chapterIndex === -1) return;
 
     const isChangingBook = book.bookId !== activeBookId;
+    console.log('isChangingBook', isChangingBook);
+    const currentTrack = await TrackPlayer.getActiveTrack();
+    console.log('currentTrack', currentTrack);
 
     if (isChangingBook) {
       const artworkUri = await saveArtwork(book.artwork, book.bookTitle);
@@ -81,18 +84,24 @@ export const BookGridItem = memo(function BookListItem({
         album: book.bookTitle,
         bookId: book.bookId,
       }));
+      console.log('changing book');
 
       await TrackPlayer.add(tracks);
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(progress || 0);
+      console.log('playing new book');
       await TrackPlayer.play();
-      await TrackPlayer.setVolume(1);
+      const currentTrack = await TrackPlayer.getActiveTrack();
+      console.log('currentTrack', currentTrack);
+      // await TrackPlayer.setVolume(1);
       setActiveBookId(book.bookId!);
     } else {
+      console.log('not changing book');
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(progress || 0);
+      console.log('playing same book');
       await TrackPlayer.play();
-      await TrackPlayer.setVolume(1);
+      // await TrackPlayer.setVolume(1);
     }
   };
 
