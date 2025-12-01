@@ -3,6 +3,7 @@ import {
   getMediaInfo,
   MediaInfoResult,
   ensureMediaInfo,
+  getCover,
 } from '../lib/mediainfoAdapter';
 
 export type ExtractedMetadata = {
@@ -17,7 +18,8 @@ export type ExtractedMetadata = {
   copyright?: string;
   chapters?: { startMs: number; title?: string }[];
   trackPosition?: number;
-  // raw: MediaInfoResult;
+  raw: MediaInfoResult;
+  cover?: string;
   // bitrate?: number;
   // codec?: string;
   // channels?: number;
@@ -62,13 +64,16 @@ export async function analyzeFileWithMediaInfo(
   const menus = tracks.filter((t) => t['@type'] === 'Menu');
   //! not getting image track returned by mediainfo
   // const image = tracks.find((t) => t['@type'] === 'Image') || {};
+  const cover = await getCover(uri);
+  console.log('cover', cover);
+  // console.log('raw res', JSON.stringify(res, null, 2));
+  // console.log('image', image);
 
   // const bitrate =
   //   numberFrom(audio.BitRate) || numberFrom(general.OverallBitRate);
   // const sampleRate = numberFrom(audio.SamplingRate);
   // const channels = numberFrom(audio.Channels);
   // const codec = audio.Format || audio.CodecID || general.CodecID;
-  // const disc = numberFrom(general.Part_Position);
   const durationInSeconds =
     numberFrom(general.Duration) || numberFrom(audio.Duration);
   const durationMs = durationInSeconds
@@ -81,20 +86,24 @@ export async function analyzeFileWithMediaInfo(
     general.Recorded_Date ||
     general.Tagged_Date ||
     general.Original_Year;
-  const description = general.Comment || general.Title_More;
+  const description =
+    general.extra?.comment || general.Comment || general.Title_More;
   const title = general.Track || general.Title;
   const album = general.Album;
   const author =
-    general.Artist || general.Album_Performer || general.Performer;
+    general.Artist || general.Performer || general.Album_Performer;
   const copyright = general.Copyright;
   const narrator =
-    general.nrt || general.Composer || general.Album_Performer;
+    general.nrt ||
+    general.extra?.nrt ||
+    general.Composer ||
+    general.Album_Performer;
   const trackPosition = numberFrom(general.Track_Position);
   // const track = numberFrom(general.Track_Position);
   // const imgWidth = numberFrom(image.Width);
   // const imgHeight = numberFrom(image.Height);
 
-  // console.log('menus', menus);
+  console.log('general.extra', general.extra?.comment);
 
   const chapters: { startMs: number; title?: string }[] = [];
   for (const menu of menus) {
@@ -150,7 +159,8 @@ export async function analyzeFileWithMediaInfo(
     copyright,
     chapters,
     trackPosition,
-    // raw: res,
+
+    raw: res,
     // imgWidth,
     // imgHeight,
     // track,

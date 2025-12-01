@@ -26,26 +26,26 @@ class ExpoMediaInfoModule : Module() {
       return@AsyncFunction result
     }
 
-  //  AsyncFunction("getCover") { fileUri: String ->
-  //    val filePath = if (fileUri.startsWith("file://")) {
-  //      URL(fileUri).path
-  //    } else {
-  //      fileUri
-  //    }
-  //
-  //    val mi = MediaInfo()
-  //
+    AsyncFunction("getCover") { fileUri: String ->
+      val filePath = if (fileUri.startsWith("file://")) {
+        URL(fileUri).path
+      } else {
+        fileUri
+      }
+  
+      val mi = MediaInfo()
+  
   //    mi.Option("Cover_Data", "base64")
   //    mi.Open(filePath)
-  //    // First try to get from Image stream
-  //    var cover = mi.Get(MediaInfo.Stream.Image, 0, "Cover_Data")
-  //   if (cover.isEmpty()) {
-  //     // If not in image stream, try General stream
-  //      cover = mi.Get(MediaInfo.Stream.General, 0, "Cover_Data")
-  //    }
-  //    mi.Close()
-  //
-  //    return@AsyncFunction cover
-  //  }
+      // First try to get from Image stream
+      var cover = mi.Get(MediaInfo.Stream.Image, 0, "Cover_Data")
+     if (cover.isEmpty()) {
+       // If not in image stream, try General stream
+        cover = mi.Get(MediaInfo.Stream.General, 0, "Cover_Data")
+      }
+      mi.Close()
+  
+      return@AsyncFunction cover
+    }
   }
 }

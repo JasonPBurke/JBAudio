@@ -53,6 +53,8 @@ object Core {
         }
 
         mi.Option("Language", "")
+        mi.Option("Cover_Data", "base64")
+
 
         mi.Open(fd.detachFd(), displayName)
         val report: String = mi.Inform()
@@ -66,6 +68,8 @@ object Core {
         mi.Option("Inform", "MIXML")
         mi.Option("Input_Compressed", "")
         mi.Option("Inform_Compress", "zlib+base64")
+        mi.Option("Cover_Data", "base64")
+
 
         mi.Open(fd, name)
         val report: String =  mi.Inform()
