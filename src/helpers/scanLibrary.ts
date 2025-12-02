@@ -150,7 +150,7 @@ const extractMetadata = async (filePath: string) => {
           bookTitle: metadata.album || bookTitleBackup,
           chapterTitle: chapter.title || `Chapter ${index + 1}`,
           chapterNumber: index + 1,
-          year: metadata.releaseDate,
+          year: Number(metadata.releaseDate),
           description: metadata.description,
           genre: undefined, // Not available in mediainfo
           sampleRate: undefined, // Not available in mediainfo
@@ -176,7 +176,7 @@ const extractMetadata = async (filePath: string) => {
           chapterTitle:
             metadata.title || filePath.split('/').pop()?.split('.')[0],
           chapterNumber: metadata.trackPosition || 1,
-          year: metadata.releaseDate,
+          year: Number(metadata.releaseDate),
           description: metadata.description,
           genre: undefined,
           sampleRate: undefined,

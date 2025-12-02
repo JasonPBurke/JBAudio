@@ -178,6 +178,7 @@ export const useBookById = (bookId: string) =>
       }
     }
     console.log('book not found');
+    return undefined;
   });
 
 export const useBookArtwork = (author: string, bookTitle: string) =>
