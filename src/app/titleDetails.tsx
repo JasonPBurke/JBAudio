@@ -172,7 +172,7 @@ const TitleDetails = () => {
         >
           <ShadowedView
             style={shadowStyle({
-              opacity: 0.4,
+              opacity: 0.5,
               radius: 12,
               offset: [5, 3],
             })}
@@ -251,9 +251,13 @@ const TitleDetails = () => {
               </Text>
             </View>
             <View style={styles.inlineInfoContainer}>
-              <Text style={{ color: colors.text }}>Total Audio Files:</Text>
+              <Text style={{ color: colors.text }}>Total Chapters:</Text>
               <Text style={styles.bookInfoText}>
-                {book?.metadata.totalTrackCount || book?.chapters.length}
+                {/* //! hacky way to do this...better when adding to db */}
+                {book?.metadata.totalTrackCount! > 1
+                  ? book?.metadata.totalTrackCount
+                  : book?.chapters.length}
+                {/* {book?.metadata.totalTrackCount || book?.chapters.length} */}
               </Text>
             </View>
             <View style={styles.inlineInfoContainer}>
@@ -264,7 +268,9 @@ const TitleDetails = () => {
             </View>
             <View style={styles.inlineInfoContainer}>
               <Text style={{ color: colors.text }}>Release year:</Text>
-              <Text style={styles.bookInfoText}>{book?.metadata.year}</Text>
+              <Text style={styles.bookInfoText}>
+                {book?.metadata.year !== 0 ? book?.metadata.year : ''}
+              </Text>
             </View>
             <View style={styles.inlineInfoContainer}>
               <Text style={{ color: colors.text }}>Description: </Text>
@@ -320,6 +326,7 @@ const styles = StyleSheet.create({
   bookArtworkContainer: {
     height: FIXED_ARTWORK_HEIGHT,
     paddingTop: 12,
+    zIndex: 10,
   },
   bookArtworkImage: {
     height: FIXED_ARTWORK_HEIGHT,

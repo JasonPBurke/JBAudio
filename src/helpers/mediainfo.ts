@@ -81,9 +81,9 @@ export async function analyzeFileWithMediaInfo(
     : undefined;
   const fileFormat = general.Format;
   const releaseDate =
+    general.Recorded_Date ||
     general.rldt ||
     general.Original_Date ||
-    general.Recorded_Date ||
     general.Tagged_Date ||
     general.Original_Year;
   const description =
@@ -102,8 +102,6 @@ export async function analyzeFileWithMediaInfo(
   // const track = numberFrom(general.Track_Position);
   // const imgWidth = numberFrom(image.Width);
   // const imgHeight = numberFrom(image.Height);
-
-  console.log('general.extra', general.extra?.comment);
 
   const chapters: { startMs: number; title?: string }[] = [];
   for (const menu of menus) {
