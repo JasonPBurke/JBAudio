@@ -3,13 +3,14 @@ import AuthorModel from '@/db/models/Author';
 import BookModel from '@/db/models/Book';
 import ChapterModel from '@/db/models/Chapter';
 import * as RNFS from '@dr.pogodin/react-native-fs';
-import { getArtwork } from '@missingcore/react-native-metadata-retriever';
+import { getArtwork as getEmbeddedArtwork } from '@missingcore/react-native-metadata-retriever';
 import database from '@/db';
 import { Q } from '@nozbe/watermelondb';
-import { Image as RNImage } from 'react-native';
+import ImageResizer from '@bam.tech/react-native-image-resizer';
 import { populateDatabase } from '@/hooks/usePopulateDatabase';
 import { getLibraryPaths } from '@/db/settingsQueries';
 import { analyzeFileWithMediaInfo } from './mediainfo';
+import { BookImageColors, extractImageColors } from './imageColorExtractor';
 
 const handleReadDirectory = async (
   path: string,
@@ -296,6 +297,56 @@ const handleBookSort = (books: any) => {
   return sortedBookTitles;
 };
 
+const saveArtworkToFile = async (
+  base64Artwork: string,
+  bookTitle: string,
+  author: string
+): Promise<{
+  artworkUri: string | null;
+  width: number;
+  height: number;
+}> => {
+  // Create a unique, filesystem-friendly filename
+  const safeBookTitle = bookTitle.replace(/[^a-zA-Z0-9]/g, '_');
+  const safeAuthor = author.replace(/[^a-zA-Z0-9]/g, '_');
+  const filename = `${safeAuthor}_${safeBookTitle}.webp`;
+
+  const artworkDir = `${RNFS.DocumentDirectoryPath}/artwork`;
+  const finalImagePath = `${artworkDir}/${filename}`;
+
+  try {
+    // Ensure the artwork directory exists
+    await RNFS.mkdir(artworkDir);
+
+    // Resize and convert the image to WebP format
+    const tempImage = await ImageResizer.createResizedImage(
+      base64Artwork,
+      800, // max width
+      800, // max height
+      'WEBP', // convert to WEBP
+      80, // quality
+      0, // rotation
+      undefined, // use default cache directory for output
+      false, // don't keep original
+      { mode: 'contain', onlyScaleDown: true }
+    );
+
+    // Move the resized image to its final destination with the correct filename
+    await RNFS.moveFile(tempImage.path, finalImagePath);
+
+    const resizedImage = { ...tempImage, uri: `file://${finalImagePath}` };
+
+    return {
+      artworkUri: resizedImage.uri,
+      width: resizedImage.width,
+      height: resizedImage.height,
+    };
+  } catch (error) {
+    console.error(`Failed to save artwork for ${bookTitle}:`, error);
+    return { artworkUri: null, width: 0, height: 0 };
+  }
+};
+
 const extractArtwork = async (sortedBooks: any[]) => {
   const booksWithArtwork = await Promise.all(
     sortedBooks.map(async (authorEntry) => {
@@ -304,38 +355,48 @@ const extractArtwork = async (sortedBooks: any[]) => {
           if (book.chapters && book.chapters.length > 0) {
             const firstChapter = book.chapters[0];
             try {
-              const artwork = await getArtwork(firstChapter.url);
+              const base64Artwork = await getEmbeddedArtwork(
+                firstChapter.url
+              );
               let artworkWidth: number | null = null;
               let artworkHeight: number | null = null;
+              let finalArtworkUri: string | null = null;
+              let artworkColors: BookImageColors = {
+                average: null,
+                dominant: null,
+                vibrant: null,
+                darkVibrant: null,
+                lightVibrant: null,
+                muted: null,
+                darkMuted: null,
+                lightMuted: null,
+              };
 
-              if (artwork) {
-                await new Promise<void>((resolve) => {
-                  RNImage.getSize(
-                    artwork,
-                    (w, h) => {
-                      artworkWidth = w;
-                      artworkHeight = h;
-                      resolve();
-                    },
-                    (error) => {
-                      console.error(
-                        `Error getting image size for ${artwork}`,
-                        error
-                      );
-                      resolve();
-                    }
+              if (base64Artwork) {
+                const { artworkUri, width, height } =
+                  await saveArtworkToFile(
+                    base64Artwork,
+                    book.bookTitle,
+                    book.author
                   );
-                });
+                finalArtworkUri = artworkUri;
+                artworkWidth = width;
+                artworkHeight = height;
+                if (artworkUri) {
+                  artworkColors = await extractImageColors(base64Artwork);
+                }
               } else {
                 //! currently hardcoded based on the unknown_track image
                 artworkWidth = 500;
                 artworkHeight = 500;
               }
+
               return {
                 ...book,
-                artwork: artwork,
+                artwork: finalArtworkUri,
                 artworkWidth,
                 artworkHeight,
+                artworkColors,
               };
             } catch (error) {
               console.error(
@@ -347,10 +408,35 @@ const extractArtwork = async (sortedBooks: any[]) => {
                 artwork: null,
                 artworkWidth: null,
                 artworkHeight: null,
+                artworkColors: {
+                  average: null,
+                  dominant: null,
+                  vibrant: null,
+                  darkVibrant: null,
+                  lightVibrant: null,
+                  muted: null,
+                  darkMuted: null,
+                  lightMuted: null,
+                },
               };
             }
           }
-          return { ...book, artwork: null };
+          return {
+            ...book,
+            artwork: null,
+            artworkWidth: null,
+            artworkHeight: null,
+            artworkColors: {
+              average: null,
+              dominant: null,
+              vibrant: null,
+              darkVibrant: null,
+              lightVibrant: null,
+              muted: null,
+              darkMuted: null,
+              lightMuted: null,
+            },
+          };
         })
       );
       return { ...authorEntry, books: updatedBooks };

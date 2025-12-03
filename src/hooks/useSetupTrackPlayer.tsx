@@ -40,6 +40,7 @@ const setupPlayer = async () => {
       Capability.SkipToNext,
       Capability.SkipToPrevious,
       Capability.SeekTo,
+      Capability.Stop,
     ],
   });
 
