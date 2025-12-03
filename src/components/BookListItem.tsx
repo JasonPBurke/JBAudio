@@ -3,13 +3,10 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  Touchable,
   TouchableHighlight,
   View,
-  ViewToken,
 } from 'react-native';
 import { memo } from 'react';
-// import FastImage from '@d11/react-native-fast-image';
 import { Image } from 'expo-image';
 
 import { colors, fontSize } from '@/constants/tokens';
@@ -28,7 +25,6 @@ import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
 import database from '@/db';
 import { getChapterProgressInDB } from '@/db/chapterQueries';
-import { saveArtwork } from '@/helpers/artwork';
 
 export type BookListItemProps = {
   book: BookType;
@@ -59,20 +55,15 @@ export const BookListItem = memo(function BookListItem({
     const isChangingBook = book.bookId !== activeBookId;
 
     if (isChangingBook) {
-      const artworkUri = await saveArtwork(book.artwork, book.bookTitle);
-
       await TrackPlayer.reset();
       const tracks: Track[] = book.chapters.map((chapter) => ({
         url: chapter.url,
         title: chapter.chapterTitle,
         artist: chapter.author,
-        artwork: artworkUri ?? unknownBookImageUri,
+        artwork: book.artwork ?? unknownBookImageUri,
         album: book.bookTitle,
         bookId: book.bookId,
       }));
-
-      // console.log('progress', progress);
-      // console.log('chapterIndex', chapterIndex);
       await TrackPlayer.add(tracks);
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(progress || 0);
@@ -104,10 +95,8 @@ export const BookListItem = memo(function BookListItem({
         <View>
           <Image
             contentFit='contain'
-            // resizeMode={FastImage.resizeMode.contain}
             source={{
               uri: book.artwork ?? unknownBookImageUri,
-              // priority: FastImage.priority.normal,
             }}
             style={{
               ...styles.bookArtworkImage,
@@ -155,11 +144,6 @@ export const BookListItem = memo(function BookListItem({
                 style={{ padding: 8 }}
                 hitSlop={10}
               >
-                {/* <Ionicons
-                  name='headset-outline'
-                  size={18}
-                  color={colors.icon}
-                /> */}
                 <Play
                   onPress={() => handlePressPlay(book)}
                   size={18}
@@ -206,13 +190,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 4,
   },
-  // trackPlayingImageIcon: {
-  // 	position: 'absolute',
-  // 	left: 20,
-  // 	top: 30,
-  // 	width: 20,
-  // 	height: 20,
-  // },
   trackPlayingImageIcon: {
     padding: 8,
     width: 20,

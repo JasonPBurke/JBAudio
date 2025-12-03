@@ -79,8 +79,8 @@ const BooksHome = ({
       ListEmptyComponent={
         <Text style={utilsStyles.emptyComponent}>No books found</Text>
       }
-      ItemSeparatorComponent={() => <View style={{ height: 24 }} />}
-      contentContainerStyle={{ paddingVertical: 24 }}
+      // ItemSeparatorComponent={() => <View style={{ height: 4 }} />}
+      contentContainerStyle={{ paddingBottom: 58 }}
       showsVerticalScrollIndicator={false}
     />
   );
@@ -146,7 +146,7 @@ const SectionHeader = memo(
     onPress: () => void;
   }) => (
     <Pressable
-      style={{ paddingVertical: 6 }}
+      style={{ paddingVertical: 4 }}
       android_ripple={{ color: '#cccccc28' }}
       onPress={onPress}
     >

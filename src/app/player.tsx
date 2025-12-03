@@ -7,10 +7,9 @@ import { Image } from 'expo-image';
 import { unknownBookImageUri } from '@/constants/images';
 import { PlayerControls } from '@/components/PlayerControls';
 import { PlayerProgressBar } from '@/components/PlayerProgressBar';
-import { usePlayerBackground } from '@/hooks/usePlayerBackground';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PlayerChaptersModal } from '@/modals/PlayerChaptersModal';
-import { useCallback, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useBook, useLibraryStore } from '@/store/library';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 // import ProgressCircle from '@/components/ProgressCircle';
@@ -31,7 +30,7 @@ const PlayerScreen = () => {
     async (chapterIndex: number) => {
       if (!book?.bookId || !book.chapters) return;
 
-      // Check if it's a single-file book by comparing URLs of chapters
+      // Check if it's a single-file book
       const isSingleFileBook =
         book.chapters.length > 1 &&
         book.chapters.every((c) => c.url === book.chapters[0].url);
@@ -54,10 +53,32 @@ const PlayerScreen = () => {
     [book, updateBookChapterIndex]
   );
 
-  const imgHeight = book?.artworkHeight;
-  const imgWidth = book?.artworkWidth;
-  const { imageColors } = usePlayerBackground(
-    book?.artwork ?? unknownBookImageUri
+  const artworkImageContainerStyle = useMemo(
+    () => ({
+      ...styles.artworkImageContainer,
+      width: book?.artworkHeight
+        ? (book.artworkWidth! / book.artworkHeight) * FIXED_ARTWORK_HEIGHT
+        : 0,
+    }),
+    [book?.artworkHeight, book?.artworkWidth]
+  );
+
+  const gradientColors = useMemo(
+    () =>
+      book?.artworkColors
+        ? ([
+            book.artworkColors.darkVibrant as string,
+            book.artworkColors.lightVibrant as string,
+            book.artworkColors.vibrant as string,
+            book.artworkColors.darkMuted as string,
+          ] as const)
+        : ([
+            colors.primary,
+            colors.primary,
+            colors.background,
+            colors.background,
+          ] as const),
+    [book?.artworkColors]
   );
 
   if (!activeTrack) {
@@ -68,51 +89,17 @@ const PlayerScreen = () => {
     );
   }
 
-  //* LinearGradient imageColors options
-  // 	{
-  //   "average": "#393734",
-  //   "platform": "android",
-  //   "dominant": "#001820",
-  //   "vibrant": "#E07008",
-  //   "darkVibrant": "#001820",
-  //   "lightVibrant": "#F8D068",
-  //   "muted": "#905058",
-  //   "darkMuted": "#302020",
-  //   "lightMuted": "#2E3440"
-  // }
-
   return (
     <LinearGradient
       start={{ x: 0, y: 0 }}
       end={{ x: 0.5, y: 1 }}
       locations={[0.15, 0.35, 0.45, 0.6]}
       style={{ flex: 1 }}
-      colors={
-        imageColors
-          ? [
-              imageColors.darkVibrant,
-              imageColors.lightVibrant,
-              imageColors.vibrant,
-              imageColors.darkMuted,
-            ]
-          : [
-              colors.primary,
-              colors.primary,
-              colors.background,
-              colors.background,
-            ]
-      }
+      colors={gradientColors}
     >
       <View style={styles.overlayContainer}>
         <DismissIndicator />
-        <View
-          style={{
-            ...styles.artworkImageContainer,
-            width: imgHeight
-              ? (imgWidth! / imgHeight) * FIXED_ARTWORK_HEIGHT
-              : 0,
-          }}
-        >
+        <View style={artworkImageContainerStyle}>
           <ShadowedView
             style={shadowStyle({
               opacity: 0.4,

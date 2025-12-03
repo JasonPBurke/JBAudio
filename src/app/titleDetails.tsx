@@ -3,11 +3,9 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useBook } from '@/store/library';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
-import { DismissIndicator } from '@/components/DismissIndicator';
 import { unknownBookImageUri } from '@/constants/images';
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
-import { usePlayerBackground } from '@/hooks/usePlayerBackground';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Play } from 'lucide-react-native';
 import TrackPlayer, {
@@ -21,12 +19,11 @@ import {
   formatSecondsToMinutes,
 } from '@/helpers/miscellaneous';
 import ModalComponent from '@/modals/ModalComponent';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Book as BookType } from '@/types/Book';
 import database from '@/db';
 import Book from '@/db/models/Book';
 import { ShadowedView, shadowStyle } from 'react-native-fast-shadow';
-import { saveArtwork } from '@/helpers/artwork';
 import { ScrollView } from 'react-native-gesture-handler';
 
 const TitleDetails = () => {
@@ -47,9 +44,6 @@ const TitleDetails = () => {
 
   const imgHeight = book?.artworkHeight;
   const imgWidth = book?.artworkWidth;
-  const { imageColors } = usePlayerBackground(
-    book?.artwork || unknownBookImageUri
-  );
 
   const handlePressPlay = async (book: BookType | undefined) => {
     if (!book) return;
@@ -72,22 +66,19 @@ const TitleDetails = () => {
       // ! save artwork to settings db as local uri??
       //! then use the local uri to set the artwork on the tracks
       // ! this is for miniplayer artwork display
-      const artworkUri = await saveArtwork(book.artwork, book.bookTitle);
       await TrackPlayer.reset();
       const tracks: Track[] = book.chapters.map((chapter) => ({
         url: chapter.url,
         title: chapter.chapterTitle,
         artist: chapter.author,
-        artwork: artworkUri ?? unknownBookImageUri,
+        artwork: book.artwork ?? unknownBookImageUri,
         album: book.bookTitle,
         bookId: book.bookId,
       }));
-      // console.log('artwork', tracks[0].artwork);
       await TrackPlayer.add(tracks);
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(chapterProgress || 0);
       await TrackPlayer.play();
-      // await TrackPlayer.setVolume(1);
 
       if (book.bookId) {
         setActiveBookId(book.bookId);
@@ -98,22 +89,26 @@ const TitleDetails = () => {
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(chapterProgress || 0);
       await TrackPlayer.play();
-      // await TrackPlayer.setVolume(1);
     }
   };
 
-  //* LinearGradient imageColors options
-  // 	{
-  //   "average": "#393734",
-  //   "platform": "android",
-  //   "dominant": "#001820",
-  //   "vibrant": "#E07008",
-  //   "darkVibrant": "#001820",
-  //   "lightVibrant": "#F8D068",
-  //   "muted": "#905058",
-  //   "darkMuted": "#302020",
-  //   "lightMuted": "#2E3440"
-  // }
+  const gradientColors = useMemo(
+    () =>
+      book?.artworkColors
+        ? ([
+            book.artworkColors.darkVibrant as string,
+            book.artworkColors.lightVibrant as string,
+            book.artworkColors.vibrant as string,
+            book.artworkColors.darkMuted as string,
+          ] as const)
+        : ([
+            colors.background,
+            colors.primary,
+            colors.primary,
+            colors.background,
+          ] as const),
+    [book?.artworkColors]
+  );
 
   return (
     <LinearGradient
@@ -122,21 +117,7 @@ const TitleDetails = () => {
       // locations={[0.15, 0.2, 0.65, 0.8]}
       locations={[0.15, 0.35, 0.45, 0.6]}
       style={{ flex: 1 }}
-      colors={
-        imageColors
-          ? [
-              imageColors.vibrant,
-              imageColors.lightVibrant,
-              imageColors.darkMuted,
-              imageColors.darkVibrant,
-            ]
-          : [
-              colors.primary,
-              colors.primary,
-              colors.background,
-              colors.background,
-            ]
-      }
+      colors={gradientColors}
     >
       <View style={styles.bookContainer}>
         {(!isActiveBook || !playing) && (
@@ -206,7 +187,7 @@ const TitleDetails = () => {
                 <Text
                   style={{
                     ...styles.bookInfoText,
-                    color: imageColors?.muted || colors.textMuted,
+                    color: book?.artworkColors.muted || colors.textMuted,
                   }}
                 >
                   Author
@@ -220,7 +201,8 @@ const TitleDetails = () => {
               <View
                 style={{
                   ...styles.divider,
-                  backgroundColor: imageColors?.muted || colors.textMuted,
+                  backgroundColor:
+                    book?.artworkColors.muted || colors.textMuted,
                 }}
               />
               <View
@@ -232,7 +214,7 @@ const TitleDetails = () => {
                 <Text
                   style={{
                     ...styles.bookInfoText,
-                    color: imageColors?.muted || colors.textMuted,
+                    color: book?.artworkColors.muted || colors.textMuted,
                   }}
                 >
                   Read by

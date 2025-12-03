@@ -25,7 +25,6 @@ import { Play } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
 import database from '@/db';
-import { saveArtwork } from '@/helpers/artwork';
 import { getChapterProgressInDB } from '@/db/chapterQueries';
 
 export type BookListItemProps = {
@@ -67,41 +66,32 @@ export const BookGridItem = memo(function BookListItem({
     if (chapterIndex === -1) return;
 
     const isChangingBook = book.bookId !== activeBookId;
-    console.log('isChangingBook', isChangingBook);
-    const currentTrack = await TrackPlayer.getActiveTrack();
-    console.log('currentTrack', currentTrack);
+    // const currentTrack = await TrackPlayer.getActiveTrack();
 
     if (isChangingBook) {
-      const artworkUri = await saveArtwork(book.artwork, book.bookTitle);
-      // console.log('artworkUri in grid', artworkUri);
       await TrackPlayer.reset();
       //! should these tracks be built at the useSEFS.tsx and added to the DB on first scan?
       const tracks: Track[] = book.chapters.map((chapter) => ({
         url: chapter.url,
         title: chapter.chapterTitle,
         artist: chapter.author,
-        artwork: artworkUri ?? unknownBookImageUri,
+        //* passed is as temp img so cover art shows on remote player
+        artwork: book.artwork ?? unknownBookImageUri,
         album: book.bookTitle,
         bookId: book.bookId,
       }));
-      console.log('changing book');
 
       await TrackPlayer.add(tracks);
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(progress || 0);
-      console.log('playing new book');
       await TrackPlayer.play();
       const currentTrack = await TrackPlayer.getActiveTrack();
       console.log('currentTrack', currentTrack);
-      // await TrackPlayer.setVolume(1);
       setActiveBookId(book.bookId!);
     } else {
-      console.log('not changing book');
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(progress || 0);
-      console.log('playing same book');
       await TrackPlayer.play();
-      // await TrackPlayer.setVolume(1);
     }
   };
 
