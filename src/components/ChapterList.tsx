@@ -22,7 +22,7 @@ export const ChapterList = ({
     <View
       style={{
         flex: 1,
-        padding: 20,
+        // padding: 20,
         paddingTop: 12,
         paddingBottom: 12,
       }}
@@ -30,7 +30,9 @@ export const ChapterList = ({
       {book?.chapters && book.chapters.length > 0 ? (
         <BottomSheetFlatList
           data={book.chapters}
-          keyExtractor={(item: Chapter) => `${item.url}-${item.chapterNumber}`}
+          keyExtractor={(item: Chapter) =>
+            `${item.url}-${item.chapterNumber}`
+          }
           renderItem={({
             item,
             index,
