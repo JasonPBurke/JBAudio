@@ -21,10 +21,12 @@ import {
 import ModalComponent from '@/modals/ModalComponent';
 import { useMemo, useState } from 'react';
 import { Book as BookType } from '@/types/Book';
-import database from '@/db';
-import Book from '@/db/models/Book';
+import { handleBookPlay } from '@/helpers/handleBookPlay';
+// import database from '@/db';
+// import Book from '@/db/models/Book';
 import { ShadowedView, shadowStyle } from 'react-native-fast-shadow';
 import { ScrollView } from 'react-native-gesture-handler';
+import { getChapterProgressInDB } from '@/db/chapterQueries';
 
 const TitleDetails = () => {
   const [showModal, setShowModal] = useState(false);
@@ -45,52 +47,43 @@ const TitleDetails = () => {
   const imgHeight = book?.artworkHeight;
   const imgWidth = book?.artworkWidth;
 
-  const handlePressPlay = async (book: BookType | undefined) => {
-    if (!book) return;
-    if (isActiveBook && playing) return;
+  // const handlePressPlay = async (book: BookType | undefined) => {
+  //   if (!book) return;
+  //   if (isActiveBook && playing) return;
 
-    // Fetch the latest book data from the database to get the most current chapter index
-    const latestBookFromDB = await database.collections
-      .get<Book>('books')
-      .find(book.bookId!);
+  //   const progressInfo = await getChapterProgressInDB(book.bookId!);
 
-    //! update chapterProgress wherever chapterIndex is updated
-    const chapterIndex = latestBookFromDB.currentChapterIndex;
-    const chapterProgress = latestBookFromDB.currentChapterProgress;
-    if (chapterIndex === -1) return;
+  //   if (!progressInfo || progressInfo.chapterIndex === -1) return;
 
-    const isChangingBook = book.bookId !== activeBookId;
+  //   const isChangingBook = book.bookId !== activeBookId;
 
-    if (isChangingBook) {
-      // ! make it a helper function
-      // ! save artwork to settings db as local uri??
-      //! then use the local uri to set the artwork on the tracks
-      // ! this is for miniplayer artwork display
-      await TrackPlayer.reset();
-      const tracks: Track[] = book.chapters.map((chapter) => ({
-        url: chapter.url,
-        title: chapter.chapterTitle,
-        artist: chapter.author,
-        artwork: book.artwork ?? unknownBookImageUri,
-        album: book.bookTitle,
-        bookId: book.bookId,
-      }));
-      await TrackPlayer.add(tracks);
-      await TrackPlayer.skip(chapterIndex);
-      await TrackPlayer.seekTo(chapterProgress || 0);
-      await TrackPlayer.play();
+  //   if (isChangingBook) {
+  //     await TrackPlayer.reset();
+  //     const tracks: Track[] = book.chapters.map((chapter) => ({
+  //       url: chapter.url,
+  //       title: chapter.chapterTitle,
+  //       artist: chapter.author,
+  //       artwork: book.artwork ?? unknownBookImageUri,
+  //       album: book.bookTitle,
+  //       bookId: book.bookId,
+  //     }));
 
-      if (book.bookId) {
-        setActiveBookId(book.bookId);
-      }
-    } else {
-      // If the book is not changing, but the chapter index might have,
-      // we should still skip to the correct chapter and chapter progress.
-      await TrackPlayer.skip(chapterIndex);
-      await TrackPlayer.seekTo(chapterProgress || 0);
-      await TrackPlayer.play();
-    }
-  };
+  //     await TrackPlayer.add(tracks);
+  //     await TrackPlayer.skip(progressInfo.chapterIndex);
+  //     await TrackPlayer.seekTo(progressInfo.progress || 0);
+  //     await TrackPlayer.play();
+  //     await TrackPlayer.setVolume(1);
+
+  //     if (book.bookId) {
+  //       setActiveBookId(book.bookId);
+  //     }
+  //   } else {
+  //     await TrackPlayer.skip(progressInfo.chapterIndex);
+  //     await TrackPlayer.seekTo(progressInfo.progress || 0);
+  //     await TrackPlayer.play();
+  //     await TrackPlayer.setVolume(1);
+  //   }
+  // };
 
   const gradientColors = useMemo(
     () =>
@@ -128,7 +121,17 @@ const TitleDetails = () => {
             exiting={FadeOut}
             style={styles.trackPlayingImageIcon}
           >
-            <Pressable onPress={() => handlePressPlay(book)}>
+            <Pressable
+              onPress={() =>
+                handleBookPlay(
+                  book,
+                  playing,
+                  isActiveBook,
+                  activeBookId,
+                  setActiveBookId
+                )
+              }
+            >
               <Play
                 size={44}
                 color={colors.primary}

@@ -33,6 +33,10 @@ export const getChapterProgressInDB = async (bookId: string) => {
     .find(bookId)) as Book;
 
   if (book) {
-    return book.currentChapterProgress;
+    // return book.currentChapterProgress;
+    return {
+      progress: book.currentChapterProgress,
+      chapterIndex: book.currentChapterIndex,
+    };
   }
 };

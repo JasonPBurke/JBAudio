@@ -23,8 +23,9 @@ import { Play, EllipsisVertical } from 'lucide-react-native';
 import LoaderKitView from 'react-native-loader-kit';
 import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
-import database from '@/db';
-import { getChapterProgressInDB } from '@/db/chapterQueries';
+// import database from '@/db';
+// import { getChapterProgressInDB } from '@/db/chapterQueries';
+import { handleBookPlay } from '@/helpers/handleBookPlay';
 
 export type BookListItemProps = {
   book: BookType;
@@ -40,44 +41,43 @@ export const BookListItem = memo(function BookListItem({
   const bookTitle = book.bookTitle;
   const { setActiveBookId, activeBookId } = useQueueStore();
 
-  const handlePressPlay = async (book: BookType) => {
-    // Fetch the latest book data from the database to get the most current chapter index
-    const latestBookFromDB = await database.collections
-      .get<Book>('books')
-      .find(book.bookId!);
+  // const handlePressPlay = async (book: BookType | undefined) => {
+  //   if (!book) return;
+  //   if (isActiveBook && playing) return;
 
-    //! GET THE DATA EITHER FROM THE DB OR FROM THE STATE NOT A MIX
-    const chapterIndex = latestBookFromDB.currentChapterIndex;
-    const progress = await getChapterProgressInDB(book.bookId!);
+  //   const progressInfo = await getChapterProgressInDB(book.bookId!);
 
-    if (chapterIndex === -1) return;
+  //   if (!progressInfo || progressInfo.chapterIndex === -1) return;
 
-    const isChangingBook = book.bookId !== activeBookId;
+  //   const isChangingBook = book.bookId !== activeBookId;
 
-    if (isChangingBook) {
-      await TrackPlayer.reset();
-      const tracks: Track[] = book.chapters.map((chapter) => ({
-        url: chapter.url,
-        title: chapter.chapterTitle,
-        artist: chapter.author,
-        artwork: book.artwork ?? unknownBookImageUri,
-        album: book.bookTitle,
-        bookId: book.bookId,
-      }));
-      await TrackPlayer.add(tracks);
-      await TrackPlayer.skip(chapterIndex);
-      await TrackPlayer.seekTo(progress || 0);
-      await TrackPlayer.play();
-      await TrackPlayer.setVolume(1);
+  //   if (isChangingBook) {
+  //     await TrackPlayer.reset();
+  //     const tracks: Track[] = book.chapters.map((chapter) => ({
+  //       url: chapter.url,
+  //       title: chapter.chapterTitle,
+  //       artist: chapter.author,
+  //       artwork: book.artwork ?? unknownBookImageUri,
+  //       album: book.bookTitle,
+  //       bookId: book.bookId,
+  //     }));
 
-      setActiveBookId(book.bookId!);
-    } else {
-      await TrackPlayer.skip(chapterIndex);
-      await TrackPlayer.seekTo(progress || 0);
-      await TrackPlayer.play();
-      await TrackPlayer.setVolume(1);
-    }
-  };
+  //     await TrackPlayer.add(tracks);
+  //     await TrackPlayer.skip(progressInfo.chapterIndex);
+  //     await TrackPlayer.seekTo(progressInfo.progress || 0);
+  //     await TrackPlayer.play();
+  //     await TrackPlayer.setVolume(1);
+
+  //     if (book.bookId) {
+  //       setActiveBookId(book.bookId);
+  //     }
+  //   } else {
+  //     await TrackPlayer.skip(progressInfo.chapterIndex);
+  //     await TrackPlayer.seekTo(progressInfo.progress || 0);
+  //     await TrackPlayer.play();
+  //     await TrackPlayer.setVolume(1);
+  //   }
+  // };
 
   const encodedBookId = encodeURIComponent(book.bookId!);
   const encodedAuthor = encodeURIComponent(author);
@@ -140,12 +140,20 @@ export const BookListItem = memo(function BookListItem({
               </View>
             ) : (
               <Pressable
-                onPress={() => handlePressPlay(book)}
+                onPress={() =>
+                  handleBookPlay(
+                    book,
+                    playing,
+                    isActiveBook,
+                    activeBookId,
+                    setActiveBookId
+                  )
+                }
                 style={{ padding: 8 }}
                 hitSlop={10}
               >
                 <Play
-                  onPress={() => handlePressPlay(book)}
+                  // onPress={() => handlePressPlay(book)}
                   size={18}
                   color={colors.textMuted}
                   strokeWidth={1}
