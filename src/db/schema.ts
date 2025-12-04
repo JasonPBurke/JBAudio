@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 14,
+  version: 15,
   tables: [
     tableSchema({
       name: 'authors',
@@ -31,6 +31,7 @@ export default appSchema({
         { name: 'sample_rate', type: 'number', isOptional: true },
         { name: 'bitrate', type: 'number', isOptional: true },
         { name: 'codec', type: 'string', isOptional: true },
+        { name: 'copyright', type: 'string', isOptional: true },
         { name: 'total_track_count', type: 'number' },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },

@@ -71,6 +71,10 @@ export const populateDatabase = async (authors: AuthorType[]) => {
 
         // Create or update book
         if (!bookRecord) {
+          console.log(
+            'book.metadata.copyright',
+            bookData.metadata.copyright
+          );
           bookRecord = await database
             .get<Book>('books')
             .prepareCreate((book) => {
@@ -100,6 +104,7 @@ export const populateDatabase = async (authors: AuthorType[]) => {
                 bookData.bookProgress.currentChapterProgress || 0;
               book.year = bookData.metadata.year || 0;
               book.description = bookData.metadata.description || '';
+              book.copyright = bookData.metadata.copyright || '';
               book.narrator = bookData.metadata.narrator || '';
               book.genre = bookData.metadata.genre || '';
               book.sampleRate = bookData.metadata.sampleRate || 0;
@@ -146,6 +151,7 @@ export const populateDatabase = async (authors: AuthorType[]) => {
               book.year = bookData.metadata.year || 0;
               book.description = bookData.metadata.description || '';
               book.narrator = bookData.metadata.narrator || '';
+              book.copyright = bookData.metadata.copyright || '';
               book.genre = bookData.metadata.genre || '';
               book.sampleRate = bookData.metadata.sampleRate || 0;
               book.bitrate = bookData.metadata.bitrate || 0;

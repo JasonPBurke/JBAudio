@@ -153,8 +153,11 @@ const extractMetadata = async (filePath: string) => {
           chapterNumber: index + 1,
           year: Number(metadata.releaseDate),
           description: metadata.description,
-          genre: undefined, // Not available in mediainfo
-          sampleRate: undefined, // Not available in mediainfo
+          genre: metadata.genre,
+          sampleRate: metadata.sampleRate,
+          codec: metadata.codec,
+          bitrate: metadata.bitrate,
+          copyright: metadata.copyright,
           artworkUri: null, // Will be extracted later
           totalTrackCount: chapters.length,
 
@@ -179,8 +182,11 @@ const extractMetadata = async (filePath: string) => {
           chapterNumber: metadata.trackPosition || 1,
           year: Number(metadata.releaseDate),
           description: metadata.description,
-          genre: undefined,
-          sampleRate: undefined,
+          genre: metadata.genre,
+          sampleRate: metadata.sampleRate,
+          codec: metadata.codec,
+          bitrate: metadata.bitrate,
+          copyright: metadata.copyright,
           artworkUri: null,
           totalTrackCount: 1,
           ctime: new Date(),
@@ -260,6 +266,7 @@ const handleBookSort = (books: any) => {
             genre: book.genre,
             sampleRate: book.sampleRate,
             bitrate: book.bitrate,
+            copyright: book.copyright,
             codec: book.codec,
             totalTrackCount: book.totalTrackCount,
             ctime: book.ctime,

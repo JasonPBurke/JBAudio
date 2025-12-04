@@ -7,6 +7,21 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      toVersion: 15,
+      steps: [
+        addColumns({
+          table: 'books',
+          columns: [
+            {
+              name: 'copyright',
+              type: 'string',
+              isOptional: true,
+            },
+          ],
+        }),
+      ],
+    },
+    {
       toVersion: 14,
       steps: [
         addColumns({
