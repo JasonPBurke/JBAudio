@@ -35,6 +35,8 @@ export type Book = {
     narrator: string | null;
     genre: string | null;
     sampleRate: number | null;
+    bitrate: number | null;
+    codec: string | null;
     totalTrackCount: number | null;
     ctime: Date;
     mtime: Date | null;

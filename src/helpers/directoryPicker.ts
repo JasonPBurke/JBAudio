@@ -17,7 +17,6 @@ export async function directoryPicker() {
       const isSubpath = currentPaths.some((path) =>
         decodedPath.startsWith(path + '/')
       );
-      console.log('isSubpath', isSubpath);
 
       if (!currentPaths.includes(decodedPath) && !isSubpath) {
         // Filter out any existing paths that are subpaths of the new path
@@ -27,7 +26,6 @@ export async function directoryPicker() {
 
         const newPaths = [...updatedPaths, decodedPath];
         await updateLibraryPaths(newPaths);
-        console.log('newPaths', newPaths);
       }
       await scanLibrary();
     }

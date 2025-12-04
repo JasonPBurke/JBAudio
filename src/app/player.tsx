@@ -10,7 +10,7 @@ import { PlayerProgressBar } from '@/components/PlayerProgressBar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PlayerChaptersModal } from '@/modals/PlayerChaptersModal';
 import { useCallback, useMemo, useRef } from 'react';
-import { useBook, useLibraryStore } from '@/store/library';
+import { useBook, useBookById, useLibraryStore } from '@/store/library';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 // import ProgressCircle from '@/components/ProgressCircle';
 import { BookTimeRemaining } from '@/components/BookTimeRemaining';
@@ -19,7 +19,7 @@ import { DismissIndicator } from '@/components/DismissIndicator';
 const PlayerScreen = () => {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const activeTrack = useActiveTrack();
-  const book = useBook(activeTrack?.artist ?? '', activeTrack?.album ?? '');
+  const book = useBookById(activeTrack?.bookId ?? '');
   const { updateBookChapterIndex } = useLibraryStore();
 
   const handlePresentPress = useCallback(() => {

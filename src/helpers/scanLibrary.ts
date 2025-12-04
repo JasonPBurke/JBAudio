@@ -259,6 +259,8 @@ const handleBookSort = (books: any) => {
             narrator: book.narrator,
             genre: book.genre,
             sampleRate: book.sampleRate,
+            bitrate: book.bitrate,
+            codec: book.codec,
             totalTrackCount: book.totalTrackCount,
             ctime: book.ctime,
             mtime: book.mtime || null,
