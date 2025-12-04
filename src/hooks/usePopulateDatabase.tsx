@@ -71,10 +71,6 @@ export const populateDatabase = async (authors: AuthorType[]) => {
 
         // Create or update book
         if (!bookRecord) {
-          console.log(
-            'book.metadata.copyright',
-            bookData.metadata.copyright
-          );
           bookRecord = await database
             .get<Book>('books')
             .prepareCreate((book) => {

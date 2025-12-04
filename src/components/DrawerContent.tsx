@@ -100,15 +100,6 @@ const DrawerContent = (props: Props) => {
         labelStyle={[styles.labelStyle, {}]}
         style={styles.drawerItem}
       />
-      <DrawerItem
-        label={'Test Screen'}
-        onPress={handleTestScreenPress}
-        icon={() => (
-          <TestTube size={24} color={colors.text} strokeWidth={1} />
-        )}
-        labelStyle={[styles.labelStyle, {}]}
-        style={styles.drawerItem}
-      />
     </DrawerContentScrollView>
   );
 };
