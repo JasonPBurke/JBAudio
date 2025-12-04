@@ -37,6 +37,7 @@ export type Book = {
     sampleRate: number | null;
     bitrate: number | null;
     codec: string | null;
+    copyright: string | null;
     totalTrackCount: number | null;
     ctime: Date;
     mtime: Date | null;

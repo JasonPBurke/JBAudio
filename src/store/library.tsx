@@ -136,6 +136,7 @@ export const useLibraryStore = create<LibraryState>()((set, get) => ({
                       sampleRate: bookModel.sampleRate,
                       bitrate: bookModel.bitrate,
                       codec: bookModel.codec,
+                      copyright: bookModel.copyright,
                       totalTrackCount: bookModel.totalTrackCount,
                       ctime: bookModel.createdAt,
                       mtime: bookModel.updatedAt,

@@ -30,6 +30,7 @@ export default class Book extends Model {
   @field('sample_rate') sampleRate!: number | null;
   @field('bitrate') bitrate!: number | null;
   @text('codec') codec!: string | null;
+  @text('copyright') copyright!: string | null;
   @field('total_track_count') totalTrackCount!: number;
   @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date | null;

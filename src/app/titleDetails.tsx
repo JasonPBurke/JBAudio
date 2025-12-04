@@ -195,6 +195,7 @@ const TitleDetails = () => {
                   Author
                 </Text>
                 <Text
+                  numberOfLines={3}
                   style={{ ...styles.bookInfoText, textAlign: 'center' }}
                 >
                   {author}
@@ -222,6 +223,7 @@ const TitleDetails = () => {
                   Read by
                 </Text>
                 <Text
+                  numberOfLines={3}
                   style={{ ...styles.bookInfoText, textAlign: 'center' }}
                 >
                   {book?.metadata.narrator}
@@ -232,6 +234,12 @@ const TitleDetails = () => {
               <Text style={{ color: colors.text }}>Added on:</Text>
               <Text style={styles.bookInfoText}>
                 {formatDate(book?.metadata.ctime)}
+              </Text>
+            </View>
+            <View style={styles.inlineInfoContainer}>
+              <Text style={{ color: colors.text }}>genre:</Text>
+              <Text style={styles.bookInfoText}>
+                {book?.metadata.genre}
               </Text>
             </View>
             <View style={styles.inlineInfoContainer}>
@@ -257,9 +265,15 @@ const TitleDetails = () => {
               </Text>
             </View>
             <View style={styles.inlineInfoContainer}>
-              <Text style={{ color: colors.text }}>Description: </Text>
+              {/* <Text style={{ color: colors.text }}>Description: </Text> */}
               <Text style={styles.bookInfoText}>
                 {book?.metadata.description}
+              </Text>
+            </View>
+            <View style={styles.inlineInfoContainer}>
+              {/* <Text style={{ color: colors.text }}>Copyright: </Text> */}
+              <Text style={styles.bookInfoText}>
+                {book?.metadata.copyright}
               </Text>
             </View>
           </Pressable>

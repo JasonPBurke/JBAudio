@@ -85,8 +85,8 @@ export async function analyzeFileWithMediaInfo(
     general.Tagged_Date ||
     general.Original_Year;
   const description =
-    general.extra?.comment || general.Comment || general.Title_More;
-  const title = general.Track || general.Title;
+    general.Title_More || general.extra?.comment || general.Comment;
+  const title = general.Track || general.Title || general.Album;
   const album = general.Album;
   const author =
     general.Artist || general.Performer || general.Album_Performer;
