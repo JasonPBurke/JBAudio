@@ -26,6 +26,7 @@ import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
 import database from '@/db';
 import { getChapterProgressInDB } from '@/db/chapterQueries';
+import { handleBookPlay } from '@/helpers/handleBookPlay';
 
 export type BookListItemProps = {
   book: BookType;
@@ -53,45 +54,41 @@ export const BookGridItem = memo(function BookListItem({
     (screenWidth - ITEM_MARGIN_HORIZONTAL * (NUM_COLUMNS + 1)) /
     NUM_COLUMNS;
 
-  const handlePressPlay = async (book: BookType) => {
-    // Fetch the latest book data from the database to get the most current chapter index
-    const latestBookFromDB = await database
-      .get<Book>('books')
-      .find(book.bookId!);
+  const handlePressPlay = async (book: BookType | undefined) => {
+    if (!book) return;
+    if (isActiveBook && playing) return;
 
-    //! GET THE DATA EITHER FROM THE DB OR FROM THE STATE NOT A MIX
-    const chapterIndex = latestBookFromDB.currentChapterIndex;
-    const progress = await getChapterProgressInDB(book.bookId!);
+    const progressInfo = await getChapterProgressInDB(book.bookId!);
 
-    if (chapterIndex === -1) return;
+    if (!progressInfo || progressInfo.chapterIndex === -1) return;
 
     const isChangingBook = book.bookId !== activeBookId;
-    // const currentTrack = await TrackPlayer.getActiveTrack();
 
     if (isChangingBook) {
       await TrackPlayer.reset();
-      //! should these tracks be built at the useSEFS.tsx and added to the DB on first scan?
       const tracks: Track[] = book.chapters.map((chapter) => ({
         url: chapter.url,
         title: chapter.chapterTitle,
         artist: chapter.author,
-        //* passed is as temp img so cover art shows on remote player
         artwork: book.artwork ?? unknownBookImageUri,
         album: book.bookTitle,
         bookId: book.bookId,
       }));
 
       await TrackPlayer.add(tracks);
-      await TrackPlayer.skip(chapterIndex);
-      await TrackPlayer.seekTo(progress || 0);
+      await TrackPlayer.skip(progressInfo.chapterIndex);
+      await TrackPlayer.seekTo(progressInfo.progress || 0);
       await TrackPlayer.play();
-      const currentTrack = await TrackPlayer.getActiveTrack();
-      console.log('currentTrack', currentTrack);
-      setActiveBookId(book.bookId!);
+      await TrackPlayer.setVolume(1);
+
+      if (book.bookId) {
+        setActiveBookId(book.bookId);
+      }
     } else {
-      await TrackPlayer.skip(chapterIndex);
-      await TrackPlayer.seekTo(progress || 0);
+      await TrackPlayer.skip(progressInfo.chapterIndex);
+      await TrackPlayer.seekTo(progressInfo.progress || 0);
       await TrackPlayer.play();
+      await TrackPlayer.setVolume(1);
     }
   };
 
@@ -217,7 +214,15 @@ export const BookGridItem = memo(function BookListItem({
             </View>
           ) : (
             <Pressable
-              onPress={() => handlePressPlay(book)}
+              onPress={() =>
+                handleBookPlay(
+                  book,
+                  playing,
+                  isActiveBook,
+                  activeBookId,
+                  setActiveBookId
+                )
+              }
               style={{
                 ...styles.trackPausedIcon,
                 padding: 6,
