@@ -110,7 +110,7 @@ const TitleDetails = () => {
     [book?.artworkColors]
   );
 
-  console.log('book', JSON.stringify(book, null, 2));
+  // console.log('book', JSON.stringify(book, null, 2));
 
   return (
     <LinearGradient

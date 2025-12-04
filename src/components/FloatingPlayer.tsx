@@ -63,7 +63,7 @@ export const FloatingPlayer = React.memo(() => {
             text={displayedBook.bookTitle ?? ''}
             animationThreshold={25}
           />
-          {/* <BookTimeRemaining /> */}
+          <BookTimeRemaining />
         </View>
         <View style={styles.bookControlsContainer}>
           <SeekBackButton iconSize={32} top={4} right={9} fontSize={12} />
