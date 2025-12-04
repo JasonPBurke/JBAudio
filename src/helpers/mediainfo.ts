@@ -18,14 +18,12 @@ export type ExtractedMetadata = {
   copyright?: string;
   chapters?: { startMs: number; title?: string }[];
   trackPosition?: number;
-  raw: MediaInfoResult;
   cover?: string;
-  // bitrate?: number;
-  // codec?: string;
-  // channels?: number;
-  // sampleRate?: number;
-  // disc?: number;
-  // track?: number;
+  bitrate?: number;
+  sampleRate?: number;
+  genre?: string;
+  codec?: string;
+  raw?: MediaInfoResult;
   // imgWidth?: number;
   // imgHeight?: number;
 };
@@ -68,12 +66,12 @@ export async function analyzeFileWithMediaInfo(
   // console.log('cover', cover);
   // console.log('raw res', JSON.stringify(res, null, 2));
   // console.log('image', image);
-
-  // const bitrate =
-  //   numberFrom(audio.BitRate) || numberFrom(general.OverallBitRate);
-  // const sampleRate = numberFrom(audio.SamplingRate);
+  const genre = general.Genre;
+  const bitrate =
+    numberFrom(audio.BitRate) || numberFrom(general.OverallBitRate);
+  const sampleRate = numberFrom(audio.SamplingRate);
   // const channels = numberFrom(audio.Channels);
-  // const codec = audio.Format || audio.CodecID || general.CodecID;
+  const codec = audio.Format || audio.CodecID || general.CodecID;
   const durationInSeconds =
     numberFrom(general.Duration) || numberFrom(audio.Duration);
   const durationMs = durationInSeconds
@@ -99,7 +97,6 @@ export async function analyzeFileWithMediaInfo(
     general.Composer ||
     general.Album_Performer;
   const trackPosition = numberFrom(general.Track_Position);
-  // const track = numberFrom(general.Track_Position);
   // const imgWidth = numberFrom(image.Width);
   // const imgHeight = numberFrom(image.Height);
 
@@ -157,16 +154,12 @@ export async function analyzeFileWithMediaInfo(
     copyright,
     chapters,
     trackPosition,
+    genre,
+    codec,
+    bitrate,
+    sampleRate,
 
-    raw: res,
-    // imgWidth,
-    // imgHeight,
-    // track,
-    // bitrate,
-    // codec,
-    // channels,
-    // sampleRate,
-    // disc,
+    // raw: res,
   };
 }
 

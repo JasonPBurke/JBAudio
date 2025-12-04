@@ -1,9 +1,4 @@
-import {
-  StyleSheet,
-  TouchableOpacity,
-  View,
-  ViewProps,
-} from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useActiveTrack } from 'react-native-track-player';
 import { Image } from 'expo-image';
 
@@ -20,8 +15,9 @@ import { colors } from '@/constants/tokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBookById } from '@/store/library';
 import { BookTimeRemaining } from '@/components/BookTimeRemaining';
+import React from 'react';
 
-export const FloatingPlayer = ({ style }: ViewProps) => {
+export const FloatingPlayer = React.memo(() => {
   const { bottom } = useSafeAreaInsets();
 
   const router = useRouter();
@@ -45,7 +41,6 @@ export const FloatingPlayer = ({ style }: ViewProps) => {
       onPress={handlePress}
       style={[
         styles.parentContainer,
-        style,
         {
           marginBottom: bottom - 12,
           borderColor: colors.primary,
@@ -68,7 +63,7 @@ export const FloatingPlayer = ({ style }: ViewProps) => {
             text={displayedBook.bookTitle ?? ''}
             animationThreshold={25}
           />
-          <BookTimeRemaining />
+          {/* <BookTimeRemaining /> */}
         </View>
         <View style={styles.bookControlsContainer}>
           <SeekBackButton iconSize={32} top={4} right={9} fontSize={12} />
@@ -77,7 +72,7 @@ export const FloatingPlayer = ({ style }: ViewProps) => {
       </>
     </TouchableOpacity>
   );
-};
+});
 
 const styles = StyleSheet.create({
   parentContainer: {
@@ -85,6 +80,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#1f2226ff', // 3B4252
     borderRadius: 6,
+    position: 'absolute',
+    left: 8,
+    right: 8,
+    bottom: 10,
   },
   bookArtworkImage: {
     height: 50,

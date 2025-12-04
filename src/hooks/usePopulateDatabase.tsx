@@ -103,6 +103,8 @@ export const populateDatabase = async (authors: AuthorType[]) => {
               book.narrator = bookData.metadata.narrator || '';
               book.genre = bookData.metadata.genre || '';
               book.sampleRate = bookData.metadata.sampleRate || 0;
+              book.bitrate = bookData.metadata.bitrate || 0;
+              book.codec = bookData.metadata.codec || '';
               book.totalTrackCount =
                 bookData.metadata.totalTrackCount ||
                 bookData.chapters.length ||
@@ -146,6 +148,8 @@ export const populateDatabase = async (authors: AuthorType[]) => {
               book.narrator = bookData.metadata.narrator || '';
               book.genre = bookData.metadata.genre || '';
               book.sampleRate = bookData.metadata.sampleRate || 0;
+              book.bitrate = bookData.metadata.bitrate || 0;
+              book.codec = bookData.metadata.codec || '';
               book.totalTrackCount =
                 bookData.metadata.totalTrackCount ||
                 bookData.chapters.length ||

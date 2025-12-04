@@ -160,14 +160,7 @@ const LibraryScreen = ({ navigation }: any) => {
           )}
         </Animated.ScrollView>
       </SafeAreaView>
-      <FloatingPlayer
-        style={{
-          position: 'absolute',
-          left: 8,
-          right: 8,
-          bottom: 10,
-        }}
-      />
+      <FloatingPlayer />
     </View>
   );
 };

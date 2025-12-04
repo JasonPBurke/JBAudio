@@ -7,6 +7,26 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      toVersion: 14,
+      steps: [
+        addColumns({
+          table: 'books',
+          columns: [
+            {
+              name: 'bitrate',
+              type: 'number',
+              isOptional: true,
+            },
+            {
+              name: 'codec',
+              type: 'string',
+              isOptional: true,
+            },
+          ],
+        }),
+      ],
+    },
+    {
       toVersion: 13,
       steps: [
         addColumns({

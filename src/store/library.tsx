@@ -1,6 +1,8 @@
 import { Author, Book, Chapter } from '@/types/Book';
 import { create } from 'zustand';
+import { useCallback } from 'react';
 import database from '@/db';
+import { shallow } from 'zustand/shallow';
 import { Subscription } from 'rxjs';
 import AuthorModel from '@/db/models/Author';
 import BookModel from '@/db/models/Book';
@@ -132,6 +134,8 @@ export const useLibraryStore = create<LibraryState>()((set, get) => ({
                       narrator: bookModel.narrator,
                       genre: bookModel.genre,
                       sampleRate: bookModel.sampleRate,
+                      bitrate: bookModel.bitrate,
+                      codec: bookModel.codec,
                       totalTrackCount: bookModel.totalTrackCount,
                       ctime: bookModel.createdAt,
                       mtime: bookModel.updatedAt,
@@ -167,19 +171,24 @@ export const useBook = (author: string, bookTitle: string) =>
     return authorFound?.books.find((b) => b.bookTitle === bookTitle);
   });
 
-export const useBookById = (bookId: string) =>
-  useLibraryStore((state) => {
-    for (const author of state.authors) {
-      for (const book of author.books) {
-        if (book.bookId === bookId) {
-          console.log('found book');
-          return book;
+export const useBookById = (bookId: string) => {
+  const selector = useCallback(
+    (state: LibraryState) => {
+      for (const author of state.authors) {
+        for (const book of author.books) {
+          if (book.bookId === bookId) {
+            console.log('found book');
+            return book;
+          }
         }
       }
-    }
-    console.log('book not found');
-    return undefined;
-  });
+      return undefined;
+    },
+    [bookId]
+  );
+  // @ts-expect-error
+  return useLibraryStore(selector, shallow);
+};
 
 export const useBookArtwork = (author: string, bookTitle: string) =>
   useLibraryStore((state) => {
