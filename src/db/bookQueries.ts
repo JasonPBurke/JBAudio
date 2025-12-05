@@ -23,17 +23,13 @@ export async function getBookProgressValue(
   return book.bookProgressValue;
 }
 
-export async function updateBookProgressValue(
-  bookId: string,
-  progress: number
-): Promise<void> {
-  const book = (await database.collections
-    .get('books')
-    .find(bookId)) as Book;
-
-  if (book) {
-    await book.update((book) => {
-      book.bookProgressValue = progress;
-    });
+export const getBookById = async (bookId: string): Promise<Book | null> => {
+  try {
+    const book = await database.get<Book>('books').find(bookId);
+    return book;
+  } catch (error) {
+    // This will catch if the book is not found
+    console.error(`Book with id ${bookId} not found.`, error);
+    return null;
   }
-}
+};

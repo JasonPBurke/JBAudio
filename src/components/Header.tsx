@@ -7,16 +7,31 @@ import {
   Search,
   Settings2,
 } from 'lucide-react-native';
-import TabScreen from '@/components/TabScreen';
+import TabScreen, { CustomTabs } from '@/components/TabScreen';
 import { useNavigation } from 'expo-router';
 import { DrawerActions } from '@react-navigation/native';
 
 type headerProps = {
   setToggleView: React.Dispatch<React.SetStateAction<number>>;
   toggleView: number;
+  selectedTab: CustomTabs;
+  setSelectedTab: (tab: CustomTabs) => void;
+  bookCounts: {
+    all: number;
+    unplayed: number;
+    playing: number;
+    finished: number;
+  };
 };
 
-const Header = ({ toggleView, setToggleView }: headerProps) => {
+const Header = (props: headerProps) => {
+  const {
+    toggleView,
+    setToggleView,
+    selectedTab,
+    setSelectedTab,
+    bookCounts,
+  } = props;
   const navigation = useNavigation();
 
   const openSettingsDrawer = () => {
@@ -73,7 +88,11 @@ const Header = ({ toggleView, setToggleView }: headerProps) => {
           </Pressable>
         </View>
       </View>
-      <TabScreen />
+      <TabScreen
+        selectedTab={selectedTab}
+        setSelectedTab={setSelectedTab}
+        bookCounts={bookCounts}
+      />
     </View>
   );
 };
