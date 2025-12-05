@@ -91,6 +91,28 @@ export async function getNumColumns() {
   return null;
 }
 
+export async function setNumColumns(numColumns: number) {
+  await database.write(async () => {
+    const settingsCollection =
+      database.collections.get<Settings>('settings');
+    const settingsRecords = await settingsCollection.query().fetch();
+
+    if (settingsRecords.length > 0) {
+      await settingsRecords[0].update((record) => {
+        record.numColumns = numColumns;
+      });
+    } else {
+      // If no settings record exists, create one.
+      await settingsCollection.create((setting) => {
+        setting.numColumns = numColumns;
+        // Set defaults for other non-nullable fields
+        setting.bookFolder = ''; // Not used, but non-nullable
+        setting.timerActive = false;
+      });
+    }
+  });
+}
+
 export function getNumColumnsObservable() {
   return database
     .get<Settings>('settings')
