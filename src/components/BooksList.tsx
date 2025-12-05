@@ -4,8 +4,7 @@ import { utilsStyles } from '@/styles';
 import { Book, Author } from '@/types/Book';
 import { screenPadding } from '@/constants/tokens';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
-import { useLibraryStore } from '@/store/library';
-import { useEffect, memo } from 'react';
+import { memo } from 'react';
 import { useProcessedBooks } from '@/hooks/useProcessedBooks';
 
 export type BookListProps = Partial<FlashListProps<Book>> & {
@@ -14,13 +13,6 @@ export type BookListProps = Partial<FlashListProps<Book>> & {
 
 const BooksList = ({ authors }: BookListProps) => {
   const allBooks = useProcessedBooks(authors);
-  const setAuthors = useLibraryStore((state) => state.setAuthors);
-
-  useEffect(() => {
-    if (authors) {
-      setAuthors(authors);
-    }
-  }, [authors, setAuthors]);
 
   return (
     //? need to put a loader if allBooks.length === 0
