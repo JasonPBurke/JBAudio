@@ -6,8 +6,7 @@ import {
   View,
 } from 'react-native';
 import { colors } from '@/constants/tokens';
-import { useEffect, useState } from 'react';
-import { observeTotalBookCount, getTotalBookCount } from '@/db/bookQueries';
+import { useState } from 'react';
 import { scheduleOnRN } from 'react-native-worklets';
 import Animated, {
   useAnimatedStyle,
@@ -36,15 +35,6 @@ const TabButtons = ({
     { width: number; x: number }[]
   >([]);
   const [tabbarHeight, setTabbarHeight] = useState(0);
-  const [bookCount, setBookCount] = useState(0);
-
-  useEffect(() => {
-    const subscription = observeTotalBookCount().subscribe((count) => {
-      setBookCount(count);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   const tabPositionX = useSharedValue(0);
   const tabWidth = useSharedValue(0);
@@ -101,8 +91,6 @@ const TabButtons = ({
             backgroundColor: '#ffb606cc',
             borderRadius: 4,
             height: tabbarHeight - 10,
-            // borderColor: '#ffb606',
-            // borderWidth: StyleSheet.hairlineWidth,
           },
         ]}
       />
@@ -121,7 +109,7 @@ const TabButtons = ({
               onLayout={(event) => onButtonLayout(event, index)}
             >
               <Text style={{ ...styles.buttonText, color: color }}>
-                {button.title} ({bookCount})
+                {button.title}
               </Text>
             </Pressable>
           );
@@ -135,11 +123,8 @@ export default TabButtons;
 
 const styles = StyleSheet.create({
   container: {
-    // backgroundColor: '#2b2b2b',
     backgroundColor: colors.background,
     borderRadius: 4,
-    // borderColor: '#cc00cc',
-    // borderWidth: StyleSheet.hairlineWidth,
     justifyContent: 'center',
     marginHorizontal: 4,
   },

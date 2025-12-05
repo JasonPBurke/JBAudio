@@ -1,22 +1,33 @@
-import { useState } from 'react';
 import TabButtons, { TabButtonsType } from '@/components/TabButtons';
 
 export enum CustomTabs {
   All,
-  Unread,
+  Unplayed,
   Started,
   Finished,
 }
-const TabScreen = () => {
-  const [selectedTab, setSelectedTab] = useState<CustomTabs>(
-    CustomTabs.All
-  );
 
+interface TabScreenProps {
+  selectedTab: CustomTabs;
+  setSelectedTab: (tab: CustomTabs) => void;
+  bookCounts: {
+    all: number;
+    unplayed: number;
+    playing: number;
+    finished: number;
+  };
+}
+
+const TabScreen = ({
+  selectedTab,
+  setSelectedTab,
+  bookCounts,
+}: TabScreenProps) => {
   const buttons: TabButtonsType[] = [
-    { title: 'All' },
-    { title: 'Unplayed' }, //Unread
-    { title: 'Playing' }, //Started
-    { title: 'Finished' },
+    { title: `All (${bookCounts.all})` },
+    { title: `Unplayed (${bookCounts.unplayed})` },
+    { title: `Playing (${bookCounts.playing})` },
+    { title: `Finished (${bookCounts.finished})` },
   ];
 
   return (

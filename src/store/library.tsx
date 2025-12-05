@@ -68,95 +68,119 @@ export const useLibraryStore = create<LibraryState>()((set, get) => ({
   getPlaybackIndex: (bookId: string) => get().playbackIndex[bookId],
 
   init: () => {
-    const authorsCollection =
-      database.collections.get<AuthorModel>('authors');
+    const booksCollection = database.collections.get<BookModel>('books');
 
     const subscriptions: Subscription[] = [];
 
-    // Observe authors and their related books and chapters
-    const authorsSubscription = authorsCollection
+    // Observe the books collection directly. This observer will now fire
+    // whenever any field on any book changes, including `book_progress_value`.
+    const booksSubscription = booksCollection
       .query()
-      .observe()
-      .subscribe(async (authorModels) => {
-        let authorsData: Author[] = [];
+      .observeWithColumns(['book_progress_value'])
+      .subscribe(async (bookModels) => {
+        console.log(
+          `Zustand observer fired with ${bookModels.length} books.`
+        );
+        // We have all the books. Now, we need to group them by author.
+        const authorsMap = new Map<
+          string,
+          { authorModel: AuthorModel; books: BookModel[] }
+        >();
         try {
-          authorsData = await Promise.all(
-            authorModels.map(async (authorModel: AuthorModel) => {
-              const bookModels = await (authorModel.books as any).fetch();
+          // Step 1: Group all book models by their author efficiently.
+          for (const bookModel of bookModels) {
+            const authorModel = await (bookModel.author as any).fetch();
+            if (!authorModel) continue; // Skip books without an author
 
-              const booksData: Book[] = await Promise.all(
-                bookModels.map(async (bookModel: BookModel) => {
-                  const chapterModels = await (
-                    bookModel.chapters as any
-                  ).fetch();
+            if (!authorsMap.has(authorModel.id)) {
+              authorsMap.set(authorModel.id, { authorModel, books: [] });
+            }
+            authorsMap.get(authorModel.id)!.books.push(bookModel);
+          }
 
-                  const chaptersData: Chapter[] = chapterModels.map(
-                    (chapterModel: ChapterModel) => ({
+          // Convert the map to the final array structure
+          const finalAuthorsData: Author[] = await Promise.all(
+            Array.from(authorsMap.values()).map(
+              async ({ authorModel, books: groupedBooks }) => {
+                // The `books` from the map are the fresh models from the observer.
+                // We use these directly instead of re-fetching.
+                const booksData: Book[] = await Promise.all(
+                  groupedBooks.map(async (bookModel) => {
+                    const chapterModels = await (
+                      bookModel.chapters as any
+                    ).fetch();
+                    const chaptersData: Chapter[] = chapterModels.map(
+                      (chapterModel: ChapterModel) => ({
+                        author: authorModel.name,
+                        bookTitle: bookModel.title,
+                        chapterTitle: chapterModel.title,
+                        chapterNumber: chapterModel.chapterNumber,
+                        chapterDuration: chapterModel.chapterDuration,
+                        startMs: chapterModel.startMs,
+                        url: chapterModel.url,
+                      })
+                    );
+
+                    return {
+                      bookId: bookModel.id,
                       author: authorModel.name,
                       bookTitle: bookModel.title,
-                      chapterTitle: chapterModel.title,
+                      chapters: chaptersData,
+                      artwork: bookModel.artwork,
+                      artworkHeight: bookModel.artworkHeight,
+                      artworkWidth: bookModel.artworkWidth,
+                      artworkColors: {
+                        average: bookModel.coverColorAverage,
+                        dominant: bookModel.coverColorDominant,
+                        vibrant: bookModel.coverColorVibrant,
+                        darkVibrant: bookModel.coverColorDarkVibrant,
+                        lightVibrant: bookModel.coverColorLightVibrant,
+                        muted: bookModel.coverColorMuted,
+                        darkMuted: bookModel.coverColorDarkMuted,
+                        lightMuted: bookModel.coverColorLightMuted,
+                      },
+                      bookDuration: bookModel.bookDuration,
+                      bookProgress: {
+                        currentChapterIndex: bookModel.currentChapterIndex,
+                        currentChapterProgress:
+                          bookModel.currentChapterProgress,
+                      },
+                      bookProgressValue: bookModel.bookProgressValue,
+                      metadata: {
+                        year: bookModel.year,
+                        description: bookModel.description,
+                        narrator: bookModel.narrator,
+                        genre: bookModel.genre,
+                        sampleRate: bookModel.sampleRate,
+                        bitrate: bookModel.bitrate,
+                        codec: bookModel.codec,
+                        copyright: bookModel.copyright,
+                        totalTrackCount: bookModel.totalTrackCount,
+                        ctime: bookModel.createdAt,
+                        mtime: bookModel.updatedAt,
+                      },
+                    };
+                  })
+                );
 
-                      chapterNumber: chapterModel.chapterNumber,
-                      chapterDuration: chapterModel.chapterDuration,
-                      startMs: chapterModel.startMs,
-                      url: chapterModel.url,
-                    })
-                  );
-
-                  return {
-                    bookId: bookModel.id,
-                    author: authorModel.name,
-                    bookTitle: bookModel.title,
-                    chapters: chaptersData,
-                    artwork: bookModel.artwork,
-                    artworkHeight: bookModel.artworkHeight,
-                    artworkWidth: bookModel.artworkWidth,
-                    artworkColors: {
-                      average: bookModel.coverColorAverage,
-                      dominant: bookModel.coverColorDominant,
-                      vibrant: bookModel.coverColorVibrant,
-                      darkVibrant: bookModel.coverColorDarkVibrant,
-                      lightVibrant: bookModel.coverColorLightVibrant,
-                      muted: bookModel.coverColorMuted,
-                      darkMuted: bookModel.coverColorDarkMuted,
-                      lightMuted: bookModel.coverColorLightMuted,
-                    },
-                    bookDuration: bookModel.bookDuration,
-                    bookProgress: {
-                      currentChapterIndex: bookModel.currentChapterIndex,
-                      currentChapterProgress:
-                        bookModel.currentChapterProgress,
-                    },
-                    bookProgressValue: bookModel.bookProgressValue,
-                    metadata: {
-                      year: bookModel.year,
-                      description: bookModel.description,
-                      narrator: bookModel.narrator,
-                      genre: bookModel.genre,
-                      sampleRate: bookModel.sampleRate,
-                      bitrate: bookModel.bitrate,
-                      codec: bookModel.codec,
-                      copyright: bookModel.copyright,
-                      totalTrackCount: bookModel.totalTrackCount,
-                      ctime: bookModel.createdAt,
-                      mtime: bookModel.updatedAt,
-                    },
-                  };
-                })
-              );
-              return {
-                name: authorModel.name, // Use 'name' to match the Author type
-                books: booksData,
-              };
-            })
+                return {
+                  name: authorModel.name,
+                  books: booksData,
+                };
+              }
+            )
           );
+
+          // Sort authors alphabetically before setting the state
+          finalAuthorsData.sort((a, b) => a.name.localeCompare(b.name));
+
+          set({ authors: finalAuthorsData });
         } catch (error) {
           console.error('Error during authorsData mapping:', error);
         }
-        set({ authors: authorsData });
       });
 
-    subscriptions.push(authorsSubscription);
+    subscriptions.push(booksSubscription);
 
     return () => {
       subscriptions.forEach((sub) => sub.unsubscribe());

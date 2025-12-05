@@ -62,4 +62,10 @@ export default class Book extends Model {
       book.currentChapterIndex = index;
     });
   }
+
+  @writer async updateBookProgress(progress: number) {
+    await this.update((book) => {
+      book.bookProgressValue = progress;
+    });
+  }
 }

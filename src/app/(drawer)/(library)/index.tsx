@@ -23,6 +23,8 @@ import { useAuthors, useLibraryStore } from '@/store/library';
 import { FloatingPlayer } from '@/components/FloatingPlayer';
 import { colors } from '@/constants/tokens';
 import { X } from 'lucide-react-native';
+import { CustomTabs } from '@/components/TabScreen';
+import { BookProgressState } from '@/helpers/handleBookPlay';
 
 const SEARCH_HEIGHT = 65;
 
@@ -30,6 +32,9 @@ const LibraryScreen = ({ navigation }: any) => {
   const [toggleView, setToggleView] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const scrollY = useSharedValue(0);
+  const [selectedTab, setSelectedTab] = useState<CustomTabs>(
+    CustomTabs.All
+  );
   const scrollViewRef = useRef<Animated.ScrollView>(null);
 
   const [activeGridSection, setActiveGridSection] = useState<string | null>(
@@ -45,16 +50,66 @@ const LibraryScreen = ({ navigation }: any) => {
     return () => unsubscribe();
   }, [initStore]);
 
-  const library = useAuthors();
+  const allAuthors = useLibraryStore((state) => state.authors);
+
+  const bookCounts = useMemo(() => {
+    const counts = { all: 0, unplayed: 0, playing: 0, finished: 0 };
+
+    for (const author of allAuthors) {
+      for (const book of author.books) {
+        counts.all++;
+        switch (book.bookProgressValue) {
+          case BookProgressState.NotStarted:
+            counts.unplayed++;
+            break;
+          case BookProgressState.Started:
+            counts.playing++;
+            break;
+          case BookProgressState.Finished:
+            counts.finished++;
+            break;
+        }
+      }
+    }
+
+    return counts;
+  }, [allAuthors]);
 
   const normalize = (s: string) =>
     s.toLowerCase().replace(/[^a-z0-9]/gi, '');
 
+  const tabFilteredLibrary = useMemo(() => {
+    if (selectedTab === CustomTabs.All) {
+      return allAuthors;
+    }
+
+    const progressStateMap = {
+      [CustomTabs.Unplayed]: BookProgressState.NotStarted,
+      [CustomTabs.Started]: BookProgressState.Started,
+      [CustomTabs.Finished]: BookProgressState.Finished,
+    };
+
+    const targetState = progressStateMap[selectedTab];
+
+    return allAuthors.reduce(
+      (acc, author) => {
+        const matchingBooks = author.books.filter(
+          (book) => book.bookProgressValue === targetState
+        );
+        if (matchingBooks.length > 0) {
+          acc.push({ ...author, books: matchingBooks });
+        }
+        return acc;
+      },
+      [] as typeof allAuthors
+    );
+  }, [selectedTab, allAuthors]);
+
   const filteredLibrary = useMemo(() => {
-    if (!searchQuery) return library;
+    if (!searchQuery) return tabFilteredLibrary;
     const qRaw = searchQuery.toLowerCase();
     const qNorm = normalize(searchQuery);
-    return library.reduce(
+    return tabFilteredLibrary.reduce(
       (acc, author) => {
         const authorMatch = author.name.toLowerCase().includes(qRaw);
         if (authorMatch) {
@@ -71,9 +126,9 @@ const LibraryScreen = ({ navigation }: any) => {
         }
         return acc;
       },
-      [] as typeof library
+      [] as typeof allAuthors
     );
-  }, [searchQuery, library]);
+  }, [searchQuery, tabFilteredLibrary]);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -106,7 +161,13 @@ const LibraryScreen = ({ navigation }: any) => {
     <View style={defaultStyles.container}>
       <SafeAreaView style={{ flex: 1 }}>
         {/* MOVE HEADER ABOVE SCROLL VIEW TO DOCK IT AT TOP OF SCREEN */}
-        <Header setToggleView={setToggleView} toggleView={toggleView} />
+        <Header
+          setToggleView={setToggleView}
+          toggleView={toggleView}
+          selectedTab={selectedTab}
+          setSelectedTab={setSelectedTab}
+          bookCounts={bookCounts}
+        />
 
         <Animated.ScrollView
           ref={scrollViewRef}
