@@ -6,7 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { Picker } from '@react-native-picker/picker';
 import { Info, ArrowLeft } from 'lucide-react-native';
@@ -15,16 +15,15 @@ import { colors, screenPadding } from '@/constants/tokens';
 import SegmentedControl from '@react-native-segmented-control/segmented-control';
 import { useRouter } from 'expo-router';
 import InfoDialogPopup from '@/modals/InfoDialogPopup';
+import { useSettingsStore } from '@/store/settingsStore';
 import {
-  getNumColumns,
-  updateNumColumns,
   updateTimerFadeoutDuration,
   getTimerFadeoutDuration,
   getTimerSettings,
 } from '@/db/settingsQueries';
 
 const SettingsScreen = ({ navigation }: any) => {
-  const [selectedColIndex, setSelectedColIndex] = useState(0);
+  const { numColumns, setNumColumns } = useSettingsStore();
   const [fadeoutDuration, setFadeoutDuration] = useState('10');
   const [maxFadeMinutes, setMaxFadeMinutes] = useState<number>(30);
   const [modalVisible, setModalVisible] = useState(false);
@@ -41,14 +40,6 @@ const SettingsScreen = ({ navigation }: any) => {
       let isActive = true;
 
       const fetchSettingsState = async () => {
-        try {
-          const colValue = await getNumColumns();
-          if (isActive && colValue) {
-            setSelectedColIndex(colValue - 1); // -1 because segmented control is 0-indexed
-          }
-        } catch (error) {
-          console.error('Failed to fetch number of columns:', error);
-        }
         try {
           // Get current fadeout value (ms or null)
           const DbFadeoutValue = await getTimerFadeoutDuration();
@@ -117,12 +108,11 @@ const SettingsScreen = ({ navigation }: any) => {
             style={{ flex: 1, height: 40 }}
             activeFontStyle={{ color: colors.primary }}
             values={['One', 'Two', 'Three']}
-            selectedIndex={selectedColIndex}
+            selectedIndex={numColumns - 1}
             onChange={(event) => {
               const numberOfColumns =
                 event.nativeEvent.selectedSegmentIndex + 1;
-              setSelectedColIndex(event.nativeEvent.selectedSegmentIndex);
-              updateNumColumns(numberOfColumns);
+              setNumColumns(numberOfColumns);
             }}
           />
         </View>

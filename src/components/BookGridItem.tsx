@@ -1,12 +1,6 @@
 import { unknownBookImageUri } from '@/constants/images';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  Dimensions,
-} from 'react-native';
-import { memo } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { memo, useCallback, useMemo } from 'react';
 import { Image } from 'expo-image';
 
 import { colors, fontSize } from '@/constants/tokens';
@@ -20,24 +14,23 @@ import TrackPlayer, {
 
 import { Book as BookType } from '@/types/Book';
 import Book from '@/db/models/Book';
-
 import { Play } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
-import database from '@/db';
-import { getChapterProgressInDB } from '@/db/chapterQueries';
 import { handleBookPlay } from '@/helpers/handleBookPlay';
 
 export type BookListItemProps = {
   book: BookType;
   flowDirection: 'row' | 'column';
   numColumns?: number;
+  itemWidth?: number;
 };
 
 export const BookGridItem = memo(function BookListItem({
   book,
   flowDirection,
-  numColumns = 0,
+  numColumns = 2,
+  itemWidth = 0,
 }: BookListItemProps) {
   const router = useRouter();
   const { playing } = useIsPlaying();
@@ -45,62 +38,105 @@ export const BookGridItem = memo(function BookListItem({
   const { setActiveBookId, activeBookId } = useQueueStore();
   const isActiveBook = useActiveTrack()?.bookId === book.bookId;
 
-  const { width: screenWidth } = Dimensions.get('window');
-
-  const ITEM_MARGIN_HORIZONTAL = 10;
-  const NUM_COLUMNS = numColumns;
-
-  const ITEM_WIDTH_COLUMN =
-    (screenWidth - ITEM_MARGIN_HORIZONTAL * (NUM_COLUMNS + 1)) /
-    NUM_COLUMNS;
-
-  const handlePressPlay = async (book: BookType | undefined) => {
-    if (!book) return;
-    if (isActiveBook && playing) return;
-
-    const progressInfo = await getChapterProgressInDB(book.bookId!);
-
-    if (!progressInfo || progressInfo.chapterIndex === -1) return;
-
-    const isChangingBook = book.bookId !== activeBookId;
-
-    if (isChangingBook) {
-      await TrackPlayer.reset();
-      const tracks: Track[] = book.chapters.map((chapter) => ({
-        url: chapter.url,
-        title: chapter.chapterTitle,
-        artist: chapter.author,
-        artwork: book.artwork ?? unknownBookImageUri,
-        album: book.bookTitle,
-        bookId: book.bookId,
-      }));
-
-      await TrackPlayer.add(tracks);
-      await TrackPlayer.skip(progressInfo.chapterIndex);
-      await TrackPlayer.seekTo(progressInfo.progress || 0);
-      await TrackPlayer.play();
-      await TrackPlayer.setVolume(1);
-
-      if (book.bookId) {
-        setActiveBookId(book.bookId);
-      }
-    } else {
-      await TrackPlayer.skip(progressInfo.chapterIndex);
-      await TrackPlayer.seekTo(progressInfo.progress || 0);
-      await TrackPlayer.play();
-      await TrackPlayer.setVolume(1);
-    }
-  };
-
   const encodedBookId = encodeURIComponent(book.bookId!);
   const encodedAuthor = encodeURIComponent(book.author);
   const encodedBookTitle = encodeURIComponent(book.bookTitle);
 
-  const handlePress = () => {
+  const handlePress = useCallback(() => {
     router.navigate(
       `/titleDetails?bookId=${encodedBookId}&author=${encodedAuthor}&bookTitle=${encodedBookTitle}`
     );
-  };
+  }, [router, encodedBookId, encodedAuthor, encodedBookTitle]);
+
+  const handlePressPlay = useCallback(() => {
+    handleBookPlay(
+      book,
+      playing,
+      isActiveBook,
+      activeBookId,
+      setActiveBookId
+    );
+  }, [book, playing, isActiveBook, activeBookId, setActiveBookId]);
+
+  // Memoize style objects to avoid recalculating on every render
+  const containerStyle = useMemo(() => {
+    if (flowDirection === 'row') {
+      return {
+        height: 205,
+        width: book.artworkHeight
+          ? (book.artworkWidth! / book.artworkHeight) * 160
+          : 0,
+      };
+    }
+    return {
+      width: itemWidth,
+      height: book.artworkWidth
+        ? (book.artworkHeight! / book.artworkWidth) * itemWidth + 75
+        : 0,
+    };
+  }, [flowDirection, itemWidth, book.artworkWidth, book.artworkHeight]);
+
+  const imageContainerStyle = useMemo(() => {
+    if (flowDirection === 'row') {
+      return {
+        height: 140,
+        width: book.artworkHeight
+          ? (book.artworkWidth! / book.artworkHeight) * 140
+          : 0,
+      };
+    }
+    return {
+      paddingTop: 10,
+      width: itemWidth + 2,
+      height: book.artworkWidth
+        ? (book.artworkHeight! / book.artworkWidth) * itemWidth + 12
+        : 0,
+    };
+  }, [flowDirection, itemWidth, book.artworkWidth, book.artworkHeight]);
+
+  const bookInfoContainerStyle = useMemo(
+    () => ({
+      ...styles.bookInfoContainer,
+      width:
+        flowDirection === 'row'
+          ? book.artworkHeight
+            ? (book.artworkWidth! / book.artworkHeight) * 150 - 10
+            : 0
+          : itemWidth,
+    }),
+    [flowDirection, itemWidth, book.artworkWidth, book.artworkHeight]
+  );
+
+  const bookTitleStyle = useMemo(
+    () => ({
+      ...styles.bookTitleText,
+      color: isActiveBook ? '#ffb406be' : colors.text,
+      fontSize:
+        flowDirection === 'row'
+          ? fontSize.xs
+          : numColumns === 1
+            ? fontSize.lg
+            : numColumns === 2
+              ? fontSize.sm
+              : 14,
+    }),
+    [isActiveBook, flowDirection, numColumns]
+  );
+
+  const bookAuthorStyle = useMemo(
+    () => ({
+      ...styles.bookAuthorText,
+      fontSize:
+        flowDirection === 'row'
+          ? 10
+          : numColumns === 1
+            ? fontSize.sm
+            : numColumns === 2
+              ? fontSize.xs
+              : fontSize.xs,
+    }),
+    [flowDirection, numColumns]
+  );
 
   return (
     <Pressable
@@ -116,50 +152,8 @@ export const BookGridItem = memo(function BookListItem({
       }}
       onPress={handlePress}
     >
-      <View
-        style={[
-          {
-            // borderColor: 'blue',
-            // borderWidth: 1,
-            alignItems: 'center',
-          },
-          flowDirection === 'row'
-            ? {
-                height: 205, //202
-                width: book.artworkHeight
-                  ? (book.artworkWidth! / book.artworkHeight) * 160
-                  : 0,
-              }
-            : {
-                width: ITEM_WIDTH_COLUMN,
-                height: book.artworkWidth
-                  ? (book.artworkHeight! / book.artworkWidth) *
-                      ITEM_WIDTH_COLUMN +
-                    75
-                  : 0,
-              },
-        ]}
-      >
-        <View
-          style={[
-            flowDirection === 'row'
-              ? {
-                  height: 140,
-                  width: book.artworkHeight
-                    ? (book.artworkWidth! / book.artworkHeight) * 140
-                    : 0,
-                }
-              : {
-                  paddingTop: 10,
-                  width: ITEM_WIDTH_COLUMN + 2,
-                  height: book.artworkWidth
-                    ? (book.artworkHeight! / book.artworkWidth) *
-                        ITEM_WIDTH_COLUMN +
-                      12
-                    : 0,
-                },
-          ]}
-        >
+      <View style={[{ alignItems: 'center' }, containerStyle]}>
+        <View style={imageContainerStyle}>
           <Image
             source={book.artwork ?? unknownBookImageUri}
             style={styles.bookArtworkImage}
@@ -214,15 +208,7 @@ export const BookGridItem = memo(function BookListItem({
             </View>
           ) : (
             <Pressable
-              onPress={() =>
-                handleBookPlay(
-                  book,
-                  playing,
-                  isActiveBook,
-                  activeBookId,
-                  setActiveBookId
-                )
-              }
+              onPress={handlePressPlay}
               style={{
                 ...styles.trackPausedIcon,
                 padding: 6,
@@ -248,50 +234,16 @@ export const BookGridItem = memo(function BookListItem({
             </Pressable>
           )}
         </View>
-        <View
-          style={{
-            ...styles.bookInfoContainer,
-            width:
-              flowDirection === 'row'
-                ? book.artworkHeight
-                  ? (book.artworkWidth! / book.artworkHeight) * 150 - 10
-                  : 0
-                : ITEM_WIDTH_COLUMN,
-          }}
-        >
+        <View style={bookInfoContainerStyle}>
           <Text
             numberOfLines={numColumns === 1 ? 1 : 2}
-            style={{
-              ...styles.bookTitleText,
-              color: isActiveBook ? '#ffb406be' : colors.text,
-              fontSize:
-                flowDirection === 'row'
-                  ? fontSize.xs
-                  : numColumns === 1
-                    ? fontSize.lg
-                    : numColumns === 2
-                      ? fontSize.sm
-                      : 14,
-            }}
+            style={bookTitleStyle}
           >
             {book.bookTitle}
           </Text>
 
           {book.author && (
-            <Text
-              numberOfLines={1}
-              style={{
-                ...styles.bookAuthorText,
-                fontSize:
-                  flowDirection === 'row'
-                    ? 10
-                    : numColumns === 1
-                      ? fontSize.sm
-                      : numColumns === 2
-                        ? fontSize.xs
-                        : fontSize.xs,
-              }}
-            >
+            <Text numberOfLines={1} style={bookAuthorStyle}>
               {book.author}
             </Text>
           )}

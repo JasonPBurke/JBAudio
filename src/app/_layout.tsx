@@ -16,6 +16,7 @@ import { DatabaseProvider } from '@nozbe/watermelondb/DatabaseProvider';
 import database from '@/db';
 import { PermissionProvider } from '@/contexts/PermissionContext';
 import { ensureMediaInfo } from '@/lib/mediainfoAdapter';
+import { useSettingsStore } from '@/store/settingsStore';
 
 ensureMediaInfo(); //? load mediainfo.js once
 TrackPlayer.registerPlaybackService(() => playbackService);
@@ -31,6 +32,8 @@ const App = () => {
   const handleTrackPlayerLoaded = useCallback(() => {
     SplashScreen.hideAsync();
   }, []);
+
+  useSettingsStore();
 
   useSetupTrackPlayer({
     onLoad: handleTrackPlayerLoaded,
