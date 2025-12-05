@@ -56,18 +56,27 @@ export const populateDatabase = async (authors: AuthorType[]) => {
 
       // Process books for this author
       for (const bookData of authorData.books) {
-        // Check if book already exists for this author
-        const allAuthorBooks = await database
+        // Find books with the same title for this author
+        const booksWithSameTitle = await database
           .get<Book>('books')
-          .query(Q.where('author_id', authorRecord.id))
+          .query(
+            Q.where('author_id', authorRecord.id),
+            Q.where('title', bookData.bookTitle)
+          )
           .fetch();
 
-        let bookRecord = allAuthorBooks.find(
-          (book) =>
-            book.title.trim().toLowerCase() ===
-              bookData.bookTitle.trim().toLowerCase() &&
-            book.chapters.some((chapter) => chapter.url === bookData.bookId)
-        );
+        let bookRecord: Book | undefined;
+        for (const book of booksWithSameTitle) {
+          const chapters = await (book.chapters as any).fetch();
+          if (
+            chapters.some(
+              (chapter: Chapter) => chapter.url === bookData.bookId
+            )
+          ) {
+            bookRecord = book;
+            break;
+          }
+        }
 
         // Create or update book
         if (!bookRecord) {
