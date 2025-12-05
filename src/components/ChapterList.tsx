@@ -1,5 +1,8 @@
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
+import {
+  BottomSheetFlatList,
+  BottomSheetModal,
+} from '@gorhom/bottom-sheet';
 import { colors } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import { Book, Chapter } from '@/types/Book';
@@ -9,12 +12,23 @@ export const ChapterList = ({
   book,
   activeChapter,
   onChapterSelect,
+  bottomSheetModalRef,
 }: {
   book: Book | undefined;
   activeChapter: Chapter | undefined;
   onChapterSelect: (chapterIndex: number) => void;
+  bottomSheetModalRef: React.ForwardedRef<BottomSheetModal>;
 }) => {
-  const handleChapterChange = async (chapterIndex: number) => {
+  const handleChapterChange = async (
+    chapterIndex: number,
+    item: Chapter
+  ) => {
+    if (item.chapterTitle === activeChapter?.chapterTitle) {
+      if (bottomSheetModalRef && 'current' in bottomSheetModalRef) {
+        bottomSheetModalRef.current?.dismiss();
+      }
+      return;
+    }
     onChapterSelect(chapterIndex);
   };
 
@@ -48,7 +62,7 @@ export const ChapterList = ({
 
             return (
               <Pressable
-                onPress={() => handleChapterChange(index)}
+                onPress={() => handleChapterChange(index, item)}
                 style={{
                   ...styles.chapterItem,
                   borderBottomLeftRadius: isLastChapter ? 14 : 0,

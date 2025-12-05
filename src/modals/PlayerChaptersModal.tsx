@@ -111,6 +111,7 @@ export const PlayerChaptersModal = ({
             book={book}
             activeChapter={currentChapter}
             onChapterSelect={onChapterSelect}
+            bottomSheetModalRef={bottomSheetModalRef}
           />
         </View>
       </BottomSheetModal>
