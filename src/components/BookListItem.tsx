@@ -11,11 +11,7 @@ import { Image } from 'expo-image';
 
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
-import TrackPlayer, {
-  Track,
-  useActiveTrack,
-  useIsPlaying,
-} from 'react-native-track-player';
+import { useActiveTrack, useIsPlaying } from 'react-native-track-player';
 import { Book as BookType } from '@/types/Book';
 import Book from '@/db/models/Book';
 
@@ -23,8 +19,6 @@ import { Play, EllipsisVertical } from 'lucide-react-native';
 import LoaderKitView from 'react-native-loader-kit';
 import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
-// import database from '@/db';
-// import { getChapterProgressInDB } from '@/db/chapterQueries';
 import { handleBookPlay } from '@/helpers/handleBookPlay';
 
 export type BookListItemProps = {
@@ -40,8 +34,6 @@ export const BookListItem = memo(function BookListItem({
   const author = book.author;
   const bookTitle = book.bookTitle;
   const { setActiveBookId, activeBookId } = useQueueStore();
-
-  // const handlePressPlay = async (book: BookType | undefined) => {
   //   if (!book) return;
   //   if (isActiveBook && playing) return;
 
