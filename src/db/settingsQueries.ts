@@ -1,37 +1,37 @@
+import { of } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
 import database from '@/db';
 import Settings from '@/db/models/Settings';
+import { Q } from '@nozbe/watermelondb';
 
-export async function updateSleepTime(duration: number | null) {
+async function updateSetting(
+  updater: (record: Settings) => void
+): Promise<void> {
   await database.write(async () => {
     const settingsCollection =
       database.collections.get<Settings>('settings');
+    const settingsRecords = await settingsCollection
+      .query(Q.take(1))
+      .fetch();
+    const settingsRecord = settingsRecords[0];
 
-    const settingsRecord = await settingsCollection.query().fetch();
-
-    if (settingsRecord.length > 0) {
-      await settingsRecord[0].update((record) => {
-        record.sleepTime = duration;
-      });
+    if (settingsRecord) {
+      await settingsRecord.update(updater);
     } else {
-      console.warn('No settings record found to update sleepTime.');
+      console.warn('No settings record found to update.');
     }
   });
 }
 
+export function updateSleepTime(duration: number | null) {
+  return updateSetting((record) => {
+    record.sleepTime = duration;
+  });
+}
+
 export async function updateTimerDuration(duration: number | null) {
-  await database.write(async () => {
-    const settingsCollection =
-      database.collections.get<Settings>('settings');
-
-    const settingsRecord = await settingsCollection.query().fetch();
-
-    if (settingsRecord.length > 0) {
-      await settingsRecord[0].update((record) => {
-        record.timerDuration = duration;
-      });
-    } else {
-      console.warn('No settings record found to update timerDuration.');
-    }
+  return updateSetting((record) => {
+    record.timerDuration = duration;
   });
 }
 
@@ -39,88 +39,33 @@ export async function updateCustomTimer(
   hours: number | null,
   minutes: number | null
 ) {
-  await database.write(async () => {
-    const settingsCollection =
-      database.collections.get<Settings>('settings');
-    const settingsRecord = await settingsCollection.query().fetch();
-
-    if (settingsRecord.length > 0) {
-      await settingsRecord[0].update((record) => {
-        record.customTimer =
-          hours !== null && minutes !== null ? hours * 60 + minutes : null;
-      });
-    } else {
-      console.warn('No settings record found to update customTimer.');
-    }
+  return updateSetting((record) => {
+    record.customTimer =
+      hours !== null && minutes !== null ? hours * 60 + minutes : null;
   });
 }
 
 export async function updateChapterTimer(timerChapters: number | null) {
-  await database.write(async () => {
-    const settingsCollection =
-      database.collections.get<Settings>('settings');
-
-    const settingsRecord = await settingsCollection.query().fetch();
-
-    if (settingsRecord.length > 0) {
-      await settingsRecord[0].update((record) => {
-        record.timerChapters = timerChapters;
-      });
-    } else {
-      console.warn('No settings record found to update timerChapters.');
-    }
+  return updateSetting((record) => {
+    record.timerChapters = timerChapters;
   });
 }
 
 export async function updateTimerActive(active: boolean) {
-  await database.write(async () => {
-    const settingsCollection =
-      database.collections.get<Settings>('settings');
-    const settingsRecord = await settingsCollection.query().fetch();
-
-    if (settingsRecord.length > 0) {
-      await settingsRecord[0].update((record) => {
-        record.timerActive = active;
-      });
-    } else {
-      console.warn('No settings record found to update timerActive.');
-    }
+  return updateSetting((record) => {
+    record.timerActive = active;
   });
 }
 
 export async function updateTimerFadeoutDuration(duration: number | null) {
-  await database.write(async () => {
-    const settingsCollection =
-      database.collections.get<Settings>('settings');
-
-    const settingsRecord = await settingsCollection.query().fetch();
-
-    if (settingsRecord.length > 0) {
-      await settingsRecord[0].update((record) => {
-        record.timerFadeoutDuration = duration;
-      });
-    } else {
-      console.warn(
-        'No settings record found to update timerFadeoutDuration.'
-      );
-    }
+  return updateSetting((record) => {
+    record.timerFadeoutDuration = duration;
   });
 }
 
 export async function updateNumColumns(numColumns: number) {
-  await database.write(async () => {
-    const settingsCollection =
-      database.collections.get<Settings>('settings');
-
-    const settingsRecord = await settingsCollection.query().fetch();
-
-    if (settingsRecord.length > 0) {
-      await settingsRecord[0].update((record) => {
-        record.numColumns = numColumns;
-      });
-    } else {
-      console.warn('No settings record found to update numColumns.');
-    }
+  return updateSetting((record) => {
+    record.numColumns = numColumns;
   });
 }
 
@@ -144,6 +89,21 @@ export async function getNumColumns() {
     return settings.numColumns;
   }
   return null;
+}
+
+export function getNumColumnsObservable() {
+  return database
+    .get<Settings>('settings')
+    .query(Q.take(1))
+    .observe()
+    .pipe(
+      switchMap((settings) =>
+        settings.length > 0 ? settings[0].observe() : of(null)
+      ),
+      switchMap((settingsRecord) =>
+        of(settingsRecord ? settingsRecord.numColumns : null)
+      )
+    );
 }
 
 export async function updateLibraryPaths(paths: string[]) {
@@ -198,21 +158,8 @@ export async function getTimerSettings() {
 }
 
 export async function updateCurrentBookArtworkUri(uri: string | null) {
-  await database.write(async () => {
-    const settingsCollection =
-      database.collections.get<Settings>('settings');
-
-    const settingsRecord = await settingsCollection.query().fetch();
-
-    if (settingsRecord.length > 0) {
-      await settingsRecord[0].update((record) => {
-        record.currentBookArtworkUri = uri;
-      });
-    } else {
-      console.warn(
-        'No settings record found to update currentBookArtworkUri.'
-      );
-    }
+  return updateSetting((record) => {
+    record.currentBookArtworkUri = uri;
   });
 }
 
