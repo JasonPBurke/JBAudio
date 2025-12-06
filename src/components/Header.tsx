@@ -1,15 +1,17 @@
 import { colors } from '@/constants/tokens';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import {
-  Grip,
-  Library,
-  List,
-  Search,
-  Settings2,
-} from 'lucide-react-native';
+import { Pressable, StyleSheet, Text, View, Animated } from 'react-native';
+import { Grip, Library, List, Settings2 } from 'lucide-react-native';
 import TabScreen, { CustomTabs } from '@/components/TabScreen';
 import { useNavigation } from 'expo-router';
 import { DrawerActions } from '@react-navigation/native';
+import { useScanProgressStore } from '@/helpers/useScanProgressStore';
+import { useEffect } from 'react';
+import Reanimated, {
+  SlideInLeft,
+  SlideInRight,
+  SlideOutRight,
+  SlideOutLeft,
+} from 'react-native-reanimated';
 
 type headerProps = {
   setToggleView: React.Dispatch<React.SetStateAction<number>>;
@@ -33,6 +35,11 @@ const Header = (props: headerProps) => {
     bookCounts,
   } = props;
   const navigation = useNavigation();
+  const { isScanning, processedBooks, totalBooks, scanJustCompleted } =
+    useScanProgressStore();
+
+  const AnimatedText = Reanimated.createAnimatedComponent(Text);
+  const AnimatedView = Reanimated.createAnimatedComponent(View);
 
   const openSettingsDrawer = () => {
     // This will be updated to open the drawer
@@ -54,9 +61,36 @@ const Header = (props: headerProps) => {
             />
           </Pressable>
 
-          <Text style={{ color: colors.icon, fontSize: 20 }}>
-            <Text style={{ color: '#FFB606' }}>S</Text>onicbooks
-          </Text>
+          <View style={styles.titleWrapper}>
+            <Text style={styles.titleStaticS}>S</Text>
+            <View style={styles.titleContainer}>
+              {isScanning ? (
+                <AnimatedText
+                  key='scanning'
+                  entering={SlideInLeft.delay(400).duration(1200)}
+                  exiting={SlideOutLeft.delay(2000).duration(1200)}
+                  style={[styles.titleText, styles.scanningText]}
+                  numberOfLines={1}
+                  ellipsizeMode='tail'
+                >
+                  canning books... {processedBooks} of {totalBooks}
+                </AnimatedText>
+              ) : scanJustCompleted ? (
+                <AnimatedText
+                  key='onicbooks'
+                  entering={SlideInLeft.delay(2100).duration(1200)}
+                  exiting={SlideOutLeft.duration(1200)}
+                  style={styles.titleText}
+                >
+                  onicbooks
+                </AnimatedText>
+              ) : (
+                <Text key='onicbooks-static' style={styles.titleText}>
+                  onicbooks
+                </Text>
+              )}
+            </View>
+          </View>
         </View>
         <View style={styles.headerGroup}>
           <Pressable hitSlop={15} onPress={handleToggleView}>
@@ -118,6 +152,31 @@ const styles = StyleSheet.create({
     gap: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  titleWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  titleStaticS: {
+    color: '#FFB606',
+    fontSize: 20,
+    zIndex: 1, // Ensure 'S' is on top
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    overflow: 'hidden',
+    width: 300,
+  },
+  scanningContainer: {
+    minWidth: 200, // Set a minimum width to prevent clipping
+  },
+  titleText: {
+    color: colors.icon,
+    fontSize: 20,
+  },
+  scanningText: {
+    width: '100%',
   },
   bookStatusLinkText: {
     color: colors.text,
