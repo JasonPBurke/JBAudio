@@ -67,8 +67,8 @@ const Header = (props: headerProps) => {
               {isScanning ? (
                 <AnimatedText
                   key='scanning'
-                  entering={SlideInLeft.delay(400).duration(1200)}
-                  exiting={SlideOutLeft.delay(2000).duration(1200)}
+                  entering={SlideInLeft.delay(400).duration(1500)}
+                  exiting={SlideOutLeft.delay(2000).duration(1500)}
                   style={[styles.titleText, styles.scanningText]}
                   numberOfLines={1}
                   ellipsizeMode='tail'
@@ -78,8 +78,8 @@ const Header = (props: headerProps) => {
               ) : scanJustCompleted ? (
                 <AnimatedText
                   key='onicbooks'
-                  entering={SlideInLeft.delay(2100).duration(1200)}
-                  exiting={SlideOutLeft.duration(1200)}
+                  entering={SlideInLeft.delay(2100).duration(1500)}
+                  exiting={SlideOutLeft.duration(1500)}
                   style={styles.titleText}
                 >
                   onicbooks
