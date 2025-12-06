@@ -11,6 +11,7 @@ import { populateDatabase } from '@/hooks/usePopulateDatabase';
 import { getLibraryPaths } from '@/db/settingsQueries';
 import { analyzeFileWithMediaInfo } from './mediainfo';
 import { BookImageColors, extractImageColors } from './imageColorExtractor';
+import { useScanProgressStore } from '@/helpers/useScanProgressStore';
 
 const handleReadDirectory = async (
   path: string,
@@ -360,6 +361,9 @@ const extractArtwork = async (sortedBooks: any[]) => {
   const booksWithArtwork = await Promise.all(
     sortedBooks.map(async (authorEntry) => {
       const updatedBooks = await Promise.all(
+        // Let's use a standard for...of loop to process books sequentially
+        // and report progress accurately.
+        // authorEntry.books.map(async (book: any) => {
         authorEntry.books.map(async (book: any) => {
           if (book.chapters && book.chapters.length > 0) {
             const firstChapter = book.chapters[0];
@@ -428,6 +432,8 @@ const extractArtwork = async (sortedBooks: any[]) => {
                   lightMuted: null,
                 },
               };
+            } finally {
+              useScanProgressStore.getState().incrementProcessedBooks();
             }
           }
           return {
@@ -501,6 +507,7 @@ const removeMissingFiles = async (allFiles: string[]) => {
 
 export const scanLibrary = async () => {
   console.log('Scanning library');
+
   const libraryPaths = await getLibraryPaths();
 
   if (!libraryPaths || libraryPaths.length === 0) {
@@ -508,6 +515,7 @@ export const scanLibrary = async () => {
     return;
   }
 
+  useScanProgressStore.getState().startScan();
   let combinedNewFiles: any[] = [];
   let combinedAllFiles: string[] = [];
 
@@ -520,7 +528,20 @@ export const scanLibrary = async () => {
   }
 
   await removeMissingFiles(combinedAllFiles);
+
+  if (combinedNewFiles.length === 0) {
+    useScanProgressStore.getState().endScan();
+    console.log('No new files to process.');
+    return;
+  }
+
   const sortedLibrary = handleBookSort(combinedNewFiles);
+  const totalNewBooks = sortedLibrary.reduce(
+    (acc: number, author: any) => acc + author.books.length,
+    0
+  );
+  useScanProgressStore.getState().setTotalBooks(totalNewBooks);
   const sortedLibraryWithArtwork = await extractArtwork(sortedLibrary);
   await populateDatabase(sortedLibraryWithArtwork);
+  useScanProgressStore.getState().endScan();
 };

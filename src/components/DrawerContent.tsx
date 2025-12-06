@@ -60,8 +60,8 @@ const DrawerContent = (props: Props) => {
       <DrawerItem
         label={'Library Folder'}
         onPress={async () => {
-          await directoryPicker();
           props.navigation.closeDrawer();
+          await directoryPicker();
         }}
         icon={() => (
           <BookOpenText size={24} color={colors.text} strokeWidth={1} />

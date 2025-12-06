@@ -200,5 +200,5 @@ export const populateDatabase = async (authors: AuthorType[]) => {
     await database.batch(batchOperations);
   });
 
-  console.log('Database populated successfully');
+  // console.log('Database populated successfully');
 };
