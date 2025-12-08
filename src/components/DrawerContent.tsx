@@ -19,7 +19,6 @@ import {
 import { colors } from '@/constants/tokens';
 import { scanLibrary } from '@/helpers/scanLibrary';
 import { directoryPicker } from '@/helpers/directoryPicker';
-import { getLibraryPaths } from '@/db/settingsQueries';
 
 type Props = DrawerContentComponentProps;
 
@@ -46,7 +45,7 @@ const DrawerContent = (props: Props) => {
       </View>
       {/* Custom drawer items */}
       <DrawerItem
-        label={'Scan Library'}
+        label={'Rescan Library'}
         onPress={() => {
           scanLibrary();
           props.navigation.closeDrawer();

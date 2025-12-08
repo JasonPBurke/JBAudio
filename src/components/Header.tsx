@@ -1,15 +1,12 @@
 import { colors } from '@/constants/tokens';
-import { Pressable, StyleSheet, Text, View, Animated } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Grip, Library, List, Settings2 } from 'lucide-react-native';
 import TabScreen, { CustomTabs } from '@/components/TabScreen';
 import { useNavigation } from 'expo-router';
 import { DrawerActions } from '@react-navigation/native';
 import { useScanProgressStore } from '@/helpers/useScanProgressStore';
-import { useEffect } from 'react';
 import Reanimated, {
   SlideInLeft,
-  SlideInRight,
-  SlideOutRight,
   SlideOutLeft,
 } from 'react-native-reanimated';
 
@@ -73,7 +70,8 @@ const Header = (props: headerProps) => {
                   numberOfLines={1}
                   ellipsizeMode='tail'
                 >
-                  canning books... {processedBooks} of {totalBooks}
+                  canning books...{' '}
+                  {totalBooks !== 0 && `${processedBooks} of ${totalBooks}`}
                 </AnimatedText>
               ) : scanJustCompleted ? (
                 <AnimatedText
