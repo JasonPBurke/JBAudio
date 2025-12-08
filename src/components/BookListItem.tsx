@@ -6,80 +6,66 @@ import {
   TouchableHighlight,
   View,
 } from 'react-native';
-import { memo } from 'react';
+import React, { memo, useCallback } from 'react';
 import { Image } from 'expo-image';
 
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import { useActiveTrack, useIsPlaying } from 'react-native-track-player';
 import { Book as BookType } from '@/types/Book';
-import Book from '@/db/models/Book';
 
 import { Play, EllipsisVertical } from 'lucide-react-native';
 import LoaderKitView from 'react-native-loader-kit';
 import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
 import { handleBookPlay } from '@/helpers/handleBookPlay';
+import { useBookById, useBookDisplayData } from '@/store/library';
 
 export type BookListItemProps = {
-  book: BookType;
+  bookId: string;
 };
 
 export const BookListItem = memo(function BookListItem({
-  book,
+  bookId,
 }: BookListItemProps) {
-  const isActiveBook = useActiveTrack()?.bookId === book.bookId;
-  const { playing } = useIsPlaying();
   const router = useRouter();
-  const author = book.author;
-  const bookTitle = book.bookTitle;
+  const { playing } = useIsPlaying();
+
+  // Fetch the specific data needed for display.
+  // `useShallow` in this hook prevents re-renders if the data hasn't changed.
+  const bookData = useBookDisplayData(bookId);
+  // Fetch the full book object only when needed for actions like playback.
+  const fullBook = useBookById(bookId);
+
+  // If data isn't ready or the book was deleted, render nothing.
+  if (!bookId || !bookData || !fullBook) {
+    return null;
+  }
+
+  const { author, bookTitle, artwork } = bookData;
+
   const { setActiveBookId, activeBookId } = useQueueStore();
-  //   if (!book) return;
-  //   if (isActiveBook && playing) return;
+  const isActiveBook = useActiveTrack()?.bookId === bookId;
 
-  //   const progressInfo = await getChapterProgressInDB(book.bookId!);
-
-  //   if (!progressInfo || progressInfo.chapterIndex === -1) return;
-
-  //   const isChangingBook = book.bookId !== activeBookId;
-
-  //   if (isChangingBook) {
-  //     await TrackPlayer.reset();
-  //     const tracks: Track[] = book.chapters.map((chapter) => ({
-  //       url: chapter.url,
-  //       title: chapter.chapterTitle,
-  //       artist: chapter.author,
-  //       artwork: book.artwork ?? unknownBookImageUri,
-  //       album: book.bookTitle,
-  //       bookId: book.bookId,
-  //     }));
-
-  //     await TrackPlayer.add(tracks);
-  //     await TrackPlayer.skip(progressInfo.chapterIndex);
-  //     await TrackPlayer.seekTo(progressInfo.progress || 0);
-  //     await TrackPlayer.play();
-  //     await TrackPlayer.setVolume(1);
-
-  //     if (book.bookId) {
-  //       setActiveBookId(book.bookId);
-  //     }
-  //   } else {
-  //     await TrackPlayer.skip(progressInfo.chapterIndex);
-  //     await TrackPlayer.seekTo(progressInfo.progress || 0);
-  //     await TrackPlayer.play();
-  //     await TrackPlayer.setVolume(1);
-  //   }
-  // };
-
-  const encodedBookId = encodeURIComponent(book.bookId!);
+  const encodedBookId = encodeURIComponent(bookId);
   const encodedAuthor = encodeURIComponent(author);
   const encodedBookTitle = encodeURIComponent(bookTitle);
 
-  const handlePress = () => {
+  const handlePress = useCallback(() => {
     router.navigate(
       `/titleDetails?bookId=${encodedBookId}&author=${encodedAuthor}&bookTitle=${encodedBookTitle}`
     );
-  };
+  }, [router, encodedBookId, encodedAuthor, encodedBookTitle]);
+
+  const handlePressPlay = useCallback(() => {
+    handleBookPlay(
+      fullBook,
+      playing,
+      isActiveBook,
+      activeBookId,
+      setActiveBookId
+    );
+  }, [fullBook, playing, isActiveBook, activeBookId, setActiveBookId]);
 
   return (
     <TouchableHighlight onPress={handlePress}>
@@ -87,9 +73,7 @@ export const BookListItem = memo(function BookListItem({
         <View>
           <Image
             contentFit='contain'
-            source={{
-              uri: book.artwork ?? unknownBookImageUri,
-            }}
+            source={artwork ?? unknownBookImageUri}
             style={{
               ...styles.bookArtworkImage,
             }}
@@ -104,12 +88,12 @@ export const BookListItem = memo(function BookListItem({
                 color: isActiveBook ? '#ffb406be' : colors.text,
               }}
             >
-              {book.bookTitle}
+              {bookTitle}
             </Text>
 
-            {book.author && (
+            {author && (
               <Text numberOfLines={1} style={styles.bookAuthorText}>
-                {book.author}
+                {author}
               </Text>
             )}
           </View>
@@ -132,15 +116,7 @@ export const BookListItem = memo(function BookListItem({
               </View>
             ) : (
               <Pressable
-                onPress={() =>
-                  handleBookPlay(
-                    book,
-                    playing,
-                    isActiveBook,
-                    activeBookId,
-                    setActiveBookId
-                  )
-                }
+                onPress={handlePressPlay}
                 style={{ padding: 8 }}
                 hitSlop={10}
               >

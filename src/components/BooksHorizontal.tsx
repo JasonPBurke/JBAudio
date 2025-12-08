@@ -1,12 +1,11 @@
 import { StyleSheet, Text, View } from 'react-native';
-import React, { memo } from 'react';
+import React, { memo, useCallback, useMemo } from 'react';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
-import { Author, Book } from '@/types/Book';
+import { Author } from '@/types/Book';
 import { BookGridItem } from './BookGridItem';
 import { utilsStyles } from '@/styles';
-import { useProcessedBooks } from '@/hooks/useProcessedBooks';
 
-export type BookHorizontalProps = Partial<FlashListProps<Book>> & {
+export type BookHorizontalProps = Partial<FlashListProps<string>> & {
   authors: Author[];
   flowDirection: 'row' | 'column';
 };
@@ -15,19 +14,30 @@ const BooksHorizontal = ({
   authors,
   flowDirection,
 }: BookHorizontalProps) => {
-  const allBooks = useProcessedBooks(authors);
+  // This is the core change. We now create a stable list of book IDs.
+  // useMemo ensures this list is only recalculated when the `authors` array changes.
+  const bookIds = useMemo(() => {
+    return authors
+      .flatMap((author) => author.books.map((book) => book.bookId))
+      .filter((bookId): bookId is string => !!bookId); // Filter out null/undefined and assert type
+  }, [authors]);
+
+  const renderBookItem = useCallback(
+    ({ item: bookId }: { item: string }) => (
+      <BookGridItem bookId={bookId} flowDirection={flowDirection} />
+    ),
+    [flowDirection]
+  );
 
   return (
     <View style={styles.listContainer}>
-      <FlashList<Book>
+      <FlashList
         contentContainerStyle={{
           paddingBottom: 6,
         }}
-        data={allBooks}
-        renderItem={({ item: book }) => (
-          <BookGridItem book={book} flowDirection={flowDirection} />
-        )}
-        keyExtractor={(item) => item.bookId!}
+        data={bookIds}
+        renderItem={renderBookItem}
+        keyExtractor={(item) => item}
         horizontal={true}
         showsHorizontalScrollIndicator={false}
         ListEmptyComponent={
