@@ -3,12 +3,11 @@ import { useCallback, memo, useMemo } from 'react';
 import { View, Text, Dimensions } from 'react-native';
 
 import { utilsStyles } from '@/styles';
-import { Author, Book } from '@/types/Book';
+import { Author } from '@/types/Book';
 import { BookGridItem } from './BookGridItem';
-import { useProcessedBooks } from '@/hooks/useProcessedBooks';
 import { useSettingsStore } from '@/store/settingsStore';
 
-export type BookGridProps = Partial<FlashListProps<Book>> & {
+export type BookGridProps = Partial<FlashListProps<string>> & {
   authors: Author[];
   standAlone?: boolean;
   flowDirection: 'row' | 'column';
@@ -20,7 +19,6 @@ const BooksGrid = ({
   flowDirection,
 }: BookGridProps) => {
   const numColumns = useSettingsStore((state) => state.numColumns);
-  const allBooks = useProcessedBooks(authors);
 
   const { width: screenWidth } = Dimensions.get('window');
   const ITEM_MARGIN_HORIZONTAL = 10;
@@ -31,10 +29,18 @@ const BooksGrid = ({
     [screenWidth, numColumns]
   );
 
+  // This is the core change. We now create a stable list of book IDs.
+  // useMemo ensures this list is only recalculated when the `authors` array changes.
+  const bookIds = useMemo(() => {
+    return authors
+      .flatMap((author) => author.books.map((book) => book.bookId))
+      .filter((bookId): bookId is string => !!bookId); // Filter out null/undefined and assert type
+  }, [authors]);
+
   const renderBookItem = useCallback(
-    ({ item: book }: { item: Book }) => (
+    ({ item: bookId }: { item: string }) => (
       <BookGridItem
-        book={book}
+        bookId={bookId}
         flowDirection={flowDirection}
         numColumns={numColumns}
         itemWidth={itemWidth}
@@ -44,12 +50,12 @@ const BooksGrid = ({
   );
 
   return (
-    <FlashList<Book>
-      data={allBooks}
+    <FlashList
+      data={bookIds}
       renderItem={renderBookItem}
       masonry
       numColumns={numColumns}
-      keyExtractor={(item) => item.bookId!}
+      keyExtractor={(item) => item}
       showsVerticalScrollIndicator={false}
       ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
       ListFooterComponent={

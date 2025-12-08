@@ -1,32 +1,42 @@
 import { Text, View } from 'react-native';
 import { BookListItem } from './BookListItem';
 import { utilsStyles } from '@/styles';
-import { Book, Author } from '@/types/Book';
+import { Author } from '@/types/Book';
 import { screenPadding } from '@/constants/tokens';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
-import { memo } from 'react';
-import { useProcessedBooks } from '@/hooks/useProcessedBooks';
+import { memo, useCallback, useMemo } from 'react';
 
-export type BookListProps = Partial<FlashListProps<Book>> & {
+export type BookListProps = Partial<FlashListProps<string>> & {
   authors: Author[];
 };
 
 const BooksList = ({ authors }: BookListProps) => {
-  const allBooks = useProcessedBooks(authors);
+  const bookIds = useMemo(() => {
+    return authors
+      .flatMap((author) => author.books.map((book) => book.bookId))
+      .filter((bookId): bookId is string => !!bookId); // Filter out null/undefined and assert type
+  }, [authors]);
+
+  const renderBookItem = useCallback(
+    ({ item: bookId }: { item: string }) => (
+      <BookListItem bookId={bookId} />
+    ),
+    []
+  );
 
   return (
     //? need to put a loader if allBooks.length === 0
     <View style={{ flex: 1, paddingHorizontal: screenPadding.horizontal }}>
-      {allBooks.length > 0 && (
+      {bookIds.length > 0 && (
         <View style={{ flex: 1 }}>
-          <FlashList<Book>
-            data={allBooks}
-            renderItem={({ item: book }) => <BookListItem book={book} />}
-            keyExtractor={(item) => item.bookId!}
+          <FlashList
+            data={bookIds}
+            renderItem={renderBookItem}
+            keyExtractor={(item) => item}
             showsVerticalScrollIndicator={false}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingTop: 12, paddingBottom: 82 }}
-            ListFooterComponent={allBooks.length > 0 ? ItemDivider : null}
+            ListFooterComponent={bookIds.length > 0 ? ItemDivider : null}
             ItemSeparatorComponent={ItemDivider}
             ListEmptyComponent={
               <View>

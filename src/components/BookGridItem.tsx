@@ -1,46 +1,50 @@
 import { unknownBookImageUri } from '@/constants/images';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { memo, useCallback, useMemo } from 'react';
+import React, { memo, useCallback, useMemo } from 'react';
 import { Image } from 'expo-image';
 
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import LoaderKitView from 'react-native-loader-kit';
-import TrackPlayer, {
-  Track,
-  useActiveTrack,
-  useIsPlaying,
-} from 'react-native-track-player';
-
-import { Book as BookType } from '@/types/Book';
-import Book from '@/db/models/Book';
+import { useActiveTrack, useIsPlaying } from 'react-native-track-player';
 import { Play } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
 import { handleBookPlay } from '@/helpers/handleBookPlay';
+import { useBookById, useBookDisplayData } from '@/store/library';
+import type { Book } from '@/types/Book';
 
-export type BookListItemProps = {
-  book: BookType;
+export type BookGridItemProps = {
+  bookId: string;
   flowDirection: 'row' | 'column';
   numColumns?: number;
   itemWidth?: number;
 };
 
-export const BookGridItem = memo(function BookListItem({
-  book,
+// This is the memoized component. It only re-renders if its props change,
+// or if the data from the `useBookDisplayData` hook changes (checked by `shallow`).
+export const BookGridItem = memo(function BookGridItem({
+  bookId,
   flowDirection,
   numColumns = 2,
   itemWidth = 0,
-}: BookListItemProps) {
+}: BookGridItemProps) {
   const router = useRouter();
   const { playing } = useIsPlaying();
 
-  const { setActiveBookId, activeBookId } = useQueueStore();
-  const isActiveBook = useActiveTrack()?.bookId === book.bookId;
+  const bookData = useBookDisplayData(bookId);
+  const fullBook = useBookById(bookId);
 
-  const encodedBookId = encodeURIComponent(book.bookId!);
-  const encodedAuthor = encodeURIComponent(book.author);
-  const encodedBookTitle = encodeURIComponent(book.bookTitle);
+  if (!bookId || !bookData || !fullBook) return null;
+
+  const { author, bookTitle, artwork, artworkHeight, artworkWidth } =
+    bookData;
+
+  const { setActiveBookId, activeBookId } = useQueueStore();
+  const isActiveBook = useActiveTrack()?.bookId === bookId;
+  const encodedBookId = encodeURIComponent(bookId);
+  const encodedAuthor = encodeURIComponent(author);
+  const encodedBookTitle = encodeURIComponent(bookTitle);
 
   const handlePress = useCallback(() => {
     router.navigate(
@@ -49,62 +53,59 @@ export const BookGridItem = memo(function BookListItem({
   }, [router, encodedBookId, encodedAuthor, encodedBookTitle]);
 
   const handlePressPlay = useCallback(() => {
+    if (!fullBook) return;
     handleBookPlay(
-      book,
+      fullBook,
       playing,
       isActiveBook,
       activeBookId,
       setActiveBookId
     );
-  }, [book, playing, isActiveBook, activeBookId, setActiveBookId]);
+  }, [fullBook, playing, isActiveBook, activeBookId, setActiveBookId]);
 
   // Memoize style objects to avoid recalculating on every render
   const containerStyle = useMemo(() => {
     if (flowDirection === 'row') {
       return {
         height: 205,
-        width: book.artworkHeight
-          ? (book.artworkWidth! / book.artworkHeight) * 160
-          : 0,
+        width: artworkHeight ? (artworkWidth! / artworkHeight) * 160 : 0,
       };
     }
     return {
       width: itemWidth,
-      height: book.artworkWidth
-        ? (book.artworkHeight! / book.artworkWidth) * itemWidth + 75
+      height: artworkWidth
+        ? (artworkHeight! / artworkWidth) * itemWidth + 75
         : 0,
     };
-  }, [flowDirection, itemWidth, book.artworkWidth, book.artworkHeight]);
+  }, [flowDirection, itemWidth, artworkWidth, artworkHeight]);
 
   const imageContainerStyle = useMemo(() => {
     if (flowDirection === 'row') {
       return {
         height: 140,
-        width: book.artworkHeight
-          ? (book.artworkWidth! / book.artworkHeight) * 140
-          : 0,
+        width: artworkHeight ? (artworkWidth! / artworkHeight) * 140 : 0,
       };
     }
     return {
       paddingTop: 10,
       width: itemWidth + 2,
-      height: book.artworkWidth
-        ? (book.artworkHeight! / book.artworkWidth) * itemWidth + 12
+      height: artworkWidth
+        ? (artworkHeight! / artworkWidth) * itemWidth + 12
         : 0,
     };
-  }, [flowDirection, itemWidth, book.artworkWidth, book.artworkHeight]);
+  }, [flowDirection, itemWidth, artworkWidth, artworkHeight]);
 
   const bookInfoContainerStyle = useMemo(
     () => ({
       ...styles.bookInfoContainer,
       width:
         flowDirection === 'row'
-          ? book.artworkHeight
-            ? (book.artworkWidth! / book.artworkHeight) * 150 - 10
+          ? artworkHeight
+            ? (artworkWidth! / artworkHeight) * 150 - 10
             : 0
           : itemWidth,
     }),
-    [flowDirection, itemWidth, book.artworkWidth, book.artworkHeight]
+    [flowDirection, itemWidth, artworkWidth, artworkHeight]
   );
 
   const bookTitleStyle = useMemo(
@@ -155,7 +156,7 @@ export const BookGridItem = memo(function BookListItem({
       <View style={[{ alignItems: 'center' }, containerStyle]}>
         <View style={imageContainerStyle}>
           <Image
-            source={book.artwork ?? unknownBookImageUri}
+            source={artwork ?? unknownBookImageUri}
             style={styles.bookArtworkImage}
             contentFit='contain'
           />
@@ -239,12 +240,12 @@ export const BookGridItem = memo(function BookListItem({
             numberOfLines={numColumns === 1 ? 1 : 2}
             style={bookTitleStyle}
           >
-            {book.bookTitle}
+            {bookTitle}
           </Text>
 
-          {book.author && (
+          {author && (
             <Text numberOfLines={1} style={bookAuthorStyle}>
-              {book.author}
+              {author}
             </Text>
           )}
         </View>
