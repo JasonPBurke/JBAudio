@@ -83,6 +83,14 @@ const RootNavigation = () => {
             animation: 'slide_from_bottom',
           }}
         />
+        <Stack.Screen
+          name='editTitleDetails'
+          options={{
+            sheetCornerRadius: 15,
+            presentation: 'transparentModal',
+            animation: 'fade',
+          }}
+        />
       </Stack>
     </BottomSheetModalProvider>
   );

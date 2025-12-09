@@ -1,4 +1,10 @@
-import { Text, View, StyleSheet, Pressable } from 'react-native';
+import {
+  Text,
+  View,
+  StyleSheet,
+  Pressable,
+  TouchableOpacity,
+} from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useBook } from '@/store/library';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -8,28 +14,24 @@ import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Play } from 'lucide-react-native';
-import TrackPlayer, {
-  Track,
-  useActiveTrack,
-  useIsPlaying,
-} from 'react-native-track-player';
+import { useActiveTrack, useIsPlaying } from 'react-native-track-player';
 import { useQueueStore } from '@/store/queue';
-import {
-  formatDate,
-  formatSecondsToMinutes,
-} from '@/helpers/miscellaneous';
-import ModalComponent from '@/modals/ModalComponent';
+import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
+import TruncatedParagraph from '@/components/TruncatedParagraph';
+import { ChapterList } from '@/components/ChapterList';
 import { useMemo, useState } from 'react';
-import { Book as BookType } from '@/types/Book';
 import { handleBookPlay } from '@/helpers/handleBookPlay';
-// import database from '@/db';
-// import Book from '@/db/models/Book';
 import { ShadowedView, shadowStyle } from 'react-native-fast-shadow';
 import { ScrollView } from 'react-native-gesture-handler';
-import { getChapterProgressInDB } from '@/db/chapterQueries';
+import {
+  Clock8,
+  Calendar,
+  List,
+  Book,
+  BookOpen,
+} from 'lucide-react-native';
 
 const TitleDetails = () => {
-  const [showModal, setShowModal] = useState(false);
   const { setActiveBookId, activeBookId } = useQueueStore();
   const { bookId, author, bookTitle } = useLocalSearchParams<{
     author: string;
@@ -46,44 +48,6 @@ const TitleDetails = () => {
 
   const imgHeight = book?.artworkHeight;
   const imgWidth = book?.artworkWidth;
-
-  // const handlePressPlay = async (book: BookType | undefined) => {
-  //   if (!book) return;
-  //   if (isActiveBook && playing) return;
-
-  //   const progressInfo = await getChapterProgressInDB(book.bookId!);
-
-  //   if (!progressInfo || progressInfo.chapterIndex === -1) return;
-
-  //   const isChangingBook = book.bookId !== activeBookId;
-
-  //   if (isChangingBook) {
-  //     await TrackPlayer.reset();
-  //     const tracks: Track[] = book.chapters.map((chapter) => ({
-  //       url: chapter.url,
-  //       title: chapter.chapterTitle,
-  //       artist: chapter.author,
-  //       artwork: book.artwork ?? unknownBookImageUri,
-  //       album: book.bookTitle,
-  //       bookId: book.bookId,
-  //     }));
-
-  //     await TrackPlayer.add(tracks);
-  //     await TrackPlayer.skip(progressInfo.chapterIndex);
-  //     await TrackPlayer.seekTo(progressInfo.progress || 0);
-  //     await TrackPlayer.play();
-  //     await TrackPlayer.setVolume(1);
-
-  //     if (book.bookId) {
-  //       setActiveBookId(book.bookId);
-  //     }
-  //   } else {
-  //     await TrackPlayer.skip(progressInfo.chapterIndex);
-  //     await TrackPlayer.seekTo(progressInfo.progress || 0);
-  //     await TrackPlayer.play();
-  //     await TrackPlayer.setVolume(1);
-  //   }
-  // };
 
   const gradientColors = useMemo(
     () =>
@@ -103,7 +67,14 @@ const TitleDetails = () => {
     [book?.artworkColors]
   );
 
-  // console.log('book', JSON.stringify(book, null, 2));
+  let genres: string[] = [];
+  if (book?.metadata.genre) {
+    genres = book?.metadata.genre
+      .split(/[,/]\s*/)
+      .map((item) => item.trim());
+  }
+
+  console.log('genres', genres);
 
   return (
     <LinearGradient
@@ -115,33 +86,6 @@ const TitleDetails = () => {
       colors={gradientColors}
     >
       <View style={styles.bookContainer}>
-        {(!isActiveBook || !playing) && (
-          <Animated.View
-            entering={FadeIn}
-            exiting={FadeOut}
-            style={styles.trackPlayingImageIcon}
-          >
-            <Pressable
-              onPress={() =>
-                handleBookPlay(
-                  book,
-                  playing,
-                  isActiveBook,
-                  activeBookId,
-                  setActiveBookId
-                )
-              }
-            >
-              <Play
-                size={44}
-                color={colors.primary}
-                strokeWidth={1.5}
-                absoluteStrokeWidth
-              />
-            </Pressable>
-          </Animated.View>
-        )}
-
         <Pressable
           hitSlop={10}
           style={styles.dismissIndicator}
@@ -177,8 +121,8 @@ const TitleDetails = () => {
           showsVerticalScrollIndicator={false}
         >
           <Pressable
-            onLongPress={() => setShowModal(true)}
-            style={styles.bookInfoContainer}
+            onLongPress={() => router.push('./editTitleDetails')}
+            style={[styles.bookInfoContainer, { paddingHorizontal: 0 }]}
           >
             <Text style={styles.bookTitleText}>{bookTitle}</Text>
 
@@ -234,68 +178,125 @@ const TitleDetails = () => {
               </View>
             </View>
             <View style={styles.inlineInfoContainer}>
-              <Text style={{ color: colors.text }}>Added on:</Text>
-              <Text style={styles.bookInfoText}>
-                {formatDate(book?.metadata.ctime)}
-              </Text>
+              {genres.map((genre, index) => (
+                <Text
+                  key={index}
+                  style={[
+                    styles.genreText,
+                    {
+                      backgroundColor:
+                        book?.artworkColors.darkVibrant ||
+                        colors.modalBackground,
+                      flexDirection: 'row', //* should allow for wrapping
+                    },
+                  ]}
+                >
+                  {genre}
+                </Text>
+              ))}
             </View>
-            <View style={styles.inlineInfoContainer}>
-              <Text style={{ color: colors.text }}>genre:</Text>
-              <Text style={styles.bookInfoText}>
-                {book?.metadata.genre}
-              </Text>
+
+            <View style={styles.infoCardContainer}>
+              <View style={styles.infoCard}>
+                <Clock8 size={24} color={colors.text} strokeWidth={1.5} />
+
+                <Text style={[styles.bookInfoText, { marginTop: 12 }]}>
+                  {formatSecondsToMinutes(book?.bookDuration || 0)}
+                </Text>
+                <Text style={styles.listInfoText}>Duration</Text>
+              </View>
+              <View
+                style={{
+                  ...styles.divider,
+                  backgroundColor:
+                    book?.artworkColors.muted || colors.textMuted,
+                }}
+              />
+              <View style={styles.infoCard}>
+                <Calendar size={24} color={colors.text} strokeWidth={1.5} />
+                <Text style={[styles.bookInfoText, { marginTop: 12 }]}>
+                  {book?.metadata.year}
+                </Text>
+                <Text style={styles.listInfoText}>Released</Text>
+              </View>
+              <View
+                style={{
+                  ...styles.divider,
+                  backgroundColor:
+                    book?.artworkColors.muted || colors.textMuted,
+                }}
+              />
+              <View style={styles.infoCard}>
+                <List size={24} color={colors.text} strokeWidth={1.5} />
+                <Text style={[styles.bookInfoText, { marginTop: 12 }]}>
+                  {book?.metadata.totalTrackCount! > 1
+                    ? book?.metadata.totalTrackCount
+                    : book?.chapters.length}
+                </Text>
+                <Text style={styles.listInfoText}>Chapters</Text>
+              </View>
             </View>
+
+            <ShadowedView
+              style={shadowStyle({
+                opacity: 0.4,
+                radius: 8,
+                offset: [0, 0],
+                color: colors.textMuted,
+              })}
+            >
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() =>
+                  handleBookPlay(
+                    book,
+                    playing,
+                    isActiveBook,
+                    activeBookId,
+                    setActiveBookId
+                  )
+                }
+              >
+                <Animated.View
+                  entering={FadeIn}
+                  exiting={FadeOut}
+                  style={styles.playButton}
+                >
+                  {/* <PlayPauseButton iconSize={30} /> */}
+                  <Play
+                    size={34}
+                    color={colors.text}
+                    strokeWidth={1.5}
+                    absoluteStrokeWidth
+                  />
+                  <Text
+                    style={{ color: colors.text, fontSize: fontSize.base }}
+                  >
+                    Start Book
+                  </Text>
+                </Animated.View>
+              </TouchableOpacity>
+            </ShadowedView>
             <View style={styles.inlineInfoContainer}>
-              <Text style={{ color: colors.text }}>Total Chapters:</Text>
-              <Text style={styles.bookInfoText}>
-                {/* //! hacky way to do this...better when adding to db */}
-                {book?.metadata.totalTrackCount! > 1
-                  ? book?.metadata.totalTrackCount
-                  : book?.chapters.length}
-                {/* {book?.metadata.totalTrackCount || book?.chapters.length} */}
-              </Text>
+              <TruncatedParagraph
+                content={book?.metadata.description}
+                maxLines={4}
+              />
             </View>
+            <View
+              style={{
+                width: '100%',
+                flexDirection: 'row',
+                borderColor: 'white',
+                borderWidth: StyleSheet.hairlineWidth,
+              }}
+            />
             <View style={styles.inlineInfoContainer}>
-              <Text style={{ color: colors.text }}>Duration: </Text>
-              <Text style={styles.bookInfoText}>
-                {formatSecondsToMinutes(book?.bookDuration || 0)}
-              </Text>
-            </View>
-            <View style={styles.inlineInfoContainer}>
-              <Text style={{ color: colors.text }}>Release year:</Text>
-              <Text style={styles.bookInfoText}>
-                {book?.metadata.year !== 0 ? book?.metadata.year : ''}
-              </Text>
-            </View>
-            <View style={styles.inlineInfoContainer}>
-              {/* <Text style={{ color: colors.text }}>Description: </Text> */}
-              <Text style={styles.bookInfoText}>
-                {book?.metadata.description}
-              </Text>
-            </View>
-            <View style={styles.inlineInfoContainer}>
-              {/* <Text style={{ color: colors.text }}>Copyright: </Text> */}
               <Text style={styles.bookInfoText}>
                 {book?.metadata.copyright}
               </Text>
             </View>
           </Pressable>
-          <ModalComponent
-            isVisible={showModal}
-            onBackdropPress={() => setShowModal(false)}
-            onBackButtonPress={() => setShowModal(false)}
-            hideModal={() => setShowModal(false)}
-            swipeDirection='up'
-            onSwipeComplete={() => setShowModal(false)}
-            animationIn='slideInUp'
-            animationOut='slideOutDown'
-            style={{
-              ...styles.metadataModal,
-              backgroundColor: '#1C1C1C',
-            }}
-          >
-            <Text>build out edit metadata screen here</Text>
-          </ModalComponent>
         </ScrollView>
       </View>
     </LinearGradient>
@@ -322,7 +323,6 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: 20,
     paddingVertical: 12,
-    paddingBottom: 80,
   },
   bookArtworkContainer: {
     height: FIXED_ARTWORK_HEIGHT,
@@ -340,6 +340,20 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 10,
   },
+  infoCardContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 22,
+    borderRadius: 8,
+    backgroundColor: colors.modalBackground,
+  },
+  infoCard: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   bookTitleText: {
     ...defaultStyles.text,
     fontSize: 21,
@@ -351,6 +365,18 @@ const styles = StyleSheet.create({
     ...defaultStyles.text,
     fontSize: fontSize.sm,
   },
+  listInfoText: {
+    fontSize: 14,
+    color: '#d8dee9ac',
+  },
+  genreText: {
+    color: colors.textMuted,
+    fontSize: fontSize.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 5,
+    backgroundColor: colors.modalBackground,
+  },
   trackPlayingImageIcon: {
     position: 'absolute',
     bottom: 0,
@@ -359,6 +385,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#1c1c1c7f',
     borderRadius: 50,
     zIndex: 10,
+  },
+  playButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    padding: 8,
+    backgroundColor: colors.modalBackground,
+    borderRadius: 8,
+    width: '100%',
+    alignSelf: 'center',
   },
   divider: {
     width: 1,
@@ -380,7 +417,6 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   dismissIndicator: {
-    marginBottom: 18,
     width: 55,
     height: 7,
     backgroundColor: '#1c1c1ca9',
