@@ -70,11 +70,9 @@ const TitleDetails = () => {
   let genres: string[] = [];
   if (book?.metadata.genre) {
     genres = book?.metadata.genre
-      .split(/[,/]\s*/)
+      .split(/[,/&-]\s*/)
       .map((item) => item.trim());
   }
-
-  console.log('genres', genres);
 
   return (
     <LinearGradient
@@ -121,7 +119,9 @@ const TitleDetails = () => {
           showsVerticalScrollIndicator={false}
         >
           <Pressable
-            onLongPress={() => router.push('./editTitleDetails')}
+            onLongPress={() =>
+              router.push(`./editTitleDetails?bookId=${bookId}`)
+            }
             style={[styles.bookInfoContainer, { paddingHorizontal: 0 }]}
           >
             <Text style={styles.bookTitleText}>{bookTitle}</Text>
@@ -227,7 +227,7 @@ const TitleDetails = () => {
                 }}
               />
               <View style={styles.infoCard}>
-                <List size={24} color={colors.text} strokeWidth={1.5} />
+                <Book size={24} color={colors.text} strokeWidth={1.5} />
                 <Text style={[styles.bookInfoText, { marginTop: 12 }]}>
                   {book?.metadata.totalTrackCount! > 1
                     ? book?.metadata.totalTrackCount
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 5,
+    borderRadius: 8,
     backgroundColor: colors.modalBackground,
   },
   trackPlayingImageIcon: {
