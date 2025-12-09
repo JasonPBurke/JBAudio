@@ -182,13 +182,13 @@ const LibraryScreen = ({ navigation }: any) => {
           >
             <TextInput
               style={styles.searchInput}
-              placeholder='Search Library...'
+              placeholder='Search books, authors...'
               value={searchQuery}
               onChangeText={setSearchQuery}
               cursorColor={colors.primary}
               selectionColor={colors.primary}
             />
-            {searchQuery.length > 0 && ( // Conditionally render the clear button
+            {searchQuery.length > 0 && (
               <TouchableOpacity
                 onPress={() => setSearchQuery('')}
                 style={styles.clearButton}
