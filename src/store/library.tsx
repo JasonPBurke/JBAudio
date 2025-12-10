@@ -8,6 +8,7 @@ import { Subscription } from 'rxjs';
 import AuthorModel from '@/db/models/Author';
 import BookModel from '@/db/models/Book';
 import ChapterModel from '@/db/models/Chapter';
+import { Q } from '@nozbe/watermelondb';
 
 /**
  * Using a mapped type for books allows for O(1) lookup time, which is much more
@@ -78,109 +79,133 @@ export const useLibraryStore: UseBoundStore<StoreApi<LibraryState>> =
 
       const booksSubscription = booksCollection
         .query()
-        .observeWithColumns(['book_progress_value'])
-        .subscribe(async (bookModels) => {
+        .observeWithColumns([
+          'book_progress_value',
+          'title',
+          'narrator',
+          'genre',
+          'year',
+          'description',
+          'copyright',
+        ])
+        .subscribe(async (changedRecords) => {
           console.log(
-            `Zustand observer fired with ${bookModels.length} books.`
+            `Zustand observer fired with ${changedRecords.length} changed records.`
           );
-          const newBookMap: BookMap = {};
-          const authorsMap = new Map<
-            string,
-            { authorModel: AuthorModel; books: BookModel[] }
-          >();
-          try {
-            for (const bookModel of bookModels) {
-              const authorModel = await (bookModel.author as any).fetch();
-              if (!authorModel) continue;
+          const { books: currentBooks } = get();
 
-              if (!authorsMap.has(authorModel.id)) {
-                authorsMap.set(authorModel.id, {
-                  authorModel,
-                  books: [],
-                });
-              }
-              authorsMap.get(authorModel.id)!.books.push(bookModel);
-            }
+          // Create a mutable copy of the current books map
+          const newBookMap = { ...currentBooks };
+          let authorsNeedRebuild = false;
 
-            const finalAuthorsData: Author[] = await Promise.all(
-              Array.from(authorsMap.values()).map(
-                async ({ authorModel, books: groupedBooks }) => {
-                  const booksData: Book[] = await Promise.all(
-                    groupedBooks.map(async (bookModel) => {
-                      const chapterModels = await (
-                        bookModel.chapters as any
-                      ).fetch();
-                      const chaptersData: Chapter[] = chapterModels.map(
-                        (chapterModel: ChapterModel) => ({
-                          author: authorModel.name,
-                          bookTitle: bookModel.title,
-                          chapterTitle: chapterModel.title,
-                          chapterNumber: chapterModel.chapterNumber,
-                          chapterDuration: chapterModel.chapterDuration,
-                          startMs: chapterModel.startMs,
-                          url: chapterModel.url,
-                        })
-                      );
+          // Helper function to convert a BookModel to a Book object
+          const convertBookModelToBook = async (
+            bookModel: BookModel
+          ): Promise<Book> => {
+            // Use .fetch() which is the correct WatermelonDB API
+            const authorModel = await (bookModel.author as any).fetch();
+            const chapterModels = await (bookModel.chapters as any).fetch();
 
-                      const bookData: Book = {
-                        bookId: bookModel.id,
-                        author: authorModel.name,
-                        bookTitle: bookModel.title,
-                        chapters: chaptersData,
-                        artwork: bookModel.artwork,
-                        artworkHeight: bookModel.artworkHeight,
-                        artworkWidth: bookModel.artworkWidth,
-                        artworkColors: {
-                          average: bookModel.coverColorAverage,
-                          dominant: bookModel.coverColorDominant,
-                          vibrant: bookModel.coverColorVibrant,
-                          darkVibrant: bookModel.coverColorDarkVibrant,
-                          lightVibrant: bookModel.coverColorLightVibrant,
-                          muted: bookModel.coverColorMuted,
-                          darkMuted: bookModel.coverColorDarkMuted,
-                          lightMuted: bookModel.coverColorLightMuted,
-                        },
-                        bookDuration: bookModel.bookDuration,
-                        bookProgress: {
-                          currentChapterIndex:
-                            bookModel.currentChapterIndex,
-                          currentChapterProgress:
-                            bookModel.currentChapterProgress,
-                        },
-                        bookProgressValue: bookModel.bookProgressValue,
-                        metadata: {
-                          year: bookModel.year,
-                          description: bookModel.description,
-                          narrator: bookModel.narrator,
-                          genre: bookModel.genre,
-                          sampleRate: bookModel.sampleRate,
-                          bitrate: bookModel.bitrate,
-                          codec: bookModel.codec,
-                          copyright: bookModel.copyright,
-                          totalTrackCount: bookModel.totalTrackCount,
-                          ctime: bookModel.createdAt,
-                          mtime: bookModel.updatedAt,
-                        },
-                      };
-                      newBookMap[bookModel.id] = bookData;
-                      return bookData;
-                    })
-                  );
-
-                  return {
-                    name: authorModel.name,
-                    books: booksData,
-                  };
-                }
-              )
+            const chaptersData: Chapter[] = chapterModels.map(
+              (chapter: ChapterModel) => ({
+                author: authorModel?.name ?? 'Unknown Author',
+                bookTitle: bookModel.title,
+                chapterTitle: chapter.title,
+                chapterNumber: chapter.chapterNumber,
+                chapterDuration: chapter.chapterDuration,
+                startMs: chapter.startMs,
+                url: chapter.url,
+              })
             );
 
-            finalAuthorsData.sort((a, b) => a.name.localeCompare(b.name));
+            const bookData: Book = {
+              bookId: bookModel.id,
+              author: authorModel?.name ?? 'Unknown Author',
+              bookTitle: bookModel.title,
+              chapters: chaptersData,
+              artwork: bookModel.artwork,
+              artworkHeight: bookModel.artworkHeight,
+              artworkWidth: bookModel.artworkWidth,
+              artworkColors: {
+                average: bookModel.coverColorAverage,
+                dominant: bookModel.coverColorDominant,
+                vibrant: bookModel.coverColorVibrant,
+                darkVibrant: bookModel.coverColorDarkVibrant,
+                lightVibrant: bookModel.coverColorLightVibrant,
+                muted: bookModel.coverColorMuted,
+                darkMuted: bookModel.coverColorDarkMuted,
+                lightMuted: bookModel.coverColorLightMuted,
+              },
+              bookDuration: bookModel.bookDuration,
+              bookProgress: {
+                currentChapterIndex: bookModel.currentChapterIndex,
+                currentChapterProgress: bookModel.currentChapterProgress,
+              },
+              bookProgressValue: bookModel.bookProgressValue,
+              metadata: {
+                year: bookModel.year?.toString(),
+                description: bookModel.description,
+                narrator: bookModel.narrator,
+                genre: bookModel.genre,
+                sampleRate: bookModel.sampleRate,
+                bitrate: bookModel.bitrate,
+                codec: bookModel.codec,
+                copyright: bookModel.copyright,
+                totalTrackCount: bookModel.totalTrackCount,
+                ctime: bookModel.createdAt,
+                mtime: bookModel.updatedAt,
+              },
+            };
+            return bookData;
+          };
 
-            set({ authors: finalAuthorsData, books: newBookMap });
-          } catch (error) {
-            console.error('Error during authorsData mapping:', error);
+          // Process each changed record
+          for (const bookModel of changedRecords) {
+            const existingBook = newBookMap[bookModel.id];
+
+            // If the book was deleted, remove it from our map
+            if (bookModel._raw._status === 'deleted') {
+              delete newBookMap[bookModel.id];
+              authorsNeedRebuild = true;
+              continue;
+            }
+
+            // If the book is new or its author changed, we need to rebuild the authors list
+            if (
+              !existingBook ||
+              existingBook.author !== bookModel.author.id
+            ) {
+              authorsNeedRebuild = true;
+            }
+
+            // Convert the updated WatermelonDB model to our Zustand state shape
+            const newBookData = await convertBookModelToBook(bookModel);
+            newBookMap[bookModel.id] = newBookData;
           }
+
+          // Re-group books by author and create the final authors array.
+          // This is more efficient than the previous full rebuild.
+          const authorsMap = new Map<string, Book[]>();
+          for (const book of Object.values(newBookMap)) {
+            if (!authorsMap.has(book.author)) {
+              authorsMap.set(book.author, []);
+            }
+            authorsMap.get(book.author)!.push(book);
+          }
+
+          const finalAuthorsData: Author[] = Array.from(
+            authorsMap.entries()
+          )
+            .map(([name, books]) => ({
+              name,
+              books,
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+          set({
+            authors: finalAuthorsData,
+            books: newBookMap,
+          });
         });
 
       subscriptions.push(booksSubscription);

@@ -30,7 +30,7 @@ export type Book = {
   };
   bookProgressValue: number;
   metadata: {
-    year: number | null;
+    year: string | undefined;
     description: string | null;
     narrator: string | null;
     genre: string | null;

@@ -1,48 +1,191 @@
-import { StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  KeyboardAvoidingView,
+  TouchableOpacity,
+} from 'react-native';
 import { BlurView } from 'expo-blur';
 import { colors } from '@/constants/tokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { Image } from 'expo-image';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useBookById } from '@/store/library';
 import { unknownBookImageUri } from '@/constants/images';
+import { useEffect, useState } from 'react';
+import { BookEditableFields } from '@/types/Book';
+import { updateBookDetails } from '@/db/bookQueries';
 
 const editTitleDetails = () => {
   const { top } = useSafeAreaInsets();
   const { bookId } = useLocalSearchParams<{
     bookId: string;
   }>();
-
   const book = useBookById(bookId);
-  console.log(book);
+  console.log(book.metadata.narrator);
+
+  const [formState, setFormState] = useState<BookEditableFields>({
+    bookTitle: '',
+    author: '',
+    narrator: '',
+    genre: '',
+    year: '',
+    description: '',
+    copyright: '',
+  });
+
+  useEffect(() => {
+    if (book) {
+      setFormState({
+        bookTitle: book.bookTitle,
+        author: book.author, // Author is not editable in this implementation
+        narrator: book.metadata.narrator ?? '',
+        genre: book.metadata.genre ?? '',
+        year: book.metadata.year ?? '',
+        description: book.metadata.description ?? '',
+        copyright: book.metadata.copyright ?? '',
+      });
+    }
+  }, [book]);
+
+  const handleInputChange = (
+    field: keyof BookEditableFields,
+    value: string
+  ) => {
+    setFormState((prevState) => ({ ...prevState, [field]: value }));
+  };
+
+  const handleSave = async () => {
+    await updateBookDetails(bookId, formState);
+    router.back();
+  };
+
+  if (!book) {
+    return (
+      <BlurView style={styles.container}>
+        <Text style={styles.header}>Book not found</Text>
+      </BlurView>
+    );
+  }
 
   return (
-    <BlurView
-      experimentalBlurMethod='dimezisBlurView'
-      intensity={30}
-      style={[styles.container, { paddingTop: top }]}
+    <KeyboardAvoidingView
+      behavior='padding' // or 'height'
+      style={{ flex: 1 }}
     >
-      <Animated.Text
-        entering={FadeInUp.duration(400).delay(100)}
-        style={styles.header}
-      >
-        Edit {book?.bookTitle} Details
-      </Animated.Text>
-      <Animated.Image
-        // sharedTransitionTag='image'
-        source={{
-          uri: book?.artwork ?? unknownBookImageUri,
-        }}
-        style={styles.image}
-      />
-      <Animated.View
-        entering={FadeInDown.duration(400).delay(400)}
-        style={styles.card}
-      >
-        <Text>edit info container</Text>
-      </Animated.View>
-    </BlurView>
+      <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+        <BlurView
+          experimentalBlurMethod='dimezisBlurView'
+          intensity={30}
+          style={[styles.container, { paddingTop: top }]}
+        >
+          <Animated.Text
+            entering={FadeInUp.duration(400).delay(100)}
+            style={styles.header}
+          >
+            {/* Edit {book?.bookTitle} Details */}
+            Edit Book Details
+          </Animated.Text>
+          <Image
+            // sharedTransitionTag='image'
+            source={{
+              uri: book?.artwork ?? unknownBookImageUri,
+            }}
+            style={styles.image}
+          />
+          <Animated.View
+            entering={FadeInDown.duration(600).delay(400)}
+            style={styles.card}
+          >
+            <Text style={styles.fieldTitle}>Title</Text>
+            <TextInput
+              style={styles.searchInput}
+              value={formState.bookTitle}
+              onChangeText={(text) => handleInputChange('bookTitle', text)}
+              cursorColor={colors.primary}
+              selectionColor={colors.primary}
+            ></TextInput>
+            <Text style={styles.fieldTitle}>Author</Text>
+            <TextInput
+              style={styles.searchInput}
+              value={formState.author}
+              editable={false} // Author editing is complex due to the data model
+              cursorColor={colors.primary}
+              selectionColor={colors.primary}
+            ></TextInput>
+            <Text style={styles.fieldTitle}>Narrator</Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder={'Narrator'}
+              value={formState.narrator ?? ''}
+              onChangeText={(text) => handleInputChange('narrator', text)}
+              cursorColor={colors.primary}
+              selectionColor={colors.primary}
+            ></TextInput>
+            <Text style={styles.fieldTitle}>Genre Tags</Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder={'Genre Tags (comma separated)'}
+              value={formState.genre ?? ''}
+              onChangeText={(text) => handleInputChange('genre', text)}
+              cursorColor={colors.primary}
+              selectionColor={colors.primary}
+            ></TextInput>
+            <Text style={styles.fieldTitle}>Release Year</Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder={'Release Year'}
+              value={formState.year ?? ''}
+              onChangeText={(text) => handleInputChange('year', text)}
+              cursorColor={colors.primary}
+              selectionColor={colors.primary}
+              keyboardType='numeric'
+            ></TextInput>
+            <Text style={styles.fieldTitle}>Description</Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder={'Description'}
+              value={formState.description ?? ''}
+              onChangeText={(text) =>
+                handleInputChange('description', text)
+              }
+              cursorColor={colors.primary}
+              selectionColor={colors.primary}
+              multiline
+              numberOfLines={4}
+              textAlignVertical='top'
+            ></TextInput>
+            <Text style={styles.fieldTitle}>Copyright</Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder={'Copyright'}
+              value={formState.copyright ?? ''}
+              onChangeText={(text) => handleInputChange('copyright', text)}
+              cursorColor={colors.primary}
+              selectionColor={colors.primary}
+            ></TextInput>
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={[styles.button, styles.cancelButton]}
+                onPress={() => router.back()}
+              >
+                <Text style={styles.buttonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.saveButton]}
+                onPress={handleSave}
+              >
+                <Text style={styles.buttonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </BlurView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -51,19 +194,18 @@ export default editTitleDetails;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    // backgroundColor: colors.modalBackground,
     alignItems: 'center',
-    paddingTop: 20,
-    // justifyContent: 'center',
+    paddingTop: 25,
   },
   header: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: colors.text,
+    color: colors.textMuted,
+    paddingBottom: 10,
   },
   image: {
     width: '100%',
-    height: 300,
+    height: 345,
     resizeMode: 'contain',
   },
   text: {
@@ -72,10 +214,48 @@ const styles = StyleSheet.create({
   },
   card: {
     width: 375,
-    height: 400, //'auto'
-    backgroundColor: '#fff',
+    height: 'auto',
+    backgroundColor: colors.modalBackground,
     borderRadius: 10,
     padding: 20,
     margin: 20,
+  },
+  fieldTitle: {
+    marginStart: 4,
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.textMuted,
+  },
+  searchInput: {
+    width: '100%',
+    backgroundColor: '#303030',
+    borderRadius: 8,
+    padding: 14,
+    marginVertical: 10,
+    color: colors.textMuted,
+    fontSize: 16,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 20,
+  },
+  button: {
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveButton: {
+    backgroundColor: colors.primary,
+  },
+  cancelButton: {
+    backgroundColor: '#4A4A4A',
+  },
+  buttonText: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

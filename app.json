@@ -13,6 +13,7 @@
       "bundleIdentifier": "com.fuzzylogic42.JBAudio"
     },
     "android": {
+      "softwareKeyboardLayoutMode": "pan",
       "permissions": [
         "android.permission.READ_MEDIA_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
