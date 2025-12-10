@@ -10,6 +10,7 @@ import {
 import { Associations } from '@nozbe/watermelondb/Model';
 import Author from './Author';
 import Chapter from './Chapter';
+import { BookEditableFields } from '@/types/Book';
 
 export default class Book extends Model {
   static table = 'books';
@@ -66,6 +67,18 @@ export default class Book extends Model {
   @writer async updateBookProgress(progress: number) {
     await this.update((book) => {
       book.bookProgressValue = progress;
+    });
+  }
+
+  @writer async updateDetails(details: Partial<BookEditableFields>) {
+    await this.update((b) => {
+      b.title = details.bookTitle ?? b.title;
+      // Note: Author changes would need to be handled separately due to the relation
+      b.narrator = details.narrator ?? b.narrator;
+      b.genre = details.genre ?? b.genre;
+      b.year = details.year ? parseInt(details.year, 10) : b.year;
+      b.description = details.description ?? b.description;
+      b.copyright = details.copyright ?? b.copyright;
     });
   }
 }

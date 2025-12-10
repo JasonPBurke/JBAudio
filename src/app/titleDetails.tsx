@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { useBook } from '@/store/library';
+import { useBook, useBookById } from '@/store/library';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
 import { unknownBookImageUri } from '@/constants/images';
@@ -39,7 +39,8 @@ const TitleDetails = () => {
     bookTitle: string;
   }>();
 
-  const book = useBook(author, bookTitle);
+  // const book = useBook(author, bookTitle);
+  const book = useBookById(bookId);
 
   const { playing } = useIsPlaying();
   const isActiveBook =
@@ -70,7 +71,7 @@ const TitleDetails = () => {
   let genres: string[] = [];
   if (book?.metadata.genre) {
     genres = book?.metadata.genre
-      .split(/[,/&-]\s*/)
+      .split(/[,/&]\s*/)
       .map((item) => item.trim());
   }
 
