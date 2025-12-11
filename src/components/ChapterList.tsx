@@ -36,7 +36,7 @@ export const ChapterList = ({
     <View
       style={{
         flex: 1,
-        // padding: 20,
+        paddingHorizontal: 4,
         paddingTop: 12,
         paddingBottom: 12,
       }}
@@ -65,6 +65,9 @@ export const ChapterList = ({
                 onPress={() => handleChapterChange(index, item)}
                 style={{
                   ...styles.chapterItem,
+                  backgroundColor: isActive
+                    ? '#3b3b3b' //'#252e52'
+                    : '#1d2233',
                   borderBottomLeftRadius: isLastChapter ? 14 : 0,
                   borderBottomRightRadius: isLastChapter ? 14 : 0,
                   borderTopLeftRadius: isFirstChapter ? 14 : 0,
@@ -80,7 +83,12 @@ export const ChapterList = ({
                   {item.chapterTitle}
                 </Text>
                 {/* // item.duration */}
-                <Text style={styles.chapterDuration}>
+                <Text
+                  style={[
+                    styles.chapterDuration,
+                    { color: isActive ? colors.primary : colors.textMuted },
+                  ]}
+                >
                   {formatSecondsToMinutes(item.chapterDuration)}
                 </Text>
               </Pressable>

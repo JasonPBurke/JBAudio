@@ -30,8 +30,10 @@ import {
   Book,
   BookOpen,
 } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const TitleDetails = () => {
+  const { top, bottom } = useSafeAreaInsets();
   const { setActiveBookId, activeBookId } = useQueueStore();
   const { bookId, author, bookTitle } = useLocalSearchParams<{
     author: string;
@@ -39,7 +41,6 @@ const TitleDetails = () => {
     bookTitle: string;
   }>();
 
-  // const book = useBook(author, bookTitle);
   const book = useBookById(bookId);
 
   const { playing } = useIsPlaying();
@@ -72,7 +73,7 @@ const TitleDetails = () => {
   if (book?.metadata.genre) {
     genres = book?.metadata.genre
       .split(/[,/&]\s*/)
-      .map((item) => item.trim());
+      .map((item: string) => item.trim());
   }
 
   return (
@@ -123,7 +124,7 @@ const TitleDetails = () => {
             onLongPress={() =>
               router.push(`./editTitleDetails?bookId=${bookId}`)
             }
-            style={[styles.bookInfoContainer, { paddingHorizontal: 0 }]}
+            style={[styles.bookInfoContainer]}
           >
             <Text style={styles.bookTitleText}>{bookTitle}</Text>
 
@@ -178,7 +179,9 @@ const TitleDetails = () => {
                 </Text>
               </View>
             </View>
-            <View style={styles.inlineInfoContainer}>
+            <View
+              style={[styles.inlineInfoContainer, { flexWrap: 'wrap' }]}
+            >
               {genres.map((genre, index) => (
                 <Text
                   key={index}
@@ -188,7 +191,6 @@ const TitleDetails = () => {
                       backgroundColor:
                         book?.artworkColors.darkVibrant ||
                         colors.modalBackground,
-                      flexDirection: 'row', //* should allow for wrapping
                     },
                   ]}
                 >
@@ -248,6 +250,8 @@ const TitleDetails = () => {
             >
               <TouchableOpacity
                 activeOpacity={0.9}
+                //! only need to handle playing if the books is not active
+                //! otherwise, should be just TrackPlayer.play() and TrackPlayer.pause()
                 onPress={() =>
                   handleBookPlay(
                     book,
@@ -263,7 +267,6 @@ const TitleDetails = () => {
                   exiting={FadeOut}
                   style={styles.playButton}
                 >
-                  {/* <PlayPauseButton iconSize={30} /> */}
                   <Play
                     size={34}
                     color={colors.text}
@@ -292,8 +295,20 @@ const TitleDetails = () => {
                 borderWidth: StyleSheet.hairlineWidth,
               }}
             />
-            <View style={styles.inlineInfoContainer}>
-              <Text style={styles.bookInfoText}>
+            <View
+              style={[
+                styles.inlineInfoContainer,
+                { justifyContent: 'flex-start' },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.bookInfoText,
+                  {
+                    paddingBottom: bottom + 8,
+                  },
+                ]}
+              >
                 {book?.metadata.copyright}
               </Text>
             </View>
@@ -314,7 +329,8 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     justifyContent: 'flex-start',
     alignItems: 'center',
-    marginVertical: 50,
+    paddingHorizontal: 16,
+    marginTop: 50,
     width: '100%',
     gap: 12,
   },
@@ -322,8 +338,8 @@ const styles = StyleSheet.create({
     gap: 20,
     flex: 1,
     width: '100%',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingHorizontal: 6,
   },
   bookArtworkContainer: {
     height: FIXED_ARTWORK_HEIGHT,
