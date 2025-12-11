@@ -1,5 +1,4 @@
 import {
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,6 +10,7 @@ import {
 import { BlurView } from 'expo-blur';
 import { colors } from '@/constants/tokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBehavior } from '@/hooks/useBehavior';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -22,11 +22,11 @@ import { updateBookDetails } from '@/db/bookQueries';
 
 const editTitleDetails = () => {
   const { top, bottom } = useSafeAreaInsets();
+  const behavior = useBehavior();
   const { bookId } = useLocalSearchParams<{
     bookId: string;
   }>();
   const book = useBookById(bookId);
-  console.log(book.metadata.narrator);
 
   const [formState, setFormState] = useState<BookEditableFields>({
     bookTitle: '',
@@ -73,10 +73,7 @@ const editTitleDetails = () => {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior='padding' // or 'height'
-      style={{ flex: 1 }}
-    >
+    <KeyboardAvoidingView behavior={behavior} style={{ flex: 1 }}>
       <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
         <BlurView
           experimentalBlurMethod='dimezisBlurView'

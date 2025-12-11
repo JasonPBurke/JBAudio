@@ -133,16 +133,13 @@ export default Header;
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 4,
     gap: 16,
     backgroundColor: colors.background,
-    // borderBlockEndColor: colors.primary,
-    // borderBottomWidth: StyleSheet.hairlineWidth,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingTop: 12,
+    paddingTop: 6,
     paddingHorizontal: 16,
   },
   headerGroup: {

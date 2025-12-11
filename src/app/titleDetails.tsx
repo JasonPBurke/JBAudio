@@ -5,8 +5,7 @@ import {
   Pressable,
   TouchableOpacity,
 } from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { useBook, useBookById } from '@/store/library';
+import { useBookById } from '@/store/library';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
 import { unknownBookImageUri } from '@/constants/images';
@@ -21,7 +20,7 @@ import TrackPlayer, {
 import { useQueueStore } from '@/store/queue';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import TruncatedParagraph from '@/components/TruncatedParagraph';
-import { ChapterList } from '@/components/ChapterList';
+// import { ChapterList } from '@/components/ChapterList';
 import { useMemo, useState } from 'react';
 import {
   handleBookPlay,
@@ -29,13 +28,7 @@ import {
 } from '@/helpers/handleBookPlay';
 import { ShadowedView, shadowStyle } from 'react-native-fast-shadow';
 import { ScrollView } from 'react-native-gesture-handler';
-import {
-  Clock8,
-  Calendar,
-  List,
-  Book,
-  BookOpen,
-} from 'lucide-react-native';
+import { Clock8, Calendar, Book } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const TitleDetails = () => {
