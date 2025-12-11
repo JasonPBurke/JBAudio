@@ -82,7 +82,7 @@ export const PlayerChaptersModal = ({
 
       <BottomSheetModal
         enablePanDownToClose={true}
-        backgroundStyle={{ backgroundColor: '#151520' }} //#12121d
+        backgroundStyle={{ backgroundColor: '#151520ea' }} //#12121d
         handleComponent={() => {
           return (
             <Pressable

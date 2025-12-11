@@ -1,24 +1,33 @@
 import { Model } from '@nozbe/watermelondb';
-import { field, json, text } from '@nozbe/watermelondb/decorators';
-
-const sanitizeLibraryPaths = (rawPaths: any): string[] => {
-  return Array.isArray(rawPaths) ? rawPaths.map(String) : [];
-};
+import { field, text } from '@nozbe/watermelondb/decorators';
 
 export default class Settings extends Model {
   static table = 'settings';
 
   @text('book_folder') bookFolder!: string;
   @field('num_columns') numColumns!: number;
-  @field('skip_back_duration') skipBackDuration!: number | null;
-  @field('skip_forward_duration') skipForwardDuration!: number | null;
-  @field('timer_active') timerActive!: boolean;
   @field('timer_duration') timerDuration!: number | null;
   @field('sleep_time') sleepTime!: number | null;
-  @field('custom_timer') customTimer!: number | null;
   @field('timer_fadeout_duration') timerFadeoutDuration!: number | null;
+  @field('custom_timer') customTimer!: number | null;
   @field('timer_chapters') timerChapters!: number | null;
-  @field('last_active_book') lastActiveBook!: string | null;
-  @field('current_book_artwork_uri') currentBookArtworkUri!: string | null;
-  @json('library_paths', sanitizeLibraryPaths) libraryPaths!: string[];
+  @text('last_active_book') lastActiveBook!: string;
+  @text('current_book_artwork_uri') currentBookArtworkUri!: string | null;
+  @field('timer_active') timerActive!: boolean;
+  @text('library_paths') libraryPaths!: string | null;
+  @field('skip_back_duration') skipBackDuration!: number | null;
+  @field('skip_forward_duration') skipForwardDuration!: number | null;
+
+  // Getter to automatically parse the libraryPaths JSON string
+  get parsedLibraryPaths(): string[] {
+    if (!this.libraryPaths) {
+      return [];
+    }
+    try {
+      return JSON.parse(this.libraryPaths);
+    } catch (e) {
+      console.error('Failed to parse library paths:', e);
+      return [];
+    }
+  }
 }

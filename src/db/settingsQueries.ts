@@ -3,6 +3,7 @@ import { switchMap } from 'rxjs/operators';
 import database from '@/db';
 import Settings from '@/db/models/Settings';
 import { Q } from '@nozbe/watermelondb';
+import Book from '@/db/models/Book';
 
 async function updateSetting(
   updater: (record: Settings) => void
@@ -136,12 +137,14 @@ export async function updateLibraryPaths(paths: string[]) {
 
     if (settingsRecords.length > 0) {
       await settingsRecords[0].update((record) => {
-        record.libraryPaths = paths;
+        record.libraryPaths =
+          paths.length > 0 ? JSON.stringify(paths) : null;
       });
     } else {
       // If no settings record exists, create one.
       await settingsCollection.create((setting) => {
-        setting.libraryPaths = paths;
+        setting.libraryPaths =
+          paths.length > 0 ? JSON.stringify(paths) : null;
         // Set defaults for other non-nullable fields
         setting.bookFolder = ''; // Not used, but non-nullable
         setting.numColumns = 2;
@@ -157,7 +160,10 @@ export async function getLibraryPaths() {
 
   if (settingsRecord.length > 0) {
     const settings = settingsRecord[0];
-    return settings.libraryPaths;
+    if (settings.libraryPaths) {
+      return JSON.parse(settings.libraryPaths);
+    }
+    return [];
   }
   return null;
 }
@@ -199,3 +205,56 @@ export async function getCurrentBookArtworkUri() {
   }
   return null;
 }
+
+export const getLibraryFolders = async (): Promise<string[]> => {
+  const settingsCollection = database.collections.get<Settings>('settings');
+  const settingsRecords = await settingsCollection.query(Q.take(1)).fetch();
+  if (settingsRecords.length > 0) {
+    const settings = settingsRecords[0];
+    return settings.parsedLibraryPaths;
+  }
+  return [];
+};
+
+export const removeLibraryFolder = async (folderPath: string) => {
+  await database.write(async (writer) => {
+    const settingsCollection =
+      database.collections.get<Settings>('settings');
+    const settingsRecords = await settingsCollection
+      .query(Q.take(1))
+      .fetch();
+    if (!settingsRecords.length) return;
+
+    const settings = settingsRecords[0];
+
+    // 1. Remove the folder path from settings
+    const currentFolders = settings.parsedLibraryPaths;
+    const updatedFolders = currentFolders.filter(
+      (path: string) => path !== folderPath
+    );
+    await settings.update((s) => {
+      s.libraryPaths = JSON.stringify(updatedFolders);
+    });
+
+    // 2. Find all books that are inside the removed folder path
+    const booksCollection = database.collections.get<Book>('books');
+    const allBooks = await booksCollection.query().fetch();
+
+    const booksToDelete = [];
+    for (const book of allBooks) {
+      const chapters = await (book.chapters as any).fetch();
+      if (chapters.length > 0 && chapters[0].url.startsWith(folderPath)) {
+        booksToDelete.push(book);
+      }
+    }
+
+    // 3. Prepare and execute batch deletion
+    const deletions: any[] = [];
+    for (const book of booksToDelete) {
+      // This will also delete related chapters due to cascading behavior in the schema
+      deletions.push(book.prepareDestroyPermanently());
+    }
+
+    await writer.batch(...deletions);
+  });
+};

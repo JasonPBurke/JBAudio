@@ -1,15 +1,15 @@
 import {
-  Button,
-  Modal,
+  Alert,
   Pressable,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { useState, useCallback, useEffect } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { Picker } from '@react-native-picker/picker';
-import { Info, ArrowLeft } from 'lucide-react-native';
+import { Info, ArrowLeft, Trash2 } from 'lucide-react-native';
 
 import { colors, screenPadding } from '@/constants/tokens';
 import SegmentedControl from '@react-native-segmented-control/segmented-control';
@@ -20,12 +20,15 @@ import {
   updateTimerFadeoutDuration,
   getTimerFadeoutDuration,
   getTimerSettings,
+  getLibraryFolders,
+  removeLibraryFolder,
 } from '@/db/settingsQueries';
 
 const SettingsScreen = ({ navigation }: any) => {
   const { numColumns, setNumColumns } = useSettingsStore();
   const [fadeoutDuration, setFadeoutDuration] = useState('10');
   const [maxFadeMinutes, setMaxFadeMinutes] = useState<number>(30);
+  const [libraryFolders, setLibraryFolders] = useState<string[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const router = useRouter();
   //! calculate length based off currentTimer (max of 30) or 30 as default
@@ -40,6 +43,11 @@ const SettingsScreen = ({ navigation }: any) => {
       let isActive = true;
 
       const fetchSettingsState = async () => {
+        // Fetch library folders
+        const folders = await getLibraryFolders();
+        if (isActive) {
+          setLibraryFolders(folders);
+        }
         try {
           // Get current fadeout value (ms or null)
           const DbFadeoutValue = await getTimerFadeoutDuration();
@@ -87,6 +95,25 @@ const SettingsScreen = ({ navigation }: any) => {
     }, [])
   );
 
+  const handleRemoveFolder = (folderPath: string) => {
+    Alert.alert(
+      'Remove Library',
+      `Are you sure you want to remove this folder and all of its books from your library?\n\n${folderPath}`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            await removeLibraryFolder(folderPath);
+          },
+        },
+      ]
+    );
+  };
   return (
     <View style={styles.container}>
       <View>
@@ -171,6 +198,23 @@ const SettingsScreen = ({ navigation }: any) => {
       <View>
         <Text style={styles.sectionHeaderStyle}>UI</Text>
       </View>
+      <View>
+        <Text style={styles.sectionHeaderStyle}>Library Folders</Text>
+        {libraryFolders.map((folder, index) => (
+          <View key={index} style={styles.rowStyle}>
+            <Text style={[styles.content, { flex: 1 }]} numberOfLines={2}>
+              {folder}
+            </Text>
+            <TouchableOpacity
+              onPress={() => handleRemoveFolder(folder)}
+              style={styles.removeButton}
+            >
+              <Trash2 size={20} color={colors.danger} />
+              <Text style={styles.removeButtonText}>Remove</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+      </View>
     </View>
   );
 };
@@ -208,5 +252,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textMuted,
     marginVertical: 10,
+  },
+  removeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+  },
+  removeButtonText: {
+    color: colors.danger,
+    fontWeight: '600',
   },
 });

@@ -21,7 +21,7 @@ import { BookEditableFields } from '@/types/Book';
 import { updateBookDetails } from '@/db/bookQueries';
 
 const editTitleDetails = () => {
-  const { top } = useSafeAreaInsets();
+  const { top, bottom } = useSafeAreaInsets();
   const { bookId } = useLocalSearchParams<{
     bookId: string;
   }>();
@@ -81,7 +81,11 @@ const editTitleDetails = () => {
         <BlurView
           experimentalBlurMethod='dimezisBlurView'
           intensity={30}
-          style={[styles.container, { paddingTop: top }]}
+          tint='dark'
+          style={[
+            styles.container,
+            { paddingTop: top, paddingBottom: bottom },
+          ]}
         >
           <Animated.Text
             entering={FadeInUp.duration(400).delay(100)}
@@ -113,7 +117,7 @@ const editTitleDetails = () => {
             <TextInput
               style={styles.searchInput}
               value={formState.author}
-              editable={false} // Author editing is complex due to the data model
+              editable={false} //! Author editing is complex due to the data model
               cursorColor={colors.primary}
               selectionColor={colors.primary}
             ></TextInput>
@@ -156,7 +160,6 @@ const editTitleDetails = () => {
               cursorColor={colors.primary}
               selectionColor={colors.primary}
               multiline
-              numberOfLines={4}
               textAlignVertical='top'
             ></TextInput>
             <Text style={styles.fieldTitle}>Copyright</Text>
@@ -248,7 +251,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   saveButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.background,
+    borderColor: colors.primary,
+    borderWidth: 1,
   },
   cancelButton: {
     backgroundColor: '#4A4A4A',
