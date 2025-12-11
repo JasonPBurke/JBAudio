@@ -1,6 +1,7 @@
 import {
   LayoutChangeEvent,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -82,7 +83,13 @@ const TabButtons = ({
   });
 
   return (
-    <View accessibilityRole='tablist' style={styles.container}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ flexGrow: 1 }}
+      accessibilityRole='tablist'
+      style={styles.container}
+    >
       <Animated.View
         style={[
           animatedStyle,
@@ -91,12 +98,17 @@ const TabButtons = ({
             backgroundColor: '#ffb606cc',
             borderRadius: 4,
             height: tabbarHeight - 10,
+            top: 5,
           },
         ]}
       />
       <View
         onLayout={onTabbarLayout}
-        style={{ flexDirection: 'row', justifyContent: 'space-around' }}
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-around',
+          minWidth: '100%',
+        }}
       >
         {buttons.map((button, index) => {
           const color = selectedTab === index ? colors.text : '#d8dee98f';
@@ -115,7 +127,7 @@ const TabButtons = ({
           );
         })}
       </View>
-    </View>
+    </ScrollView>
   );
 };
 
@@ -125,7 +137,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.background,
     borderRadius: 4,
-    justifyContent: 'center',
+    // justifyContent: 'center',
     marginHorizontal: 4,
   },
   buttonContainer: {
