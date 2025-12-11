@@ -13,14 +13,20 @@ import { unknownBookImageUri } from '@/constants/images';
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Play } from 'lucide-react-native';
-import { useActiveTrack, useIsPlaying } from 'react-native-track-player';
+import { Play, Pause } from 'lucide-react-native';
+import TrackPlayer, {
+  useActiveTrack,
+  useIsPlaying,
+} from 'react-native-track-player';
 import { useQueueStore } from '@/store/queue';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import TruncatedParagraph from '@/components/TruncatedParagraph';
 import { ChapterList } from '@/components/ChapterList';
 import { useMemo, useState } from 'react';
-import { handleBookPlay } from '@/helpers/handleBookPlay';
+import {
+  handleBookPlay,
+  BookProgressState,
+} from '@/helpers/handleBookPlay';
 import { ShadowedView, shadowStyle } from 'react-native-fast-shadow';
 import { ScrollView } from 'react-native-gesture-handler';
 import {
@@ -42,11 +48,16 @@ const TitleDetails = () => {
   }>();
 
   const book = useBookById(bookId);
+  const [isLoading, setIsLoading] = useState(false);
 
   const { playing } = useIsPlaying();
   const isActiveBook =
     useActiveTrack()?.url ===
     book?.chapters[book.bookProgress.currentChapterIndex].url;
+
+  const isBookStarted =
+    book?.bookProgressValue !== BookProgressState.NotStarted;
+  const isPlayingBook = isActiveBook && playing;
 
   const imgHeight = book?.artworkHeight;
   const imgWidth = book?.artworkWidth;
@@ -250,35 +261,58 @@ const TitleDetails = () => {
             >
               <TouchableOpacity
                 activeOpacity={0.9}
-                //! only need to handle playing if the books is not active
-                //! otherwise, should be just TrackPlayer.play() and TrackPlayer.pause()
-                onPress={() =>
-                  handleBookPlay(
-                    book,
-                    playing,
-                    isActiveBook,
-                    activeBookId,
-                    setActiveBookId
-                  )
-                }
+                disabled={isLoading}
+                onPress={async () => {
+                  if (isPlayingBook) {
+                    await TrackPlayer.pause();
+                  } else {
+                    setIsLoading(true);
+                    try {
+                      await handleBookPlay(
+                        book,
+                        playing,
+                        isActiveBook,
+                        activeBookId,
+                        setActiveBookId
+                      );
+                    } finally {
+                      setIsLoading(false);
+                    }
+                  }
+                }}
               >
-                <Animated.View
-                  entering={FadeIn}
-                  exiting={FadeOut}
+                <View
+                  // entering={FadeIn}
+                  // exiting={FadeOut}
                   style={styles.playButton}
                 >
-                  <Play
-                    size={34}
-                    color={colors.text}
-                    strokeWidth={1.5}
-                    absoluteStrokeWidth
-                  />
+                  {isPlayingBook ? (
+                    <Pause
+                      size={34}
+                      color={colors.text}
+                      strokeWidth={1.5}
+                      absoluteStrokeWidth
+                    />
+                  ) : (
+                    <Play
+                      size={34}
+                      color={colors.text}
+                      strokeWidth={1.5}
+                      absoluteStrokeWidth
+                    />
+                  )}
                   <Text
                     style={{ color: colors.text, fontSize: fontSize.base }}
                   >
-                    Start Book
+                    {isPlayingBook
+                      ? 'Playing'
+                      : isLoading
+                        ? 'Loading'
+                        : isBookStarted
+                          ? 'Continue Listening'
+                          : 'Start Listening'}
                   </Text>
-                </Animated.View>
+                </View>
               </TouchableOpacity>
             </ShadowedView>
             <View style={styles.inlineInfoContainer}>
@@ -305,7 +339,7 @@ const TitleDetails = () => {
                 style={[
                   styles.bookInfoText,
                   {
-                    paddingBottom: bottom + 8,
+                    paddingBottom: bottom + 24,
                   },
                 ]}
               >
