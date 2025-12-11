@@ -252,7 +252,7 @@ export const removeLibraryFolder = async (folderPath: string) => {
     const deletions: any[] = [];
     for (const book of booksToDelete) {
       // This will also delete related chapters due to cascading behavior in the schema
-      deletions.push(book.prepareDestroyPermanently());
+      deletions.push(book.prepareDestroyPermanently()); //! destroyPermanently
     }
 
     await writer.batch(...deletions);
