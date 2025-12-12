@@ -119,6 +119,17 @@ const extractMetadata = async (filePath: string) => {
       .split('/')
       .pop();
 
+    // const extractChapterTitle = (filePath: string) => {
+    //   const match = filePath.match(/[^/]+(?=\.[^/.]*$)/);
+    //   if (match && match[0]) {
+    //     return match[0];
+    //   }
+    // };
+
+    // const chapterTitleBackup = extractChapterTitle(filePath);
+    // console.log('chapterTitleBackup', chapterTitleBackup);
+    // console.log('chapter.title', chapter.title);
+
     // If no embedded chapters, check for a .cue file
     if (chapters.length === 0) {
       const cueFilePath =
@@ -173,13 +184,15 @@ const extractMetadata = async (filePath: string) => {
       const chapterDuration = metadata.durationMs
         ? metadata.durationMs / 1000
         : 0;
+
+      console.log('metadata.title', metadata.title);
       return [
         {
           author: metadata.author || 'Unknown Author',
           narrator: metadata.narrator || 'Unknown Voice Artist',
           bookTitle: metadata.album || bookTitleBackup,
           chapterTitle:
-            metadata.title || filePath.split('/').pop()?.split('.')[0],
+            filePath.split('/').pop()?.split('.')[0] || metadata.title,
           chapterNumber: metadata.trackPosition || 1,
           year: Number(metadata.releaseDate),
           description: metadata.description,
