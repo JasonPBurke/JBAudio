@@ -79,7 +79,6 @@ const RootNavigation = () => {
           options={{
             sheetCornerRadius: 15,
             presentation: 'formSheet',
-            // sheetAllowedDetents: [0.9, 1],
             animation: 'slide_from_bottom',
           }}
         />
@@ -89,6 +88,7 @@ const RootNavigation = () => {
             sheetCornerRadius: 15,
             presentation: 'transparentModal',
             animation: 'fade',
+            contentStyle: { backgroundColor: '#2c2c2cdc' },
           }}
         />
       </Stack>
