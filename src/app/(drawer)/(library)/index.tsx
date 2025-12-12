@@ -35,7 +35,6 @@ const LibraryScreen = ({ navigation }: any) => {
   const [selectedTab, setSelectedTab] = useState<CustomTabs>(
     CustomTabs.All
   );
-  const scrollViewRef = useRef<Animated.ScrollView>(null);
 
   const [activeGridSection, setActiveGridSection] = useState<string | null>(
     'recentlyAdded' // null for horizontal on load
@@ -157,6 +156,29 @@ const LibraryScreen = ({ navigation }: any) => {
     };
   });
 
+  const SearchComponent = (
+    <Animated.View
+      style={[styles.searchContainer, searchContainerStyle]}
+    >
+      <TextInput
+        style={styles.searchInput}
+        placeholder='Search books, authors...'
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        cursorColor={colors.primary}
+        selectionColor={colors.primary}
+      />
+      {searchQuery.length > 0 && (
+        <TouchableOpacity
+          onPress={() => setSearchQuery('')}
+          style={styles.clearButton}
+        >
+          <X size={21} color={colors.text} strokeWidth={1} />
+        </TouchableOpacity>
+      )}
+    </Animated.View>
+  );
+
   return (
     <View style={defaultStyles.container}>
       <SafeAreaView style={{ flex: 1 }}>
@@ -169,57 +191,29 @@ const LibraryScreen = ({ navigation }: any) => {
           bookCounts={bookCounts}
         />
 
-        <Animated.ScrollView
-          ref={scrollViewRef}
-          onScroll={scrollHandler}
-          scrollEventThrottle={16}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingTop: 0 }}
-        >
-          {/* Search Bar */}
-          <Animated.View
-            style={[styles.searchContainer, searchContainerStyle]}
-          >
-            <TextInput
-              style={styles.searchInput}
-              placeholder='Search books, authors...'
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              cursorColor={colors.primary}
-              selectionColor={colors.primary}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity
-                onPress={() => setSearchQuery('')}
-                style={styles.clearButton}
-              >
-                <X size={21} color={colors.text} strokeWidth={1} />
-              </TouchableOpacity>
-            )}
-          </Animated.View>
-          {toggleView === 0 && (
-            <BooksHome
-              authors={filteredLibrary}
-              // scrollEnabled={false}
-              setActiveGridSection={setActiveGridSection}
-              activeGridSection={activeGridSection}
-            />
-          )}
-          {toggleView === 1 && (
-            <BooksList
-              authors={filteredLibrary}
-              //  scrollEnabled={false}
-            />
-          )}
-          {toggleView === 2 && (
-            <BooksGrid
-              authors={filteredLibrary}
-              // scrollEnabled={false}
-              standAlone={true}
-              flowDirection='column'
-            />
-          )}
-        </Animated.ScrollView>
+        {toggleView === 0 && (
+          <BooksHome
+            authors={filteredLibrary}
+            setActiveGridSection={setActiveGridSection}
+            activeGridSection={activeGridSection}
+            onScroll={scrollHandler}
+            ListHeaderComponent={SearchComponent}
+          />
+        )}
+        {toggleView === 1 && (
+          <BooksList
+            authors={filteredLibrary}
+            //  scrollEnabled={false}
+          />
+        )}
+        {toggleView === 2 && (
+          <BooksGrid
+            authors={filteredLibrary}
+            // scrollEnabled={false}
+            standAlone={true}
+            flowDirection='column'
+          />
+        )}
       </SafeAreaView>
       <FloatingPlayer />
     </View>

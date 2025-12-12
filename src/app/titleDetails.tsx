@@ -34,30 +34,31 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const TitleDetails = () => {
   const { top, bottom } = useSafeAreaInsets();
   const { setActiveBookId, activeBookId } = useQueueStore();
-  const { bookId, author, bookTitle } = useLocalSearchParams<{
-    author: string;
+  const { bookId } = useLocalSearchParams<{
+    // author: string;
     bookId: string;
-    bookTitle: string;
+    // bookTitle: string;
   }>();
 
   const book = useBookById(bookId);
   const [isLoading, setIsLoading] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
 
   const { playing } = useIsPlaying();
   const isActiveBook =
     useActiveTrack()?.url ===
-    book?.chapters[book.bookProgress.currentChapterIndex].url;
+    book.chapters[book.bookProgress.currentChapterIndex].url;
 
   const isBookStarted =
-    book?.bookProgressValue !== BookProgressState.NotStarted;
+    book.bookProgressValue !== BookProgressState.NotStarted;
   const isPlayingBook = isActiveBook && playing;
 
-  const imgHeight = book?.artworkHeight;
-  const imgWidth = book?.artworkWidth;
+  const imgHeight = book.artworkHeight;
+  const imgWidth = book.artworkWidth;
 
   const gradientColors = useMemo(
     () =>
-      book?.artworkColors
+      book.artworkColors
         ? ([
             book.artworkColors.darkVibrant as string,
             book.artworkColors.lightVibrant as string,
@@ -70,12 +71,12 @@ const TitleDetails = () => {
             colors.primary,
             colors.background,
           ] as const),
-    [book?.artworkColors]
+    [book.artworkColors]
   );
 
   let genres: string[] = [];
-  if (book?.metadata.genre) {
-    genres = book?.metadata.genre
+  if (book.metadata.genre) {
+    genres = book.metadata.genre
       .split(/[,/&]\s*/)
       .map((item: string) => item.trim());
   }
@@ -114,7 +115,7 @@ const TitleDetails = () => {
             <Image
               contentFit='contain'
               source={{
-                uri: book?.artwork ?? unknownBookImageUri,
+                uri: book.artwork ?? unknownBookImageUri,
               }}
               style={styles.bookArtworkImage}
             />
@@ -130,7 +131,7 @@ const TitleDetails = () => {
             }
             style={[styles.bookInfoContainer]}
           >
-            <Text style={styles.bookTitleText}>{bookTitle}</Text>
+            <Text style={styles.bookTitleText}>{book.bookTitle}</Text>
 
             <View style={styles.authorNarratorContainer}>
               <View
@@ -142,7 +143,7 @@ const TitleDetails = () => {
                 <Text
                   style={{
                     ...styles.bookInfoText,
-                    color: book?.artworkColors.muted || colors.textMuted,
+                    color: book.artworkColors.muted || colors.textMuted,
                   }}
                 >
                   Author
@@ -151,14 +152,14 @@ const TitleDetails = () => {
                   numberOfLines={3}
                   style={{ ...styles.bookInfoText, textAlign: 'center' }}
                 >
-                  {author}
+                  {book.author}
                 </Text>
               </View>
               <View
                 style={{
                   ...styles.divider,
                   backgroundColor:
-                    book?.artworkColors.muted || colors.textMuted,
+                    book.artworkColors.muted || colors.textMuted,
                 }}
               />
               <View
@@ -170,7 +171,7 @@ const TitleDetails = () => {
                 <Text
                   style={{
                     ...styles.bookInfoText,
-                    color: book?.artworkColors.muted || colors.textMuted,
+                    color: book.artworkColors.muted || colors.textMuted,
                   }}
                 >
                   Read by
@@ -179,7 +180,7 @@ const TitleDetails = () => {
                   numberOfLines={3}
                   style={{ ...styles.bookInfoText, textAlign: 'center' }}
                 >
-                  {book?.metadata.narrator}
+                  {book.metadata.narrator}
                 </Text>
               </View>
             </View>
@@ -193,7 +194,7 @@ const TitleDetails = () => {
                     styles.genreText,
                     {
                       backgroundColor:
-                        book?.artworkColors.darkVibrant ||
+                        book.artworkColors.darkVibrant ||
                         colors.modalBackground,
                     },
                   ]}
@@ -208,7 +209,7 @@ const TitleDetails = () => {
                 <Clock8 size={24} color={colors.text} strokeWidth={1.5} />
 
                 <Text style={[styles.bookInfoText, { marginTop: 12 }]}>
-                  {formatSecondsToMinutes(book?.bookDuration || 0)}
+                  {formatSecondsToMinutes(book.bookDuration || 0)}
                 </Text>
                 <Text style={styles.listInfoText}>Duration</Text>
               </View>
@@ -216,13 +217,13 @@ const TitleDetails = () => {
                 style={{
                   ...styles.divider,
                   backgroundColor:
-                    book?.artworkColors.muted || colors.textMuted,
+                    book.artworkColors.muted || colors.textMuted,
                 }}
               />
               <View style={styles.infoCard}>
                 <Calendar size={24} color={colors.text} strokeWidth={1.5} />
                 <Text style={[styles.bookInfoText, { marginTop: 12 }]}>
-                  {book?.metadata.year}
+                  {book.metadata.year}
                 </Text>
                 <Text style={styles.listInfoText}>Released</Text>
               </View>
@@ -230,15 +231,15 @@ const TitleDetails = () => {
                 style={{
                   ...styles.divider,
                   backgroundColor:
-                    book?.artworkColors.muted || colors.textMuted,
+                    book.artworkColors.muted || colors.textMuted,
                 }}
               />
               <View style={styles.infoCard}>
                 <Book size={24} color={colors.text} strokeWidth={1.5} />
                 <Text style={[styles.bookInfoText, { marginTop: 12 }]}>
-                  {book?.metadata.totalTrackCount! > 1
-                    ? book?.metadata.totalTrackCount
-                    : book?.chapters.length}
+                  {book.metadata.totalTrackCount! > 1
+                    ? book.metadata.totalTrackCount
+                    : book.chapters.length}
                 </Text>
                 <Text style={styles.listInfoText}>Chapters</Text>
               </View>
@@ -260,6 +261,9 @@ const TitleDetails = () => {
                     await TrackPlayer.pause();
                   } else {
                     setIsLoading(true);
+                    const timer = setTimeout(() => {
+                      setShowLoading(true);
+                    }, 100);
                     try {
                       await handleBookPlay(
                         book,
@@ -269,16 +273,14 @@ const TitleDetails = () => {
                         setActiveBookId
                       );
                     } finally {
+                      clearTimeout(timer);
                       setIsLoading(false);
+                      setShowLoading(false);
                     }
                   }
                 }}
               >
-                <View
-                  // entering={FadeIn}
-                  // exiting={FadeOut}
-                  style={styles.playButton}
-                >
+                <View style={styles.playButton}>
                   {isPlayingBook ? (
                     <Pause
                       size={34}
@@ -299,7 +301,7 @@ const TitleDetails = () => {
                   >
                     {isPlayingBook
                       ? 'Playing'
-                      : isLoading
+                      : showLoading
                         ? 'Loading'
                         : isBookStarted
                           ? 'Continue Listening'
@@ -310,7 +312,7 @@ const TitleDetails = () => {
             </ShadowedView>
             <View style={styles.inlineInfoContainer}>
               <TruncatedParagraph
-                content={book?.metadata.description}
+                content={book.metadata.description}
                 maxLines={4}
               />
             </View>
@@ -336,7 +338,7 @@ const TitleDetails = () => {
                   },
                 ]}
               >
-                {book?.metadata.copyright}
+                {book.metadata.copyright}
               </Text>
             </View>
           </Pressable>
