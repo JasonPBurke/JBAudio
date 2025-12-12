@@ -35,9 +35,7 @@ const TitleDetails = () => {
   const { top, bottom } = useSafeAreaInsets();
   const { setActiveBookId, activeBookId } = useQueueStore();
   const { bookId } = useLocalSearchParams<{
-    // author: string;
     bookId: string;
-    // bookTitle: string;
   }>();
 
   const book = useBookById(bookId);
