@@ -1,8 +1,8 @@
 import { unknownBookImageUri } from '@/constants/images';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import React, { memo, useCallback, useMemo } from 'react';
-import { Image } from 'expo-image';
-
+// import { Image } from 'expo-image';
+import { FadeInImage } from '@/components/FadeInImage';
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import LoaderKitView from 'react-native-loader-kit';
@@ -12,7 +12,6 @@ import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
 import { handleBookPlay } from '@/helpers/handleBookPlay';
 import { useBookById, useBookDisplayData } from '@/store/library';
-import type { Book } from '@/types/Book';
 
 export type BookGridItemProps = {
   bookId: string;
@@ -43,14 +42,10 @@ export const BookGridItem = memo(function BookGridItem({
   const { setActiveBookId, activeBookId } = useQueueStore();
   const isActiveBook = useActiveTrack()?.bookId === bookId;
   const encodedBookId = encodeURIComponent(bookId);
-  const encodedAuthor = encodeURIComponent(author);
-  const encodedBookTitle = encodeURIComponent(bookTitle);
 
   const handlePress = useCallback(() => {
-    router.navigate(
-      `/titleDetails?bookId=${encodedBookId}&author=${encodedAuthor}&bookTitle=${encodedBookTitle}`
-    );
-  }, [router, encodedBookId, encodedAuthor, encodedBookTitle]);
+    router.navigate(`/titleDetails?bookId=${encodedBookId}`);
+  }, [router, encodedBookId]);
 
   const handlePressPlay = useCallback(() => {
     if (!fullBook) return;
@@ -155,10 +150,10 @@ export const BookGridItem = memo(function BookGridItem({
     >
       <View style={[{ alignItems: 'center' }, containerStyle]}>
         <View style={imageContainerStyle}>
-          <Image
-            source={artwork ?? unknownBookImageUri}
+          <FadeInImage
+            source={{ uri: artwork ?? unknownBookImageUri }}
             style={styles.bookArtworkImage}
-            contentFit='contain'
+            resizeMode='contain'
           />
           {isActiveBook && playing ? (
             <View

@@ -7,12 +7,11 @@ import {
   View,
 } from 'react-native';
 import React, { memo, useCallback } from 'react';
-import { Image } from 'expo-image';
-
+// import { Image } from 'expo-image';
+import { FadeInImage } from '@/components/FadeInImage';
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import { useActiveTrack, useIsPlaying } from 'react-native-track-player';
-import { Book as BookType } from '@/types/Book';
 
 import { Play, EllipsisVertical } from 'lucide-react-native';
 import LoaderKitView from 'react-native-loader-kit';
@@ -70,13 +69,11 @@ export const BookListItem = memo(function BookListItem({
   return (
     <TouchableHighlight onPress={handlePress}>
       <View style={styles.bookItemContainer}>
-        <View>
-          <Image
-            contentFit='contain'
-            source={artwork ?? unknownBookImageUri}
-            style={{
-              ...styles.bookArtworkImage,
-            }}
+        <View style={styles.bookArtworkImage}>
+          <FadeInImage
+            source={{ uri: artwork ?? unknownBookImageUri }}
+            style={{ width: '100%', height: '100%' }}
+            resizeMode='contain'
           />
         </View>
         <View style={styles.bookInfoContainer}>
@@ -144,7 +141,6 @@ const styles = StyleSheet.create({
     paddingRight: 36,
   },
   bookArtworkImage: {
-    borderRadius: 4,
     height: 80,
     aspectRatio: 0.75,
   },

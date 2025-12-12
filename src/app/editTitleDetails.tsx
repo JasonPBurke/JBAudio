@@ -66,16 +66,30 @@ const editTitleDetails = () => {
 
   if (!book) {
     return (
-      <BlurView style={styles.container}>
+      <View style={styles.container}>
         <Text style={styles.header}>Book not found</Text>
-      </BlurView>
+      </View>
     );
   }
 
   return (
     <KeyboardAvoidingView behavior={behavior} style={{ flex: 1 }}>
-      <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
-        <BlurView
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        style={[
+          styles.container,
+          {
+            flex: 1,
+            paddingTop: top,
+            paddingBottom: bottom + 50,
+          },
+        ]}
+        contentContainerStyle={{
+          alignItems: 'center',
+          paddingBottom: bottom + 24,
+        }}
+      >
+        {/* <BlurView
           experimentalBlurMethod='dimezisBlurView'
           intensity={30}
           tint='dark'
@@ -83,107 +97,105 @@ const editTitleDetails = () => {
             styles.container,
             { paddingTop: top, paddingBottom: bottom },
           ]}
+        > */}
+        <Animated.Text
+          entering={FadeInUp.duration(400).delay(100)}
+          style={styles.header}
         >
-          <Animated.Text
-            entering={FadeInUp.duration(400).delay(100)}
-            style={styles.header}
-          >
-            {/* Edit {book?.bookTitle} Details */}
-            Edit Book Details
-          </Animated.Text>
-          <Image
-            // sharedTransitionTag='image'
-            source={{
-              uri: book?.artwork ?? unknownBookImageUri,
-            }}
-            style={styles.image}
-          />
-          <Animated.View
-            entering={FadeInDown.duration(600).delay(400)}
-            style={styles.card}
-          >
-            <Text style={styles.fieldTitle}>Title</Text>
-            <TextInput
-              style={styles.searchInput}
-              value={formState.bookTitle}
-              onChangeText={(text) => handleInputChange('bookTitle', text)}
-              cursorColor={colors.primary}
-              selectionColor={colors.primary}
-            ></TextInput>
-            <Text style={styles.fieldTitle}>Author</Text>
-            <TextInput
-              style={styles.searchInput}
-              value={formState.author}
-              editable={false} //! Author editing is complex due to the data model
-              cursorColor={colors.primary}
-              selectionColor={colors.primary}
-            ></TextInput>
-            <Text style={styles.fieldTitle}>Narrator</Text>
-            <TextInput
-              style={styles.searchInput}
-              placeholder={'Narrator'}
-              value={formState.narrator ?? ''}
-              onChangeText={(text) => handleInputChange('narrator', text)}
-              cursorColor={colors.primary}
-              selectionColor={colors.primary}
-            ></TextInput>
-            <Text style={styles.fieldTitle}>Genre Tags</Text>
-            <TextInput
-              style={styles.searchInput}
-              placeholder={'Genre Tags (comma separated)'}
-              value={formState.genre ?? ''}
-              onChangeText={(text) => handleInputChange('genre', text)}
-              cursorColor={colors.primary}
-              selectionColor={colors.primary}
-            ></TextInput>
-            <Text style={styles.fieldTitle}>Release Year</Text>
-            <TextInput
-              style={styles.searchInput}
-              placeholder={'Release Year'}
-              value={formState.year ?? ''}
-              onChangeText={(text) => handleInputChange('year', text)}
-              cursorColor={colors.primary}
-              selectionColor={colors.primary}
-              keyboardType='numeric'
-            ></TextInput>
-            <Text style={styles.fieldTitle}>Description</Text>
-            <TextInput
-              style={styles.searchInput}
-              placeholder={'Description'}
-              value={formState.description ?? ''}
-              onChangeText={(text) =>
-                handleInputChange('description', text)
-              }
-              cursorColor={colors.primary}
-              selectionColor={colors.primary}
-              multiline
-              textAlignVertical='top'
-            ></TextInput>
-            <Text style={styles.fieldTitle}>Copyright</Text>
-            <TextInput
-              style={styles.searchInput}
-              placeholder={'Copyright'}
-              value={formState.copyright ?? ''}
-              onChangeText={(text) => handleInputChange('copyright', text)}
-              cursorColor={colors.primary}
-              selectionColor={colors.primary}
-            ></TextInput>
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={[styles.button, styles.cancelButton]}
-                onPress={() => router.back()}
-              >
-                <Text style={styles.buttonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, styles.saveButton]}
-                onPress={handleSave}
-              >
-                <Text style={styles.buttonText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        </BlurView>
+          {/* Edit {book?.bookTitle} Details */}
+          Edit Book Details
+        </Animated.Text>
+        <Image
+          // sharedTransitionTag='image'
+          source={{
+            uri: book?.artwork ?? unknownBookImageUri,
+          }}
+          style={styles.image}
+        />
+        <Animated.View
+          entering={FadeInDown.duration(600).delay(400)}
+          style={styles.card}
+        >
+          <Text style={styles.fieldTitle}>Title</Text>
+          <TextInput
+            style={styles.searchInput}
+            value={formState.bookTitle}
+            onChangeText={(text) => handleInputChange('bookTitle', text)}
+            cursorColor={colors.primary}
+            selectionColor={colors.primary}
+          ></TextInput>
+          <Text style={styles.fieldTitle}>Author</Text>
+          <TextInput
+            style={styles.searchInput}
+            value={formState.author}
+            editable={false} //! Author editing is complex due to the data model
+            cursorColor={colors.primary}
+            selectionColor={colors.primary}
+          ></TextInput>
+          <Text style={styles.fieldTitle}>Narrator</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder={'Narrator'}
+            value={formState.narrator ?? ''}
+            onChangeText={(text) => handleInputChange('narrator', text)}
+            cursorColor={colors.primary}
+            selectionColor={colors.primary}
+          ></TextInput>
+          <Text style={styles.fieldTitle}>Genre Tags</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder={'Genre Tags (comma separated)'}
+            value={formState.genre ?? ''}
+            onChangeText={(text) => handleInputChange('genre', text)}
+            cursorColor={colors.primary}
+            selectionColor={colors.primary}
+          ></TextInput>
+          <Text style={styles.fieldTitle}>Release Year</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder={'Release Year'}
+            value={formState.year ?? ''}
+            onChangeText={(text) => handleInputChange('year', text)}
+            cursorColor={colors.primary}
+            selectionColor={colors.primary}
+            keyboardType='numeric'
+          ></TextInput>
+          <Text style={styles.fieldTitle}>Description</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder={'Description'}
+            value={formState.description ?? ''}
+            onChangeText={(text) => handleInputChange('description', text)}
+            cursorColor={colors.primary}
+            selectionColor={colors.primary}
+            multiline
+            textAlignVertical='top'
+          ></TextInput>
+          <Text style={styles.fieldTitle}>Copyright</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder={'Copyright'}
+            value={formState.copyright ?? ''}
+            onChangeText={(text) => handleInputChange('copyright', text)}
+            cursorColor={colors.primary}
+            selectionColor={colors.primary}
+          ></TextInput>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[styles.button, styles.cancelButton]}
+              onPress={() => router.back()}
+            >
+              <Text style={styles.buttonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.saveButton]}
+              onPress={handleSave}
+            >
+              <Text style={styles.buttonText}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+        {/* </BlurView> */}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -194,7 +206,7 @@ export default editTitleDetails;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
+    // alignItems: 'center',
     paddingTop: 25,
   },
   header: {
