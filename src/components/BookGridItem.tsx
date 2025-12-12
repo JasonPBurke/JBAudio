@@ -160,22 +160,15 @@ export const BookGridItem = memo(function BookGridItem({
               style={[
                 styles.trackPlayingImageIcon,
                 {
-                  width:
-                    flowDirection === 'row'
-                      ? 20
-                      : numColumns === 1
-                        ? 32
-                        : numColumns === 2
-                          ? 24
-                          : 18,
                   padding:
                     flowDirection === 'row'
-                      ? 20
+                      ? 16
                       : numColumns === 1
                         ? 24
                         : numColumns === 2
                           ? 20
                           : 17,
+                  bottom: flowDirection === 'row' ? 2 : 12,
                   borderRadius: 4,
                   backgroundColor: '#1c1c1c96',
                   justifyContent: 'center',
@@ -185,7 +178,6 @@ export const BookGridItem = memo(function BookGridItem({
             >
               <LoaderKitView
                 style={[
-                  // styles.trackPlayingImageIcon,
                   {
                     width:
                       flowDirection === 'row'
@@ -205,12 +197,15 @@ export const BookGridItem = memo(function BookGridItem({
           ) : (
             <Pressable
               onPress={handlePressPlay}
-              style={{
-                ...styles.trackPausedIcon,
-                padding: 6,
-                borderRadius: 4,
-                backgroundColor: '#1c1c1c96',
-              }}
+              style={[
+                styles.trackPausedIcon,
+                {
+                  bottom: flowDirection === 'row' ? 2 : 12,
+                  padding: 6,
+                  borderRadius: 4,
+                  backgroundColor: '#1c1c1c96',
+                },
+              ]}
               hitSlop={25}
             >
               <Play
@@ -275,11 +270,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 2,
     bottom: 2,
+    width: 2,
     aspectRatio: 1,
   },
   trackPausedIcon: {
     position: 'absolute',
-    bottom: 2,
+    // bottom: 2, // 2 for 'row' 12 for 'column'
     right: 2,
   },
 });
