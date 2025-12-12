@@ -31,6 +31,8 @@ const SettingsScreen = ({ navigation }: any) => {
   const [libraryFolders, setLibraryFolders] = useState<string[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const router = useRouter();
+  const fadeOutDurationInfo =
+    'When the sleep timer is activated, the audio will begin to fade out when the sleep time remaining is the same as the fade-out duration you have set.  If the fade-out duration exceeds the timer duration, fade-out will begin when the timer begins.';
   //! calculate length based off currentTimer (max of 30) or 30 as default
   //! the fadeout duration should always max out at the currentTimer value if > 30 or 30
   const numbers = Array.from(
@@ -118,7 +120,8 @@ const SettingsScreen = ({ navigation }: any) => {
     <View style={styles.container}>
       <View>
         <Pressable
-          style={{ marginLeft: 13, marginTop: 13 }}
+          hitSlop={10}
+          style={{ paddingLeft: 13, paddingTop: 13 }}
           onPress={() => {
             router.back();
           }}
@@ -192,7 +195,7 @@ const SettingsScreen = ({ navigation }: any) => {
           isVisible={modalVisible}
           onClose={() => setModalVisible(false)}
           title='Fadeout Duration'
-          message='When the sleep timer is activated, the audio will begin to fade out when the sleep time remaining is the same as the fade-out duration you have set.  If the fade-out duration exceeds the timer duration, fade-out will begin when the timer begins.'
+          message={fadeOutDurationInfo}
         />
       </View>
       <View>

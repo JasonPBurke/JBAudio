@@ -107,6 +107,7 @@ const Header = (props: headerProps) => {
                 color={colors.icon}
                 strokeWidth={1.5}
                 absoluteStrokeWidth
+                style={{ transform: [{ rotateY: '180deg' }] }}
               />
             )}
             {toggleView === 2 && (
