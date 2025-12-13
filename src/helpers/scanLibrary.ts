@@ -1,4 +1,4 @@
-import { Author, Chapter } from '@/types/Book';
+import { Author, Book, Chapter } from '@/types/Book';
 import AuthorModel from '@/db/models/Author';
 import BookModel from '@/db/models/Book';
 import ChapterModel from '@/db/models/Chapter';
@@ -368,86 +368,62 @@ const saveArtworkToFile = async (
   }
 };
 
+//! only do this for the first chapter of any book
 const extractArtwork = async (sortedBooks: any[]) => {
-  const booksWithArtwork = await Promise.all(
-    sortedBooks.map(async (authorEntry) => {
-      const updatedBooks = await Promise.all(
-        // Let's use a standard for...of loop to process books sequentially
-        // and report progress accurately.
-        // authorEntry.books.map(async (book: any) => {
-        authorEntry.books.map(async (book: any) => {
-          if (book.chapters && book.chapters.length > 0) {
-            const firstChapter = book.chapters[0];
-            try {
-              const base64Artwork = await getEmbeddedArtwork(
-                firstChapter.url
-              );
-              let artworkWidth: number | null = null;
-              let artworkHeight: number | null = null;
-              let finalArtworkUri: string | null = null;
-              let artworkColors: BookImageColors = {
-                average: null,
-                dominant: null,
-                vibrant: null,
-                darkVibrant: null,
-                lightVibrant: null,
-                muted: null,
-                darkMuted: null,
-                lightMuted: null,
-              };
+  const booksWithArtwork = [];
 
-              if (base64Artwork) {
-                const { artworkUri, width, height } =
-                  await saveArtworkToFile(
-                    base64Artwork,
-                    book.bookTitle,
-                    book.author
-                  );
-                finalArtworkUri = artworkUri;
-                artworkWidth = width;
-                artworkHeight = height;
-                if (artworkUri) {
-                  artworkColors = await extractImageColors(base64Artwork);
-                }
-              } else {
-                //! currently hardcoded based on the unknown_track image
-                artworkWidth = 500;
-                artworkHeight = 500;
-              }
+  for (const authorEntry of sortedBooks) {
+    const updatedBooks = [];
+    for (const book of authorEntry.books) {
+      if (book.chapters && book.chapters.length > 0) {
+        const firstChapter = book.chapters[0];
+        try {
+          const base64Artwork = await getEmbeddedArtwork(firstChapter.url);
+          let artworkWidth: number | null = null;
+          let artworkHeight: number | null = null;
+          let finalArtworkUri: string | null = null;
+          let artworkColors: BookImageColors = {
+            average: null,
+            dominant: null,
+            vibrant: null,
+            darkVibrant: null,
+            lightVibrant: null,
+            muted: null,
+            darkMuted: null,
+            lightMuted: null,
+          };
 
-              return {
-                ...book,
-                artwork: finalArtworkUri,
-                artworkWidth,
-                artworkHeight,
-                artworkColors,
-              };
-            } catch (error) {
-              console.error(
-                `Error extracting artwork for ${firstChapter.url}`,
-                error
-              );
-              return {
-                ...book,
-                artwork: null,
-                artworkWidth: null,
-                artworkHeight: null,
-                artworkColors: {
-                  average: null,
-                  dominant: null,
-                  vibrant: null,
-                  darkVibrant: null,
-                  lightVibrant: null,
-                  muted: null,
-                  darkMuted: null,
-                  lightMuted: null,
-                },
-              };
-            } finally {
-              useScanProgressStore.getState().incrementProcessedBooks();
+          if (base64Artwork) {
+            const { artworkUri, width, height } = await saveArtworkToFile(
+              base64Artwork,
+              book.bookTitle,
+              book.author
+            );
+            finalArtworkUri = artworkUri;
+            artworkWidth = width;
+            artworkHeight = height;
+            if (artworkUri) {
+              artworkColors = await extractImageColors(base64Artwork);
             }
+          } else {
+            //! currently hardcoded based on the unknown_track image
+            artworkWidth = 500;
+            artworkHeight = 500;
           }
-          return {
+
+          updatedBooks.push({
+            ...book,
+            artwork: finalArtworkUri,
+            artworkWidth,
+            artworkHeight,
+            artworkColors,
+          });
+        } catch (error) {
+          console.error(
+            `Error extracting artwork for ${firstChapter.url}`,
+            error
+          );
+          updatedBooks.push({
             ...book,
             artwork: null,
             artworkWidth: null,
@@ -462,12 +438,32 @@ const extractArtwork = async (sortedBooks: any[]) => {
               darkMuted: null,
               lightMuted: null,
             },
-          };
-        })
-      );
-      return { ...authorEntry, books: updatedBooks };
-    })
-  );
+          });
+          // } finally {
+          //   useScanProgressStore.getState().incrementProcessedBooks();
+        }
+      } else {
+        updatedBooks.push({
+          ...book,
+          artwork: null,
+          artworkWidth: null,
+          artworkHeight: null,
+          artworkColors: {
+            average: null,
+            dominant: null,
+            vibrant: null,
+            darkVibrant: null,
+            lightVibrant: null,
+            muted: null,
+            darkMuted: null,
+            lightMuted: null,
+          },
+        });
+      }
+      useScanProgressStore.getState().incrementProcessedBooks();
+    }
+    booksWithArtwork.push({ ...authorEntry, books: updatedBooks });
+  }
   return booksWithArtwork;
 };
 

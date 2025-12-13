@@ -191,6 +191,7 @@ export const BookGridItem = memo(function BookGridItem({
                   },
                 ]}
                 name={'LineScaleParty'}
+                // animationSpeedMultiplier={0.5}
                 color={colors.primary}
               />
             </View>
@@ -275,7 +276,6 @@ const styles = StyleSheet.create({
   },
   trackPausedIcon: {
     position: 'absolute',
-    // bottom: 2, // 2 for 'row' 12 for 'column'
     right: 2,
   },
 });
