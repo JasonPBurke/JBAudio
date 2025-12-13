@@ -11,13 +11,14 @@ import { utilsStyles } from '@/styles';
 import React from 'react';
 
 export type BookListProps = Partial<FlashListProps<Book>> & {
-  authors: Author[];
+  authors?: Author[];
+  books?: Book[];
   setActiveGridSection: React.Dispatch<React.SetStateAction<string | null>>;
   activeGridSection: string | null;
 };
 
 const BooksHome = ({
-  authors,
+  authors = [],
   setActiveGridSection,
   activeGridSection,
 }: BookListProps) => {
@@ -30,15 +31,21 @@ const BooksHome = ({
   });
 
   const allBooks = authors.flatMap((author) => author.books);
+  allBooks.sort(
+    (a, b) =>
+      new Date(b.metadata.ctime).getTime() -
+      new Date(a.metadata.ctime).getTime()
+  );
+  const recentlyAddedBooks = allBooks.slice(0, 25);
 
   // Create a data structure for the main FlashList
   const listData: (
-    | { type: 'recentlyAdded'; authors: Author[] }
+    | { type: 'recentlyAdded'; books: Book[] }
     | { type: 'author'; author: Author }
   )[] =
     allBooks.length > 0
       ? [
-          { type: 'recentlyAdded', authors },
+          { type: 'recentlyAdded', books: recentlyAddedBooks },
           ...authors.map((author) => ({ type: 'author', author }) as const),
         ]
       : [];
@@ -48,7 +55,7 @@ const BooksHome = ({
       if (item.type === 'recentlyAdded') {
         return (
           <RecentlyAddedSection
-            authors={item.authors}
+            books={item.books}
             activeGridSection={activeGridSection}
             setActiveGridSection={setActiveGridSection}
           />
@@ -87,7 +94,7 @@ const BooksHome = ({
 };
 
 const RecentlyAddedSection = memo(
-  ({ authors, activeGridSection, setActiveGridSection }: BookListProps) => (
+  ({ books, activeGridSection, setActiveGridSection }: BookListProps) => (
     <View style={styles.containerGap}>
       <SectionHeader
         title='Recently Added'
@@ -100,9 +107,9 @@ const RecentlyAddedSection = memo(
         }
       />
       {activeGridSection === 'recentlyAdded' ? (
-        <BooksGrid authors={authors} flowDirection='column' />
+        <BooksGrid books={books} flowDirection='column' />
       ) : (
-        <BooksHorizontal authors={authors} flowDirection='row' />
+        <BooksHorizontal books={books} flowDirection='row' />
       )}
     </View>
   )
