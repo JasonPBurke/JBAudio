@@ -118,7 +118,7 @@ const Header = (props: headerProps) => {
               {isScanning ? (
                 <AnimatedView
                   key='scanning'
-                  entering={SlideInLeft.delay(400).duration(1500)}
+                  entering={SlideInLeft.delay(100).duration(1500)}
                   exiting={SlideOutLeft.delay(2000).duration(1500)}
                   style={[
                     styles.scanningText,
