@@ -108,6 +108,7 @@ export const BookListItem = memo(function BookListItem({
                 <LoaderKitView
                   style={styles.trackPlayingImageIcon}
                   name={'LineScaleParty'}
+                  animationSpeedMultiplier={0.5}
                   color={colors.primary}
                 />
               </View>
