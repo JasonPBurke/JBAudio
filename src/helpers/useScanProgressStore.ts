@@ -7,6 +7,7 @@ type ScanProgressState = {
   processedBooks: number;
   startScan: () => void;
   setTotalBooks: (total: number) => void;
+  incrementTotalBooks: () => void;
   incrementProcessedBooks: () => void;
   endScan: () => void;
 };
@@ -24,6 +25,8 @@ export const useScanProgressStore = create<ScanProgressState>((set) => ({
       totalBooks: 0,
     }),
   setTotalBooks: (total) => set({ totalBooks: total }),
+  incrementTotalBooks: () =>
+    set((state) => ({ totalBooks: state.totalBooks + 1 })),
   incrementProcessedBooks: () =>
     set((state) => ({ processedBooks: state.processedBooks + 1 })),
   endScan: () => set({ isScanning: false, scanJustCompleted: true }),
