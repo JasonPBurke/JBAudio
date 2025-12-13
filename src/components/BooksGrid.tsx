@@ -3,18 +3,20 @@ import { useCallback, memo, useMemo } from 'react';
 import { View, Text, Dimensions } from 'react-native';
 
 import { utilsStyles } from '@/styles';
-import { Author } from '@/types/Book';
+import { Author, Book } from '@/types/Book';
 import { BookGridItem } from './BookGridItem';
 import { useSettingsStore } from '@/store/settingsStore';
 
 export type BookGridProps = Partial<FlashListProps<string>> & {
-  authors: Author[];
+  authors?: Author[];
+  books?: Book[];
   standAlone?: boolean;
   flowDirection: 'row' | 'column';
 };
 
 const BooksGrid = ({
   authors,
+  books,
   standAlone,
   flowDirection,
 }: BookGridProps) => {
@@ -32,10 +34,16 @@ const BooksGrid = ({
   // This is the core change. We now create a stable list of book IDs.
   // useMemo ensures this list is only recalculated when the `authors` array changes.
   const bookIds = useMemo(() => {
-    return authors
-      .flatMap((author) => author.books.map((book) => book.bookId))
-      .filter((bookId): bookId is string => !!bookId); // Filter out null/undefined and assert type
-  }, [authors]);
+    if (books) {
+      return books.map((book) => book.bookId).filter((bookId) => !!bookId);
+    }
+    if (authors) {
+      return authors
+        .flatMap((author) => author.books.map((book) => book.bookId))
+        .filter((bookId): bookId is string => !!bookId); // Filter out null/undefined and assert type
+    }
+    return [];
+  }, [authors, books]);
 
   const renderBookItem = useCallback(
     ({ item: bookId }: { item: string }) => (

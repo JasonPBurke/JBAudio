@@ -184,8 +184,6 @@ const extractMetadata = async (filePath: string) => {
       const chapterDuration = metadata.durationMs
         ? metadata.durationMs / 1000
         : 0;
-
-      console.log('metadata.title', metadata.title);
       return [
         {
           author: metadata.author || 'Unknown Author',
