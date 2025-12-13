@@ -119,17 +119,6 @@ const extractMetadata = async (filePath: string) => {
       .split('/')
       .pop();
 
-    // const extractChapterTitle = (filePath: string) => {
-    //   const match = filePath.match(/[^/]+(?=\.[^/.]*$)/);
-    //   if (match && match[0]) {
-    //     return match[0];
-    //   }
-    // };
-
-    // const chapterTitleBackup = extractChapterTitle(filePath);
-    // console.log('chapterTitleBackup', chapterTitleBackup);
-    // console.log('chapter.title', chapter.title);
-
     // If no embedded chapters, check for a .cue file
     if (chapters.length === 0) {
       const cueFilePath =
@@ -439,8 +428,6 @@ const extractArtwork = async (sortedBooks: any[]) => {
               lightMuted: null,
             },
           });
-          // } finally {
-          //   useScanProgressStore.getState().incrementProcessedBooks();
         }
       } else {
         updatedBooks.push({
