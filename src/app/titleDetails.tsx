@@ -34,8 +34,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const TitleDetails = () => {
   const { top, bottom } = useSafeAreaInsets();
   const { setActiveBookId, activeBookId } = useQueueStore();
-  const { bookId } = useLocalSearchParams<{
+  const {
+    bookId,
+    author,
+    bookTitle,
+  } = useLocalSearchParams<{
     bookId: string;
+    author: string;
+    bookTitle: string;
   }>();
 
   const book = useBookById(bookId);
@@ -43,8 +49,15 @@ const TitleDetails = () => {
   const [showLoading, setShowLoading] = useState(false);
 
   const { playing } = useIsPlaying();
+  const activeTrack = useActiveTrack();
+
+  if (!book) {
+    // Optional: Render a loading state or return null
+    return null;
+  }
+
   const isActiveBook =
-    useActiveTrack()?.url ===
+    activeTrack?.url ===
     book.chapters[book.bookProgress.currentChapterIndex].url;
 
   const isBookStarted =
@@ -129,7 +142,7 @@ const TitleDetails = () => {
             }
             style={[styles.bookInfoContainer]}
           >
-            <Text style={styles.bookTitleText}>{book.bookTitle}</Text>
+            <Text style={styles.bookTitleText}>{book.bookTitle ?? bookTitle}</Text>
 
             <View style={styles.authorNarratorContainer}>
               <View
@@ -150,7 +163,7 @@ const TitleDetails = () => {
                   numberOfLines={3}
                   style={{ ...styles.bookInfoText, textAlign: 'center' }}
                 >
-                  {book.author}
+                  {book.author ?? author}
                 </Text>
               </View>
               <View

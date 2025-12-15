@@ -26,8 +26,6 @@ export const handleBookPlay = async (
 
   // If the book has not been started, update its progress value in the DB
   if (book.bookProgressValue === BookProgressState.NotStarted) {
-    // Use an async IIFE to perform the update without blocking playback.
-    // Added error handling to ensure we catch any issues with the DB write.
     (async () => {
       try {
         const bookModel = await getBookById(book.bookId!);

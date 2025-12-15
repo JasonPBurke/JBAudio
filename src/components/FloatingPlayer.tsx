@@ -30,10 +30,6 @@ export const FloatingPlayer = React.memo(() => {
   const displayedBook = useBookById(displayedTrack?.bookId ?? '');
 
   if (!isPlayerReady || !displayedTrack || !displayedBook) {
-    console.log('No track or book to display');
-    console.log('displayedTrack', displayedTrack);
-    console.log('displayedBook', displayedBook);
-    console.log('isPlayerReady', isPlayerReady);
     return null;
   }
 
