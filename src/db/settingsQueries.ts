@@ -64,10 +64,27 @@ export async function updateTimerFadeoutDuration(duration: number | null) {
   });
 }
 
+export async function updateLastActiveBook(bookId: string) {
+  return updateSetting((record) => {
+    record.lastActiveBook = bookId;
+  });
+}
+
 export async function updateNumColumns(numColumns: number) {
   return updateSetting((record) => {
     record.numColumns = numColumns;
   });
+}
+
+export async function getLastActiveBook() {
+  const settingsCollection = database.collections.get<Settings>('settings');
+  const settingsRecord = await settingsCollection.query().fetch();
+
+  if (settingsRecord.length > 0) {
+    const settings = settingsRecord[0];
+    return settings.lastActiveBook;
+  }
+  return null;
 }
 
 export async function getTimerFadeoutDuration() {

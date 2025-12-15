@@ -3,6 +3,10 @@ import { getChapterProgressInDB } from '@/db/chapterQueries';
 import { Book } from '@/types/Book';
 import { getBookById } from '@/db/bookQueries';
 import TrackPlayer, { Track } from 'react-native-track-player';
+import {
+  getLastActiveBook,
+  updateLastActiveBook,
+} from '@/db/settingsQueries';
 
 export enum BookProgressState {
   NotStarted = 0,
@@ -61,6 +65,7 @@ export const handleBookPlay = async (
 
     if (book.bookId) {
       setActiveBookId(book.bookId);
+      await updateLastActiveBook(book.bookId);
     }
   } else {
     await TrackPlayer.skip(progressInfo.chapterIndex);

@@ -373,7 +373,7 @@ const extractArtwork = async (sortedBooks: any[]) => {
           let finalArtworkUri: string | null = null;
           let artworkColors: BookImageColors = {
             average: null,
-            dominant: null,
+            dominantAndroid: null,
             vibrant: null,
             darkVibrant: null,
             lightVibrant: null,

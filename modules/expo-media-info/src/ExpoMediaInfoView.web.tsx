@@ -1,5 +1,3 @@
-import * as React from 'react';
-
 import { ExpoMediaInfoViewProps } from './ExpoMediaInfo.types';
 
 export default function ExpoMediaInfoView(props: ExpoMediaInfoViewProps) {

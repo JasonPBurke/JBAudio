@@ -1,36 +1,51 @@
-import { getColors, ImageColorsResult } from 'react-native-image-colors';
+import {
+  getSegmentsPalette,
+  getSegmentsAverageColor,
+} from '@somesoap/react-native-image-palette';
 import { colors as color } from '@/constants/tokens';
 
 export type BookImageColors = {
-  average: string | null;
-  dominant: string | null;
   vibrant: string | null;
   darkVibrant: string | null;
   lightVibrant: string | null;
   muted: string | null;
   darkMuted: string | null;
   lightMuted: string | null;
+  dominantAndroid: string | null;
+  average: string | null;
 };
 
 export const extractImageColors = async (
   uri: string
 ): Promise<BookImageColors> => {
   try {
-    const colors: ImageColorsResult = await getColors(uri, {
-      fallback: color.background,
-    });
-
-    if (colors.platform === 'android') {
-      const { platform, ...rest } = colors;
-      return rest;
-    }
+    // Exclude the bottom 30% of the image (which includes the bottom-right corner)
+    const segments = [{ fromX: 0, toX: 100, fromY: 0, toY: 60 }];
+    const [palettes, averages] = await Promise.all([
+      getSegmentsPalette(uri, segments, {
+        fallbackColor: color.background,
+      }),
+      getSegmentsAverageColor(uri, segments, {}),
+    ]);
+    const palette = palettes[0];
+    const average = averages[0];
+    return {
+      vibrant: palette.vibrant,
+      darkVibrant: palette.darkVibrant,
+      lightVibrant: palette.lightVibrant,
+      muted: palette.muted,
+      darkMuted: palette.darkMuted,
+      lightMuted: palette.lightMuted,
+      dominantAndroid: palette.dominantAndroid ?? null,
+      average: average ?? null,
+    };
   } catch (error) {
     console.error('Failed to extract image colors:', error);
   }
 
   return {
     average: null,
-    dominant: null,
+    dominantAndroid: null,
     vibrant: null,
     darkVibrant: null,
     lightVibrant: null,
