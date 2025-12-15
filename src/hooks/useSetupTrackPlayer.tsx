@@ -73,13 +73,14 @@ export const useSetupTrackPlayer = ({
 }) => {
   const isInitialized = useRef(false);
   const { setAudioPermissionStatus } = usePermission();
-  const { setActiveBookId } = useQueueStore();
+  const { setActiveBookId, setPlayerReady } = useQueueStore();
 
   useEffect(() => {
     const setup = async () => {
       const status = await requestAudioPermission();
       setAudioPermissionStatus(status);
       if (status !== 'granted') {
+        setPlayerReady(true);
         onLoad?.();
         return;
       }
@@ -88,7 +89,7 @@ export const useSetupTrackPlayer = ({
       try {
         await setupPlayer();
       } catch (error) {
-        console.log('Player was already initialized.');
+        // console.log('Player was already initialized.');
       }
       console.log('before second try');
       // Now that the player is ready, load the last active book.
@@ -126,10 +127,11 @@ export const useSetupTrackPlayer = ({
         console.error('Error during post-setup book loading:', error);
       } finally {
         // Ensure we always hide the splash screen
+        setPlayerReady(true);
         onLoad?.();
       }
     };
 
     setup();
-  }, [onLoad, setAudioPermissionStatus, setActiveBookId]);
+  }, [onLoad, setAudioPermissionStatus, setActiveBookId, setPlayerReady]);
 };

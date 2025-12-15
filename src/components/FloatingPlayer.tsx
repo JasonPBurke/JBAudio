@@ -13,12 +13,14 @@ import { MovingText } from '@/components/MovingText';
 import { useRouter } from 'expo-router';
 import { colors } from '@/constants/tokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useQueueStore } from '@/store/queue';
 import { useBookById } from '@/store/library';
 import { BookTimeRemaining } from '@/components/BookTimeRemaining';
 import React from 'react';
 
 export const FloatingPlayer = React.memo(() => {
   const { bottom } = useSafeAreaInsets();
+  const isPlayerReady = useQueueStore((state) => state.isPlayerReady);
 
   const router = useRouter();
   const activeTrack = useActiveTrack();
@@ -27,10 +29,11 @@ export const FloatingPlayer = React.memo(() => {
 
   const displayedBook = useBookById(displayedTrack?.bookId ?? '');
 
-  if (!displayedTrack || !displayedBook) {
+  if (!isPlayerReady || !displayedTrack || !displayedBook) {
     console.log('No track or book to display');
     console.log('displayedTrack', displayedTrack);
     console.log('displayedBook', displayedBook);
+    console.log('isPlayerReady', isPlayerReady);
     return null;
   }
 
