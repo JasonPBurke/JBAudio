@@ -11,7 +11,7 @@ export default class Settings extends Model {
   @field('timer_fadeout_duration') timerFadeoutDuration!: number | null;
   @field('custom_timer') customTimer!: number | null;
   @field('timer_chapters') timerChapters!: number | null;
-  @text('last_active_book') lastActiveBook!: string;
+  @text('last_active_book') lastActiveBook!: string | null;
   @text('current_book_artwork_uri') currentBookArtworkUri!: string | null;
   @field('timer_active') timerActive!: boolean;
   @text('library_paths') libraryPaths!: string | null;
