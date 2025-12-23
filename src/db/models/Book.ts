@@ -37,7 +37,7 @@ export default class Book extends Model {
   @date('updated_at') updatedAt!: Date | null;
   @field('artwork_height') artworkHeight!: number | null;
   @field('artwork_width') artworkWidth!: number | null;
-  @field('book_progress_value') bookProgressValue!: number;
+  @field('book_progress_value') bookProgressValue!: number; // e.g., 0 = not started, 1 = in progress, 2 = completed
   @field('cover_color_average') coverColorAverage!: string | null;
   @field('cover_color_dominant') coverColorDominant!: string | null;
   @field('cover_color_vibrant') coverColorVibrant!: string | null;
