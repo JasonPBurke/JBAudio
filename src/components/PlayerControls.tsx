@@ -19,7 +19,14 @@ import {
   SkipForward,
 } from 'lucide-react-native';
 import { colors } from '@/constants/tokens';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  memo,
+} from 'react';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -369,13 +376,15 @@ export const PlaybackSpeed = ({ iconSize = 30 }: PlayerButtonProps) => {
   );
 };
 
-export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
+export const SleepTimer = memo(({ iconSize = 30 }: PlayerButtonProps) => {
   const settingsCollection = useObserveWatermelonData(database, 'settings');
   const timerActiveValue = settingsCollection?.[0]?.timerActive;
   const timerDuration: number | null =
     settingsCollection?.[0]?.timerDuration;
   const timerChapters: number | null =
     settingsCollection?.[0]?.timerChapters;
+  const sleepTime: number | null | undefined =
+    settingsCollection?.[0]?.sleepTime;
   const { bottom } = useSafeAreaInsets();
   const snapPoints = useMemo(() => ['40%'], []);
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
@@ -499,16 +508,19 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
           <Animated.View
             style={[styles.countdownTimerContainer, animatedCountdownStyle]}
           >
-            <CountdownTimer timerChapters={timerChapters! + 1 || null} />
+            <CountdownTimer
+              timerChapters={timerChapters! + 1 || null}
+              sleepTime={sleepTime ?? null}
+            />
           </Animated.View>
         )}
       </Animated.View>
-      {timerActiveValue && (
+      {/* {timerActiveValue && (
         <AnimatedZZZ timerActiveValue={timerActiveValue} />
-      )}
+      )} */}
     </Pressable>
   );
-};
+});
 
 const styles = StyleSheet.create({
   controlsContainer: {
