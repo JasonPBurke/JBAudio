@@ -207,7 +207,7 @@ export const BookGridItem = memo(function BookGridItem({
                   backgroundColor: '#1c1c1c96',
                 },
               ]}
-              hitSlop={25}
+              hitSlop={10}
             >
               <Play
                 size={

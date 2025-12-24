@@ -308,7 +308,7 @@ const TitleDetails = () => {
                 </View>
               </TouchableOpacity>
             </ShadowedView>
-            <View style={styles.inlineInfoContainer}>
+            <View style={[styles.inlineInfoContainer]}>
               <TruncatedParagraph
                 content={book.metadata.description}
                 maxLines={4}
