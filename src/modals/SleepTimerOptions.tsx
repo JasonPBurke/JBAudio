@@ -462,6 +462,5 @@ const styles = StyleSheet.create({
   },
   activeButton: {
     borderColor: colors.primary,
-    // backgroundColor: colors.icon
   },
 });

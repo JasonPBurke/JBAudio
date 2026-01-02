@@ -8,7 +8,7 @@ import {
   BottomSheetBackdrop,
   BottomSheetModal,
 } from '@gorhom/bottom-sheet';
-import { useCallback, useMemo, memo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { colors } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import { Book } from '@/types/Book';
@@ -25,103 +25,99 @@ type PlayerChaptersModalProps = {
   onChapterSelect: (chapterIndex: number) => void;
 };
 
-export const PlayerChaptersModal = memo(
-  ({
-    handlePresentPress,
-    book,
-    bottomSheetModalRef,
-    onChapterSelect,
-  }: PlayerChaptersModalProps) => {
-    const snapPoints = useMemo(() => ['40%', '70%'], []);
+export const PlayerChaptersModal = ({
+  handlePresentPress,
+  book,
+  bottomSheetModalRef,
+  onChapterSelect,
+}: PlayerChaptersModalProps) => {
+  const snapPoints = useMemo(() => ['40%', '70%'], []);
 
-    const { bottom } = useSafeAreaInsets();
+  const { bottom } = useSafeAreaInsets();
 
-    const renderBackdrop = useCallback(
-      (props: any) => (
-        <BottomSheetBackdrop
-          {...props}
-          pressBehavior={'close'}
-          disappearsOnIndex={-1}
-          appearsOnIndex={0}
-        />
-      ),
-      []
-    );
+  const renderBackdrop = useCallback(
+    (props: any) => (
+      <BottomSheetBackdrop
+        {...props}
+        pressBehavior={'close'}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+      />
+    ),
+    []
+  );
 
-    const currentChapter = useCurrentChapter();
+  const currentChapter = useCurrentChapter();
 
-    if (!currentChapter) {
-      return (
-        <View
-          style={[defaultStyles.container, { justifyContent: 'center' }]}
-        >
-          <ActivityIndicator color={colors.icon} />
-        </View>
-      );
-    }
-
+  if (!currentChapter) {
     return (
-      <View>
-        <Pressable
-          onPress={handlePresentPress}
-          style={styles.chapterTitleContainer}
-        >
-          <Logs
-            size={24}
-            style={{ transform: [{ rotateY: '180deg' }] }}
-            color={colors.icon}
-            strokeWidth={1.5}
-            absoluteStrokeWidth
-          />
-
-          <View style={styles.trackTitleContainer}>
-            <MovingText
-              text={currentChapter.chapterTitle ?? ''}
-              animationThreshold={34}
-              style={styles.trackTitleText}
-            />
-          </View>
-        </Pressable>
-
-        <BottomSheetModal
-          enablePanDownToClose={true}
-          backgroundStyle={{ backgroundColor: '#151520ea' }} //#12121d
-          handleComponent={() => {
-            return (
-              <Pressable
-                hitSlop={10}
-                style={styles.handleIndicator}
-                onPress={() => {
-                  if (
-                    bottomSheetModalRef &&
-                    'current' in bottomSheetModalRef
-                  ) {
-                    bottomSheetModalRef.current?.dismiss();
-                  }
-                }}
-              />
-            );
-          }}
-          // handleIndicatorStyle={styles.handleIndicator}
-          enableDynamicSizing={false}
-          backdropComponent={renderBackdrop}
-          ref={bottomSheetModalRef}
-          index={0}
-          snapPoints={snapPoints}
-        >
-          <View style={{ flex: 1, marginBottom: bottom - 12 }}>
-            <ChapterList
-              book={book}
-              activeChapter={currentChapter}
-              onChapterSelect={onChapterSelect}
-              bottomSheetModalRef={bottomSheetModalRef}
-            />
-          </View>
-        </BottomSheetModal>
+      <View style={[defaultStyles.container, { justifyContent: 'center' }]}>
+        <ActivityIndicator color={colors.icon} />
       </View>
     );
   }
-);
+
+  return (
+    <View>
+      <Pressable
+        onPress={handlePresentPress}
+        style={styles.chapterTitleContainer}
+      >
+        <Logs
+          size={24}
+          style={{ transform: [{ rotateY: '180deg' }] }}
+          color={colors.icon}
+          strokeWidth={1.5}
+          absoluteStrokeWidth
+        />
+
+        <View style={styles.trackTitleContainer}>
+          <MovingText
+            text={currentChapter.chapterTitle ?? ''}
+            animationThreshold={34}
+            style={styles.trackTitleText}
+          />
+        </View>
+      </Pressable>
+
+      <BottomSheetModal
+        enablePanDownToClose={true}
+        backgroundStyle={{ backgroundColor: '#151520ea' }} //#12121d
+        handleComponent={() => {
+          return (
+            <Pressable
+              hitSlop={10}
+              style={styles.handleIndicator}
+              onPress={() => {
+                if (
+                  bottomSheetModalRef &&
+                  'current' in bottomSheetModalRef
+                ) {
+                  bottomSheetModalRef.current?.dismiss();
+                }
+              }}
+            />
+          );
+        }}
+        // handleIndicatorStyle={styles.handleIndicator}
+        enableDynamicSizing={false}
+        backdropComponent={renderBackdrop}
+        ref={bottomSheetModalRef}
+        index={0}
+        snapPoints={snapPoints}
+      >
+        <View style={{ flex: 1, marginBottom: bottom - 12 }}>
+          <ChapterList
+            book={book}
+            activeChapter={currentChapter}
+            onChapterSelect={onChapterSelect}
+            bottomSheetModalRef={bottomSheetModalRef}
+          />
+        </View>
+      </BottomSheetModal>
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   chapterTitleContainer: {

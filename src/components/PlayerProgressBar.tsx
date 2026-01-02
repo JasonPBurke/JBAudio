@@ -5,12 +5,21 @@ import TrackPlayer, { useProgress } from 'react-native-track-player';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles, utilsStyles } from '@/styles';
-import { useEffect, useMemo, useState, memo } from 'react';
+import { useEffect, useState } from 'react';
 import { useCurrentChapter } from '@/hooks/useCurrentChapter';
 
-export const PlayerProgressBar = memo(({ style }: ViewProps) => {
-  // Throttle progress updates to 1 Hz to reduce JS churn
-  const { duration, position } = useProgress(1000);
+export const PlayerProgressBar = ({ style }: ViewProps) => {
+  const { duration, position } = useProgress(250);
+
+  const [bubbleElapsedTime, setBubbleElapsedTime] = useState(
+    formatSecondsToMinutes(position)
+  );
+  const [trackElapsedTime, setTrackElapsedTime] = useState(
+    formatSecondsToMinutes(position)
+  );
+  const [trackRemainingTime, setTrackRemainingTime] = useState(
+    formatSecondsToMinutes(duration - position)
+  );
 
   const currentChapter = useCurrentChapter();
 
@@ -24,26 +33,6 @@ export const PlayerProgressBar = memo(({ style }: ViewProps) => {
   const min = useSharedValue(0);
   const max = useSharedValue(1);
 
-  // Compute display times only when the visible second changes
-  const flooredChapterPos = Math.max(0, Math.floor(chapterPosition));
-  const memoElapsed = useMemo(
-    () => formatSecondsToMinutes(flooredChapterPos),
-    [flooredChapterPos]
-  );
-  const memoRemaining = useMemo(
-    () =>
-      formatSecondsToMinutes(
-        Math.max(0, Math.floor(chapterDuration - flooredChapterPos))
-      ),
-    [chapterDuration, flooredChapterPos]
-  );
-
-  const [bubbleElapsedTime, setBubbleElapsedTime] = useState(memoElapsed);
-  const [trackElapsedTime, setTrackElapsedTime] = useState(memoElapsed);
-  const [trackRemainingTime, setTrackRemainingTime] = useState(
-    memoRemaining
-  );
-
   if (!isSliding.value) {
     progress.value =
       chapterDuration > 0 ? chapterPosition / chapterDuration : 0;
@@ -51,10 +40,12 @@ export const PlayerProgressBar = memo(({ style }: ViewProps) => {
 
   useEffect(() => {
     if (!isSliding.value) {
-      setTrackElapsedTime(memoElapsed);
-      setTrackRemainingTime(memoRemaining);
+      setTrackElapsedTime(formatSecondsToMinutes(chapterPosition));
+      setTrackRemainingTime(
+        formatSecondsToMinutes(chapterDuration - chapterPosition)
+      );
     }
-  }, [memoElapsed, memoRemaining, isSliding.value]);
+  }, [chapterPosition, chapterDuration, isSliding.value]);
 
   const handleSeek = async (value: number) => {
     if (isSliding.value) {
@@ -64,13 +55,9 @@ export const PlayerProgressBar = memo(({ style }: ViewProps) => {
       ? currentChapter.startMs / 1000 + value * chapterDuration
       : value * chapterDuration;
     await TrackPlayer.seekTo(seekPosition);
-    setTrackElapsedTime(
-      formatSecondsToMinutes(Math.floor(value * chapterDuration))
-    );
+    setTrackElapsedTime(formatSecondsToMinutes(value * chapterDuration));
     setTrackRemainingTime(
-      formatSecondsToMinutes(
-        Math.max(0, Math.floor(chapterDuration - value * chapterDuration))
-      )
+      formatSecondsToMinutes(chapterDuration - value * chapterDuration)
     );
   };
 
@@ -84,21 +71,31 @@ export const PlayerProgressBar = memo(({ style }: ViewProps) => {
         theme={{
           minimumTrackTintColor: colors.minimumTrackTintColor,
           maximumTrackTintColor: colors.maximumTrackTintColor,
+          // cacheTrackTintColor: '#333',
         }}
         thumbTouchSize={20}
         thumbWidth={13}
         renderBubble={() => (
-          <View style={{ justifyContent: 'center', alignItems: 'center', flex: 1 }}>
-            <Text style={{ color: colors.textMuted }}>{bubbleElapsedTime}</Text>
+          <View
+            style={{
+              justifyContent: 'center',
+              alignItems: 'center',
+              flex: 1,
+            }}
+          >
+            <Text style={{ color: colors.textMuted }}>
+              {bubbleElapsedTime}
+            </Text>
           </View>
         )}
         onSlidingStart={() => (isSliding.value = true)}
         onSlidingComplete={handleSeek}
         onValueChange={(value) => {
           setBubbleElapsedTime(
-            formatSecondsToMinutes(Math.floor(value * chapterDuration))
+            formatSecondsToMinutes(value * chapterDuration)
           );
         }}
+        // onTap={() => handleSeek(progress.value)}
       />
       <View style={styles.timeRow}>
         <Text style={styles.timeText}>{trackElapsedTime}</Text>
@@ -109,7 +106,7 @@ export const PlayerProgressBar = memo(({ style }: ViewProps) => {
       </View>
     </View>
   );
-});
+};
 
 const styles = StyleSheet.create({
   timeRow: {

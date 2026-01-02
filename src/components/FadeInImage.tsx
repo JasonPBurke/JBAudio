@@ -11,7 +11,7 @@ export const FadeInImage = ({ style, ...props }: FadeInImageProps) => {
   const onLoad = () => {
     Animated.timing(opacity, {
       toValue: 1,
-      duration: 400,
+      duration: 500,
       useNativeDriver: true,
     }).start();
   };

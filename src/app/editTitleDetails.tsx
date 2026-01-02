@@ -21,12 +21,6 @@ import { BookEditableFields } from '@/types/Book';
 import { updateBookDetails } from '@/db/bookQueries';
 
 const editTitleDetails = () => {
-  const [isFocused, setIsFocused] = useState(false);
-  const [focusedColor, setFocusedColor] = useState('#428AF8');
-
-  const handleFocus = () => setIsFocused(true);
-  const handleBlur = () => setIsFocused(false);
-
   const { top, bottom } = useSafeAreaInsets();
   const behavior = useBehavior();
   const { bookId } = useLocalSearchParams<{
@@ -43,9 +37,6 @@ const editTitleDetails = () => {
     description: '',
     copyright: '',
   });
-
-  const focusedUnderlineColor = colors.primary; // Blue color when focused
-  const defaultUnderlineColor = '#D3D3D3'; // Light gray when not focused
 
   useEffect(() => {
     if (book) {
@@ -98,6 +89,15 @@ const editTitleDetails = () => {
           paddingBottom: bottom + 24,
         }}
       >
+        {/* <BlurView
+          experimentalBlurMethod='dimezisBlurView'
+          intensity={30}
+          tint='dark'
+          style={[
+            styles.container,
+            { paddingTop: top, paddingBottom: bottom },
+          ]}
+        > */}
         <Animated.Text
           entering={FadeInUp.duration(400).delay(100)}
           style={styles.header}
@@ -123,11 +123,6 @@ const editTitleDetails = () => {
             onChangeText={(text) => handleInputChange('bookTitle', text)}
             cursorColor={colors.primary}
             selectionColor={colors.primary}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            underlineColorAndroid={
-              isFocused ? focusedUnderlineColor : defaultUnderlineColor
-            }
           ></TextInput>
           <Text style={styles.fieldTitle}>Author</Text>
           <TextInput
@@ -136,11 +131,6 @@ const editTitleDetails = () => {
             editable={false} //! Author editing is complex due to the data model
             cursorColor={colors.primary}
             selectionColor={colors.primary}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            underlineColorAndroid={
-              isFocused ? focusedUnderlineColor : defaultUnderlineColor
-            }
           ></TextInput>
           <Text style={styles.fieldTitle}>Narrator</Text>
           <TextInput
@@ -150,11 +140,6 @@ const editTitleDetails = () => {
             onChangeText={(text) => handleInputChange('narrator', text)}
             cursorColor={colors.primary}
             selectionColor={colors.primary}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            underlineColorAndroid={
-              isFocused ? focusedUnderlineColor : defaultUnderlineColor
-            }
           ></TextInput>
           <Text style={styles.fieldTitle}>Genre Tags</Text>
           <TextInput
@@ -164,11 +149,6 @@ const editTitleDetails = () => {
             onChangeText={(text) => handleInputChange('genre', text)}
             cursorColor={colors.primary}
             selectionColor={colors.primary}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            underlineColorAndroid={
-              isFocused ? focusedUnderlineColor : defaultUnderlineColor
-            }
           ></TextInput>
           <Text style={styles.fieldTitle}>Release Year</Text>
           <TextInput
@@ -179,15 +159,10 @@ const editTitleDetails = () => {
             cursorColor={colors.primary}
             selectionColor={colors.primary}
             keyboardType='numeric'
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            underlineColorAndroid={
-              isFocused ? focusedUnderlineColor : defaultUnderlineColor
-            }
           ></TextInput>
           <Text style={styles.fieldTitle}>Description</Text>
           <TextInput
-            style={styles.searchInputDesc}
+            style={styles.searchInput}
             placeholder={'Description'}
             value={formState.description ?? ''}
             onChangeText={(text) => handleInputChange('description', text)}
@@ -195,11 +170,6 @@ const editTitleDetails = () => {
             selectionColor={colors.primary}
             multiline
             textAlignVertical='top'
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            underlineColorAndroid={
-              isFocused ? focusedUnderlineColor : defaultUnderlineColor
-            }
           ></TextInput>
           <Text style={styles.fieldTitle}>Copyright</Text>
           <TextInput
@@ -209,11 +179,6 @@ const editTitleDetails = () => {
             onChangeText={(text) => handleInputChange('copyright', text)}
             cursorColor={colors.primary}
             selectionColor={colors.primary}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            underlineColorAndroid={
-              isFocused ? focusedUnderlineColor : defaultUnderlineColor
-            }
           ></TextInput>
           <View style={styles.buttonContainer}>
             <TouchableOpacity
@@ -260,8 +225,7 @@ const styles = StyleSheet.create({
     margin: 20,
   },
   card: {
-    // width: 375,
-    width: '100%',
+    width: 375,
     height: 'auto',
     backgroundColor: colors.modalBackground,
     borderRadius: 10,
@@ -276,26 +240,12 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     width: '100%',
-    height: 50,
-    // backgroundColor: '#303030',
-    // borderRadius: 8,
-    padding: 6,
+    backgroundColor: '#303030',
+    borderRadius: 8,
+    padding: 14,
     marginVertical: 10,
     color: colors.textMuted,
-    fontSize: 18,
-    lineHeight: 26,
-    letterSpacing: 0.2,
-  },
-  searchInputDesc: {
-    width: '100%',
-    // backgroundColor: '#303030',
-    // borderRadius: 8,
-    padding: 6,
-    marginVertical: 10,
-    color: colors.textMuted,
-    fontSize: 18,
-    lineHeight: 26,
-    letterSpacing: 0.2,
+    fontSize: 16,
   },
   buttonContainer: {
     flexDirection: 'row',

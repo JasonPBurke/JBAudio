@@ -47,10 +47,9 @@ const TruncatedParagraph = ({
 
 const styles = StyleSheet.create({
   paragraph: {
-    fontSize: 18,
+    fontSize: fontSize.sm,
     color: colors.text,
-    lineHeight: 26,
-    letterSpacing: 0.2,
+    lineHeight: 24,
   },
   readMoreText: {
     color: colors.textMuted,
