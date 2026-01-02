@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import {
   Text,
   View,
@@ -5,37 +6,39 @@ import {
   Pressable,
   TouchableOpacity,
 } from 'react-native';
-import { useBookById } from '@/store/library';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
-import { unknownBookImageUri } from '@/constants/images';
-import { colors, fontSize } from '@/constants/tokens';
-import { defaultStyles } from '@/styles';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Play, Pause } from 'lucide-react-native';
-import TrackPlayer, {
-  useActiveTrack,
-  useIsPlaying,
-} from 'react-native-track-player';
-import { useQueueStore } from '@/store/queue';
-import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
-import TruncatedParagraph from '@/components/TruncatedParagraph';
-// import { ChapterList } from '@/components/ChapterList';
-import { useMemo, useState } from 'react';
-import {
-  handleBookPlay,
-  BookProgressState,
-} from '@/helpers/handleBookPlay';
 import { ShadowedView, shadowStyle } from 'react-native-fast-shadow';
 import { ScrollView } from 'react-native-gesture-handler';
 import { Clock8, Calendar, Book } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import TrackPlayer, {
+  useActiveTrack,
+  useIsPlaying,
+} from 'react-native-track-player';
+
+import { useBookById } from '@/store/library';
+// import { ChapterList } from '@/components/ChapterList';
+import { unknownBookImageUri } from '@/constants/images';
+import { colors, fontSize } from '@/constants/tokens';
+import { useQueueStore } from '@/store/queue';
+import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
+import TruncatedParagraph from '@/components/TruncatedParagraph';
+import { defaultStyles } from '@/styles';
+import {
+  handleBookPlay,
+  BookProgressState,
+} from '@/helpers/handleBookPlay';
 
 const TitleDetails = () => {
   const { top, bottom } = useSafeAreaInsets();
   const { setActiveBookId, activeBookId } = useQueueStore();
-  const { bookId } = useLocalSearchParams<{
+  const { bookId, author, bookTitle } = useLocalSearchParams<{
     bookId: string;
+    author: string;
+    bookTitle: string;
   }>();
 
   const book = useBookById(bookId);
@@ -43,8 +46,15 @@ const TitleDetails = () => {
   const [showLoading, setShowLoading] = useState(false);
 
   const { playing } = useIsPlaying();
+  const activeTrack = useActiveTrack();
+
+  if (!book) {
+    // Optional: Render a loading state or return null
+    return null;
+  }
+
   const isActiveBook =
-    useActiveTrack()?.url ===
+    activeTrack?.url ===
     book.chapters[book.bookProgress.currentChapterIndex].url;
 
   const isBookStarted =
@@ -129,7 +139,9 @@ const TitleDetails = () => {
             }
             style={[styles.bookInfoContainer]}
           >
-            <Text style={styles.bookTitleText}>{book.bookTitle}</Text>
+            <Text style={styles.bookTitleText}>
+              {book.bookTitle ?? bookTitle}
+            </Text>
 
             <View style={styles.authorNarratorContainer}>
               <View
@@ -150,7 +162,7 @@ const TitleDetails = () => {
                   numberOfLines={3}
                   style={{ ...styles.bookInfoText, textAlign: 'center' }}
                 >
-                  {book.author}
+                  {book.author ?? author}
                 </Text>
               </View>
               <View

@@ -46,15 +46,12 @@ export const BookListItem = memo(function BookListItem({
   const { setActiveBookId, activeBookId } = useQueueStore();
   const isActiveBook = useActiveTrack()?.bookId === bookId;
 
-  const encodedBookId = encodeURIComponent(bookId);
-  const encodedAuthor = encodeURIComponent(author);
-  const encodedBookTitle = encodeURIComponent(bookTitle);
-
   const handlePress = useCallback(() => {
-    router.navigate(
-      `/titleDetails?bookId=${encodedBookId}&author=${encodedAuthor}&bookTitle=${encodedBookTitle}`
-    );
-  }, [router, encodedBookId, encodedAuthor, encodedBookTitle]);
+    router.navigate({
+      pathname: '/titleDetails',
+      params: { bookId, author, bookTitle },
+    });
+  }, [router, bookId, author, bookTitle]);
 
   const handlePressPlay = useCallback(() => {
     handleBookPlay(

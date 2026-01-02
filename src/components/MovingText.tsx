@@ -3,7 +3,6 @@ import { TextStyle } from 'react-native';
 import Animated, {
   cancelAnimation,
   Easing,
-  // StyleProps,
   useAnimatedStyle,
   useSharedValue,
   withDelay,

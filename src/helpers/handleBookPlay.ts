@@ -3,6 +3,10 @@ import { getChapterProgressInDB } from '@/db/chapterQueries';
 import { Book } from '@/types/Book';
 import { getBookById } from '@/db/bookQueries';
 import TrackPlayer, { Track } from 'react-native-track-player';
+import {
+  getLastActiveBook,
+  updateLastActiveBook,
+} from '@/db/settingsQueries';
 
 export enum BookProgressState {
   NotStarted = 0,
@@ -22,8 +26,6 @@ export const handleBookPlay = async (
 
   // If the book has not been started, update its progress value in the DB
   if (book.bookProgressValue === BookProgressState.NotStarted) {
-    // Use an async IIFE to perform the update without blocking playback.
-    // Added error handling to ensure we catch any issues with the DB write.
     (async () => {
       try {
         const bookModel = await getBookById(book.bookId!);
@@ -61,6 +63,7 @@ export const handleBookPlay = async (
 
     if (book.bookId) {
       setActiveBookId(book.bookId);
+      await updateLastActiveBook(book.bookId);
     }
   } else {
     await TrackPlayer.skip(progressInfo.chapterIndex);

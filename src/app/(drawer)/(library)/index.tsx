@@ -2,7 +2,7 @@ import BooksList from '@/components/BooksList';
 import BooksHome from '@/components/BooksHome';
 import BooksGrid from '@/components/BooksGrid';
 import { defaultStyles } from '@/styles';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   View,
   TextInput,
@@ -19,7 +19,7 @@ import Animated, {
   useAnimatedScrollHandler,
 } from 'react-native-reanimated';
 import { useScanExternalFileSystem } from '@/hooks/useScanExternalFileSystem';
-import { useAuthors, useLibraryStore } from '@/store/library';
+import { useLibraryStore } from '@/store/library';
 import { FloatingPlayer } from '@/components/FloatingPlayer';
 import { colors } from '@/constants/tokens';
 import { X } from 'lucide-react-native';
@@ -157,9 +157,7 @@ const LibraryScreen = ({ navigation }: any) => {
   });
 
   const SearchComponent = (
-    <Animated.View
-      style={[styles.searchContainer, searchContainerStyle]}
-    >
+    <Animated.View style={[styles.searchContainer, searchContainerStyle]}>
       <TextInput
         style={styles.searchInput}
         placeholder='Search books, authors...'
@@ -200,16 +198,10 @@ const LibraryScreen = ({ navigation }: any) => {
             ListHeaderComponent={SearchComponent}
           />
         )}
-        {toggleView === 1 && (
-          <BooksList
-            authors={filteredLibrary}
-            //  scrollEnabled={false}
-          />
-        )}
+        {toggleView === 1 && <BooksList authors={filteredLibrary} />}
         {toggleView === 2 && (
           <BooksGrid
             authors={filteredLibrary}
-            // scrollEnabled={false}
             standAlone={true}
             flowDirection='column'
           />

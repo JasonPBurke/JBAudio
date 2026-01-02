@@ -106,7 +106,7 @@ const editTitleDetails = () => {
           Edit Book Details
         </Animated.Text>
         <Image
-          // sharedTransitionTag='image'
+          contentFit='contain'
           source={{
             uri: book?.artwork ?? unknownBookImageUri,
           }}
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: 345,
-    resizeMode: 'contain',
+    // resizeMode: 'contain',
   },
   text: {
     fontSize: 30,

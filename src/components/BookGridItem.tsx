@@ -41,11 +41,12 @@ export const BookGridItem = memo(function BookGridItem({
 
   const { setActiveBookId, activeBookId } = useQueueStore();
   const isActiveBook = useActiveTrack()?.bookId === bookId;
-  const encodedBookId = encodeURIComponent(bookId);
-
   const handlePress = useCallback(() => {
-    router.navigate(`/titleDetails?bookId=${encodedBookId}`);
-  }, [router, encodedBookId]);
+    router.navigate({
+      pathname: '/titleDetails',
+      params: { bookId, author, bookTitle },
+    });
+  }, [router, bookId, author, bookTitle]);
 
   const handlePressPlay = useCallback(() => {
     if (!fullBook) return;
