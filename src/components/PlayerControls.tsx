@@ -1,3 +1,10 @@
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   StyleSheet,
   TouchableOpacity,
@@ -19,7 +26,6 @@ import {
   SkipForward,
 } from 'lucide-react-native';
 import { colors } from '@/constants/tokens';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -41,7 +47,7 @@ import {
   updateTimerFadeoutDuration,
 } from '@/db/settingsQueries';
 import database from '@/db';
-import { useObserveWatermelonData } from '@/hooks/useObserveWatermelonData';
+import { useObserveSettings } from '@/hooks/useObserveSettings';
 
 type PlayerControlsProps = {
   style?: ViewStyle;
@@ -72,12 +78,12 @@ export const PlayerControls = ({ style }: PlayerControlsProps) => {
   );
 };
 
-export const PlayPauseButton = ({
+export function PlayPauseButton({
   style,
   iconSize = 50,
   top = 10,
   left = 10,
-}: PlayerButtonProps) => {
+}: PlayerButtonProps) {
   const { playing } = useIsPlaying();
   const playButtonScale = useSharedValue(playing ? 0 : 1);
   const pauseButtonScale = useSharedValue(playing ? 1 : 0);
@@ -98,7 +104,9 @@ export const PlayPauseButton = ({
   useEffect(() => {
     playButtonScale.value = playing ? 0 : 1;
     pauseButtonScale.value = playing ? 1 : 0;
-  }, [playing, playButtonScale, pauseButtonScale]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing]);
+
   const animatedPlayButtonStyle = useAnimatedStyle(() => {
     return {
       opacity: playButtonScale.value,
@@ -121,20 +129,14 @@ export const PlayPauseButton = ({
 
   return (
     <Pressable
-      // android_ripple={{
-      //   color: '#cccccc28',
-      // }}
       style={[
         {
           height: iconSize * 1.35,
           width: iconSize * 1.35,
-          // borderColor: 'red',
-          // borderWidth: 1,
           borderRadius: 50,
         },
         style,
       ]}
-      // hitSlop={30}
       onPress={onButtonPress}
     >
       <Animated.View style={animatedPlayButtonStyle}>
@@ -155,14 +157,14 @@ export const PlayPauseButton = ({
       </Animated.View>
     </Pressable>
   );
-};
+}
 
-export const SeekBackButton = ({
+export function SeekBackButton({
   iconSize = 30,
   top = 7,
   right = 12,
   fontSize,
-}: PlayerButtonProps) => {
+}: PlayerButtonProps) {
   const seekDuration = 30;
   const rotation = useSharedValue(0);
 
@@ -187,7 +189,6 @@ export const SeekBackButton = ({
     if (newPosition < 0) {
       await TrackPlayer.skipToPrevious();
       const { duration } = await TrackPlayer.getProgress();
-      //? newPosition is negative, so we need to add it to the duration
       await TrackPlayer.seekTo(duration + newPosition);
     } else {
       await TrackPlayer.seekTo(newPosition);
@@ -195,14 +196,7 @@ export const SeekBackButton = ({
   };
 
   return (
-    <Pressable
-      // android_ripple={{
-      //   color: '#cccccc28',
-      // }}
-      style={{ padding: 10 }}
-      // hitSlop={30}
-      onPress={handlePress}
-    >
+    <Pressable style={{ padding: 10 }} onPress={handlePress}>
       <Animated.View style={animatedStyle}>
         <IterationCw
           size={iconSize}
@@ -225,14 +219,14 @@ export const SeekBackButton = ({
       </Animated.View>
     </Pressable>
   );
-};
+}
 
-export const SeekForwardButton = ({
+export function SeekForwardButton({
   iconSize = 30,
   top = 7,
   right = 12,
   fontSize,
-}: PlayerButtonProps) => {
+}: PlayerButtonProps) {
   const seekDuration = 30;
   const rotation = useSharedValue(0);
 
@@ -255,7 +249,6 @@ export const SeekForwardButton = ({
     if (newPosition > duration) {
       const seekToTime = newPosition - duration;
       await TrackPlayer.skipToNext();
-      //? newPosition is negative, so we need to add it to the duration
       await TrackPlayer.seekTo(seekToTime);
     } else {
       await TrackPlayer.seekTo(position + seekDuration);
@@ -263,14 +256,7 @@ export const SeekForwardButton = ({
   };
 
   return (
-    <Pressable
-      // android_ripple={{
-      //   color: '#cccccc28',
-      // }}
-      style={{ padding: 10 }}
-      // hitSlop={30}
-      onPress={handlePress}
-    >
+    <Pressable style={{ padding: 10 }} onPress={handlePress}>
       <Animated.View style={animatedStyle}>
         <IterationCcw
           size={iconSize}
@@ -293,11 +279,9 @@ export const SeekForwardButton = ({
       </Animated.View>
     </Pressable>
   );
-};
+}
 
-export const SkipToPreviousButton = ({
-  iconSize = 30,
-}: PlayerButtonProps) => {
+export function SkipToPreviousButton({ iconSize = 30 }: PlayerButtonProps) {
   return (
     <TouchableOpacity
       activeOpacity={0.7}
@@ -311,9 +295,9 @@ export const SkipToPreviousButton = ({
       />
     </TouchableOpacity>
   );
-};
+}
 
-export const SkipToNextButton = ({ iconSize = 30 }: PlayerButtonProps) => {
+export function SkipToNextButton({ iconSize = 30 }: PlayerButtonProps) {
   return (
     <TouchableOpacity
       activeOpacity={0.7}
@@ -327,26 +311,19 @@ export const SkipToNextButton = ({ iconSize = 30 }: PlayerButtonProps) => {
       />
     </TouchableOpacity>
   );
-};
+}
 
-export const PlaybackSpeed = ({ iconSize = 30 }: PlayerButtonProps) => {
+export function PlaybackSpeed({ iconSize = 30 }: PlayerButtonProps) {
   const speedRates = [0.5, 1.0, 1.5];
   const [currentIndex, setCurrentIndex] = useState(1);
 
   const handleSpeedRate = async () => {
     setCurrentIndex((prevIndex) => (prevIndex + 1) % speedRates.length);
-    //! crashing app...look at docs for implementation
     // await TrackPlayer.setRate(currentIndex);
-    // console.log('currentSpeedIndex', currentIndex);
   };
 
   return (
-    <Pressable
-      // android_ripple={{
-      //   color: '#cccccc28',
-      // }}
-      onPress={handleSpeedRate}
-    >
+    <Pressable onPress={handleSpeedRate}>
       <Gauge
         size={iconSize}
         color={colors.icon}
@@ -367,45 +344,60 @@ export const PlaybackSpeed = ({ iconSize = 30 }: PlayerButtonProps) => {
       </Text>
     </Pressable>
   );
-};
+}
 
-export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
-  const settingsCollection = useObserveWatermelonData(database, 'settings');
-  const timerActiveValue = settingsCollection?.[0]?.timerActive;
-  const timerDuration: number | null =
-    settingsCollection?.[0]?.timerDuration;
-  const timerChapters: number | null =
-    settingsCollection?.[0]?.timerChapters;
+export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
+  const settings = useObserveSettings(database);
+  const timerActive = settings?.timerActive === true;
+  const chaptersCount: number | null = settings?.timerChapters ?? null;
+
+  // Optimistic UI state to reflect immediate press feedback
+  const [optimistic, setOptimistic] = useState<{
+    active: boolean;
+    chapters: number | null;
+    endTimeMs: number | null;
+  } | null>(null);
+  const uiActive = optimistic ? optimistic.active : timerActive;
+  const uiChapters: number | null = optimistic
+    ? optimistic.chapters
+    : chaptersCount;
+  const uiEndTimeMs: number | null = optimistic
+    ? optimistic.endTimeMs
+    : null;
+
+  const [mountSheet, setMountSheet] = useState(false);
   const { bottom } = useSafeAreaInsets();
   const snapPoints = useMemo(() => ['40%'], []);
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
-  const rotation = useSharedValue(0); // For Hourglass rotation
+  const rotation = useSharedValue(0);
   const countdownOpacity = useSharedValue(0);
   const countdownScale = useSharedValue(0.8);
 
+  // Reconcile optimistic UI with store updates
   useEffect(() => {
-    if (timerActiveValue) {
+    setOptimistic(null);
+  }, [settings]);
+
+  useEffect(() => {
+    if (uiActive) {
       countdownOpacity.value = withTiming(0.5, { duration: 300 });
       countdownScale.value = withTiming(1, { duration: 300 });
     } else {
       countdownOpacity.value = withTiming(0, { duration: 300 });
       countdownScale.value = withTiming(0.2, { duration: 300 });
     }
-  }, [timerActiveValue, countdownOpacity, countdownScale]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uiActive]);
 
-  const animatedCountdownStyle = useAnimatedStyle(() => {
-    return {
-      opacity: countdownOpacity.value,
-      transform: [{ scale: countdownScale.value }],
-    };
-  });
+  const animatedCountdownStyle = useAnimatedStyle(() => ({
+    opacity: countdownOpacity.value,
+    transform: [{ scale: countdownScale.value }],
+  }));
 
-  const animatedBellStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ rotateZ: `${rotation.value}deg` }],
-    };
-  });
+  const animatedBellStyle = useAnimatedStyle(() => ({
+    transform: [{ rotateZ: `${rotation.value}deg` }],
+  }));
 
   const renderBackdrop = useCallback(
     (props: any) => (
@@ -419,26 +411,55 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
     []
   );
 
-  const handlePress = async () => {
+  const onOptimisticUpdate = useCallback(
+    (next: {
+      active: boolean;
+      endTimeMs: number | null;
+      chapters: number | null;
+    }) => {
+      setOptimistic(next);
+    },
+    []
+  );
+
+  const handlePresentModalPress = useCallback(() => {
+    if (!mountSheet) setMountSheet(true);
+    requestAnimationFrame(() => bottomSheetModalRef.current?.present());
+  }, [mountSheet]);
+
+  const handlePress = useCallback(async () => {
     const { timerDuration, timerActive, timerChapters, fadeoutDuration } =
       await getTimerSettings();
     if (timerDuration !== null && timerActive === false) {
+      // Optimistically activate duration timer
+      setOptimistic({
+        active: true,
+        chapters: null,
+        endTimeMs: Date.now() + timerDuration,
+      });
       await updateTimerActive(true);
       if (fadeoutDuration && fadeoutDuration > timerDuration) {
         await updateTimerFadeoutDuration(timerDuration);
       }
-      //! THIS RESETS THE TIMER..IF I WANT TO USE THIS TO PAUSE THE TIMER AND LET IT
-      //! RESUME ON ACTIVATE PRESS, I NEED TO STORE THE TIMER DURATION MINUS ELAPSED
-      //! TIME IN THE DB
       await updateSleepTime(Date.now() + timerDuration);
     } else if (timerDuration !== null && timerActive === true) {
+      // Optimistically deactivate duration timer
+      setOptimistic({ active: false, chapters: null, endTimeMs: null });
       await updateTimerActive(false);
       await updateSleepTime(null);
-      await TrackPlayer.setVolume(1); //? if fade out has started
+      await TrackPlayer.setVolume(1);
     } else if (timerChapters !== null && timerActive === false) {
+      // Optimistically activate chapter timer
+      setOptimistic({
+        active: true,
+        chapters: timerChapters ?? null,
+        endTimeMs: null,
+      });
       await updateTimerActive(true);
     } else if (timerChapters !== null && timerActive === true) {
-      await TrackPlayer.setVolume(1); //? if fade out has started
+      // Optimistically deactivate chapter timer
+      setOptimistic({ active: false, chapters: null, endTimeMs: null });
+      await TrackPlayer.setVolume(1);
       await updateTimerActive(false);
     } else if (timerDuration === null && timerActive === false) {
       handlePresentModalPress();
@@ -448,67 +469,63 @@ export const SleepTimer = ({ iconSize = 30 }: PlayerButtonProps) => {
       withTiming(-10, { duration: 100 }),
       withTiming(10, { duration: 200 }),
       withTiming(0, { duration: 100 })
-      //! for Hourglass rotation
-      // rotation.value = withTiming(rotation.value + 180, { duration: 300 });
     );
-  };
-
-  const handlePresentModalPress = useCallback(() => {
-    bottomSheetModalRef.current?.present();
-  }, []);
+  }, [handlePresentModalPress]);
 
   return (
     <Pressable
-      // android_ripple={{
-      //   color: '#cccccc28',
-      // }}
       hitSlop={20}
       onPress={handlePress}
       onLongPress={handlePresentModalPress}
     >
-      <BottomSheetModal
-        enablePanDownToClose={true}
-        backgroundStyle={{ backgroundColor: '#151520' }}
-        style={{ paddingBottom: bottom + 10, marginBottom: bottom + 10 }}
-        handleComponent={() => {
-          return (
+      {mountSheet && (
+        <BottomSheetModal
+          enablePanDownToClose
+          backgroundStyle={{ backgroundColor: '#151520' }}
+          style={{ paddingBottom: bottom + 10, marginBottom: bottom + 10 }}
+          handleComponent={() => (
             <Pressable
               hitSlop={10}
               style={styles.handleIndicator}
               onPress={() => bottomSheetModalRef.current?.dismiss()}
             />
-          );
-        }}
-        enableDynamicSizing={false}
-        backdropComponent={renderBackdrop}
-        ref={bottomSheetModalRef}
-        index={0}
-        snapPoints={snapPoints}
-      >
-        <SleepTimerOptions bottomSheetModalRef={bottomSheetModalRef} />
-      </BottomSheetModal>
+          )}
+          enableDynamicSizing={false}
+          backdropComponent={renderBackdrop}
+          ref={bottomSheetModalRef}
+          index={0}
+          snapPoints={snapPoints}
+        >
+          <SleepTimerOptions
+            bottomSheetModalRef={bottomSheetModalRef}
+            onOptimisticUpdate={onOptimisticUpdate}
+          />
+        </BottomSheetModal>
+      )}
 
       <Animated.View style={animatedBellStyle}>
         <Bell
           size={iconSize}
-          color={timerActiveValue ? colors.primary : colors.icon}
+          color={uiActive ? colors.primary : colors.icon}
           strokeWidth={1.5}
           absoluteStrokeWidth
         />
-        {timerActiveValue && (
+        {uiActive && (
           <Animated.View
             style={[styles.countdownTimerContainer, animatedCountdownStyle]}
+            pointerEvents='none'
           >
-            <CountdownTimer timerChapters={timerChapters! + 1 || null} />
+            <CountdownTimer
+              timerChapters={uiChapters != null ? uiChapters + 1 : null}
+              endTimeMs={uiEndTimeMs}
+            />
           </Animated.View>
         )}
       </Animated.View>
-      {timerActiveValue && (
-        <AnimatedZZZ timerActiveValue={timerActiveValue} />
-      )}
+      {uiActive && <AnimatedZZZ timerActiveValue={uiActive} />}
     </Pressable>
   );
-};
+}
 
 const styles = StyleSheet.create({
   controlsContainer: {

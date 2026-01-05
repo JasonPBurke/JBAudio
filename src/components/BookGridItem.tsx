@@ -1,6 +1,6 @@
-import { unknownBookImageUri } from '@/constants/images';
+import { memo, useCallback, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import React, { memo, useCallback, useMemo } from 'react';
+import { PressableScale } from 'pressto';
 // import { Image } from 'expo-image';
 import { FadeInImage } from '@/components/FadeInImage';
 import { colors, fontSize } from '@/constants/tokens';
@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
 import { handleBookPlay } from '@/helpers/handleBookPlay';
 import { useBookById, useBookDisplayData } from '@/store/library';
+import { unknownBookImageUri } from '@/constants/images';
 
 export type BookGridItemProps = {
   bookId: string;
@@ -136,11 +137,13 @@ export const BookGridItem = memo(function BookGridItem({
   );
 
   return (
-    <Pressable
-      android_ripple={{
-        color: '#cccccc28',
-        foreground: false,
-      }}
+    <PressableScale
+      // rippleColor={'#5c575749'}
+      rippleRadius={0}
+      // android_ripple={{
+      //   color: '#cccccc28',
+      //   foreground: false,
+      // }}
       style={{
         paddingTop: 4,
         alignItems: 'center',
@@ -197,7 +200,8 @@ export const BookGridItem = memo(function BookGridItem({
               />
             </View>
           ) : (
-            <Pressable
+            <PressableScale
+              rippleRadius={0}
               onPress={handlePressPlay}
               style={[
                 styles.trackPausedIcon,
@@ -224,7 +228,7 @@ export const BookGridItem = memo(function BookGridItem({
                 strokeWidth={1}
                 absoluteStrokeWidth
               />
-            </Pressable>
+            </PressableScale>
           )}
         </View>
         <View style={bookInfoContainerStyle}>
@@ -242,7 +246,7 @@ export const BookGridItem = memo(function BookGridItem({
           )}
         </View>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 });
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useActiveTrack, useProgress } from 'react-native-track-player';
 import { useBook } from '@/store/library';
 import { Chapter } from '@/types/Book';
@@ -10,15 +10,19 @@ export const useCurrentChapter = () => {
 
   const [currentChapter, setCurrentChapter] = useState<Chapter | undefined>();
 
+  const isSingleFileBook = useMemo(() => {
+    if (!book || !book.chapters) return false;
+    return (
+      book.chapters.length > 1 &&
+      book.chapters.every((c) => c.url === book.chapters[0].url)
+    );
+  }, [book]);
+
   useEffect(() => {
     if (!book || !book.chapters) {
       setCurrentChapter(undefined);
       return;
     }
-
-    const isSingleFileBook =
-      book.chapters.length > 1 &&
-      book.chapters.every((c) => c.url === book.chapters[0].url);
 
     let chapter: Chapter | undefined;
 
@@ -43,7 +47,7 @@ export const useCurrentChapter = () => {
       }
       return current;
     });
-  }, [position, book, activeTrack]);
+  }, [book, activeTrack, isSingleFileBook ? position : 0]);
 
   return currentChapter;
 };

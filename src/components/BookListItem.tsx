@@ -1,11 +1,5 @@
 import { unknownBookImageUri } from '@/constants/images';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  TouchableHighlight,
-  View,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import React, { memo, useCallback } from 'react';
 // import { Image } from 'expo-image';
 import { FadeInImage } from '@/components/FadeInImage';
@@ -64,7 +58,10 @@ export const BookListItem = memo(function BookListItem({
   }, [fullBook, playing, isActiveBook, activeBookId, setActiveBookId]);
 
   return (
-    <TouchableHighlight onPress={handlePress}>
+    <Pressable
+      android_ripple={{ color: '#cccccc28' }}
+      onPress={handlePress}
+    >
       <View style={styles.bookItemContainer}>
         <View style={styles.bookArtworkImage}>
           <FadeInImage
@@ -127,7 +124,7 @@ export const BookListItem = memo(function BookListItem({
           </View>
         </View>
       </View>
-    </TouchableHighlight>
+    </Pressable>
   );
 });
 

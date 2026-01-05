@@ -1,5 +1,4 @@
 import { colors } from '@/constants/tokens';
-import { TouchableWithoutFeedback } from '@gorhom/bottom-sheet';
 import { X } from 'lucide-react-native';
 import {
   Modal,

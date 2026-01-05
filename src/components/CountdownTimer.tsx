@@ -6,19 +6,23 @@ import database from '@/db';
 
 const CountdownTimer = ({
   timerChapters,
+  endTimeMs,
 }: {
   timerChapters: number | null;
+  endTimeMs?: number | null;
 }) => {
   const settingsCollection = useObserveWatermelonData(database, 'settings');
   const sleepTime = settingsCollection?.[0]?.sleepTime;
 
   const [remainingTime, setRemainingTime] = useState('');
 
+  const effectiveEnd = endTimeMs ?? sleepTime ?? null;
+
   useEffect(() => {
     const updateRemainingTime = () => {
-      if (sleepTime) {
+      if (effectiveEnd) {
         const now = Date.now();
-        const remainingMilliseconds = Math.max(0, sleepTime - now);
+        const remainingMilliseconds = Math.max(0, effectiveEnd - now);
         setRemainingTime(formatTime(remainingMilliseconds));
       } else {
         setRemainingTime('');
@@ -29,7 +33,7 @@ const CountdownTimer = ({
     const intervalId = setInterval(updateRemainingTime, 1000); // Update every second
 
     return () => clearInterval(intervalId);
-  }, [sleepTime]);
+  }, [effectiveEnd]);
 
   const formatTime = (milliseconds: number) => {
     const totalSeconds = Math.floor(milliseconds / 1000);
@@ -50,7 +54,7 @@ const CountdownTimer = ({
   return (
     <View style={styles.container}>
       <Text style={styles.timerText}>
-        {timerChapters && !sleepTime
+        {timerChapters && !effectiveEnd
           ? `${timerChapters} Ch`
           : remainingTime || '00:00'}
       </Text>

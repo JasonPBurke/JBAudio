@@ -22,8 +22,10 @@ import { useRouter } from 'expo-router';
 
 const SleepTimerOptions = ({
   bottomSheetModalRef,
+  onOptimisticUpdate,
 }: {
   bottomSheetModalRef: RefObject<BottomSheetModal | null>;
+  onOptimisticUpdate?: (next: { active: boolean; endTimeMs: number | null; chapters: number | null }) => void;
 }) => {
   const [showSlider, setShowSlider] = useState(false);
   const [customTimer, setCustomTimer] = useState({ hours: 0, minutes: 0 });
@@ -106,12 +108,14 @@ const SleepTimerOptions = ({
 
     if (activeTimerDuration === totalMilliseconds) {
       //! deactivate timer
+      onOptimisticUpdate?.({ active: false, endTimeMs: null, chapters: null });
       await updateTimerActive(false);
       await updateTimerDuration(null);
       await updateSleepTime(null);
       setActiveTimerDuration(null);
     } else {
       //! activate timer
+      onOptimisticUpdate?.({ active: true, endTimeMs: Date.now() + totalMilliseconds, chapters: null });
       await updateTimerActive(true);
       await updateTimerDuration(totalMilliseconds);
       await updateSleepTime(Date.now() + totalMilliseconds);
@@ -133,6 +137,7 @@ const SleepTimerOptions = ({
       value.hours * 60 * 60 * 1000 + value.minutes * 60 * 1000;
     if (totalMilliseconds === 0) {
       //! deactivate timer
+      onOptimisticUpdate?.({ active: false, endTimeMs: null, chapters: null });
       await updateTimerActive(false);
       await updateTimerDuration(null);
       await updateSleepTime(null);
@@ -141,6 +146,7 @@ const SleepTimerOptions = ({
       setActiveTimerDuration(null);
     } else {
       //! activate timer
+      onOptimisticUpdate?.({ active: true, endTimeMs: Date.now() + totalMilliseconds, chapters: null });
       await updateTimerActive(true);
       await updateTimerDuration(totalMilliseconds);
       await updateSleepTime(Date.now() + totalMilliseconds);
@@ -158,12 +164,14 @@ const SleepTimerOptions = ({
   const handleChapterTimerPress = async () => {
     if (chapterTimerActive) {
       //! deactivate timer
+      onOptimisticUpdate?.({ active: false, endTimeMs: null, chapters: null });
       await updateTimerActive(false);
       await updateTimerDuration(null);
       await updateChapterTimer(null);
       setActiveTimerDuration(null);
     } else {
       //! activate timer
+      onOptimisticUpdate?.({ active: true, endTimeMs: null, chapters: chaptersToEnd });
       await updateTimerActive(true);
       await updateTimerDuration(null);
       await updateChapterTimer(chaptersToEnd);

@@ -1,6 +1,11 @@
 import { colors, screenPadding } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
-import { StyleSheet, View, ActivityIndicator } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  ActivityIndicator,
+  AppState,
+} from 'react-native';
 import TrackPlayer, { useActiveTrack } from 'react-native-track-player';
 import { ShadowedView, shadowStyle } from 'react-native-fast-shadow';
 import { Image } from 'expo-image';
@@ -9,14 +14,46 @@ import { PlayerControls } from '@/components/PlayerControls';
 import { PlayerProgressBar } from '@/components/PlayerProgressBar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PlayerChaptersModal } from '@/modals/PlayerChaptersModal';
-import { useCallback, useMemo, useRef } from 'react';
-import { useBook, useBookById, useLibraryStore } from '@/store/library';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useBookById, useLibraryStore } from '@/store/library';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 // import ProgressCircle from '@/components/ProgressCircle';
 import { BookTimeRemaining } from '@/components/BookTimeRemaining';
 import { DismissIndicator } from '@/components/DismissIndicator';
+import { useNavigation } from '@react-navigation/native';
 
 const PlayerScreen = () => {
+  //! REMOVE TO STOP UNMOUNT ON BACKGROUNDING
+  const appState = useRef(AppState.currentState);
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener(
+      'change',
+      (nextAppState) => {
+        if (
+          appState.current.match(/active|inactive/) &&
+          nextAppState === 'background'
+        ) {
+          // App is moving to the background (which includes screen lock)
+          // console.log('App has gone to the background, closing page.');
+
+          // Use navigation action to go back or pop the screen
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+            // Alternatively, for stack navigation: navigation.pop();
+          }
+        }
+        appState.current = nextAppState;
+      }
+    );
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+  //! REMOVE TO STOP UNMOUNT ON BACKGROUNDING
+
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const activeTrack = useActiveTrack();
   const book = useBookById(activeTrack?.bookId ?? '');
