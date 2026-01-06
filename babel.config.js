@@ -7,7 +7,6 @@ module.exports = function (api) {
       ['@babel/plugin-proposal-decorators', { legacy: true }],
       ['@babel/plugin-transform-class-properties', { loose: true }],
       ['react-native-worklets/plugin'],
-      // ['react-native-reanimated/plugin'],
     ],
   };
 };

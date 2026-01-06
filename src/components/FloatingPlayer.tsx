@@ -1,3 +1,4 @@
+import React, { useCallback, useMemo } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useActiveTrack } from 'react-native-track-player';
 import { Image } from 'expo-image';
@@ -16,8 +17,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueueStore } from '@/store/queue';
 import { useBookById } from '@/store/library';
 import { BookTimeRemaining } from '@/components/BookTimeRemaining';
-import React from 'react';
 
+/**
+ * Optimized FloatingPlayer component.
+ *
+ * Key optimizations:
+ * 1. Wrapped in React.memo to prevent re-renders from parent
+ * 2. Uses optimized BookTimeRemaining (event-based, updates every 5 seconds)
+ * 3. Uses PlayPauseButton and SeekBackButton which use Reanimated for animations
+ * 4. Memoized container style to avoid new object references
+ * 5. Memoized handlePress callback
+ */
 export const FloatingPlayer = React.memo(() => {
   const { bottom } = useSafeAreaInsets();
   const isPlayerReady = useQueueStore((state) => state.isPlayerReady);
@@ -29,26 +39,33 @@ export const FloatingPlayer = React.memo(() => {
 
   const displayedBook = useBookById(displayedTrack?.bookId ?? '');
 
+  // Memoize the container style to avoid new object reference on each render
+  const containerStyle = useMemo(
+    () => [
+      styles.parentContainer,
+      {
+        marginBottom: bottom - 12,
+        borderColor: colors.primary,
+        borderWidth: StyleSheet.hairlineWidth,
+      },
+    ],
+    [bottom]
+  );
+
+  // Memoize the navigation callback
+  const handlePress = useCallback(() => {
+    router.navigate('/player');
+  }, [router]);
+
   if (!isPlayerReady || !displayedTrack || !displayedBook) {
     return null;
   }
-
-  const handlePress = () => {
-    router.navigate('/player');
-  };
 
   return (
     <TouchableOpacity
       activeOpacity={0.9}
       onPress={handlePress}
-      style={[
-        styles.parentContainer,
-        {
-          marginBottom: bottom - 12,
-          borderColor: colors.primary,
-          borderWidth: StyleSheet.hairlineWidth,
-        },
-      ]}
+      style={containerStyle}
     >
       <>
         <Image
@@ -75,6 +92,8 @@ export const FloatingPlayer = React.memo(() => {
     </TouchableOpacity>
   );
 });
+
+FloatingPlayer.displayName = 'FloatingPlayer';
 
 const styles = StyleSheet.create({
   parentContainer: {

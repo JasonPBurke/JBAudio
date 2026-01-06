@@ -62,21 +62,36 @@ type PlayerButtonProps = {
   left?: number;
 };
 
-export const PlayerControls = ({ style }: PlayerControlsProps) => {
-  return (
-    <View style={[styles.controlsContainer, style]}>
-      <View style={styles.playerRow}>
-        <PlaybackSpeed iconSize={25} />
-        <SeekBackButton iconSize={42} top={6} right={12} fontSize={15} />
+/**
+ * Optimized PlayerControls component.
+ * Wrapped in React.memo to prevent re-renders from parent.
+ * Child button components use Reanimated for animations,
+ * which don't cause React re-renders.
+ */
+export const PlayerControls = React.memo(
+  ({ style }: PlayerControlsProps) => {
+    return (
+      <View style={[styles.controlsContainer, style]}>
+        <View style={styles.playerRow}>
+          <PlaybackSpeed iconSize={25} />
+          <SeekBackButton iconSize={42} top={6} right={12} fontSize={15} />
 
-        <PlayPauseButton iconSize={70} />
+          <PlayPauseButton iconSize={70} />
 
-        <SeekForwardButton iconSize={42} top={6} right={12} fontSize={15} />
-        <SleepTimer iconSize={25} />
+          <SeekForwardButton
+            iconSize={42}
+            top={6}
+            right={12}
+            fontSize={15}
+          />
+          <SleepTimer iconSize={25} />
+        </View>
       </View>
-    </View>
-  );
-};
+    );
+  }
+);
+
+PlayerControls.displayName = 'PlayerControls';
 
 export function PlayPauseButton({
   style,

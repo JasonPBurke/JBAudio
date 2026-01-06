@@ -1,13 +1,13 @@
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { Text } from 'react-native';
 import TrackPlayer, {
   useActiveTrack,
-  useProgress,
+  Event,
 } from 'react-native-track-player';
 import { useBookById } from '@/store/library';
 import { formatSecondsToHoursMinutes } from '@/helpers/miscellaneous';
 import { useLastActiveTrack } from '@/hooks/useLastActiveTrack';
 import { colors } from '@/constants/tokens';
-import { useEffect, useState } from 'react';
 
 // Normalize URLs to improve matching between TrackPlayer track URLs and stored chapter URLs
 const normalizeUrl = (u?: string | null) =>
@@ -18,155 +18,214 @@ type BookTimeRemainingProps = {
   color?: string;
 };
 
-export const BookTimeRemaining = ({
-  size,
-  color,
-}: BookTimeRemainingProps) => {
-  const { position } = useProgress(1000);
-  const activeTrack = useActiveTrack();
-  const lastActiveTrack = useLastActiveTrack();
-  const displayedTrack = activeTrack ?? lastActiveTrack;
+/**
+ * Inner component that handles the progress-dependent time calculation.
+ * This is separated from the outer component to isolate re-renders.
+ *
+ * Uses event-based progress updates instead of polling, and only
+ * updates the display every 5 seconds to minimize re-renders.
+ */
+const BookTimeRemainingInner = React.memo(
+  ({
+    book,
+    currentIndex,
+    size,
+    color,
+  }: {
+    book: NonNullable<ReturnType<typeof useBookById>>;
+    currentIndex: number | undefined;
+    size?: number;
+    color?: string;
+  }) => {
+    const [remainingText, setRemainingText] = useState('');
+    const lastUpdateRef = useRef(0);
 
-  // Use native active track index for reliable chapter detection
-  const [currentIndex, setCurrentIndex] = useState<number | undefined>(
-    undefined
-  );
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const idx = await TrackPlayer.getActiveTrackIndex();
-        if (mounted) setCurrentIndex(idx);
-      } catch {
-        // ignore
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [
-    displayedTrack?.bookId,
-    (displayedTrack as any)?.url,
-    (displayedTrack as any)?.title,
-  ]);
+    // Calculate remaining time based on position and book structure
+    const calculateRemaining = useCallback(
+      (position: number) => {
+        let totalPlayedTime = 0;
 
-  //! find a way to call this only when the book changes
-  const displayedBook = useBookById(displayedTrack?.bookId ?? '');
+        if (book.chapters) {
+          const chapters = book.chapters;
 
-  if (!displayedTrack || !displayedBook) {
-    return null;
-  }
+          // Use the current index if available, otherwise fall back to 0
+          const idx =
+            typeof currentIndex === 'number' &&
+            currentIndex >= 0 &&
+            currentIndex < chapters.length
+              ? currentIndex
+              : 0;
 
-  let totalPlayedTimeInBook = 0;
-  if (displayedBook.chapters) {
-    const chapters = displayedBook.chapters;
-    const dtUrl = normalizeUrl((displayedTrack as any)?.url);
-    const dtTitle = (displayedTrack as any)?.title;
+          // Sum durations of chapters before the current chapter index
+          const upper = Math.min(idx, chapters.length);
+          for (let i = 0; i < upper; i++) {
+            totalPlayedTime += chapters[i]?.chapterDuration ?? 0;
+          }
+          totalPlayedTime += position;
+        }
 
-    // Prefer native active index if it belongs to this book's queue range
-    let idx: number | undefined =
-      typeof currentIndex === 'number' &&
-      currentIndex >= 0 &&
-      currentIndex < chapters.length
-        ? currentIndex
-        : undefined;
-
-    // Fallback to matching by URL/title
-    if (idx === undefined) {
-      const matchIndex = chapters.findIndex(
-        (ch) => normalizeUrl(ch.url) === dtUrl || ch.chapterTitle === dtTitle
-      );
-      if (matchIndex >= 0) idx = matchIndex;
-    }
-
-    // Fallback to stored progress if within range
-    if (idx === undefined && displayedBook.bookProgress) {
-      const stored = displayedBook.bookProgress.currentChapterIndex;
-      if (
-        typeof stored === 'number' &&
-        stored >= 0 &&
-        stored < chapters.length
-      ) {
-        idx = stored;
-      }
-    }
-
-    // Final fallback
-    if (idx === undefined) idx = 0;
-
-    // Sum durations of chapters before the current chapter index
-    const upper = Math.min(idx, chapters.length);
-    for (let i = 0; i < upper; i++) {
-      totalPlayedTimeInBook += chapters[i]?.chapterDuration ?? 0;
-    }
-    totalPlayedTimeInBook += position;
-  }
-
-  const remainingSeconds = Math.max(
-    0,
-    displayedBook.bookDuration - totalPlayedTimeInBook
-  );
-  const bookRemainingTime = formatSecondsToHoursMinutes(remainingSeconds);
-
-  return (
-    <Text
-      style={{
-        fontSize: size ?? 12,
-        color: color ?? colors.textMuted,
-        fontWeight: '400',
-      }}
-    >
-      {bookRemainingTime} left
-    </Text>
-  );
-};
-
-export const bookTimeRemaining = () => {
-  const { position } = useProgress(1000);
-  const activeTrack = useActiveTrack();
-  const lastActiveTrack = useLastActiveTrack();
-  const displayedTrack = activeTrack ?? lastActiveTrack;
-
-  const displayedBook = useBookById(displayedTrack?.bookId ?? '');
-
-  if (!displayedTrack || !displayedBook) {
-    return null;
-  }
-
-  let totalPlayedTimeInBook = 0;
-  if (displayedBook.chapters) {
-    const chapters = displayedBook.chapters;
-    const dtUrl = normalizeUrl((displayedTrack as any)?.url);
-    const dtTitle = (displayedTrack as any)?.title;
-
-    let idx: number | undefined = undefined;
-
-    // Try to match by URL or title first for this helper as we don't have native index here
-    const matchIndex = chapters.findIndex(
-      (ch) => normalizeUrl(ch.url) === dtUrl || ch.chapterTitle === dtTitle
+        const remainingSeconds = Math.max(
+          0,
+          book.bookDuration - totalPlayedTime
+        );
+        return formatSecondsToHoursMinutes(remainingSeconds);
+      },
+      [book, currentIndex]
     );
-    if (matchIndex >= 0) idx = matchIndex;
 
-    // Fallback to stored progress if within range
-    if (idx === undefined && displayedBook.bookProgress) {
-      const stored = displayedBook.bookProgress.currentChapterIndex;
-      if (
-        typeof stored === 'number' &&
-        stored >= 0 &&
-        stored < chapters.length
-      ) {
-        idx = stored;
-      }
-    }
+    // Initial calculation and event-based updates
+    useEffect(() => {
+      // Get initial position
+      const initializeRemaining = async () => {
+        try {
+          const { position } = await TrackPlayer.getProgress();
+          setRemainingText(calculateRemaining(position));
+          lastUpdateRef.current = Math.floor(position / 5);
+        } catch (error) {
+          // Player might not be initialized
+        }
+      };
 
-    if (idx === undefined) idx = 0;
+      initializeRemaining();
 
-    const upper = Math.min(idx, chapters.length);
-    for (let i = 0; i < upper; i++) {
-      totalPlayedTimeInBook += chapters[i]?.chapterDuration ?? 0;
-    }
-    totalPlayedTimeInBook += position;
+      // Subscribe to progress updates via event
+      const subscription = TrackPlayer.addEventListener(
+        Event.PlaybackProgressUpdated,
+        ({ position }) => {
+          // Only update every 5 seconds to reduce re-renders
+          const currentBucket = Math.floor(position / 5);
+          if (currentBucket !== lastUpdateRef.current) {
+            lastUpdateRef.current = currentBucket;
+            setRemainingText(calculateRemaining(position));
+          }
+        }
+      );
+
+      return () => subscription.remove();
+    }, [calculateRemaining]);
+
+    return (
+      <Text
+        style={{
+          fontSize: size ?? 12,
+          color: color ?? colors.textMuted,
+          fontWeight: '400',
+        }}
+      >
+        {remainingText} left
+      </Text>
+    );
   }
+);
 
-  return Math.max(0, displayedBook.bookDuration - totalPlayedTimeInBook);
+BookTimeRemainingInner.displayName = 'BookTimeRemainingInner';
+
+/**
+ * Optimized BookTimeRemaining component.
+ *
+ * Key optimizations:
+ * 1. Split into outer (track/book resolution) and inner (progress-dependent) components
+ * 2. Inner component uses event-based progress updates instead of useProgress hook
+ * 3. Only updates display every 5 seconds instead of every 1 second
+ * 4. Both components wrapped in React.memo
+ */
+export const BookTimeRemaining = React.memo(
+  ({ size, color }: BookTimeRemainingProps) => {
+    const activeTrack = useActiveTrack();
+    const lastActiveTrack = useLastActiveTrack();
+    const displayedTrack = activeTrack ?? lastActiveTrack;
+    const displayedBook = useBookById(displayedTrack?.bookId ?? '');
+
+    // Track current index for chapter calculations
+    const [currentIndex, setCurrentIndex] = useState<number | undefined>(
+      undefined
+    );
+
+    // Update current index when track changes
+    useEffect(() => {
+      let mounted = true;
+
+      const updateIndex = async () => {
+        try {
+          const idx = await TrackPlayer.getActiveTrackIndex();
+          if (mounted) setCurrentIndex(idx);
+        } catch {
+          // ignore
+        }
+      };
+
+      updateIndex();
+
+      // Also listen for track changes
+      const subscription = TrackPlayer.addEventListener(
+        Event.PlaybackActiveTrackChanged,
+        async () => {
+          try {
+            const idx = await TrackPlayer.getActiveTrackIndex();
+            if (mounted) setCurrentIndex(idx);
+          } catch {
+            // ignore
+          }
+        }
+      );
+
+      return () => {
+        mounted = false;
+        subscription.remove();
+      };
+    }, [displayedTrack?.bookId]);
+
+    if (!displayedTrack || !displayedBook) {
+      return null;
+    }
+
+    return (
+      <BookTimeRemainingInner
+        book={displayedBook}
+        currentIndex={currentIndex}
+        size={size}
+        color={color}
+      />
+    );
+  }
+);
+
+BookTimeRemaining.displayName = 'BookTimeRemaining';
+
+/**
+ * Utility function to calculate book time remaining.
+ * This is a non-hook version for use outside of React components.
+ */
+export const bookTimeRemaining = async (
+  bookId: string,
+  getBook: (id: string) => ReturnType<typeof useBookById>
+) => {
+  const book = getBook(bookId);
+  if (!book) return null;
+
+  try {
+    const { position } = await TrackPlayer.getProgress();
+    const currentIndex = await TrackPlayer.getActiveTrackIndex();
+
+    let totalPlayedTime = 0;
+    if (book.chapters) {
+      const chapters = book.chapters;
+      const idx =
+        typeof currentIndex === 'number' &&
+        currentIndex >= 0 &&
+        currentIndex < chapters.length
+          ? currentIndex
+          : 0;
+
+      const upper = Math.min(idx, chapters.length);
+      for (let i = 0; i < upper; i++) {
+        totalPlayedTime += chapters[i]?.chapterDuration ?? 0;
+      }
+      totalPlayedTime += position;
+    }
+
+    return Math.max(0, book.bookDuration - totalPlayedTime);
+  } catch {
+    return null;
+  }
 };

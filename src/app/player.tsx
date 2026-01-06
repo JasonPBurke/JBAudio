@@ -1,5 +1,4 @@
-import { colors, screenPadding } from '@/constants/tokens';
-import { defaultStyles } from '@/styles';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -7,26 +6,81 @@ import {
   AppState,
 } from 'react-native';
 import TrackPlayer, { useActiveTrack } from 'react-native-track-player';
-import { ShadowedView, shadowStyle } from 'react-native-fast-shadow';
-import { Image } from 'expo-image';
-import { unknownBookImageUri } from '@/constants/images';
-import { PlayerControls } from '@/components/PlayerControls';
-import { PlayerProgressBar } from '@/components/PlayerProgressBar';
 import { LinearGradient } from 'expo-linear-gradient';
-import { PlayerChaptersModal } from '@/modals/PlayerChaptersModal';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { useBookById, useLibraryStore } from '@/store/library';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
-// import ProgressCircle from '@/components/ProgressCircle';
-import { BookTimeRemaining } from '@/components/BookTimeRemaining';
-import { DismissIndicator } from '@/components/DismissIndicator';
 import { useNavigation } from '@react-navigation/native';
 
+import { colors, screenPadding } from '@/constants/tokens';
+import { defaultStyles } from '@/styles';
+import { useBookById, useLibraryStore } from '@/store/library';
+
+// Memoized components - extracted to prevent re-renders
+import { PlayerArtwork } from '@/components/player/PlayerArtwork';
+import { PlayerControls } from '@/components/PlayerControls';
+import { PlayerProgressBar } from '@/components/PlayerProgressBar';
+import { PlayerChaptersModal } from '@/modals/PlayerChaptersModal';
+import { BookTimeRemaining } from '@/components/BookTimeRemaining';
+import { DismissIndicator } from '@/components/DismissIndicator';
+
+const FIXED_ARTWORK_HEIGHT = 350;
+
+// Pre-defined styles to avoid inline object creation on each render
+const progressBarStyle = { marginTop: 70 };
+const timeRemainingContainerStyle = { alignItems: 'center' as const };
+const controlsStyle = { marginTop: 50 };
+const chapterSectionStyle = { marginTop: 50 };
+const loadingContainerStyle = { justifyContent: 'center' as const };
+const gradientStyle = { flex: 1 };
+const gradientStart = { x: 0, y: 0 };
+const gradientEnd = { x: 0.5, y: 1 };
+const gradientLocations = [0.15, 0.35, 0.45, 0.6] as const;
+
+// Default gradient colors when no artwork colors are available
+const defaultGradientColors = [
+  colors.primary,
+  colors.primary,
+  colors.background,
+  colors.background,
+] as const;
+
+/**
+ * Optimized PlayerScreen component.
+ *
+ * Key optimizations applied:
+ * 1. Pre-defined style objects outside component to avoid new references
+ * 2. Memoized child components (PlayerArtwork, PlayerControls, etc.)
+ * 3. useCallback for all event handlers
+ * 4. useMemo for computed values (gradientColors, artworkWidth)
+ * 5. Child components use Reanimated for animations (no React re-renders)
+ * 6. Progress-dependent components use event-based updates instead of polling hooks
+ *
+ * Components that previously caused re-renders during playback:
+ * - PlayerProgressBar: Now uses useProgressReanimated (event-based, Reanimated)
+ * - BookTimeRemaining: Now uses event-based progress updates (every 5 seconds)
+ * - PlayerChaptersModal: Now uses useCurrentChapterStable (event-based)
+ *
+ * This screen should only re-render when:
+ * - Active track changes (useActiveTrack)
+ * - Book data changes (useBookById)
+ * - App state changes (background/foreground)
+ */
 const PlayerScreen = () => {
-  //! REMOVE TO STOP UNMOUNT ON BACKGROUNDING
+  // App state handling for background dismissal
   const appState = useRef(AppState.currentState);
   const navigation = useNavigation();
+  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
+  // These hooks only fire on track change, not during playback progress
+  const activeTrack = useActiveTrack();
+  const book = useBookById(activeTrack?.bookId ?? '');
+
+  // Extract only the function we need from the store - avoids unnecessary re-renders
+  // when other parts of the store change
+  const updateBookChapterIndex = useLibraryStore(
+    useCallback((state) => state.updateBookChapterIndex, [])
+  );
+
+  // App state subscription for dismissing player when app goes to background
   useEffect(() => {
     const subscription = AppState.addEventListener(
       'change',
@@ -35,71 +89,56 @@ const PlayerScreen = () => {
           appState.current.match(/active|inactive/) &&
           nextAppState === 'background'
         ) {
-          // App is moving to the background (which includes screen lock)
-          // console.log('App has gone to the background, closing page.');
-
-          // Use navigation action to go back or pop the screen
           if (navigation.canGoBack()) {
             navigation.goBack();
-            // Alternatively, for stack navigation: navigation.pop();
           }
         }
         appState.current = nextAppState;
       }
     );
+    return () => subscription.remove();
+  }, [navigation]);
 
-    return () => {
-      subscription.remove();
-    };
-  }, []);
-  //! REMOVE TO STOP UNMOUNT ON BACKGROUNDING
-
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
-  const activeTrack = useActiveTrack();
-  const book = useBookById(activeTrack?.bookId ?? '');
-  const { updateBookChapterIndex } = useLibraryStore();
-
+  // Memoized callback for presenting the chapters modal
   const handlePresentPress = useCallback(() => {
     bottomSheetModalRef.current?.present();
   }, []);
 
+  // Memoized callback for handling chapter selection
   const handleChapterSelect = useCallback(
     async (chapterIndex: number) => {
       if (!book?.bookId || !book.chapters) return;
 
-      // Check if it's a single-file book
+      // Check if it's a single-file book (one audio file with embedded chapters)
       const isSingleFileBook =
         book.chapters.length > 1 &&
         book.chapters.every((c) => c.url === book.chapters[0].url);
 
       if (isSingleFileBook) {
+        // For single-file books, seek to chapter start time
         const selectedChapter = book.chapters[chapterIndex];
         const seekTime = (selectedChapter.startMs || 0) / 1000;
         await TrackPlayer.seekTo(seekTime);
       } else {
+        // For multi-file books, skip to the track
         await TrackPlayer.skip(chapterIndex);
       }
 
       await TrackPlayer.play();
       await TrackPlayer.setVolume(1);
-
       await updateBookChapterIndex(book.bookId, chapterIndex);
-
       bottomSheetModalRef.current?.dismiss();
     },
     [book, updateBookChapterIndex]
   );
 
-  const artworkImageContainerStyle = useMemo(
-    () => ({
-      ...styles.artworkImageContainer,
-      width: book?.artworkHeight
-        ? (book.artworkWidth! / book.artworkHeight) * FIXED_ARTWORK_HEIGHT
-        : 0,
-    }),
-    [book?.artworkHeight, book?.artworkWidth]
-  );
+  // Memoized artwork width calculation based on aspect ratio
+  const artworkWidth = useMemo(() => {
+    if (!book?.artworkHeight) return 0;
+    return (book.artworkWidth! / book.artworkHeight) * FIXED_ARTWORK_HEIGHT;
+  }, [book?.artworkHeight, book?.artworkWidth]);
 
+  // Memoized gradient colors based on artwork colors
   const gradientColors = useMemo(
     () =>
       book?.artworkColors
@@ -109,18 +148,14 @@ const PlayerScreen = () => {
             book.artworkColors.vibrant as string,
             book.artworkColors.darkMuted as string,
           ] as const)
-        : ([
-            colors.primary,
-            colors.primary,
-            colors.background,
-            colors.background,
-          ] as const),
+        : defaultGradientColors,
     [book?.artworkColors]
   );
 
+  // Loading state - only shown when no active track
   if (!activeTrack) {
     return (
-      <View style={[defaultStyles.container, { justifyContent: 'center' }]}>
+      <View style={[defaultStyles.container, loadingContainerStyle]}>
         <ActivityIndicator color={colors.icon} />
       </View>
     );
@@ -128,45 +163,37 @@ const PlayerScreen = () => {
 
   return (
     <LinearGradient
-      start={{ x: 0, y: 0 }}
-      end={{ x: 0.5, y: 1 }}
-      locations={[0.15, 0.35, 0.45, 0.6]}
-      style={{ flex: 1 }}
+      start={gradientStart}
+      end={gradientEnd}
+      locations={gradientLocations}
+      style={gradientStyle}
       colors={gradientColors}
     >
       <View style={styles.overlayContainer}>
         <DismissIndicator />
-        <View style={artworkImageContainerStyle}>
-          <ShadowedView
-            style={shadowStyle({
-              opacity: 0.4,
-              radius: 12,
-              offset: [5, 3],
-            })}
-          >
-            <Image
-              contentFit='contain'
-              source={{
-                uri: book?.artwork ?? unknownBookImageUri,
-              }}
-              style={styles.artworkImage}
-            />
-          </ShadowedView>
-          {/* <ProgressCircle size={50} /> */}
-        </View>
 
-        <View style={{ marginTop: 50 }}>
+        {/* Memoized artwork component - only re-renders when artwork/width changes */}
+        <PlayerArtwork artwork={book?.artwork} width={artworkWidth} />
+
+        <View style={chapterSectionStyle}>
+          {/* Memoized chapters modal - uses stable chapter hook */}
           <PlayerChaptersModal
             book={book}
             handlePresentPress={handlePresentPress}
             bottomSheetModalRef={bottomSheetModalRef}
             onChapterSelect={handleChapterSelect}
           />
-          <PlayerProgressBar style={{ marginTop: 70 }} />
-          <View style={{ alignItems: 'center' }}>
+
+          {/* Progress bar uses Reanimated shared values - no React re-renders */}
+          <PlayerProgressBar style={progressBarStyle} />
+
+          <View style={timeRemainingContainerStyle}>
+            {/* Time remaining updates every 5 seconds via event listener */}
             <BookTimeRemaining size={16} color={colors.textMuted} />
           </View>
-          <PlayerControls style={{ marginTop: 50 }} />
+
+          {/* Memoized controls - uses Reanimated for button animations */}
+          <PlayerControls style={controlsStyle} />
         </View>
       </View>
     </LinearGradient>
@@ -175,37 +202,10 @@ const PlayerScreen = () => {
 
 export default PlayerScreen;
 
-const FIXED_ARTWORK_HEIGHT = 350;
-
 const styles = StyleSheet.create({
   overlayContainer: {
     ...defaultStyles.container,
     paddingHorizontal: screenPadding.horizontal,
     backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  artworkImageContainer: {
-    marginVertical: 60,
-    alignSelf: 'center',
-    height: FIXED_ARTWORK_HEIGHT,
-  },
-  artworkImage: {
-    height: FIXED_ARTWORK_HEIGHT,
-    width: '100%',
-    alignSelf: 'center',
-    borderRadius: 6,
-  },
-  chapterItem: {
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.textMuted,
-  },
-  chapterTitle: {
-    ...defaultStyles.text,
-    fontSize: 16,
-  },
-  chapterDuration: {
-    ...defaultStyles.text,
-    fontSize: 14,
-    color: colors.textMuted,
   },
 });
