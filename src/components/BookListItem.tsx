@@ -1,11 +1,13 @@
 import { unknownBookImageUri } from '@/constants/images';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import React, { memo, useCallback } from 'react';
-// import { Image } from 'expo-image';
 import { FadeInImage } from '@/components/FadeInImage';
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
-import { useActiveTrack, useIsPlaying } from 'react-native-track-player';
+import {
+  useIsBookActive,
+  useIsBookActiveAndPlaying,
+} from '@/store/playerState';
 
 import { Play, EllipsisVertical } from 'lucide-react-native';
 import LoaderKitView from 'react-native-loader-kit';
@@ -13,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
 import { handleBookPlay } from '@/helpers/handleBookPlay';
 import { useBookById, useBookDisplayData } from '@/store/library';
+import TrackPlayer, { State } from 'react-native-track-player';
 
 export type BookListItemProps = {
   bookId: string;
@@ -22,7 +25,6 @@ export const BookListItem = memo(function BookListItem({
   bookId,
 }: BookListItemProps) {
   const router = useRouter();
-  const { playing } = useIsPlaying();
 
   // Fetch the specific data needed for display.
   // `useShallow` in this hook prevents re-renders if the data hasn't changed.
@@ -38,7 +40,8 @@ export const BookListItem = memo(function BookListItem({
   const { author, bookTitle, artwork } = bookData;
 
   const { setActiveBookId, activeBookId } = useQueueStore();
-  const isActiveBook = useActiveTrack()?.bookId === bookId;
+  const isActiveBook = useIsBookActive(bookId);
+  const isActiveAndPlaying = useIsBookActiveAndPlaying(bookId);
 
   const handlePress = useCallback(() => {
     router.navigate({
@@ -47,15 +50,18 @@ export const BookListItem = memo(function BookListItem({
     });
   }, [router, bookId, author, bookTitle]);
 
-  const handlePressPlay = useCallback(() => {
+  const handlePressPlay = useCallback(async () => {
+    if (!fullBook) return;
+    const playbackState = await TrackPlayer.getPlaybackState();
+    const isCurrentlyPlaying = playbackState.state === State.Playing;
     handleBookPlay(
       fullBook,
-      playing,
+      isCurrentlyPlaying,
       isActiveBook,
       activeBookId,
       setActiveBookId
     );
-  }, [fullBook, playing, isActiveBook, activeBookId, setActiveBookId]);
+  }, [fullBook, isActiveBook, activeBookId, setActiveBookId]);
 
   return (
     <Pressable
@@ -97,7 +103,7 @@ export const BookListItem = memo(function BookListItem({
                 absoluteStrokeWidth
               />
             </Pressable>
-            {isActiveBook && playing ? (
+            {isActiveAndPlaying ? (
               <View style={{ padding: 8 }}>
                 <LoaderKitView
                   style={styles.trackPlayingImageIcon}

@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useCallback } from 'react';
 import TrackPlayer from 'react-native-track-player';
 import { useLogTrackPlayerState } from '@/hooks/useLogTrackPlayerState';
+import { PlayerStateSync } from '@/components/PlayerStateSync';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import {
@@ -64,6 +65,7 @@ const App = () => {
 
   return (
     <SafeAreaProvider>
+      <PlayerStateSync />
       <GestureHandlerRootView>
         <DatabaseProvider database={database}>
           <RootNavigation />

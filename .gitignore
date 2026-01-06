@@ -46,4 +46,7 @@ sentry.properties
 
 app-example
 
+# md prompt files
+plans
+
 .env.local

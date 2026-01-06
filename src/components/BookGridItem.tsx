@@ -6,13 +6,22 @@ import { FadeInImage } from '@/components/FadeInImage';
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import LoaderKitView from 'react-native-loader-kit';
-import { useActiveTrack, useIsPlaying } from 'react-native-track-player';
+// import { useActiveTrack, useIsPlaying } from 'react-native-track-player';
 import { Play } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
 import { handleBookPlay } from '@/helpers/handleBookPlay';
 import { useBookById, useBookDisplayData } from '@/store/library';
 import { unknownBookImageUri } from '@/constants/images';
+import {
+  useIsBookActive,
+  useIsBookActiveAndPlaying,
+  useIsPlayerPlaying,
+} from '@/store/playerState';
+import TrackPlayer, {
+  State,
+  useIsPlaying,
+} from 'react-native-track-player';
 
 export type BookGridItemProps = {
   bookId: string;
@@ -30,7 +39,7 @@ export const BookGridItem = memo(function BookGridItem({
   itemWidth = 0,
 }: BookGridItemProps) {
   const router = useRouter();
-  const { playing } = useIsPlaying();
+  // const { playing } = useIsPlaying();
 
   const bookData = useBookDisplayData(bookId);
   const fullBook = useBookById(bookId);
@@ -41,7 +50,9 @@ export const BookGridItem = memo(function BookGridItem({
     bookData;
 
   const { setActiveBookId, activeBookId } = useQueueStore();
-  const isActiveBook = useActiveTrack()?.bookId === bookId;
+  // const isActiveBook = useActiveTrack()?.bookId === bookId;
+  const isActiveBook = useIsBookActive(bookId);
+  const isActiveAndPlaying = useIsBookActiveAndPlaying(bookId);
   const handlePress = useCallback(() => {
     router.navigate({
       pathname: '/titleDetails',
@@ -49,16 +60,20 @@ export const BookGridItem = memo(function BookGridItem({
     });
   }, [router, bookId, author, bookTitle]);
 
-  const handlePressPlay = useCallback(() => {
+  // const playing = useIsPlayerPlaying();
+
+  const handlePressPlay = useCallback(async () => {
     if (!fullBook) return;
+    const playbackState = await TrackPlayer.getPlaybackState();
+    const isCurrentlyPlaying = playbackState.state === State.Playing;
     handleBookPlay(
       fullBook,
-      playing,
+      isCurrentlyPlaying,
       isActiveBook,
       activeBookId,
       setActiveBookId
     );
-  }, [fullBook, playing, isActiveBook, activeBookId, setActiveBookId]);
+  }, [fullBook, isActiveBook, activeBookId, setActiveBookId]);
 
   // Memoize style objects to avoid recalculating on every render
   const containerStyle = useMemo(() => {
@@ -159,7 +174,7 @@ export const BookGridItem = memo(function BookGridItem({
             style={styles.bookArtworkImage}
             resizeMode='contain'
           />
-          {isActiveBook && playing ? (
+          {isActiveAndPlaying ? (
             <View
               style={[
                 styles.trackPlayingImageIcon,
