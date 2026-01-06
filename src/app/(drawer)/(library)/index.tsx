@@ -25,6 +25,7 @@ import { colors } from '@/constants/tokens';
 import { X } from 'lucide-react-native';
 import { CustomTabs } from '@/components/TabScreen';
 import { BookProgressState } from '@/helpers/handleBookPlay';
+import * as Sentry from '@sentry/react-native';
 
 const SEARCH_HEIGHT = 65;
 
@@ -237,4 +238,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default LibraryScreen;
+export default Sentry.wrap(LibraryScreen);

@@ -31,14 +31,21 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      ["@morrowdigital/watermelondb-expo-plugin", { "disableJsi": false }],
+      [
+        "@morrowdigital/watermelondb-expo-plugin",
+        {
+          "disableJsi": false
+        }
+      ],
       [
         "expo-build-properties",
         {
           "android": {
             "kotlinVersion": "2.0.21",
             "packagingOptions": {
-              "pickFirst": ["**/libc++_shared.so"]
+              "pickFirst": [
+                "**/libc++_shared.so"
+              ]
             }
           }
         }
@@ -63,7 +70,15 @@
         }
       ],
       "expo-asset",
-      "expo-build-properties"
+      "expo-build-properties",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "react-native",
+          "organization": "studio-jas"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

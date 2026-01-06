@@ -17,6 +17,26 @@ import database from '@/db';
 import { PermissionProvider } from '@/contexts/PermissionContext';
 import { ensureMediaInfo } from '@/lib/mediainfoAdapter';
 import { useSettingsStore } from '@/store/settingsStore';
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: 'https://f560ec15a66fbab84326dc1d343ea729@o4510664873541632.ingest.us.sentry.io/4510664874590208',
+
+  // Adds more context data to events (IP address, cookies, user, etc.)
+  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
+  sendDefaultPii: true,
+
+  // Enable Logs
+  enableLogs: true,
+
+  // Configure Session Replay
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1,
+  integrations: [Sentry.mobileReplayIntegration()],
+
+  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
+  // spotlight: __DEV__,
+});
 
 ensureMediaInfo(); //? load mediainfo.js once
 TrackPlayer.registerPlaybackService(() => playbackService);

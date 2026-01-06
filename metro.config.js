@@ -1,8 +1,8 @@
-// Metro configuration for Expo + React Native
-// Ensures .wasm files are treated as assets so they can be bundled and loaded at runtime
-const { getDefaultConfig } = require('expo/metro-config');
+const {
+  getSentryExpoConfig
+} = require("@sentry/react-native/metro");
 
-const config = getDefaultConfig(__dirname);
+const config = getSentryExpoConfig(__dirname);
 
 //! can I remove this? Thinking this was from the included wasm file that i removed
 config.resolver.assetExts = [...config.resolver.assetExts, 'wasm'];
