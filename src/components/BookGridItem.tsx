@@ -1,12 +1,10 @@
 import { memo, useCallback, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { PressableScale } from 'pressto';
-// import { Image } from 'expo-image';
 import { FadeInImage } from '@/components/FadeInImage';
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import LoaderKitView from 'react-native-loader-kit';
-// import { useActiveTrack, useIsPlaying } from 'react-native-track-player';
 import { Play } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
@@ -16,12 +14,8 @@ import { unknownBookImageUri } from '@/constants/images';
 import {
   useIsBookActive,
   useIsBookActiveAndPlaying,
-  useIsPlayerPlaying,
 } from '@/store/playerState';
-import TrackPlayer, {
-  State,
-  useIsPlaying,
-} from 'react-native-track-player';
+import TrackPlayer, { State } from 'react-native-track-player';
 
 export type BookGridItemProps = {
   bookId: string;
@@ -39,7 +33,6 @@ export const BookGridItem = memo(function BookGridItem({
   itemWidth = 0,
 }: BookGridItemProps) {
   const router = useRouter();
-  // const { playing } = useIsPlaying();
 
   const bookData = useBookDisplayData(bookId);
   const fullBook = useBookById(bookId);
@@ -59,8 +52,6 @@ export const BookGridItem = memo(function BookGridItem({
       params: { bookId, author, bookTitle },
     });
   }, [router, bookId, author, bookTitle]);
-
-  // const playing = useIsPlayerPlaying();
 
   const handlePressPlay = useCallback(async () => {
     if (!fullBook) return;
