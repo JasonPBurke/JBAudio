@@ -365,6 +365,7 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
   const settings = useObserveSettings(database);
   const timerActive = settings?.timerActive === true;
   const chaptersCount: number | null = settings?.timerChapters ?? null;
+  const sleepTime: number | null = settings?.sleepTime ?? null;
 
   // Optimistic UI state to reflect immediate press feedback
   const [optimistic, setOptimistic] = useState<{
@@ -376,9 +377,8 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
   const uiChapters: number | null = optimistic
     ? optimistic.chapters
     : chaptersCount;
-  const uiEndTimeMs: number | null = optimistic
-    ? optimistic.endTimeMs
-    : null;
+  // Combine optimistic endTimeMs with sleepTime from settings
+  const uiSleepTime: number | null = optimistic?.endTimeMs ?? sleepTime;
 
   const [mountSheet, setMountSheet] = useState(false);
   const { bottom } = useSafeAreaInsets();
@@ -532,7 +532,7 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
           >
             <CountdownTimer
               timerChapters={uiChapters != null ? uiChapters + 1 : null}
-              endTimeMs={uiEndTimeMs}
+              endTimeMs={uiSleepTime}
             />
           </Animated.View>
         )}

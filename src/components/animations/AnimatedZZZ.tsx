@@ -6,6 +6,7 @@ import Animated, {
   withSequence,
   withRepeat,
   Easing,
+  cancelAnimation,
 } from 'react-native-reanimated';
 import { View } from 'react-native';
 import { colors } from '@/constants/tokens';
@@ -21,6 +22,7 @@ const AnimatedZZZ = ({ timerActiveValue }: AnimatedZZZProps) => {
 
   useEffect(() => {
     if (timerActiveValue) {
+      // Start animations
       opacity1.value = withRepeat(
         withSequence(
           withTiming(1, { duration: 1500, easing: Easing.linear }),
@@ -34,7 +36,6 @@ const AnimatedZZZ = ({ timerActiveValue }: AnimatedZZZProps) => {
         withSequence(
           withTiming(0, { duration: 1500, easing: Easing.linear }),
           withTiming(1, { duration: 1500, easing: Easing.linear }),
-          // withTiming(0, { duration: 1500, easing: Easing.linear }),
           withTiming(0, { duration: 3000, easing: Easing.linear })
         ),
         -1,
@@ -50,10 +51,21 @@ const AnimatedZZZ = ({ timerActiveValue }: AnimatedZZZProps) => {
         false
       );
     } else {
+      // PROPERLY CANCEL animations before resetting
+      cancelAnimation(opacity1);
+      cancelAnimation(opacity2);
+      cancelAnimation(opacity3);
       opacity1.value = 0;
       opacity2.value = 0;
       opacity3.value = 0;
     }
+
+    // CRITICAL: Cleanup on unmount
+    return () => {
+      cancelAnimation(opacity1);
+      cancelAnimation(opacity2);
+      cancelAnimation(opacity3);
+    };
   }, [timerActiveValue, opacity1, opacity2, opacity3]);
 
   const animatedStyle1 = useAnimatedStyle(() => {

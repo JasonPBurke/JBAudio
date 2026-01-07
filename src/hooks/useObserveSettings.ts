@@ -4,6 +4,7 @@ export type SettingsSlice = {
   timerActive: boolean;
   timerDuration: number | null;
   timerChapters: number | null;
+  sleepTime: number | null;
 } | null;
 
 function isEqualSettings(a: SettingsSlice, b: SettingsSlice) {
@@ -12,7 +13,8 @@ function isEqualSettings(a: SettingsSlice, b: SettingsSlice) {
   return (
     a.timerActive === b.timerActive &&
     a.timerDuration === b.timerDuration &&
-    a.timerChapters === b.timerChapters
+    a.timerChapters === b.timerChapters &&
+    a.sleepTime === b.sleepTime
   );
 }
 
@@ -26,12 +28,14 @@ export function useObserveSettings(database: any): SettingsSlice {
     (onStoreChange: () => void) => {
       const collection = database.collections.get('settings');
       const query = collection.query();
-      const hasObserveWithColumns = typeof (query as any).observeWithColumns === 'function';
+      const hasObserveWithColumns =
+        typeof (query as any).observeWithColumns === 'function';
       const observable = hasObserveWithColumns
         ? (query as any).observeWithColumns([
             'timerActive',
             'timerDuration',
             'timerChapters',
+            'sleepTime',
           ])
         : query.observe();
 
@@ -42,6 +46,7 @@ export function useObserveSettings(database: any): SettingsSlice {
               timerActive: first.timerActive === true,
               timerDuration: first.timerDuration ?? null,
               timerChapters: first.timerChapters ?? null,
+              sleepTime: first.sleepTime ?? null,
             }
           : null;
 

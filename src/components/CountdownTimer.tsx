@@ -1,63 +1,74 @@
 import { colors } from '@/constants/tokens';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useObserveWatermelonData } from '@/hooks/useObserveWatermelonData';
-import database from '@/db';
+
+type CountdownTimerProps = {
+  timerChapters: number | null;
+  endTimeMs: number | null;
+};
+
+// Display format: minutes only (no seconds)
+// Examples: "45m", "1:30" (hours:minutes)
+const formatTime = (milliseconds: number): string => {
+  const totalMinutes = Math.ceil(milliseconds / 60000); // Round up to nearest minute
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}`;
+  }
+  return `${minutes}m`;
+};
 
 const CountdownTimer = ({
   timerChapters,
   endTimeMs,
-}: {
-  timerChapters: number | null;
-  endTimeMs?: number | null;
-}) => {
-  const settingsCollection = useObserveWatermelonData(database, 'settings');
-  const sleepTime = settingsCollection?.[0]?.sleepTime;
-
+}: CountdownTimerProps) => {
   const [remainingTime, setRemainingTime] = useState('');
 
-  const effectiveEnd = endTimeMs ?? sleepTime ?? null;
-
   useEffect(() => {
+    if (!endTimeMs) {
+      setRemainingTime('');
+      return;
+    }
+
     const updateRemainingTime = () => {
-      if (effectiveEnd) {
-        const now = Date.now();
-        const remainingMilliseconds = Math.max(0, effectiveEnd - now);
-        setRemainingTime(formatTime(remainingMilliseconds));
-      } else {
-        setRemainingTime('');
-      }
+      const now = Date.now();
+      const remainingMilliseconds = Math.max(0, endTimeMs - now);
+      setRemainingTime(formatTime(remainingMilliseconds));
     };
 
     updateRemainingTime(); // Initial update
-    const intervalId = setInterval(updateRemainingTime, 1000); // Update every second
 
-    return () => clearInterval(intervalId);
-  }, [effectiveEnd]);
+    // Adaptive interval based on remaining time
+    // Since we only show minutes, we never need 1-second updates
+    const remaining = endTimeMs - Date.now();
+    let interval: number;
 
-  const formatTime = (milliseconds: number) => {
-    const totalSeconds = Math.floor(milliseconds / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60; // Keep seconds for 1-second updates
-
-    if (hours > 0) {
-      return `${hours.toString().padStart(2, '0')}:${minutes
-        .toString()
-        .padStart(2, '0')}`;
+    if (remaining > 3600000) {
+      interval = 60000; // > 1 hour: update every minute
+    } else if (remaining > 300000) {
+      interval = 30000; // > 5 min: update every 30 seconds
+    } else {
+      interval = 10000; // <= 5 min: update every 10 seconds (minimum)
     }
-    return `${minutes.toString().padStart(2, '0')}:${seconds
-      .toString()
-      .padStart(2, '0')}`;
-  };
+
+    const intervalId = setInterval(updateRemainingTime, interval);
+    return () => clearInterval(intervalId);
+  }, [endTimeMs]);
+
+  // For chapter-based timer (no countdown needed)
+  if (timerChapters && !endTimeMs) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.timerText}>{timerChapters} Ch</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.timerText}>
-        {timerChapters && !effectiveEnd
-          ? `${timerChapters} Ch`
-          : remainingTime || '00:00'}
-      </Text>
+      <Text style={styles.timerText}>{remainingTime || '0m'}</Text>
     </View>
   );
 };
@@ -74,4 +85,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CountdownTimer;
+export default React.memo(CountdownTimer);
