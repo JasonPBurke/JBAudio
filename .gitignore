@@ -38,6 +38,10 @@ sentry.properties
 # local env files
 .env*.local
 
+# agents
+.roo
+.qodo
+
 # accidental apk files
 *.apk
 
