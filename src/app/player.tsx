@@ -13,6 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import { colors, screenPadding } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import { useBookById, useLibraryStore } from '@/store/library';
+import { usePlayerStateStore } from '@/store/playerState';
 
 // Memoized components - extracted to prevent re-renders
 import { PlayerArtwork } from '@/components/player/PlayerArtwork';
@@ -80,6 +81,14 @@ const PlayerScreen = () => {
     useCallback((state) => state.updateBookChapterIndex, [])
   );
 
+  // Get the setter for tracking player screen dismissal
+  const setWasPlayerScreenDismissedToBackground = usePlayerStateStore(
+    useCallback(
+      (state) => state.setWasPlayerScreenDismissedToBackground,
+      []
+    )
+  );
+
   // App state subscription for dismissing player when app goes to background
   useEffect(() => {
     const subscription = AppState.addEventListener(
@@ -89,6 +98,9 @@ const PlayerScreen = () => {
           appState.current.match(/active|inactive/) &&
           nextAppState === 'background'
         ) {
+          // Set flag BEFORE navigating away so we can restore on foreground
+          setWasPlayerScreenDismissedToBackground(true);
+
           if (navigation.canGoBack()) {
             navigation.goBack();
           }
@@ -97,7 +109,7 @@ const PlayerScreen = () => {
       }
     );
     return () => subscription.remove();
-  }, [navigation]);
+  }, [navigation, setWasPlayerScreenDismissedToBackground]);
 
   // Memoized callback for presenting the chapters modal
   const handlePresentPress = useCallback(() => {

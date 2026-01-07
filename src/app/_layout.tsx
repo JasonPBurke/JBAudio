@@ -18,6 +18,7 @@ import database from '@/db';
 import { PermissionProvider } from '@/contexts/PermissionContext';
 import { ensureMediaInfo } from '@/lib/mediainfoAdapter';
 import { useSettingsStore } from '@/store/settingsStore';
+import { usePlayerScreenRestoration } from '@/hooks/usePlayerScreenRestoration';
 import * as Sentry from '@sentry/react-native';
 
 Sentry.init({
@@ -59,6 +60,9 @@ const App = () => {
   useSetupTrackPlayer({
     onLoad: handleTrackPlayerLoaded,
   });
+
+  // Restore player screen when app returns from background
+  usePlayerScreenRestoration();
 
   //* for debugging
   // useLogTrackPlayerState();
