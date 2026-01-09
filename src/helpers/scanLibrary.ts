@@ -3,7 +3,6 @@ import AuthorModel from '@/db/models/Author';
 import BookModel from '@/db/models/Book';
 import ChapterModel from '@/db/models/Chapter';
 import * as RNFS from '@dr.pogodin/react-native-fs';
-import { getArtwork as getEmbeddedArtwork } from '@missingcore/react-native-metadata-retriever';
 import database from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import ImageResizer from '@bam.tech/react-native-image-resizer';
@@ -161,6 +160,9 @@ const extractMetadata = async (filePath: string) => {
           copyright: metadata.copyright,
           artworkUri: null, // Will be extracted later
           totalTrackCount: chapters.length,
+          coverBase64: metadata.cover || null,
+          coverWidth: metadata.imgWidth || null,
+          coverHeight: metadata.imgHeight || null,
 
           ctime: new Date(),
           chapterDuration: chapterDuration,
@@ -190,6 +192,9 @@ const extractMetadata = async (filePath: string) => {
           copyright: metadata.copyright,
           artworkUri: null,
           totalTrackCount: 1,
+          coverBase64: metadata.cover || null,
+          coverWidth: metadata.imgWidth || null,
+          coverHeight: metadata.imgHeight || null,
           ctime: new Date(),
           chapterDuration: chapterDuration,
           startMs: 0,
@@ -242,9 +247,9 @@ const handleBookSort = (books: any) => {
           bookTitle: book.bookTitle,
           chapters: [],
           bookDuration: 0, // Initialize bookDuration
-          artwork: null,
-          artworkHeight: null,
-          artworkWidth: null,
+          artwork: book.coverBase64 || null, // Temporarily holds base64, replaced with file URI in extractArtwork
+          artworkHeight: book.coverHeight || null,
+          artworkWidth: book.coverWidth || null,
           artworkColors: {
             average: null,
             dominant: null,
@@ -329,6 +334,7 @@ const saveArtworkToFile = async (
     await RNFS.mkdir(artworkDir);
 
     // Resize and convert the image to WebP format
+    // Expects base64Artwork to already have data URI prefix
     const tempImage = await ImageResizer.createResizedImage(
       base64Artwork,
       800, // max width
@@ -364,72 +370,58 @@ const extractArtwork = async (sortedBooks: any[]) => {
   for (const authorEntry of sortedBooks) {
     const updatedBooks = [];
     for (const book of authorEntry.books) {
-      if (book.chapters && book.chapters.length > 0) {
-        const firstChapter = book.chapters[0];
-        try {
-          const base64Artwork = await getEmbeddedArtwork(firstChapter.url);
-          let artworkWidth: number | null = null;
-          let artworkHeight: number | null = null;
-          let finalArtworkUri: string | null = null;
-          let artworkColors: BookImageColors = {
-            average: null,
-            dominantAndroid: null,
-            vibrant: null,
-            darkVibrant: null,
-            lightVibrant: null,
-            muted: null,
-            darkMuted: null,
-            lightMuted: null,
-          };
+      try {
+        // book.artwork now contains base64 data from MediaInfo turbomodule
+        const base64Artwork = book.artwork;
+        let artworkWidth: number | null = book.artworkWidth;
+        let artworkHeight: number | null = book.artworkHeight;
+        let finalArtworkUri: string | null = null;
+        let artworkColors: BookImageColors = {
+          average: null,
+          dominantAndroid: null,
+          vibrant: null,
+          darkVibrant: null,
+          lightVibrant: null,
+          muted: null,
+          darkMuted: null,
+          lightMuted: null,
+        };
 
-          if (base64Artwork) {
-            const { artworkUri, width, height } = await saveArtworkToFile(
-              base64Artwork,
-              book.bookTitle,
-              book.author
-            );
-            finalArtworkUri = artworkUri;
-            artworkWidth = width;
-            artworkHeight = height;
-            if (artworkUri) {
-              artworkColors = await extractImageColors(base64Artwork);
-            }
-          } else {
-            //! currently hardcoded based on the unknown_track image
-            artworkWidth = 500;
-            artworkHeight = 500;
-          }
+        if (base64Artwork) {
+          // Format base64 with data URI prefix for libraries that require it
+          const imageUri = base64Artwork.startsWith('data:')
+            ? base64Artwork
+            : `data:${base64Artwork.startsWith('/9j/') ? 'image/jpeg' : base64Artwork.startsWith('iVBOR') ? 'image/png' : 'image/jpeg'};base64,${base64Artwork}`;
 
-          updatedBooks.push({
-            ...book,
-            artwork: finalArtworkUri,
-            artworkWidth,
-            artworkHeight,
-            artworkColors,
-          });
-        } catch (error) {
-          console.error(
-            `Error extracting artwork for ${firstChapter.url}`,
-            error
+          const { artworkUri, width, height } = await saveArtworkToFile(
+            imageUri,
+            book.bookTitle,
+            book.author
           );
-          updatedBooks.push({
-            ...book,
-            artwork: null,
-            artworkWidth: null,
-            artworkHeight: null,
-            artworkColors: {
-              average: null,
-              dominant: null,
-              vibrant: null,
-              darkVibrant: null,
-              lightVibrant: null,
-              muted: null,
-              darkMuted: null,
-              lightMuted: null,
-            },
-          });
+          finalArtworkUri = artworkUri;
+          artworkWidth = width;
+          artworkHeight = height;
+          if (artworkUri) {
+            artworkColors = await extractImageColors(imageUri);
+          }
+        } else {
+          //! currently hardcoded based on the unknown_track image
+          artworkWidth = 500;
+          artworkHeight = 500;
         }
-      } else {
+
+        updatedBooks.push({
+          ...book,
+          artwork: finalArtworkUri,
+          artworkWidth,
+          artworkHeight,
+          artworkColors,
+        });
+      } catch (error) {
+        console.error(
+          `Error processing artwork for ${book.bookTitle}`,
+          error
+        );
         updatedBooks.push({
           ...book,
           artwork: null,

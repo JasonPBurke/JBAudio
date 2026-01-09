@@ -16,7 +16,6 @@
     "@ctrl/tinycolor": "^4.2.0",
     "@dr.pogodin/react-native-fs": "^2.35.1",
     "@gorhom/bottom-sheet": "^5.2.4",
-    "@missingcore/react-native-metadata-retriever": "^1.1.0",
     "@morrowdigital/watermelondb-expo-plugin": "^2.3.3",
     "@nozbe/watermelondb": "^0.28.0",
     "@react-native-async-storage/async-storage": "^2.2.0",
