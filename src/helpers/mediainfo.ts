@@ -61,9 +61,9 @@ export async function analyzeFileWithMediaInfo(
   const audio = tracks.find((t) => t['@type'] === 'Audio') || {};
   const menus = tracks.filter((t) => t['@type'] === 'Menu');
   //! not getting image track returned by mediainfo
-  // const image = tracks.find((t) => t['@type'] === 'Image') || {};
+  const image = tracks.find((t) => t['@type'] === 'Image') || {};
   // const cover = await getCover(uri);
-  // console.log('cover', cover);
+  // console.log('cover', general.Cover_Data);
   // console.log('raw res', JSON.stringify(res, null, 2));
   // console.log('image', image);
   const genre = general.Genre;
@@ -97,8 +97,8 @@ export async function analyzeFileWithMediaInfo(
     general.Composer ||
     general.Album_Performer;
   const trackPosition = numberFrom(general.Track_Position);
-  // const imgWidth = numberFrom(image.Width);
-  // const imgHeight = numberFrom(image.Height);
+  const imgWidth = numberFrom(image.Width);
+  const imgHeight = numberFrom(image.Height);
 
   const chapters: { startMs: number; title?: string }[] = [];
   for (const menu of menus) {

@@ -85,5 +85,13 @@
     "prettier": "^3.6.2",
     "typescript": "~5.8.3"
   },
-  "private": true
+  "private": true,
+  "codegenConfig": {
+    "name": "AppSpecs",
+    "type": "modules",
+    "jsSrcsDir": "specs",
+    "android": {
+      "javaPackageName": "com.fuzzylogic42.JBAudio.mediainfo"
+    }
+  }
 }

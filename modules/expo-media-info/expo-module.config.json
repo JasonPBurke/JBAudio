@@ -1,9 +1,0 @@
-{
-  "platforms": ["apple", "android", "web"],
-  "apple": {
-    "modules": ["ExpoMediaInfoModule"]
-  },
-  "android": {
-    "modules": ["expo.modules.mediainfo.ExpoMediaInfoModule"]
-  }
-}
