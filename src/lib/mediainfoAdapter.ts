@@ -1,7 +1,7 @@
 import {
   analyzeMediaAsync,
   MediaInfoJSON,
-  GeneralTrack,
+  // GeneralTrack,
 } from '../NativeMediaInfo';
 import { Platform } from 'react-native';
 
@@ -38,24 +38,24 @@ export async function getMediaInfo(uri: string): Promise<MediaInfoResult> {
   }
 }
 
-/**
- * Extract cover art from media file.
- * Cover data is now included in the JSON output from analyze().
- */
-export async function getCover(uri: string): Promise<string> {
-  if (Platform.OS !== 'android') {
-    throw new Error('getCover is only supported on Android');
-  }
+// /**
+//  * Extract cover art from media file.
+//  * Cover data is now included in the JSON output from analyze().
+//  */
+// export async function getCover(uri: string): Promise<string> {
+//   if (Platform.OS !== 'android') {
+//     throw new Error('getCover is only supported on Android');
+//   }
 
-  const filePath = uri.startsWith('file://') ? uri.slice(7) : uri;
+//   const filePath = uri.startsWith('file://') ? uri.slice(7) : uri;
 
-  try {
-    const parsed = await analyzeMediaAsync(filePath);
-    const generalTrack = parsed.media?.track?.find(
-      (t) => t['@type'] === 'General'
-    ) as GeneralTrack | undefined;
-    return generalTrack?.Cover_Data || '';
-  } catch {
-    return '';
-  }
-}
+//   try {
+//     const parsed = await analyzeMediaAsync(filePath);
+//     const generalTrack = parsed.media?.track?.find(
+//       (t) => t['@type'] === 'General'
+//     ) as GeneralTrack | undefined;
+//     return generalTrack?.Cover_Data || '';
+//   } catch {
+//     return '';
+//   }
+// }

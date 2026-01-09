@@ -108,6 +108,17 @@ export interface OtherTrack extends BaseTrack {
 }
 
 /**
+ * Diagnostic information about the MediaInfo native build.
+ */
+export interface MediaInfoDiagnostics {
+  version: string;
+  cover_data_option_result: string;
+  cover_data_supported: boolean;
+  json_output_result: string;
+  error?: string;
+}
+
+/**
  * Synchronous wrapper that calls the native TurboModule and parses the JSON.
  */
 export function analyzeMedia(path: string): MediaInfoJSON {
@@ -131,4 +142,15 @@ export async function analyzeMediaAsync(
       reject(err);
     }
   });
+}
+
+/**
+ * Get diagnostic information about the MediaInfo native build.
+ * Useful for troubleshooting Cover_Data support.
+ *
+ * @returns Diagnostic info including Cover_Data support status
+ */
+export function getMediaInfoDiagnostics(): MediaInfoDiagnostics {
+  const json = NativeMediaInfoModule.getDiagnostics();
+  return JSON.parse(json) as MediaInfoDiagnostics;
 }

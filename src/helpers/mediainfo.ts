@@ -3,7 +3,7 @@ import {
   getMediaInfo,
   MediaInfoResult,
   ensureMediaInfo,
-  getCover,
+  // getCover,
 } from '../lib/mediainfoAdapter';
 
 export type ExtractedMetadata = {
@@ -24,8 +24,8 @@ export type ExtractedMetadata = {
   genre?: string;
   codec?: string;
   raw?: MediaInfoResult;
-  // imgWidth?: number;
-  // imgHeight?: number;
+  imgWidth?: number;
+  imgHeight?: number;
 };
 
 function parseTimestamp(timestamp: string): number | undefined {
@@ -62,10 +62,6 @@ export async function analyzeFileWithMediaInfo(
   const menus = tracks.filter((t) => t['@type'] === 'Menu');
   //! not getting image track returned by mediainfo
   const image = tracks.find((t) => t['@type'] === 'Image') || {};
-  // const cover = await getCover(uri);
-  // console.log('cover', general.Cover_Data);
-  // console.log('raw res', JSON.stringify(res, null, 2));
-  // console.log('image', image);
   const genre = general.Genre;
   const bitrate =
     numberFrom(audio.BitRate) || numberFrom(general.OverallBitRate);
@@ -99,6 +95,11 @@ export async function analyzeFileWithMediaInfo(
   const trackPosition = numberFrom(general.Track_Position);
   const imgWidth = numberFrom(image.Width);
   const imgHeight = numberFrom(image.Height);
+
+  // Extract Cover_Data (base64 encoded cover art from embedded artwork)
+  // This is populated when MediaInfo is built with MEDIAINFO_ADVANCED and
+  // Option("Cover_Data", "base64") is set before opening the file
+  const cover = general.Cover_Data as string | undefined;
 
   const chapters: { startMs: number; title?: string }[] = [];
   for (const menu of menus) {
@@ -158,6 +159,9 @@ export async function analyzeFileWithMediaInfo(
     codec,
     bitrate,
     sampleRate,
+    cover, // Base64 encoded cover art from embedded artwork
+    imgHeight,
+    imgWidth,
 
     // raw: res,
   };
