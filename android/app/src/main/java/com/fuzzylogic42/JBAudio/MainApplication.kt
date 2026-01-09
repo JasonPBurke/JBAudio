@@ -33,6 +33,7 @@ class MainApplication : Application(), ReactApplication {
             // packages.add(MyReactNativePackage())
             packages.add(PermissionPackage())
             packages.add(NativeMediaInfoPackage())
+            packages.add(WatermelonDBJSIPackage())
             return packages
           }
 
