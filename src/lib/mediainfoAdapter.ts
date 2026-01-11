@@ -1,14 +1,5 @@
-import {
-  analyzeMediaAsync,
-  MediaInfoJSON,
-  // GeneralTrack,
-} from '../NativeMediaInfo';
+import { analyzeMediaAsync, MediaInfoJSON } from '../NativeMediaInfo';
 import { Platform } from 'react-native';
-
-export async function ensureMediaInfo(): Promise<void> {
-  // No-op, native module is always available
-  return Promise.resolve();
-}
 
 export type MediaInfoResult = {
   raw: string;

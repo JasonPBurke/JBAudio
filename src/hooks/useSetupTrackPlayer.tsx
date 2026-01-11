@@ -37,7 +37,7 @@ const setupPlayer = async () => {
   await TrackPlayer.setupPlayer({
     autoHandleInterruptions: true,
     androidAudioContentType: AndroidAudioContentType.Speech,
-    maxCacheSize: 1024 * 10, //* more useful for server access of media
+    maxCacheSize: 1024 * 5,
   });
 
   await TrackPlayer.updateOptions({
@@ -105,7 +105,9 @@ export const useSetupTrackPlayer = ({
                 bookId: book.bookId,
               }));
 
-              const progressInfo = await getChapterProgressInDB(book.bookId);
+              const progressInfo = await getChapterProgressInDB(
+                book.bookId
+              );
               await TrackPlayer.add(tracks);
 
               if (progressInfo?.chapterIndex) {

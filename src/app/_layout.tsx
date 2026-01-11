@@ -16,7 +16,6 @@ import playbackService from '@/setup/service';
 import { DatabaseProvider } from '@nozbe/watermelondb/DatabaseProvider';
 import database from '@/db';
 import { PermissionProvider } from '@/contexts/PermissionContext';
-import { ensureMediaInfo } from '@/lib/mediainfoAdapter';
 import { useSettingsStore } from '@/store/settingsStore';
 import { usePlayerScreenRestoration } from '@/hooks/usePlayerScreenRestoration';
 import * as Sentry from '@sentry/react-native';
@@ -40,7 +39,6 @@ Sentry.init({
   // spotlight: __DEV__,
 });
 
-ensureMediaInfo(); //? load mediainfo.js once
 TrackPlayer.registerPlaybackService(() => playbackService);
 //! THIS IS TO TEMP SUPPRESS REANIMATED WARNINGS OF WRITING TO 'VALUE' DURING COMPONENT RERENDER
 configureReanimatedLogger({

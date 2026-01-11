@@ -1,4 +1,4 @@
-import { Author, Book, Chapter } from '@/types/Book';
+import { Book, Chapter } from '@/types/Book';
 import AuthorModel from '@/db/models/Author';
 import BookModel from '@/db/models/Book';
 import ChapterModel from '@/db/models/Chapter';
@@ -6,41 +6,189 @@ import * as RNFS from '@dr.pogodin/react-native-fs';
 import database from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import ImageResizer from '@bam.tech/react-native-image-resizer';
-import { populateDatabase } from '@/hooks/usePopulateDatabase';
+import { populateSingleBook } from '@/hooks/usePopulateDatabase';
 import { getLibraryPaths } from '@/db/settingsQueries';
 import { analyzeFileWithMediaInfo } from './mediainfo';
 import { BookImageColors, extractImageColors } from './imageColorExtractor';
 import { useScanProgressStore } from '@/helpers/useScanProgressStore';
 
+/**
+ * Groups chapter metadata into book structures.
+ * Returns array of { authorName, book } for immediate processing.
+ */
+const groupChaptersIntoBooks = (chapters: any[]): { authorName: string; book: Book }[] => {
+  const bookMap = new Map<string, { authorName: string; book: Book }>();
+
+  for (const chapter of chapters) {
+    // Use author + bookTitle as unique key for grouping
+    const bookKey = `${chapter.author}::${chapter.bookTitle}`;
+
+    if (!bookMap.has(bookKey)) {
+      bookMap.set(bookKey, {
+        authorName: chapter.author,
+        book: {
+          bookId: chapter.url,
+          author: chapter.author,
+          bookTitle: chapter.bookTitle,
+          chapters: [],
+          bookDuration: 0,
+          artwork: chapter.coverBase64 || null,
+          artworkHeight: chapter.coverHeight || null,
+          artworkWidth: chapter.coverWidth || null,
+          artworkColors: {
+            average: null,
+            dominant: null,
+            vibrant: null,
+            darkVibrant: null,
+            lightVibrant: null,
+            muted: null,
+            darkMuted: null,
+            lightMuted: null,
+          },
+          bookProgress: {
+            currentChapterIndex: 0,
+            currentChapterProgress: 0,
+          },
+          bookProgressValue: 0,
+          metadata: {
+            year: chapter.year,
+            description: chapter.description,
+            narrator: chapter.narrator,
+            genre: chapter.genre,
+            sampleRate: chapter.sampleRate,
+            bitrate: chapter.bitrate,
+            copyright: chapter.copyright,
+            codec: chapter.codec,
+            totalTrackCount: chapter.totalTrackCount,
+            ctime: chapter.ctime,
+            mtime: chapter.mtime || null,
+          },
+        },
+      });
+    }
+
+    const entry = bookMap.get(bookKey)!;
+    const chapterData: Chapter = {
+      author: chapter.author,
+      bookTitle: chapter.bookTitle,
+      chapterTitle: chapter.chapterTitle,
+      chapterNumber: chapter.chapterNumber,
+      chapterDuration: chapter.chapterDuration,
+      startMs: chapter.startMs,
+      url: chapter.url,
+    };
+
+    entry.book.chapters.push(chapterData);
+    entry.book.bookDuration += chapterData.chapterDuration;
+  }
+
+  // Sort chapters within each book
+  for (const entry of bookMap.values()) {
+    if (entry.book.chapters.length > 1) {
+      entry.book.chapters.sort((a, b) => a.chapterNumber - b.chapterNumber);
+    }
+  }
+
+  return Array.from(bookMap.values());
+};
+
+/**
+ * Processes a single book: extracts artwork and writes to database.
+ */
+const processAndPersistBook = async (authorName: string, book: Book) => {
+  try {
+    const bookWithArtwork = await extractArtworkForBook(book);
+    await populateSingleBook(authorName, bookWithArtwork);
+    useScanProgressStore.getState().incrementProcessedBooks();
+  } catch (error) {
+    console.error(
+      `Error processing book "${book.bookTitle}" by ${authorName}:`,
+      error
+    );
+    // Still increment progress so UI reflects attempted processing
+    useScanProgressStore.getState().incrementProcessedBooks();
+  }
+};
+
+// Track which books already have cover art extracted (author::title -> true)
+const booksWithCoverExtracted = new Set<string>();
+
+/**
+ * Scans a directory and processes books as they are discovered.
+ * For each directory:
+ * 1. Scan all audio files in this directory
+ * 2. Group new files into books
+ * 3. Process each book immediately (artwork + DB write)
+ * 4. Recurse into subdirectories
+ */
 const handleReadDirectory = async (
   path: string,
-  newFiles: any[] = [],
   allFiles: string[] = []
 ) => {
   try {
     const result = await RNFS.readDir(path);
+    const newChaptersInDir: any[] = [];
+    const subdirectories: string[] = [];
 
+    // First pass: collect files and subdirectories
     for (const item of result) {
       if (item.isDirectory()) {
-        await handleReadDirectory(item.path, newFiles, allFiles);
+        subdirectories.push(item.path);
       } else if (
         (item.isFile() && item.name.endsWith('.m4b')) ||
         item.name.endsWith('.mp3')
       ) {
         allFiles.push(item.path);
-        //* query the database to see if the file already exists
         const fileExists = await checkIfFileExists(item.path);
         if (!fileExists) {
           const metadata = await extractMetadata(item.path);
-          newFiles.push(...metadata);
+
+          // Memory optimization: Only keep cover data for first file of each book
+          for (const chapter of metadata) {
+            const bookTitle = (chapter as any).bookTitle;
+            if (!bookTitle) continue; // Skip error case entries
+
+            const bookKey = `${chapter.author}::${bookTitle}`;
+            if (booksWithCoverExtracted.has(bookKey)) {
+              // Clear cover data for subsequent chapters to reduce memory
+              (chapter as any).coverBase64 = null;
+              (chapter as any).coverWidth = null;
+              (chapter as any).coverHeight = null;
+            } else if ((chapter as any).coverBase64) {
+              // Mark this book as having cover extracted
+              booksWithCoverExtracted.add(bookKey);
+            }
+          }
+
+          newChaptersInDir.push(...metadata);
         }
       }
     }
 
-    return { newFiles, allFiles };
+    // Process any new books found in this directory immediately
+    if (newChaptersInDir.length > 0) {
+      const booksInDir = groupChaptersIntoBooks(newChaptersInDir);
+
+      // Update total count for progress tracking
+      useScanProgressStore.getState().setTotalBooks(
+        useScanProgressStore.getState().totalBooks + booksInDir.length
+      );
+
+      // Process each book immediately
+      for (const { authorName, book } of booksInDir) {
+        await processAndPersistBook(authorName, book);
+      }
+    }
+
+    // Then recurse into subdirectories
+    for (const subdir of subdirectories) {
+      await handleReadDirectory(subdir, allFiles);
+    }
+
+    return { allFiles };
   } catch (err) {
     console.error('Error reading directory', err);
-    return { newFiles, allFiles };
+    return { allFiles };
   }
 };
 
@@ -216,102 +364,6 @@ const extractMetadata = async (filePath: string) => {
   }
 };
 
-const handleBookSort = (books: any) => {
-  const sortedBookAuthors = books.sort(
-    (a: { author: string }, b: { author: string }) => {
-      let nameA =
-        a.author === null || a.author === undefined ? '' : a.author;
-      let nameB =
-        b.author === null || b.author === undefined ? '' : b.author;
-      nameA.localeCompare(nameB);
-    }
-  );
-
-  const sortedBookTitles = sortedBookAuthors.reduce(
-    (acc: Author[], book: any) => {
-      let authorEntry = acc.find((entry) => entry.name === book.author);
-
-      if (!authorEntry) {
-        authorEntry = { name: book.author, books: [] };
-        acc.push(authorEntry);
-      }
-
-      let bookEntry = authorEntry.books.find(
-        (entry: any) => entry.bookTitle === book.bookTitle
-      );
-
-      if (!bookEntry) {
-        bookEntry = {
-          bookId: book.url, // Assign the URL of the first chapter as bookId
-          author: book.author,
-          bookTitle: book.bookTitle,
-          chapters: [],
-          bookDuration: 0, // Initialize bookDuration
-          artwork: book.coverBase64 || null, // Temporarily holds base64, replaced with file URI in extractArtwork
-          artworkHeight: book.coverHeight || null,
-          artworkWidth: book.coverWidth || null,
-          artworkColors: {
-            average: null,
-            dominant: null,
-            vibrant: null,
-            darkVibrant: null,
-            lightVibrant: null,
-            muted: null,
-            darkMuted: null,
-            lightMuted: null,
-          },
-          bookProgress: {
-            currentChapterIndex: 0,
-            currentChapterProgress: 0,
-          },
-          bookProgressValue: 0,
-          metadata: {
-            year: book.year,
-            description: book.description,
-            narrator: book.narrator,
-            genre: book.genre,
-            sampleRate: book.sampleRate,
-            bitrate: book.bitrate,
-            copyright: book.copyright,
-            codec: book.codec,
-            totalTrackCount: book.totalTrackCount,
-            ctime: book.ctime,
-            mtime: book.mtime || null,
-          },
-        };
-        authorEntry.books.push(bookEntry);
-      }
-
-      if (bookEntry) {
-        const chapter: Chapter = {
-          author: book.author,
-          bookTitle: book.bookTitle,
-          chapterTitle: book.chapterTitle,
-          chapterNumber: book.chapterNumber,
-          chapterDuration: book.chapterDuration,
-          startMs: book.startMs,
-          url: book.url,
-        };
-
-        bookEntry.chapters.push(chapter);
-        // Add chapter duration to book duration
-        bookEntry.bookDuration += chapter.chapterDuration;
-
-        if (bookEntry.chapters.length > 1) {
-          bookEntry.chapters.sort(
-            (a: { chapterNumber: number }, b: { chapterNumber: number }) =>
-              a.chapterNumber - b.chapterNumber
-          );
-        }
-      }
-
-      return acc;
-    },
-    []
-  );
-  return sortedBookTitles;
-};
-
 const saveArtworkToFile = async (
   base64Artwork: string,
   bookTitle: string,
@@ -333,10 +385,41 @@ const saveArtworkToFile = async (
     // Ensure the artwork directory exists
     await RNFS.mkdir(artworkDir);
 
+    // Detect image type from base64 signature
+    const isPng = base64Artwork.startsWith('iVBOR');
+    const mimeType = isPng ? 'image/png' : 'image/jpeg';
+
+    // For large images (>500KB base64), write to temp file first to avoid
+    // Android Base64 memory limits in ImageResizer
+    const BASE64_SIZE_THRESHOLD = 500000;
+    let imageSource: string;
+    let tempFilePath: string | null = null;
+
+    if (base64Artwork.length > BASE64_SIZE_THRESHOLD) {
+      const ext = isPng ? 'png' : 'jpg';
+      tempFilePath = `${RNFS.CachesDirectoryPath}/temp_artwork_${Date.now()}.${ext}`;
+
+      // Write in chunks to avoid Android Base64 memory limits
+      // Each chunk must be a multiple of 4 characters for valid base64 decoding
+      const CHUNK_SIZE = 16384; // 16KB chunks (multiple of 4)
+
+      const firstChunk = base64Artwork.substring(0, CHUNK_SIZE);
+      await RNFS.writeFile(tempFilePath, firstChunk, 'base64');
+
+      for (let i = CHUNK_SIZE; i < base64Artwork.length; i += CHUNK_SIZE) {
+        const chunk = base64Artwork.substring(i, i + CHUNK_SIZE);
+        await RNFS.appendFile(tempFilePath, chunk, 'base64');
+      }
+
+      imageSource = `file://${tempFilePath}`;
+    } else {
+      // For smaller images, use data URI format
+      imageSource = `data:${mimeType};base64,${base64Artwork}`;
+    }
+
     // Resize and convert the image to WebP format
-    // Expects base64Artwork to already have data URI prefix
     const tempImage = await ImageResizer.createResizedImage(
-      base64Artwork,
+      imageSource,
       800, // max width
       800, // max height
       'WEBP', // convert to WEBP
@@ -346,6 +429,11 @@ const saveArtworkToFile = async (
       false, // don't keep original
       { mode: 'contain', onlyScaleDown: true }
     );
+
+    // Clean up temp file if we created one
+    if (tempFilePath) {
+      await RNFS.unlink(tempFilePath).catch(() => {});
+    }
 
     // Move the resized image to its final destination with the correct filename
     await RNFS.moveFile(tempImage.path, finalImagePath);
@@ -363,87 +451,92 @@ const saveArtworkToFile = async (
   }
 };
 
-//! only do this for the first chapter of any book
-const extractArtwork = async (sortedBooks: any[]) => {
-  const booksWithArtwork = [];
+/**
+ * Extracts and processes artwork for a single book.
+ * Returns the book with processed artwork data.
+ */
+const extractArtworkForBook = async (book: Book): Promise<Book> => {
+  try {
+    const base64Artwork = book.artwork;
+    let artworkWidth: number | null = book.artworkWidth || null;
+    let artworkHeight: number | null = book.artworkHeight || null;
+    let finalArtworkUri: string | null = null;
+    let artworkColors: BookImageColors = {
+      average: null,
+      dominantAndroid: null,
+      vibrant: null,
+      darkVibrant: null,
+      lightVibrant: null,
+      muted: null,
+      darkMuted: null,
+      lightMuted: null,
+    };
 
-  for (const authorEntry of sortedBooks) {
-    const updatedBooks = [];
-    for (const book of authorEntry.books) {
-      try {
-        // book.artwork now contains base64 data from MediaInfo turbomodule
-        const base64Artwork = book.artwork;
-        let artworkWidth: number | null = book.artworkWidth;
-        let artworkHeight: number | null = book.artworkHeight;
-        let finalArtworkUri: string | null = null;
-        let artworkColors: BookImageColors = {
-          average: null,
-          dominantAndroid: null,
-          vibrant: null,
-          darkVibrant: null,
-          lightVibrant: null,
-          muted: null,
-          darkMuted: null,
-          lightMuted: null,
-        };
+    if (base64Artwork) {
+      // MediaInfo may return multiple images separated by " / " - take only the first one
+      const imageData = base64Artwork.split(' / ')[0];
 
-        if (base64Artwork) {
-          // Format base64 with data URI prefix for libraries that require it
-          const imageUri = base64Artwork.startsWith('data:')
-            ? base64Artwork
-            : `data:${base64Artwork.startsWith('/9j/') ? 'image/jpeg' : base64Artwork.startsWith('iVBOR') ? 'image/png' : 'image/jpeg'};base64,${base64Artwork}`;
+      // Clean base64 - remove all non-base64 characters
+      let cleanedBase64 = imageData.replace(/[^A-Za-z0-9+/=]/g, '');
 
-          const { artworkUri, width, height } = await saveArtworkToFile(
-            imageUri,
-            book.bookTitle,
-            book.author
-          );
-          finalArtworkUri = artworkUri;
-          artworkWidth = width;
-          artworkHeight = height;
-          if (artworkUri) {
-            artworkColors = await extractImageColors(imageUri);
-          }
-        } else {
-          //! currently hardcoded based on the unknown_track image
-          artworkWidth = 500;
-          artworkHeight = 500;
-        }
-
-        updatedBooks.push({
-          ...book,
-          artwork: finalArtworkUri,
-          artworkWidth,
-          artworkHeight,
-          artworkColors,
-        });
-      } catch (error) {
-        console.error(
-          `Error processing artwork for ${book.bookTitle}`,
-          error
-        );
-        updatedBooks.push({
-          ...book,
-          artwork: null,
-          artworkWidth: null,
-          artworkHeight: null,
-          artworkColors: {
-            average: null,
-            dominant: null,
-            vibrant: null,
-            darkVibrant: null,
-            lightVibrant: null,
-            muted: null,
-            darkMuted: null,
-            lightMuted: null,
-          },
-        });
+      // Check for padding characters in the middle (concatenated images) and truncate
+      const paddingInMiddle = cleanedBase64.search(/=+[^=]/);
+      if (paddingInMiddle !== -1) {
+        const paddingLength = cleanedBase64.match(/=+/)?.[0]?.length ?? 0;
+        cleanedBase64 = cleanedBase64.substring(0, paddingInMiddle + paddingLength);
       }
-      useScanProgressStore.getState().incrementProcessedBooks();
+
+      // Ensure base64 length is a multiple of 4 (required for valid base64)
+      const remainder = cleanedBase64.length % 4;
+      if (remainder !== 0) {
+        cleanedBase64 = cleanedBase64.substring(0, cleanedBase64.length - remainder);
+      }
+
+      const { artworkUri, width, height } = await saveArtworkToFile(
+        cleanedBase64,
+        book.bookTitle,
+        book.author
+      );
+      finalArtworkUri = artworkUri;
+      artworkWidth = width;
+      artworkHeight = height;
+
+      // Use saved file for color extraction instead of base64 to reduce memory pressure
+      if (artworkUri) {
+        artworkColors = await extractImageColors(artworkUri);
+      }
+    } else {
+      //! currently hardcoded based on the unknown_track image
+      artworkWidth = 500;
+      artworkHeight = 500;
     }
-    booksWithArtwork.push({ ...authorEntry, books: updatedBooks });
+
+    return {
+      ...book,
+      artwork: finalArtworkUri,
+      artworkWidth,
+      artworkHeight,
+      artworkColors,
+    };
+  } catch (error) {
+    console.error(`Error processing artwork for ${book.bookTitle}`, error);
+    return {
+      ...book,
+      artwork: null,
+      artworkWidth: null,
+      artworkHeight: null,
+      artworkColors: {
+        average: null,
+        dominant: null,
+        vibrant: null,
+        darkVibrant: null,
+        lightVibrant: null,
+        muted: null,
+        darkMuted: null,
+        lightMuted: null,
+      },
+    };
   }
-  return booksWithArtwork;
 };
 
 const removeMissingFiles = async (allFiles: string[]) => {
@@ -494,6 +587,9 @@ const removeMissingFiles = async (allFiles: string[]) => {
 export const scanLibrary = async () => {
   console.log('Scanning library');
 
+  // Reset cover tracking for new scan
+  booksWithCoverExtracted.clear();
+
   const libraryPaths = await getLibraryPaths();
 
   if (!libraryPaths || libraryPaths.length === 0) {
@@ -502,32 +598,18 @@ export const scanLibrary = async () => {
   }
 
   useScanProgressStore.getState().startScan();
-  let combinedNewFiles: any[] = [];
   let combinedAllFiles: string[] = [];
 
+  // Scan directories - books are processed incrementally as they are discovered
   for (const path of libraryPaths) {
-    const { newFiles, allFiles } = await handleReadDirectory(
+    const { allFiles } = await handleReadDirectory(
       RNFS.ExternalStorageDirectoryPath + '/' + path
     );
-    combinedNewFiles = combinedNewFiles.concat(newFiles);
     combinedAllFiles = combinedAllFiles.concat(allFiles);
   }
 
+  // Clean up any files that no longer exist
   await removeMissingFiles(combinedAllFiles);
 
-  if (combinedNewFiles.length === 0) {
-    useScanProgressStore.getState().endScan();
-    console.log('No new files to process.');
-    return;
-  }
-
-  const sortedLibrary = handleBookSort(combinedNewFiles);
-  const totalNewBooks = sortedLibrary.reduce(
-    (acc: number, author: any) => acc + author.books.length,
-    0
-  );
-  useScanProgressStore.getState().setTotalBooks(totalNewBooks);
-  const sortedLibraryWithArtwork = await extractArtwork(sortedLibrary);
-  await populateDatabase(sortedLibraryWithArtwork);
   useScanProgressStore.getState().endScan();
 };

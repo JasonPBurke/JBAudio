@@ -1,10 +1,5 @@
 // Higher-level helper that wraps getMediaInfo and extracts common fields
-import {
-  getMediaInfo,
-  MediaInfoResult,
-  ensureMediaInfo,
-  // getCover,
-} from '../lib/mediainfoAdapter';
+import { getMediaInfo, MediaInfoResult } from '../lib/mediainfoAdapter';
 
 export type ExtractedMetadata = {
   fileFormat?: string;
@@ -50,7 +45,6 @@ function parseTimestamp(timestamp: string): number | undefined {
 export async function analyzeFileWithMediaInfo(
   uri: string
 ): Promise<ExtractedMetadata> {
-  await ensureMediaInfo();
   const res = await getMediaInfo(uri);
   const json = (res.json || {}) as any;
   const media = json.media || {};
