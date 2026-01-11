@@ -6,12 +6,13 @@ import {
   Pressable,
   ActivityIndicator,
 } from 'react-native';
+import { PressableScale } from 'pressto';
 import { useActiveTrack } from 'react-native-track-player';
 import TrackPlayer from 'react-native-track-player';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-import { colors } from '@/constants/tokens';
+import { CircleX } from 'lucide-react-native';
+import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import { useBookById, useLibraryStore } from '@/store/library';
 import { useCurrentChapterStable } from '@/hooks/useCurrentChapterStable';
@@ -19,8 +20,8 @@ import { Chapter } from '@/types/Book';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { FlashList } from '@shopify/flash-list';
 
-const ITEM_HEIGHT = 46;
-const SEPARATOR_HEIGHT = 3;
+// const ITEM_HEIGHT = 46;
+// const SEPARATOR_HEIGHT = 3;
 
 const ChapterListScreen = () => {
   const router = useRouter();
@@ -46,17 +47,8 @@ const ChapterListScreen = () => {
   // Calculate initial scroll index to position active chapter at 3rd slot
   const initialScrollIndex = useMemo(() => {
     if (activeIndex <= 0) return undefined;
-    return Math.max(0, activeIndex - 2);
+    return Math.max(0, activeIndex - 7);
   }, [activeIndex]);
-
-  const getItemLayout = useCallback(
-    (_: unknown, index: number) => ({
-      length: ITEM_HEIGHT,
-      offset: (ITEM_HEIGHT + SEPARATOR_HEIGHT) * index,
-      index,
-    }),
-    []
-  );
 
   const handleChapterSelect = useCallback(
     async (chapterIndex: number, item: Chapter) => {
@@ -101,7 +93,8 @@ const ChapterListScreen = () => {
         activeChapter?.chapterNumber === item.chapterNumber;
 
       return (
-        <Pressable
+        <PressableScale
+          rippleRadius={0}
           onPress={() => handleChapterSelect(index, item)}
           style={{
             ...styles.chapterItem,
@@ -128,7 +121,7 @@ const ChapterListScreen = () => {
           >
             {formatSecondsToMinutes(item.chapterDuration)}
           </Text>
-        </Pressable>
+        </PressableScale>
       );
     },
     [book?.chapters?.length, activeChapter, handleChapterSelect]
@@ -158,17 +151,11 @@ const ChapterListScreen = () => {
 
   return (
     <View style={[styles.container, { paddingBottom: bottom }]}>
-      <Pressable
-        onPress={handleClose}
-        hitSlop={10}
-        style={styles.handleIndicator}
-      />
       {book.chapters.length > 0 ? (
         <FlashList
           data={book.chapters}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
-          // getItemLayout={getItemLayout}
           initialScrollIndex={initialScrollIndex}
           style={styles.list}
           contentContainerStyle={styles.listContent}
@@ -180,6 +167,13 @@ const ChapterListScreen = () => {
           No chapters found for this book.
         </Text>
       )}
+      <Pressable
+        onPress={handleClose}
+        hitSlop={10}
+        style={styles.handleIndicator}
+      >
+        <CircleX color={colors.icon} size={42} strokeWidth={1} />
+      </Pressable>
     </View>
   );
 };
@@ -192,6 +186,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#151520ea',
     paddingHorizontal: 4,
     paddingTop: 12,
+    marginTop: 36,
   },
   loadingContainer: {
     flex: 1,
@@ -201,18 +196,12 @@ const styles = StyleSheet.create({
   },
   handleIndicator: {
     marginTop: 24,
-    // marginBottom: 12,
-    // borderColor: colors.textMuted,
-    // borderWidth: 1,
-    // width: 55,
-    // height: 7,
-    // backgroundColor: '#1c1c1ca9',
-    // borderRadius: 50,
-    // alignSelf: 'center',
+    marginBottom: 12,
+    alignSelf: 'center',
   },
   list: {
     flex: 1,
-    borderRadius: 4,
+    borderRadius: 7,
   },
   listContent: {
     paddingBottom: 12,

@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { PressableScale } from 'pressto';
 import { FadeInImage } from '@/components/FadeInImage';
 import { colors, fontSize } from '@/constants/tokens';
