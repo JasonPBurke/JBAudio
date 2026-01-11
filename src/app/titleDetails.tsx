@@ -82,6 +82,10 @@ const TitleDetails = () => {
     [book.artworkColors]
   );
 
+  const handleChapterPress = () => {
+    router.push(`/chapterList?bookId=${bookId}&readOnly=true`);
+  };
+
   let genres: string[] = [];
   if (book.metadata.genre) {
     genres = book.metadata.genre
@@ -244,7 +248,10 @@ const TitleDetails = () => {
                     book.artworkColors.muted || colors.textMuted,
                 }}
               />
-              <View style={styles.infoCard}>
+              <Pressable
+                onPress={handleChapterPress}
+                style={styles.infoCard}
+              >
                 <Book size={24} color={colors.text} strokeWidth={1.5} />
                 <Text style={[styles.bookInfoText, { marginTop: 12 }]}>
                   {book.metadata.totalTrackCount! > 1
@@ -252,7 +259,7 @@ const TitleDetails = () => {
                     : book.chapters.length}
                 </Text>
                 <Text style={styles.listInfoText}>Chapters</Text>
-              </View>
+              </Pressable>
             </View>
 
             <ShadowedView

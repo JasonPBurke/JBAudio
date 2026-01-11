@@ -133,8 +133,21 @@ export async function analyzeFileWithMediaInfo(
   }
 
   // Sort chapters by start time, as they may be parsed from different sources
+  // Then deduplicate by startMs (some files have multiple Menu tracks with same data)
   if (chapters.length > 0) {
     chapters.sort((a, b) => a.startMs - b.startMs);
+
+    // Remove duplicates - keep first occurrence at each startMs
+    const seen = new Set<number>();
+    const uniqueChapters: typeof chapters = [];
+    for (const ch of chapters) {
+      if (!seen.has(ch.startMs)) {
+        seen.add(ch.startMs);
+        uniqueChapters.push(ch);
+      }
+    }
+    chapters.length = 0;
+    chapters.push(...uniqueChapters);
   }
 
   return {

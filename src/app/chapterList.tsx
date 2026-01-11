@@ -9,7 +9,7 @@ import {
 import { PressableScale } from 'pressto';
 import { useActiveTrack } from 'react-native-track-player';
 import TrackPlayer from 'react-native-track-player';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CircleX } from 'lucide-react-native';
 import { colors, fontSize } from '@/constants/tokens';
@@ -26,8 +26,14 @@ import { FlashList } from '@shopify/flash-list';
 const ChapterListScreen = () => {
   const router = useRouter();
   const { bottom } = useSafeAreaInsets();
+  const { bookId: paramBookId, readOnly } = useLocalSearchParams<{
+    bookId?: string;
+    readOnly?: string;
+  }>();
+  const isReadOnly = readOnly === 'true';
+
   const activeTrack = useActiveTrack();
-  const book = useBookById(activeTrack?.bookId ?? '');
+  const book = useBookById(paramBookId ?? activeTrack?.bookId ?? '');
   const activeChapter = useCurrentChapterStable();
 
   const updateBookChapterIndex = useLibraryStore(
@@ -45,14 +51,18 @@ const ChapterListScreen = () => {
   }, [book?.chapters, activeChapter]);
 
   // Calculate initial scroll index to position active chapter at 3rd slot
+  // For read-only mode, start at the top
   const initialScrollIndex = useMemo(() => {
-    if (activeIndex <= 0) return undefined;
+    if (isReadOnly || activeIndex <= 0) return undefined;
     return Math.max(0, activeIndex - 7);
-  }, [activeIndex]);
+  }, [activeIndex, isReadOnly]);
 
   const handleChapterSelect = useCallback(
     async (chapterIndex: number, item: Chapter) => {
       if (!book?.bookId || !book.chapters) return;
+
+      // In read-only mode, do nothing on press
+      if (isReadOnly) return;
 
       // If tapping the active chapter, just dismiss
       if (
@@ -81,28 +91,45 @@ const ChapterListScreen = () => {
       await updateBookChapterIndex(book.bookId, chapterIndex);
       router.back();
     },
-    [book, activeChapter, updateBookChapterIndex, router]
+    [book, activeChapter, updateBookChapterIndex, router, isReadOnly]
   );
 
   const renderItem = useCallback(
     ({ item, index }: { item: Chapter; index: number }) => {
       const isFirstChapter = index === 0;
       const isLastChapter = index === (book?.chapters?.length ?? 0) - 1;
+      // Only show active highlight when not in read-only mode
       const isActive =
+        !isReadOnly &&
         activeChapter?.url === item.url &&
         activeChapter?.chapterNumber === item.chapterNumber;
 
+      const borderStyle = {
+        borderBottomLeftRadius: isLastChapter ? 14 : 0,
+        borderBottomRightRadius: isLastChapter ? 14 : 0,
+        borderTopLeftRadius: isFirstChapter ? 14 : 0,
+        borderTopRightRadius: isFirstChapter ? 14 : 0,
+      };
+
+      // Use View for read-only mode, PressableScale for interactive
+      if (isReadOnly) {
+        return (
+          <View style={[styles.chapterItem, borderStyle]}>
+            <Text style={styles.chapterTitle}>{item.chapterTitle}</Text>
+            <Text style={styles.chapterDuration}>
+              {formatSecondsToMinutes(item.chapterDuration)}
+            </Text>
+          </View>
+        );
+      }
+
       return (
         <PressableScale
-          rippleRadius={0}
           onPress={() => handleChapterSelect(index, item)}
           style={{
             ...styles.chapterItem,
             backgroundColor: isActive ? '#6d6d6d' : '#1d2233',
-            borderBottomLeftRadius: isLastChapter ? 14 : 0,
-            borderBottomRightRadius: isLastChapter ? 14 : 0,
-            borderTopLeftRadius: isFirstChapter ? 14 : 0,
-            borderTopRightRadius: isFirstChapter ? 14 : 0,
+            ...borderStyle,
           }}
         >
           <Text
@@ -124,7 +151,7 @@ const ChapterListScreen = () => {
         </PressableScale>
       );
     },
-    [book?.chapters?.length, activeChapter, handleChapterSelect]
+    [book?.chapters?.length, activeChapter, handleChapterSelect, isReadOnly]
   );
 
   const keyExtractor = useCallback(

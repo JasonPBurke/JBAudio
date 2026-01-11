@@ -133,13 +133,15 @@ export const populateSingleBook = async (
     }
 
     // Clear existing chapters for this book (in case of re-scan)
+    // Use destroyPermanently instead of markAsDeleted to avoid soft-deleted
+    // chapters appearing in relation fetches
     const existingChapters = await database
       .get<Chapter>('chapters')
       .query(Q.where('book_id', bookRecord.id))
       .fetch();
 
     for (const chapter of existingChapters) {
-      await chapter.markAsDeleted();
+      batchOperations.push(chapter.prepareDestroyPermanently());
     }
 
     // Create chapters for this book
@@ -326,13 +328,15 @@ export const populateDatabase = async (authors: AuthorType[]) => {
         }
 
         // Clear existing chapters for this book (in case of re-scan)
+        // Use destroyPermanently instead of markAsDeleted to avoid soft-deleted
+        // chapters appearing in relation fetches
         const existingChapters = await database
           .get<Chapter>('chapters')
           .query(Q.where('book_id', bookRecord.id))
           .fetch();
 
         for (const chapter of existingChapters) {
-          await chapter.markAsDeleted();
+          batchOperations.push(chapter.prepareDestroyPermanently());
         }
 
         // Create chapters for this book
