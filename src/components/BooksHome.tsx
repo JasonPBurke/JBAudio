@@ -4,11 +4,16 @@ import { colors, fontSize } from '@/constants/tokens';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
 
 import { ChevronRight } from 'lucide-react-native';
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useRef } from 'react';
 import BooksGrid from './BooksGrid';
 import BooksHorizontal from './BooksHorizontal';
 import { utilsStyles } from '@/styles';
 import React from 'react';
+
+type PendingScroll = {
+  index: number;
+  relativeY: number;
+} | null;
 
 export type BookListProps = Partial<FlashListProps<Book>> & {
   authors?: Author[];
@@ -17,11 +22,20 @@ export type BookListProps = Partial<FlashListProps<Book>> & {
   activeGridSection: string | null;
 };
 
+type ListDataItem =
+  | { type: 'recentlyAdded'; books: Book[] }
+  | { type: 'author'; author: Author };
+
 const BooksHome = ({
   authors = [],
   setActiveGridSection,
   activeGridSection,
 }: BookListProps) => {
+  const listRef =
+    useRef<React.ComponentRef<typeof FlashList<ListDataItem>>>(null);
+  const listContainerRef = useRef<View>(null);
+  const pendingScrollRef = useRef<PendingScroll>(null);
+
   authors.sort((a, b) => {
     const nameA = a.name.toUpperCase();
     const nameB = b.name.toUpperCase();
@@ -39,10 +53,7 @@ const BooksHome = ({
   const recentlyAddedBooks = allBooks.slice(0, 25);
 
   // Create a data structure for the main FlashList
-  const listData: (
-    | { type: 'recentlyAdded'; books: Book[] }
-    | { type: 'author'; author: Author }
-  )[] =
+  const listData: ListDataItem[] =
     allBooks.length > 0
       ? [
           { type: 'recentlyAdded', books: recentlyAddedBooks },
@@ -50,14 +61,46 @@ const BooksHome = ({
         ]
       : [];
 
+  const handleSectionPress = useCallback(
+    (sectionId: string, index: number, pageY: number) => {
+      // Measure the list's top position to calculate relative offset
+      listContainerRef.current?.measureInWindow((_x, listTopY) => {
+        const relativeY = pageY - listTopY;
+        pendingScrollRef.current = { index, relativeY };
+
+        setActiveGridSection((prev) => {
+          const newValue = prev === sectionId ? null : sectionId;
+
+          // Schedule the scroll restoration after layout settles
+          requestAnimationFrame(() => {
+            // setTimeout(() => {
+            if (pendingScrollRef.current && listRef.current) {
+              listRef.current.scrollToIndex({
+                index: pendingScrollRef.current.index,
+                animated: false,
+                viewOffset: -pendingScrollRef.current.relativeY,
+              });
+              pendingScrollRef.current = null;
+            }
+            // }, 50);
+          });
+
+          return newValue;
+        });
+      });
+    },
+    [setActiveGridSection]
+  );
+
   const renderItem = useCallback(
-    ({ item }: { item: (typeof listData)[0] }) => {
+    ({ item, index }: { item: ListDataItem; index: number }) => {
       if (item.type === 'recentlyAdded') {
         return (
           <RecentlyAddedSection
             books={item.books}
             activeGridSection={activeGridSection}
-            setActiveGridSection={setActiveGridSection}
+            index={index}
+            onSectionPress={handleSectionPress}
           />
         );
       }
@@ -66,45 +109,53 @@ const BooksHome = ({
           <AuthorSection
             author={item.author}
             activeGridSection={activeGridSection}
-            setActiveGridSection={setActiveGridSection}
+            index={index}
+            onSectionPress={handleSectionPress}
           />
         );
       }
       return null;
     },
-    [activeGridSection, setActiveGridSection]
+    [activeGridSection, handleSectionPress]
   );
 
   return (
-    <FlashList
-      data={listData}
-      renderItem={renderItem}
-      keyExtractor={(item) =>
-        item.type === 'author' ? item.author.name : item.type
-      }
-      getItemType={(item) => item.type}
-      ListEmptyComponent={
-        <Text style={utilsStyles.emptyComponent}>No books found</Text>
-      }
-      // ItemSeparatorComponent={() => <View style={{ height: 4 }} />}
-      contentContainerStyle={{ paddingBottom: 58 }}
-      showsVerticalScrollIndicator={false}
-    />
+    <View ref={listContainerRef} style={{ flex: 1 }}>
+      <FlashList
+        ref={listRef}
+        data={listData}
+        renderItem={renderItem}
+        keyExtractor={(item) =>
+          item.type === 'author' ? item.author.name : item.type
+        }
+        getItemType={(item) => item.type}
+        ListEmptyComponent={
+          <Text style={utilsStyles.emptyComponent}>No books found</Text>
+        }
+        // ItemSeparatorComponent={() => <View style={{ height: 4 }} />}
+        contentContainerStyle={{ paddingBottom: 58 }}
+        showsVerticalScrollIndicator={false}
+      />
+    </View>
   );
 };
 
+type SectionProps = {
+  books?: Book[];
+  activeGridSection: string | null;
+  index: number;
+  onSectionPress: (sectionId: string, index: number, pageY: number) => void;
+};
+
 const RecentlyAddedSection = memo(
-  ({ books, activeGridSection, setActiveGridSection }: BookListProps) => (
+  ({ books, activeGridSection, index, onSectionPress }: SectionProps) => (
     <View style={styles.containerGap}>
       <SectionHeader
         title='Recently Added'
         sectionId='recentlyAdded'
         isActive={activeGridSection === 'recentlyAdded'}
-        onPress={() =>
-          setActiveGridSection((prev) =>
-            prev === 'recentlyAdded' ? null : 'recentlyAdded'
-          )
-        }
+        index={index}
+        onSectionPress={onSectionPress}
       />
       {activeGridSection === 'recentlyAdded' ? (
         <BooksGrid books={books} flowDirection='column' />
@@ -115,22 +166,27 @@ const RecentlyAddedSection = memo(
   )
 );
 
+type AuthorSectionProps = {
+  author: Author;
+  activeGridSection: string | null;
+  index: number;
+  onSectionPress: (sectionId: string, index: number, pageY: number) => void;
+};
+
 const AuthorSection = memo(
   ({
     author,
     activeGridSection,
-    setActiveGridSection,
-  }: { author: Author } & Omit<BookListProps, 'authors'>) => (
+    index,
+    onSectionPress,
+  }: AuthorSectionProps) => (
     <View style={styles.containerGap}>
       <SectionHeader
         title={author.name}
         sectionId={author.name}
         isActive={activeGridSection === author.name}
-        onPress={() =>
-          setActiveGridSection((prev) =>
-            prev === author.name ? null : author.name
-          )
-        }
+        index={index}
+        onSectionPress={onSectionPress}
       />
       {activeGridSection === author.name ? (
         <BooksGrid authors={[author]} flowDirection='column' />
@@ -144,34 +200,52 @@ const AuthorSection = memo(
 const SectionHeader = memo(
   ({
     title,
+    sectionId,
     isActive,
-    onPress,
+    index,
+    onSectionPress,
   }: {
     title: string;
     sectionId: string;
     isActive: boolean;
-    onPress: () => void;
-  }) => (
-    <Pressable
-      style={{ paddingVertical: 4 }}
-      android_ripple={{ color: '#cccccc28' }}
-      onPress={onPress}
-    >
-      <View style={styles.titleBar}>
-        <Text numberOfLines={1} style={styles.titleText}>
-          {title}
-        </Text>
-        <ChevronRight
-          size={24}
-          color={colors.icon}
-          style={{
-            marginRight: 12,
-            transform: isActive ? [{ rotate: '90deg' }] : [],
-          }}
-        />
-      </View>
-    </Pressable>
-  )
+    index: number;
+    onSectionPress: (
+      sectionId: string,
+      index: number,
+      pageY: number
+    ) => void;
+  }) => {
+    const headerRef = useRef<View>(null);
+
+    const handlePress = useCallback(() => {
+      headerRef.current?.measureInWindow((_x, y) => {
+        onSectionPress(sectionId, index, y);
+      });
+    }, [sectionId, index, onSectionPress]);
+
+    return (
+      <Pressable
+        ref={headerRef}
+        style={{ paddingVertical: 4 }}
+        android_ripple={{ color: '#cccccc28' }}
+        onPress={handlePress}
+      >
+        <View style={styles.titleBar}>
+          <Text numberOfLines={1} style={styles.titleText}>
+            {title}
+          </Text>
+          <ChevronRight
+            size={24}
+            color={colors.icon}
+            style={{
+              marginRight: 12,
+              transform: isActive ? [{ rotate: '90deg' }] : [],
+            }}
+          />
+        </View>
+      </Pressable>
+    );
+  }
 );
 
 export default memo(BooksHome);

@@ -44,10 +44,10 @@ export const usePlayerScreenRestoration = () => {
           // Restore player screen if it was dismissed due to backgrounding
           if (wasPlayerScreenDismissedToBackground && isPlayerReady) {
             // Small delay to ensure navigation is ready after app resumes
-            setTimeout(() => {
-              router.navigate('/player');
-              setWasPlayerScreenDismissedToBackground(false);
-            }, 100);
+            // setTimeout(() => {
+            router.navigate('/player');
+            setWasPlayerScreenDismissedToBackground(false);
+            // }, 100);
           } else {
             // Reset the flag even if we don't navigate (e.g., player not ready)
             setWasPlayerScreenDismissedToBackground(false);

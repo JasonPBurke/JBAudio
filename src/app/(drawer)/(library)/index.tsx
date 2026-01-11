@@ -38,7 +38,7 @@ const LibraryScreen = ({ navigation }: any) => {
   );
 
   const [activeGridSection, setActiveGridSection] = useState<string | null>(
-    'recentlyAdded' // null for horizontal on load
+    null // null for horizontal on load, 'recentlyAdded' for expanded on load
   );
 
   useScanExternalFileSystem();
