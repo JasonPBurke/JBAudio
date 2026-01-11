@@ -1,6 +1,8 @@
+import React, { useCallback, useImperativeHandle, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import {
   BottomSheetFlatList,
+  BottomSheetFlatListMethods,
   BottomSheetModal,
 } from '@gorhom/bottom-sheet';
 import { colors } from '@/constants/tokens';
@@ -8,17 +10,58 @@ import { defaultStyles } from '@/styles';
 import { Book, Chapter } from '@/types/Book';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 
-export const ChapterList = ({
-  book,
-  activeChapter,
-  onChapterSelect,
-  bottomSheetModalRef,
-}: {
-  book: Book | undefined;
-  activeChapter: Chapter | undefined;
-  onChapterSelect: (chapterIndex: number) => void;
-  bottomSheetModalRef: React.ForwardedRef<BottomSheetModal>;
-}) => {
+const ITEM_HEIGHT = 46;
+const SEPARATOR_HEIGHT = 3;
+
+export type ChapterListHandle = {
+  scrollToActive: () => void;
+};
+
+export const ChapterList = React.forwardRef<
+  ChapterListHandle,
+  {
+    book: Book | undefined;
+    activeChapter: Chapter | undefined;
+    onChapterSelect: (chapterIndex: number) => void;
+    bottomSheetModalRef: React.ForwardedRef<BottomSheetModal>;
+  }
+>(({ book, activeChapter, onChapterSelect, bottomSheetModalRef }, ref) => {
+  const flatListRef = useRef<BottomSheetFlatListMethods>(null);
+
+  const activeIndex = useMemo(
+    () =>
+      book?.chapters?.findIndex(
+        (ch) =>
+          ch.url === activeChapter?.url &&
+          ch.chapterNumber === activeChapter?.chapterNumber
+      ) ?? -1,
+    [book?.chapters, activeChapter]
+  );
+
+  const getItemLayout = useCallback(
+    (_: unknown, index: number) => ({
+      length: ITEM_HEIGHT,
+      offset: (ITEM_HEIGHT + SEPARATOR_HEIGHT) * index,
+      index,
+    }),
+    []
+  );
+
+  // Expose scrollToActive method via ref
+  useImperativeHandle(ref, () => ({
+    scrollToActive: () => {
+      if (activeIndex > 0 && flatListRef.current) {
+        const targetIndex = Math.max(0, activeIndex - 2);
+        const offset = (ITEM_HEIGHT + SEPARATOR_HEIGHT) * targetIndex;
+        console.log('[ChapterList] scrollToActive called', { targetIndex, offset });
+        flatListRef.current.scrollToOffset({
+          offset,
+          animated: false,
+        });
+      }
+    },
+  }), [activeIndex]);
+
   const handleChapterChange = async (
     chapterIndex: number,
     item: Chapter
@@ -66,7 +109,7 @@ export const ChapterList = ({
                 style={{
                   ...styles.chapterItem,
                   backgroundColor: isActive
-                    ? '#3b3b3b' //'#252e52'
+                    ? '#6d6d6d' //'#252e52'
                     : '#1d2233',
                   borderBottomLeftRadius: isLastChapter ? 14 : 0,
                   borderBottomRightRadius: isLastChapter ? 14 : 0,
@@ -94,8 +137,8 @@ export const ChapterList = ({
               </Pressable>
             );
           }}
-          // getItemLayout={getItemLayout}
-          // ref={flatListRef}
+          ref={flatListRef}
+          getItemLayout={getItemLayout}
           style={{ flex: 1, borderRadius: 4 }}
           ItemSeparatorComponent={() => <View style={{ height: 3 }} />}
           showsVerticalScrollIndicator={false}
@@ -112,7 +155,7 @@ export const ChapterList = ({
       )}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   chapterItem: {

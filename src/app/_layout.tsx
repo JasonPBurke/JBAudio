@@ -115,6 +115,18 @@ const RootNavigation = () => {
             contentStyle: { backgroundColor: '#2c2c2cdc' },
           }}
         />
+        <Stack.Screen
+          name='chapterList'
+          options={{
+            presentation: 'transparentModal',
+            animation: 'slide_from_bottom',
+            // sheetCornerRadius: 15,
+            sheetAllowedDetents: [0.7],
+            sheetGrabberVisible: false,
+            sheetExpandsWhenScrolledToEdge: false,
+            gestureEnabled: false,
+          }}
+        />
       </Stack>
     </BottomSheetModalProvider>
   );

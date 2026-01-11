@@ -5,14 +5,13 @@ import {
   ActivityIndicator,
   AppState,
 } from 'react-native';
-import TrackPlayer, { useActiveTrack } from 'react-native-track-player';
+import { useActiveTrack } from 'react-native-track-player';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useNavigation } from '@react-navigation/native';
 
 import { colors, screenPadding } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
-import { useBookById, useLibraryStore } from '@/store/library';
+import { useBookById } from '@/store/library';
 import { usePlayerStateStore } from '@/store/playerState';
 
 // Memoized components - extracted to prevent re-renders
@@ -69,17 +68,10 @@ const PlayerScreen = () => {
   // App state handling for background dismissal
   const appState = useRef(AppState.currentState);
   const navigation = useNavigation();
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
   // These hooks only fire on track change, not during playback progress
   const activeTrack = useActiveTrack();
   const book = useBookById(activeTrack?.bookId ?? '');
-
-  // Extract only the function we need from the store - avoids unnecessary re-renders
-  // when other parts of the store change
-  const updateBookChapterIndex = useLibraryStore(
-    useCallback((state) => state.updateBookChapterIndex, [])
-  );
 
   // Get the setter for tracking player screen dismissal
   const setWasPlayerScreenDismissedToBackground = usePlayerStateStore(
@@ -110,39 +102,6 @@ const PlayerScreen = () => {
     );
     return () => subscription.remove();
   }, [navigation, setWasPlayerScreenDismissedToBackground]);
-
-  // Memoized callback for presenting the chapters modal
-  const handlePresentPress = useCallback(() => {
-    bottomSheetModalRef.current?.present();
-  }, []);
-
-  // Memoized callback for handling chapter selection
-  const handleChapterSelect = useCallback(
-    async (chapterIndex: number) => {
-      if (!book?.bookId || !book.chapters) return;
-
-      // Check if it's a single-file book (one audio file with embedded chapters)
-      const isSingleFileBook =
-        book.chapters.length > 1 &&
-        book.chapters.every((c) => c.url === book.chapters[0].url);
-
-      if (isSingleFileBook) {
-        // For single-file books, seek to chapter start time
-        const selectedChapter = book.chapters[chapterIndex];
-        const seekTime = (selectedChapter.startMs || 0) / 1000;
-        await TrackPlayer.seekTo(seekTime);
-      } else {
-        // For multi-file books, skip to the track
-        await TrackPlayer.skip(chapterIndex);
-      }
-
-      await TrackPlayer.play();
-      await TrackPlayer.setVolume(1);
-      await updateBookChapterIndex(book.bookId, chapterIndex);
-      bottomSheetModalRef.current?.dismiss();
-    },
-    [book, updateBookChapterIndex]
-  );
 
   // Memoized artwork width calculation based on aspect ratio
   const artworkWidth = useMemo(() => {
@@ -188,13 +147,8 @@ const PlayerScreen = () => {
         <PlayerArtwork artwork={book?.artwork} width={artworkWidth} />
 
         <View style={chapterSectionStyle}>
-          {/* Memoized chapters modal - uses stable chapter hook */}
-          <PlayerChaptersModal
-            book={book}
-            handlePresentPress={handlePresentPress}
-            bottomSheetModalRef={bottomSheetModalRef}
-            onChapterSelect={handleChapterSelect}
-          />
+          {/* Chapter trigger - navigates to chapter list screen */}
+          <PlayerChaptersModal />
 
           {/* Progress bar uses Reanimated shared values - no React re-renders */}
           <PlayerProgressBar style={progressBarStyle} />
