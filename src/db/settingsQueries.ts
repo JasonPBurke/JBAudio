@@ -4,6 +4,7 @@ import database from '@/db';
 import Settings from '@/db/models/Settings';
 import { Q } from '@nozbe/watermelondb';
 import Book from '@/db/models/Book';
+import * as RNFS from '@dr.pogodin/react-native-fs';
 
 async function updateSetting(
   updater: (record: Settings) => void
@@ -254,13 +255,15 @@ export const removeLibraryFolder = async (folderPath: string) => {
     });
 
     // 2. Find all books that are inside the removed folder path
+    // Construct absolute path since chapter URLs are stored as absolute paths
+    const absoluteFolderPath = `${RNFS.ExternalStorageDirectoryPath}/${folderPath}`;
     const booksCollection = database.collections.get<Book>('books');
     const allBooks = await booksCollection.query().fetch();
 
     const booksToDelete = [];
     for (const book of allBooks) {
       const chapters = await (book.chapters as any).fetch();
-      if (chapters.length > 0 && chapters[0].url.startsWith(folderPath)) {
+      if (chapters.length > 0 && chapters[0].url.startsWith(absoluteFolderPath)) {
         booksToDelete.push(book);
       }
     }

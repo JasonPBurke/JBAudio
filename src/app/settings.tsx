@@ -16,6 +16,7 @@ import SegmentedControl from '@react-native-segmented-control/segmented-control'
 import { useRouter } from 'expo-router';
 import InfoDialogPopup from '@/modals/InfoDialogPopup';
 import { useSettingsStore } from '@/store/settingsStore';
+import { refreshLibraryStore } from '@/store/library';
 import {
   updateTimerFadeoutDuration,
   getTimerFadeoutDuration,
@@ -111,6 +112,12 @@ const SettingsScreen = ({ navigation }: any) => {
           style: 'destructive',
           onPress: async () => {
             await removeLibraryFolder(folderPath);
+            // Force refresh the library store to sync with database
+            await refreshLibraryStore();
+            // Update local state to reflect the removal immediately
+            setLibraryFolders((prev) =>
+              prev.filter((path) => path !== folderPath)
+            );
           },
         },
       ]
@@ -199,7 +206,7 @@ const SettingsScreen = ({ navigation }: any) => {
         />
       </View>
       <View>
-        <Text style={styles.sectionHeaderStyle}>UI</Text>
+        <Text style={styles.sectionHeaderStyle}>Player</Text>
       </View>
       <View>
         <Text style={styles.sectionHeaderStyle}>Library Folders</Text>

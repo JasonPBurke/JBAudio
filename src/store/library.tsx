@@ -29,6 +29,7 @@ interface LibraryState {
   getPlaybackProgress: (bookId: string) => number;
   getPlaybackIndex: (bookId: string) => number;
   init: () => () => void; // Function to initialize and return cleanup
+  refresh: () => Promise<void>; // Force re-fetch from database
   updateBookChapterIndex: (
     bookId: string,
     chapterIndex: number
@@ -72,6 +73,85 @@ export const useLibraryStore: UseBoundStore<StoreApi<LibraryState>> =
     },
     getPlaybackProgress: (bookId: string) => get().playbackProgress[bookId],
     getPlaybackIndex: (bookId: string) => get().playbackIndex[bookId],
+    refresh: async () => {
+      const booksCollection = database.collections.get<BookModel>('books');
+      const bookModels = await booksCollection.query().fetch();
+
+      const newBookMap: BookMap = {};
+      const authorsMap = new Map<string, Book[]>();
+
+      for (const bookModel of bookModels) {
+        // Skip soft-deleted records
+        if (bookModel._raw._status === 'deleted') continue;
+
+        const authorModel = await (bookModel.author as any).fetch();
+        const chapterModels = await (bookModel.chapters as any).fetch();
+
+        const chaptersData: Chapter[] = chapterModels.map(
+          (chapter: ChapterModel) => ({
+            author: authorModel?.name ?? 'Unknown Author',
+            bookTitle: bookModel.title,
+            chapterTitle: chapter.title,
+            chapterNumber: chapter.chapterNumber,
+            chapterDuration: chapter.chapterDuration,
+            startMs: chapter.startMs,
+            url: chapter.url,
+          })
+        );
+
+        const bookData: Book = {
+          bookId: bookModel.id,
+          author: authorModel?.name ?? 'Unknown Author',
+          bookTitle: bookModel.title,
+          chapters: chaptersData,
+          artwork: bookModel.artwork,
+          artworkHeight: bookModel.artworkHeight,
+          artworkWidth: bookModel.artworkWidth,
+          artworkColors: {
+            average: bookModel.coverColorAverage,
+            dominant: bookModel.coverColorDominant,
+            vibrant: bookModel.coverColorVibrant,
+            darkVibrant: bookModel.coverColorDarkVibrant,
+            lightVibrant: bookModel.coverColorLightVibrant,
+            muted: bookModel.coverColorMuted,
+            darkMuted: bookModel.coverColorDarkMuted,
+            lightMuted: bookModel.coverColorLightMuted,
+          },
+          bookDuration: bookModel.bookDuration,
+          bookProgress: {
+            currentChapterIndex: bookModel.currentChapterIndex,
+            currentChapterProgress: bookModel.currentChapterProgress,
+          },
+          bookProgressValue: bookModel.bookProgressValue,
+          metadata: {
+            year: bookModel.year?.toString(),
+            description: bookModel.description,
+            narrator: bookModel.narrator,
+            genre: bookModel.genre,
+            sampleRate: bookModel.sampleRate,
+            bitrate: bookModel.bitrate,
+            codec: bookModel.codec,
+            copyright: bookModel.copyright,
+            totalTrackCount: bookModel.totalTrackCount,
+            ctime: bookModel.createdAt,
+            mtime: bookModel.updatedAt,
+          },
+        };
+
+        newBookMap[bookModel.id] = bookData;
+
+        if (!authorsMap.has(bookData.author)) {
+          authorsMap.set(bookData.author, []);
+        }
+        authorsMap.get(bookData.author)!.push(bookData);
+      }
+
+      const finalAuthorsData: Author[] = Array.from(authorsMap.entries())
+        .map(([name, books]) => ({ name, books }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      set({ authors: finalAuthorsData, books: newBookMap });
+    },
     init: () => {
       const booksCollection = database.collections.get<BookModel>('books');
 
@@ -159,11 +239,22 @@ export const useLibraryStore: UseBoundStore<StoreApi<LibraryState>> =
             return bookData;
           };
 
-          // Process each changed record
+          // Detect books that were hard-deleted (no longer in query results)
+          // The observer returns ALL books matching the query, so any book
+          // in our store that's not in changedRecords has been deleted
+          const currentDbBookIds = new Set(changedRecords.map((b) => b.id));
+          for (const existingId of Object.keys(currentBooks)) {
+            if (!currentDbBookIds.has(existingId)) {
+              delete newBookMap[existingId];
+              authorsNeedRebuild = true;
+            }
+          }
+
+          // Process each record from the database
           for (const bookModel of changedRecords) {
             const existingBook = newBookMap[bookModel.id];
 
-            // If the book was deleted, remove it from our map
+            // If the book was soft-deleted, remove it from our map
             if (bookModel._raw._status === 'deleted') {
               delete newBookMap[bookModel.id];
               authorsNeedRebuild = true;
@@ -344,6 +435,12 @@ export const useLibraryStore: UseBoundStore<StoreApi<LibraryState>> =
 
 // This selector is still fine for author-level views.
 export const useAuthors = () => useLibraryStore((state) => state.authors);
+
+/**
+ * Force refresh the library store from the database.
+ * Call this after destructive operations that may not trigger the observer.
+ */
+export const refreshLibraryStore = () => useLibraryStore.getState().refresh();
 
 // This selector is inefficient and should be deprecated or updated to use the book map.
 // For now, I'll leave it, but you should transition away from using it.
