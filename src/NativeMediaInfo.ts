@@ -127,6 +127,15 @@ export function analyzeMedia(path: string): MediaInfoJSON {
 }
 
 /**
+ * Synchronous wrapper that analyzes media without extracting cover art.
+ * Faster than analyzeMedia() for multi-file books where only the first file needs cover extraction.
+ */
+export function analyzeMediaNoCover(path: string): MediaInfoJSON {
+  const json = NativeMediaInfoModule.analyzeNoCover(path);
+  return JSON.parse(json) as MediaInfoJSON;
+}
+
+/**
  * Async wrapper for MediaInfo analysis.
  * Although the underlying native call is synchronous, wrapping it in a
  * promise allows for consistent async/await usage patterns.
@@ -137,6 +146,24 @@ export async function analyzeMediaAsync(
   return new Promise((resolve, reject) => {
     try {
       const parsed = analyzeMedia(path);
+      resolve(parsed);
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+/**
+ * Async wrapper for MediaInfo analysis without cover extraction.
+ * Although the underlying native call is synchronous, wrapping it in a
+ * promise allows for consistent async/await usage patterns.
+ */
+export async function analyzeMediaNoCoverAsync(
+  path: string
+): Promise<MediaInfoJSON> {
+  return new Promise((resolve, reject) => {
+    try {
+      const parsed = analyzeMediaNoCover(path);
       resolve(parsed);
     } catch (err) {
       reject(err);

@@ -1,5 +1,9 @@
 // Higher-level helper that wraps getMediaInfo and extracts common fields
-import { getMediaInfo, MediaInfoResult } from '../lib/mediainfoAdapter';
+import {
+  getMediaInfo,
+  getMediaInfoNoCover,
+  MediaInfoResult,
+} from '../lib/mediainfoAdapter';
 
 export type ExtractedMetadata = {
   fileFormat?: string;
@@ -46,6 +50,24 @@ export async function analyzeFileWithMediaInfo(
   uri: string
 ): Promise<ExtractedMetadata> {
   const res = await getMediaInfo(uri);
+  return extractMetadataFromResult(res);
+}
+
+/**
+ * Analyzes a media file without extracting cover art.
+ * Faster than analyzeFileWithMediaInfo() for multi-file books where only the first file needs cover extraction.
+ */
+export async function analyzeFileWithMediaInfoNoCover(
+  uri: string
+): Promise<ExtractedMetadata> {
+  const res = await getMediaInfoNoCover(uri);
+  return extractMetadataFromResult(res);
+}
+
+/**
+ * Shared logic for extracting metadata from MediaInfo result.
+ */
+function extractMetadataFromResult(res: MediaInfoResult): ExtractedMetadata {
   const json = (res.json || {}) as any;
   const media = json.media || {};
   const tracks: any[] = media.track || [];

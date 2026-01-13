@@ -1,4 +1,8 @@
-import { analyzeMediaAsync, MediaInfoJSON } from '../NativeMediaInfo';
+import {
+  analyzeMediaAsync,
+  analyzeMediaNoCoverAsync,
+  MediaInfoJSON,
+} from '../NativeMediaInfo';
 import { Platform } from 'react-native';
 
 export type MediaInfoResult = {
@@ -22,6 +26,31 @@ export async function getMediaInfo(uri: string): Promise<MediaInfoResult> {
     };
   } catch (error) {
     console.error('MediaInfo analysis failed:', error);
+    return {
+      raw: '',
+      json: null,
+    };
+  }
+}
+
+export async function getMediaInfoNoCover(
+  uri: string
+): Promise<MediaInfoResult> {
+  if (Platform.OS !== 'android') {
+    throw new Error('getMediaInfoNoCover is only supported on Android');
+  }
+
+  // Strip file:// prefix if present
+  const filePath = uri.startsWith('file://') ? uri.slice(7) : uri;
+
+  try {
+    const parsed = await analyzeMediaNoCoverAsync(filePath);
+    return {
+      raw: JSON.stringify(parsed),
+      json: parsed,
+    };
+  } catch (error) {
+    console.error('MediaInfo analysis (no cover) failed:', error);
     return {
       raw: '',
       json: null,

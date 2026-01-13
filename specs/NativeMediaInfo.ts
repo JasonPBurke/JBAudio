@@ -12,6 +12,15 @@ export interface Spec extends TurboModule {
   analyze(path: string): string;
 
   /**
+   * Analyze a media file without extracting cover art.
+   * Faster than analyze() for multi-file books where only the first file needs cover extraction.
+   *
+   * @param path - Absolute filesystem path to the media file
+   * @returns JSON string with media metadata (without Cover_Data)
+   */
+  analyzeNoCover(path: string): string;
+
+  /**
    * Get diagnostic information about the MediaInfo native build.
    * Useful for troubleshooting Cover_Data support.
    *

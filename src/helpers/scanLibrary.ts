@@ -8,19 +8,34 @@ import { Q } from '@nozbe/watermelondb';
 import ImageResizer from '@bam.tech/react-native-image-resizer';
 import { populateSingleBook } from '@/hooks/usePopulateDatabase';
 import { getLibraryPaths } from '@/db/settingsQueries';
-import { analyzeFileWithMediaInfo } from './mediainfo';
+import {
+  analyzeFileWithMediaInfo,
+  analyzeFileWithMediaInfoNoCover,
+} from './mediainfo';
 import { BookImageColors, extractImageColors } from './imageColorExtractor';
 import { useScanProgressStore } from '@/helpers/useScanProgressStore';
+
+const DEFAULT_BOOK_ARTWORK_COLORS = {
+  average: null,
+  dominant: null,
+  vibrant: null,
+  darkVibrant: null,
+  lightVibrant: null,
+  muted: null,
+  darkMuted: null,
+  lightMuted: null,
+};
 
 /**
  * Groups chapter metadata into book structures.
  * Returns array of { authorName, book } for immediate processing.
  */
-const groupChaptersIntoBooks = (chapters: any[]): { authorName: string; book: Book }[] => {
+function groupChaptersIntoBooks(
+  chapters: any[]
+): { authorName: string; book: Book }[] {
   const bookMap = new Map<string, { authorName: string; book: Book }>();
 
   for (const chapter of chapters) {
-    // Use author + bookTitle as unique key for grouping
     const bookKey = `${chapter.author}::${chapter.bookTitle}`;
 
     if (!bookMap.has(bookKey)) {
@@ -35,16 +50,7 @@ const groupChaptersIntoBooks = (chapters: any[]): { authorName: string; book: Bo
           artwork: chapter.coverBase64 || null,
           artworkHeight: chapter.coverHeight || null,
           artworkWidth: chapter.coverWidth || null,
-          artworkColors: {
-            average: null,
-            dominant: null,
-            vibrant: null,
-            darkVibrant: null,
-            lightVibrant: null,
-            muted: null,
-            darkMuted: null,
-            lightMuted: null,
-          },
+          artworkColors: DEFAULT_BOOK_ARTWORK_COLORS,
           bookProgress: {
             currentChapterIndex: 0,
             currentChapterProgress: 0,
@@ -82,7 +88,7 @@ const groupChaptersIntoBooks = (chapters: any[]): { authorName: string; book: Bo
     entry.book.bookDuration += chapterData.chapterDuration;
   }
 
-  // Sort chapters within each book
+  // Sort chapters within each book by chapter number
   for (const entry of bookMap.values()) {
     if (entry.book.chapters.length > 1) {
       entry.book.chapters.sort((a, b) => a.chapterNumber - b.chapterNumber);
@@ -90,97 +96,108 @@ const groupChaptersIntoBooks = (chapters: any[]): { authorName: string; book: Bo
   }
 
   return Array.from(bookMap.values());
-};
+}
 
 /**
  * Processes a single book: extracts artwork and writes to database.
  */
-const processAndPersistBook = async (authorName: string, book: Book) => {
+async function processAndPersistBook(
+  authorName: string,
+  book: Book
+): Promise<void> {
   try {
     const bookWithArtwork = await extractArtworkForBook(book);
     await populateSingleBook(authorName, bookWithArtwork);
-    useScanProgressStore.getState().incrementProcessedBooks();
   } catch (error) {
     console.error(
       `Error processing book "${book.bookTitle}" by ${authorName}:`,
       error
     );
-    // Still increment progress so UI reflects attempted processing
+  } finally {
+    // Always increment progress so UI reflects attempted processing
     useScanProgressStore.getState().incrementProcessedBooks();
   }
-};
+}
 
 // Track which books already have cover art extracted (author::title -> true)
 const booksWithCoverExtracted = new Set<string>();
 
 /**
- * Scans a directory and processes books as they are discovered.
- * For each directory:
- * 1. Scan all audio files in this directory
- * 2. Group new files into books
- * 3. Process each book immediately (artwork + DB write)
- * 4. Recurse into subdirectories
+ * Checks if a chapter for this file needs cover extraction.
+ * Returns true if any chapter belongs to a book we haven't seen yet.
  */
-const handleReadDirectory = async (
-  path: string,
+function needsCoverForFile(chapters: any[]): boolean {
+  for (const chapter of chapters) {
+    const bookTitle = chapter.bookTitle;
+    if (!bookTitle) continue;
+
+    const bookKey = `${chapter.author}::${bookTitle}`;
+    if (!booksWithCoverExtracted.has(bookKey)) {
+      booksWithCoverExtracted.add(bookKey);
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Scans a directory and processes books as they are discovered.
+ * Recursively processes subdirectories after handling current directory files.
+ */
+async function handleReadDirectory(
+  dirPath: string,
   allFiles: string[] = []
-) => {
+): Promise<{ allFiles: string[] }> {
   try {
-    const result = await RNFS.readDir(path);
+    const dirContents = await RNFS.readDir(dirPath);
     const newChaptersInDir: any[] = [];
     const subdirectories: string[] = [];
+    const newFilesToProcess: string[] = [];
 
-    // First pass: collect files and subdirectories
-    for (const item of result) {
+    // Separate files and directories
+    for (const item of dirContents) {
       if (item.isDirectory()) {
         subdirectories.push(item.path);
       } else if (
-        (item.isFile() && item.name.endsWith('.m4b')) ||
-        item.name.endsWith('.mp3')
+        item.isFile() &&
+        (item.name.endsWith('.m4b') || item.name.endsWith('.mp3'))
       ) {
         allFiles.push(item.path);
-        const fileExists = await checkIfFileExists(item.path);
-        if (!fileExists) {
-          const metadata = await extractMetadata(item.path);
-
-          // Memory optimization: Only keep cover data for first file of each book
-          for (const chapter of metadata) {
-            const bookTitle = (chapter as any).bookTitle;
-            if (!bookTitle) continue; // Skip error case entries
-
-            const bookKey = `${chapter.author}::${bookTitle}`;
-            if (booksWithCoverExtracted.has(bookKey)) {
-              // Clear cover data for subsequent chapters to reduce memory
-              (chapter as any).coverBase64 = null;
-              (chapter as any).coverWidth = null;
-              (chapter as any).coverHeight = null;
-            } else if ((chapter as any).coverBase64) {
-              // Mark this book as having cover extracted
-              booksWithCoverExtracted.add(bookKey);
-            }
-          }
-
-          newChaptersInDir.push(...metadata);
+        const exists = await checkIfFileExists(item.path);
+        if (!exists) {
+          newFilesToProcess.push(item.path);
         }
       }
     }
 
-    // Process any new books found in this directory immediately
+    // Process new files in sorted order (multi-file audiobooks have chapters in same directory)
+    newFilesToProcess.sort();
+
+    for (const filePath of newFilesToProcess) {
+      // First scan without cover to check if this is the first file of a new book
+      let metadata = await extractMetadata(filePath, true);
+
+      // If this is the first file of a new book, re-scan with cover extraction
+      if (needsCoverForFile(metadata)) {
+        metadata = await extractMetadata(filePath, false);
+      }
+
+      newChaptersInDir.push(...metadata);
+    }
+
+    // Process discovered books immediately
     if (newChaptersInDir.length > 0) {
       const booksInDir = groupChaptersIntoBooks(newChaptersInDir);
+      const progressStore = useScanProgressStore.getState();
 
-      // Update total count for progress tracking
-      useScanProgressStore.getState().setTotalBooks(
-        useScanProgressStore.getState().totalBooks + booksInDir.length
-      );
+      progressStore.setTotalBooks(progressStore.totalBooks + booksInDir.length);
 
-      // Process each book immediately
       for (const { authorName, book } of booksInDir) {
         await processAndPersistBook(authorName, book);
       }
     }
 
-    // Then recurse into subdirectories
+    // Recurse into subdirectories
     for (const subdir of subdirectories) {
       await handleReadDirectory(subdir, allFiles);
     }
@@ -190,62 +207,69 @@ const handleReadDirectory = async (
     console.error('Error reading directory', err);
     return { allFiles };
   }
-};
+}
 
-const checkIfFileExists = async (path: string) => {
-  //* should never be greater than 1
-  const matchingChapterUriCount = await database
+/**
+ * Checks if a chapter with this file path already exists in the database.
+ */
+async function checkIfFileExists(filePath: string): Promise<boolean> {
+  const count = await database
     .get('chapters')
-    .query(Q.where('url', path))
+    .query(Q.where('url', filePath))
     .fetchCount();
 
-  return matchingChapterUriCount > 0; // allows for boolean check
-};
+  return count > 0;
+}
 
-const parseCueFile = async (
-  cueFilePath: string,
-  totalDurationMs: number
-) => {
+type CueChapter = { title: string; startMs: number };
+
+const CUE_TITLE_REGEX = /^\s*TITLE\s*"(.*)"\s*$/;
+const CUE_INDEX_REGEX = /^\s*INDEX\s*01\s*(\d+):(\d+):(\d+)\s*$/;
+const CUE_FRAMES_PER_SECOND = 75;
+
+/**
+ * Parses a CUE sheet file and extracts chapter information.
+ * Returns null if parsing fails or no chapters are found.
+ */
+async function parseCueFile(cueFilePath: string): Promise<CueChapter[] | null> {
   try {
-    const cueSheetContent = await RNFS.readFile(cueFilePath, 'utf8');
-    const lines = cueSheetContent.split('\n');
+    const cueContent = await RNFS.readFile(cueFilePath, 'utf8');
+    const lines = cueContent.split('\n');
 
-    const chapters: { title: string; startMs: number }[] = [];
-    let currentChapter: { title: string; startMs: number } | null = null;
-
-    const titleRegex = /^\s*TITLE\s*"(.*)"\s*$/;
-    const indexRegex = /^\s*INDEX\s*01\s*(\d+):(\d+):(\d+)\s*$/;
+    const chapters: CueChapter[] = [];
+    let currentChapter: CueChapter | null = null;
 
     for (const line of lines) {
       const trimmedLine = line.trim();
 
       if (trimmedLine.startsWith('TRACK')) {
-        // When we see a new TRACK, push the previous one and start a new one.
         if (currentChapter) {
           chapters.push(currentChapter);
         }
         currentChapter = { title: '', startMs: 0 };
+        continue;
       }
 
-      const titleMatch = trimmedLine.match(titleRegex);
-      if (titleMatch && currentChapter) {
+      if (!currentChapter) continue;
+
+      const titleMatch = trimmedLine.match(CUE_TITLE_REGEX);
+      if (titleMatch) {
         currentChapter.title = titleMatch[1];
+        continue;
       }
 
-      const indexMatch = trimmedLine.match(indexRegex);
-      if (indexMatch && currentChapter) {
+      const indexMatch = trimmedLine.match(CUE_INDEX_REGEX);
+      if (indexMatch) {
         const minutes = parseInt(indexMatch[1], 10);
         const seconds = parseInt(indexMatch[2], 10);
         const frames = parseInt(indexMatch[3], 10);
-        const startTimeMs =
+        currentChapter.startMs =
           minutes * 60 * 1000 +
           seconds * 1000 +
-          Math.round((frames / 75) * 1000);
-        currentChapter.startMs = startTimeMs;
+          Math.round((frames / CUE_FRAMES_PER_SECOND) * 1000);
       }
     }
 
-    // Add the last chapter
     if (currentChapter) {
       chapters.push(currentChapter);
     }
@@ -255,11 +279,54 @@ const parseCueFile = async (
     console.error(`Failed to parse CUE file ${cueFilePath}:`, error);
     return null;
   }
-};
+}
 
-const extractMetadata = async (filePath: string) => {
+/**
+ * Builds a chapter metadata object with common properties from file metadata.
+ */
+function buildChapterMetadata(
+  metadata: any,
+  filePath: string,
+  bookTitleBackup: string | undefined,
+  chapterInfo: {
+    title: string;
+    number: number;
+    duration: number;
+    startMs: number;
+    totalTracks: number;
+  }
+) {
+  return {
+    author: metadata.author || 'Unknown Author',
+    narrator: metadata.narrator || 'Unknown Voice Artist',
+    bookTitle: metadata.album || bookTitleBackup,
+    chapterTitle: chapterInfo.title,
+    chapterNumber: chapterInfo.number,
+    year: Number(metadata.releaseDate),
+    description: metadata.description,
+    genre: metadata.genre,
+    sampleRate: metadata.sampleRate,
+    codec: metadata.codec,
+    bitrate: metadata.bitrate,
+    copyright: metadata.copyright,
+    artworkUri: null,
+    totalTrackCount: chapterInfo.totalTracks,
+    coverBase64: metadata.cover || null,
+    coverWidth: metadata.imgWidth || null,
+    coverHeight: metadata.imgHeight || null,
+    ctime: new Date(),
+    chapterDuration: chapterInfo.duration,
+    startMs: chapterInfo.startMs,
+    url: filePath,
+  };
+}
+
+async function extractMetadata(filePath: string, skipCoverExtraction = false) {
   try {
-    const metadata = await analyzeFileWithMediaInfo(filePath);
+    const metadata = skipCoverExtraction
+      ? await analyzeFileWithMediaInfoNoCover(filePath)
+      : await analyzeFileWithMediaInfo(filePath);
+
     let chapters = metadata.chapters || [];
     const bookTitleBackup = filePath
       .substring(0, filePath.lastIndexOf('/'))
@@ -273,19 +340,15 @@ const extractMetadata = async (filePath: string) => {
       const cueFileExists = await RNFS.exists(cueFilePath);
 
       if (cueFileExists) {
-        // console.log(`Found CUE file for ${filePath}, parsing...`);
-        const cueChapters = await parseCueFile(
-          cueFilePath,
-          metadata.durationMs || 0
-        );
+        const cueChapters = await parseCueFile(cueFilePath);
         if (cueChapters) {
           chapters = cueChapters;
         }
       }
     }
 
+    // Multi-chapter file (e.g. m4b)
     if (chapters.length > 0) {
-      // This is a multi-chapter file (e.g. m4b)
       return chapters.map((chapter, index) => {
         const nextChapter = chapters[index + 1];
         const chapterEndMs = nextChapter
@@ -293,63 +356,30 @@ const extractMetadata = async (filePath: string) => {
           : metadata.durationMs || 0;
         const chapterDuration = (chapterEndMs - chapter.startMs) / 1000;
 
-        return {
-          author: metadata.author || 'Unknown Author',
-          narrator: metadata.narrator || 'Unknown Voice Artist',
-          bookTitle: metadata.album || bookTitleBackup,
-          chapterTitle: chapter.title || `Chapter ${index + 1}`,
-          chapterNumber: index + 1,
-          year: Number(metadata.releaseDate),
-          description: metadata.description,
-          genre: metadata.genre,
-          sampleRate: metadata.sampleRate,
-          codec: metadata.codec,
-          bitrate: metadata.bitrate,
-          copyright: metadata.copyright,
-          artworkUri: null, // Will be extracted later
-          totalTrackCount: chapters.length,
-          coverBase64: metadata.cover || null,
-          coverWidth: metadata.imgWidth || null,
-          coverHeight: metadata.imgHeight || null,
-
-          ctime: new Date(),
-          chapterDuration: chapterDuration,
+        return buildChapterMetadata(metadata, filePath, bookTitleBackup, {
+          title: chapter.title || `Chapter ${index + 1}`,
+          number: index + 1,
+          duration: chapterDuration,
           startMs: chapter.startMs,
-          url: filePath,
-        };
+          totalTracks: chapters.length,
+        });
       });
-    } else {
-      // This is a single-chapter file (e.g. mp3)
-      const chapterDuration = metadata.durationMs
-        ? metadata.durationMs / 1000
-        : 0;
-      return [
-        {
-          author: metadata.author || 'Unknown Author',
-          narrator: metadata.narrator || 'Unknown Voice Artist',
-          bookTitle: metadata.album || bookTitleBackup,
-          chapterTitle:
-            filePath.split('/').pop()?.split('.')[0] || metadata.title,
-          chapterNumber: metadata.trackPosition || 1,
-          year: Number(metadata.releaseDate),
-          description: metadata.description,
-          genre: metadata.genre,
-          sampleRate: metadata.sampleRate,
-          codec: metadata.codec,
-          bitrate: metadata.bitrate,
-          copyright: metadata.copyright,
-          artworkUri: null,
-          totalTrackCount: 1,
-          coverBase64: metadata.cover || null,
-          coverWidth: metadata.imgWidth || null,
-          coverHeight: metadata.imgHeight || null,
-          ctime: new Date(),
-          chapterDuration: chapterDuration,
-          startMs: 0,
-          url: filePath,
-        },
-      ];
     }
+
+    // Single-chapter file (e.g. mp3)
+    const chapterDuration = metadata.durationMs ? metadata.durationMs / 1000 : 0;
+    const fileName = filePath.split('/').pop() ?? '';
+    const chapterTitle = fileName.split('.')[0] || metadata.title || 'Unknown Chapter';
+
+    return [
+      buildChapterMetadata(metadata, filePath, bookTitleBackup, {
+        title: chapterTitle,
+        number: metadata.trackPosition || 1,
+        duration: chapterDuration,
+        startMs: 0,
+        totalTracks: 1,
+      }),
+    ];
   } catch (error) {
     console.error(`Error extracting metadata for ${filePath}`, error);
     return [
@@ -357,12 +387,12 @@ const extractMetadata = async (filePath: string) => {
         title: filePath.split('/').pop(),
         author: 'Unknown Author',
         trackNumber: 0,
-        chapterDuration: 0, // Default value for now
+        chapterDuration: 0,
         url: filePath,
       },
     ];
   }
-};
+}
 
 /**
  * Sanitizes a string for use in a filename by replacing non-alphanumeric characters.
@@ -559,52 +589,71 @@ async function extractArtworkForBook(book: Book): Promise<Book> {
   }
 }
 
-const removeMissingFiles = async (allFiles: string[]) => {
+/**
+ * Removes chapters from the database that no longer exist on disk,
+ * then cleans up any orphaned books and authors.
+ */
+async function removeMissingFiles(allFiles: string[]): Promise<void> {
+  const fileSet = new Set(allFiles);
+
   const allChapters = await database
     .get<ChapterModel>('chapters')
     .query()
     .fetch();
-  const filesToRemove = allChapters.filter(
-    (chapter) => !allFiles.includes(chapter.url)
+  const chaptersToRemove = allChapters.filter(
+    (chapter) => !fileSet.has(chapter.url)
   );
 
-  if (filesToRemove.length > 0) {
+  if (chaptersToRemove.length > 0) {
     await database.write(async () => {
-      for (const chapter of filesToRemove) {
-        await chapter.destroyPermanently(); //prepareMarkAsDeleted()
+      for (const chapter of chaptersToRemove) {
+        await chapter.destroyPermanently();
       }
     });
   }
 
-  //? Clean up orphaned books and authors
+  // Clean up orphaned books
   const allBooks = await database.get<BookModel>('books').query().fetch();
+  const orphanedBooks: BookModel[] = [];
+
   for (const book of allBooks) {
-    // @ts-expect-error
-    const chapterCount = await book.chapters.fetchCount(); //! fetchCount() throws ts error
-    // console.log('chapterCount', chapterCount);
+    // @ts-expect-error - fetchCount() not in type definitions
+    const chapterCount = await book.chapters.fetchCount();
     if (chapterCount === 0) {
-      await database.write(async () => {
+      orphanedBooks.push(book);
+    }
+  }
+
+  if (orphanedBooks.length > 0) {
+    await database.write(async () => {
+      for (const book of orphanedBooks) {
         await book.destroyPermanently();
-      });
-    }
+      }
+    });
   }
 
-  const allAuthors = (await database
-    .get<AuthorModel>('authors')
-    .query()
-    .fetch()) as unknown as AuthorModel[];
+  // Clean up orphaned authors
+  const allAuthors = await database.get<AuthorModel>('authors').query().fetch();
+  const orphanedAuthors: AuthorModel[] = [];
+
   for (const author of allAuthors) {
-    // @ts-expect-error
-    const bookCount = await author.books.fetchCount(); //! fetchCount() throws ts error
+    // @ts-expect-error - fetchCount() not in type definitions
+    const bookCount = await author.books.fetchCount();
     if (bookCount === 0) {
-      await database.write(async () => {
-        await author.destroyPermanently();
-      });
+      orphanedAuthors.push(author);
     }
   }
-};
 
-export const scanLibrary = async () => {
+  if (orphanedAuthors.length > 0) {
+    await database.write(async () => {
+      for (const author of orphanedAuthors) {
+        await author.destroyPermanently();
+      }
+    });
+  }
+}
+
+export async function scanLibrary(): Promise<void> {
   console.log('Scanning library');
 
   // Reset cover tracking for new scan
@@ -618,18 +667,18 @@ export const scanLibrary = async () => {
   }
 
   useScanProgressStore.getState().startScan();
-  let combinedAllFiles: string[] = [];
+  const combinedAllFiles: string[] = [];
 
   // Scan directories - books are processed incrementally as they are discovered
-  for (const path of libraryPaths) {
+  for (const libraryPath of libraryPaths) {
     const { allFiles } = await handleReadDirectory(
-      RNFS.ExternalStorageDirectoryPath + '/' + path
+      RNFS.ExternalStorageDirectoryPath + '/' + libraryPath
     );
-    combinedAllFiles = combinedAllFiles.concat(allFiles);
+    combinedAllFiles.push(...allFiles);
   }
 
   // Clean up any files that no longer exist
   await removeMissingFiles(combinedAllFiles);
 
   useScanProgressStore.getState().endScan();
-};
+}

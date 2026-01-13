@@ -86,6 +86,7 @@ class NativeMediaInfoModule(
         }
     }
 
+    @ReactMethod(isBlockingSynchronousMethod = true)
     fun analyzeNoCover(path: String): String {
         val file = File(path)
 
@@ -102,6 +103,7 @@ class NativeMediaInfoModule(
         try {
             // Configure MediaInfo options BEFORE opening file
             mi.Option("Internet", "No")
+            mi.Option("Cover_Data", "")  // Explicitly disable cover extraction
             mi.Option("Output", "JSON")
 
             // Try path-based opening first (fast - ~50ms vs ~500ms for buffer API)
