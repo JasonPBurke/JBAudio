@@ -364,79 +364,101 @@ const extractMetadata = async (filePath: string) => {
   }
 };
 
-const saveArtworkToFile = async (
-  base64Artwork: string,
-  bookTitle: string,
-  author: string
-): Promise<{
+/**
+ * Sanitizes a string for use in a filename by replacing non-alphanumeric characters.
+ */
+function sanitizeForFilename(str: string): string {
+  return str.replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+/**
+ * Detects image format from base64 data.
+ * Returns the appropriate file extension and whether the JPEG needs repair.
+ */
+function detectImageFormat(base64Data: string): {
+  extension: 'png' | 'jpg';
+  needsJpegRepair: boolean;
+} {
+  // Base64 signatures for common image formats
+  const PNG_SIGNATURE = 'iVBOR';
+  const TRUNCATED_JPEG_SIGNATURE = '/+'; // Missing FFD8 SOI header (normal JPEG starts with /9j/)
+
+  const isPng = base64Data.startsWith(PNG_SIGNATURE);
+  const needsJpegRepair = base64Data.startsWith(TRUNCATED_JPEG_SIGNATURE);
+
+  return {
+    extension: isPng ? 'png' : 'jpg',
+    needsJpegRepair,
+  };
+}
+
+/**
+ * Writes image data to a temp file, repairing truncated JPEGs if needed.
+ * Some MediaInfo extractions return JPEGs missing the SOI (FFD8) header.
+ */
+async function writeTempImageFile(
+  tempFilePath: string,
+  base64Data: string,
+  needsJpegRepair: boolean
+): Promise<void> {
+  if (needsJpegRepair) {
+    // Prepend SOI marker (FFD8) before the data (which starts at FFE0/APP0)
+    const soiMarker = new Uint8Array([0xff, 0xd8]);
+    const soiString = String.fromCharCode(...soiMarker);
+    await RNFS.writeFile(tempFilePath, soiString, 'ascii');
+    await RNFS.appendFile(tempFilePath, base64Data, 'base64');
+  } else {
+    await RNFS.writeFile(tempFilePath, base64Data, 'base64');
+  }
+}
+
+type ArtworkResult = {
   artworkUri: string | null;
   width: number;
   height: number;
-}> => {
-  // Create a unique, filesystem-friendly filename
-  const safeBookTitle = bookTitle.replace(/[^a-zA-Z0-9]/g, '_');
-  const safeAuthor = author.replace(/[^a-zA-Z0-9]/g, '_');
+};
+
+/**
+ * Saves base64 artwork to a WebP file after resizing.
+ * Handles truncated JPEG detection and repair.
+ */
+async function saveArtworkToFile(
+  base64Artwork: string,
+  bookTitle: string,
+  author: string
+): Promise<ArtworkResult> {
+  const safeBookTitle = sanitizeForFilename(bookTitle);
+  const safeAuthor = sanitizeForFilename(author);
   const filename = `${safeAuthor}_${safeBookTitle}.webp`;
 
   const artworkDir = `${RNFS.DocumentDirectoryPath}/artwork`;
   const finalImagePath = `${artworkDir}/${filename}`;
 
   try {
-    // Ensure the artwork directory exists
     await RNFS.mkdir(artworkDir);
 
-    // Detect and fix image format
-    let imageData = base64Artwork;
-    const isPng = imageData.startsWith('iVBOR');
-    const isJpeg = imageData.startsWith('/9j/');
-    const isTruncatedJpeg = imageData.startsWith('/+'); // Missing FFD8 SOI header
+    const { extension, needsJpegRepair } = detectImageFormat(base64Artwork);
+    const tempFilePath = `${RNFS.CachesDirectoryPath}/temp_artwork_${Date.now()}.${extension}`;
 
-    // Determine file extension
-    const ext = isPng ? 'png' : 'jpg';
+    await writeTempImageFile(tempFilePath, base64Artwork, needsJpegRepair);
 
-    // Write base64 to temp file (ImageResizer works better with file paths)
-    const tempFilePath = `${RNFS.CachesDirectoryPath}/temp_artwork_${Date.now()}.${ext}`;
-
-    if (isTruncatedJpeg) {
-      // Fix truncated JPEG: prepend FFD8 (SOI marker) before FFE0 (APP0 marker)
-      // Some MediaInfo extractions return JPEG missing the SOI header
-
-      // Write SOI marker (FFD8) as raw bytes first
-      // Use Uint8Array converted to string for binary write
-      const soiMarker = new Uint8Array([0xFF, 0xD8]);
-      const soiString = String.fromCharCode(...soiMarker);
-      await RNFS.writeFile(tempFilePath, soiString, 'ascii');
-
-      // Then append the base64-decoded image data (which starts at FFE0)
-      await RNFS.appendFile(tempFilePath, imageData, 'base64');
-    } else {
-      // Normal case: write base64 directly
-      await RNFS.writeFile(tempFilePath, imageData, 'base64');
-    }
-
-    // Resize and convert the image to WebP format
-    const tempImage = await ImageResizer.createResizedImage(
+    const resizedImage = await ImageResizer.createResizedImage(
       `file://${tempFilePath}`,
-      800, // max width
-      800, // max height
-      'WEBP', // convert to WEBP
-      80, // quality
-      0, // rotation
-      undefined, // use default cache directory for output
-      false, // don't keep original
+      800,
+      800,
+      'WEBP',
+      80,
+      0,
+      undefined,
+      false,
       { mode: 'contain', onlyScaleDown: true }
     );
 
-    // Clean up temp file
     await RNFS.unlink(tempFilePath).catch(() => {});
-
-    // Move the resized image to its final destination with the correct filename
-    await RNFS.moveFile(tempImage.path, finalImagePath);
-
-    const resizedImage = { ...tempImage, uri: `file://${finalImagePath}` };
+    await RNFS.moveFile(resizedImage.path, finalImagePath);
 
     return {
-      artworkUri: resizedImage.uri,
+      artworkUri: `file://${finalImagePath}`,
       width: resizedImage.width,
       height: resizedImage.height,
     };
@@ -444,73 +466,85 @@ const saveArtworkToFile = async (
     console.error(`Failed to save artwork for ${bookTitle}:`, error);
     return { artworkUri: null, width: 0, height: 0 };
   }
+}
+
+const DEFAULT_ARTWORK_COLORS: BookImageColors = {
+  average: null,
+  dominantAndroid: null,
+  vibrant: null,
+  darkVibrant: null,
+  lightVibrant: null,
+  muted: null,
+  darkMuted: null,
+  lightMuted: null,
 };
+
+// Default dimensions for placeholder artwork
+const PLACEHOLDER_ARTWORK_SIZE = 500;
+
+/**
+ * Cleans and normalizes base64 image data from MediaInfo.
+ * Handles multiple concatenated images and ensures valid base64 format.
+ */
+function cleanBase64ImageData(rawBase64: string): string {
+  // MediaInfo may return multiple images separated by " / " - take only the first
+  const firstImage = rawBase64.split(' / ')[0];
+
+  // Remove all non-base64 characters
+  let cleaned = firstImage.replace(/[^A-Za-z0-9+/=]/g, '');
+
+  // Truncate at padding characters in the middle (indicates concatenated images)
+  const paddingInMiddle = cleaned.search(/=+[^=]/);
+  if (paddingInMiddle !== -1) {
+    const paddingLength = cleaned.match(/=+/)?.[0]?.length ?? 0;
+    cleaned = cleaned.substring(0, paddingInMiddle + paddingLength);
+  }
+
+  // Ensure length is a multiple of 4 (required for valid base64)
+  const remainder = cleaned.length % 4;
+  if (remainder !== 0) {
+    cleaned = cleaned.substring(0, cleaned.length - remainder);
+  }
+
+  return cleaned;
+}
 
 /**
  * Extracts and processes artwork for a single book.
  * Returns the book with processed artwork data.
  */
-const extractArtworkForBook = async (book: Book): Promise<Book> => {
-  try {
-    const base64Artwork = book.artwork;
-    let artworkWidth: number | null = book.artworkWidth || null;
-    let artworkHeight: number | null = book.artworkHeight || null;
-    let finalArtworkUri: string | null = null;
-    let artworkColors: BookImageColors = {
-      average: null,
-      dominantAndroid: null,
-      vibrant: null,
-      darkVibrant: null,
-      lightVibrant: null,
-      muted: null,
-      darkMuted: null,
-      lightMuted: null,
+async function extractArtworkForBook(book: Book): Promise<Book> {
+  const rawBase64Artwork = book.artwork;
+
+  if (!rawBase64Artwork) {
+    return {
+      ...book,
+      artwork: null,
+      artworkWidth: PLACEHOLDER_ARTWORK_SIZE,
+      artworkHeight: PLACEHOLDER_ARTWORK_SIZE,
+      artworkColors: DEFAULT_ARTWORK_COLORS,
     };
+  }
 
-    if (base64Artwork) {
-      // MediaInfo may return multiple images separated by " / " - take only the first one
-      const imageData = base64Artwork.split(' / ')[0];
+  try {
+    const cleanedBase64 = cleanBase64ImageData(rawBase64Artwork);
 
-      // Clean base64 - remove all non-base64 characters
-      let cleanedBase64 = imageData.replace(/[^A-Za-z0-9+/=]/g, '');
+    const { artworkUri, width, height } = await saveArtworkToFile(
+      cleanedBase64,
+      book.bookTitle,
+      book.author
+    );
 
-      // Check for padding characters in the middle (concatenated images) and truncate
-      const paddingInMiddle = cleanedBase64.search(/=+[^=]/);
-      if (paddingInMiddle !== -1) {
-        const paddingLength = cleanedBase64.match(/=+/)?.[0]?.length ?? 0;
-        cleanedBase64 = cleanedBase64.substring(0, paddingInMiddle + paddingLength);
-      }
-
-      // Ensure base64 length is a multiple of 4 (required for valid base64)
-      const remainder = cleanedBase64.length % 4;
-      if (remainder !== 0) {
-        cleanedBase64 = cleanedBase64.substring(0, cleanedBase64.length - remainder);
-      }
-
-      const { artworkUri, width, height } = await saveArtworkToFile(
-        cleanedBase64,
-        book.bookTitle,
-        book.author
-      );
-      finalArtworkUri = artworkUri;
-      artworkWidth = width;
-      artworkHeight = height;
-
-      // Use saved file for color extraction instead of base64 to reduce memory pressure
-      if (artworkUri) {
-        artworkColors = await extractImageColors(artworkUri);
-      }
-    } else {
-      //! currently hardcoded based on the unknown_track image
-      artworkWidth = 500;
-      artworkHeight = 500;
-    }
+    // Extract colors from saved file to reduce memory pressure
+    const artworkColors = artworkUri
+      ? await extractImageColors(artworkUri)
+      : DEFAULT_ARTWORK_COLORS;
 
     return {
       ...book,
-      artwork: finalArtworkUri,
-      artworkWidth,
-      artworkHeight,
+      artwork: artworkUri,
+      artworkWidth: width,
+      artworkHeight: height,
       artworkColors,
     };
   } catch (error) {
@@ -520,19 +554,10 @@ const extractArtworkForBook = async (book: Book): Promise<Book> => {
       artwork: null,
       artworkWidth: null,
       artworkHeight: null,
-      artworkColors: {
-        average: null,
-        dominant: null,
-        vibrant: null,
-        darkVibrant: null,
-        lightVibrant: null,
-        muted: null,
-        darkMuted: null,
-        lightMuted: null,
-      },
+      artworkColors: DEFAULT_ARTWORK_COLORS,
     };
   }
-};
+}
 
 const removeMissingFiles = async (allFiles: string[]) => {
   const allChapters = await database
