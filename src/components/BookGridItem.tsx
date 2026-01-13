@@ -42,6 +42,10 @@ export const BookGridItem = memo(function BookGridItem({
   const { author, bookTitle, artwork, artworkHeight, artworkWidth } =
     bookData;
 
+  // Fallback dimensions for when artwork extraction fails (default image is 500x500)
+  const safeArtworkWidth = artworkWidth ?? 500;
+  const safeArtworkHeight = artworkHeight ?? 500;
+
   const { setActiveBookId, activeBookId } = useQueueStore();
   // const isActiveBook = useActiveTrack()?.bookId === bookId;
   const isActiveBook = useIsBookActive(bookId);
@@ -71,44 +75,38 @@ export const BookGridItem = memo(function BookGridItem({
     if (flowDirection === 'row') {
       return {
         height: 205,
-        width: artworkHeight ? (artworkWidth! / artworkHeight) * 160 : 0,
+        width: (safeArtworkWidth / safeArtworkHeight) * 160,
       };
     }
     return {
       width: itemWidth,
-      height: artworkWidth
-        ? (artworkHeight! / artworkWidth) * itemWidth + 75
-        : 0,
+      height: (safeArtworkHeight / safeArtworkWidth) * itemWidth + 75,
     };
-  }, [flowDirection, itemWidth, artworkWidth, artworkHeight]);
+  }, [flowDirection, itemWidth, safeArtworkWidth, safeArtworkHeight]);
 
   const imageContainerStyle = useMemo(() => {
     if (flowDirection === 'row') {
       return {
         height: 140,
-        width: artworkHeight ? (artworkWidth! / artworkHeight) * 140 : 0,
+        width: (safeArtworkWidth / safeArtworkHeight) * 140,
       };
     }
     return {
       paddingTop: 10,
       width: itemWidth + 2,
-      height: artworkWidth
-        ? (artworkHeight! / artworkWidth) * itemWidth + 12
-        : 0,
+      height: (safeArtworkHeight / safeArtworkWidth) * itemWidth + 12,
     };
-  }, [flowDirection, itemWidth, artworkWidth, artworkHeight]);
+  }, [flowDirection, itemWidth, safeArtworkWidth, safeArtworkHeight]);
 
   const bookInfoContainerStyle = useMemo(
     () => ({
       ...styles.bookInfoContainer,
       width:
         flowDirection === 'row'
-          ? artworkHeight
-            ? (artworkWidth! / artworkHeight) * 150 - 10
-            : 0
+          ? (safeArtworkWidth / safeArtworkHeight) * 150 - 10
           : itemWidth,
     }),
-    [flowDirection, itemWidth, artworkWidth, artworkHeight]
+    [flowDirection, itemWidth, safeArtworkWidth, safeArtworkHeight]
   );
 
   const bookTitleStyle = useMemo(

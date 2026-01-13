@@ -86,6 +86,58 @@ class NativeMediaInfoModule(
         }
     }
 
+    fun analyzeNoCover(path: String): String {
+        val file = File(path)
+
+        if (!file.exists() || !file.canRead()) {
+            throw RuntimeException("MediaInfo: file does not exist or is not readable: $path")
+        }
+
+        val mi = MediaInfo()
+        
+        if (mi.mi == 0L) {
+            throw RuntimeException("MediaInfo: Init() failed - invalid handle")
+        }
+
+        try {
+            // Configure MediaInfo options BEFORE opening file
+            mi.Option("Internet", "No")
+            mi.Option("Output", "JSON")
+
+            // Try path-based opening first (fast - ~50ms vs ~500ms for buffer API)
+            var opened = false
+            try {
+                val openResult = mi.openPath(file.absolutePath)
+                opened = (openResult == 1)
+            } catch (e: Exception) {
+                opened = false
+            }
+
+            // Fallback to buffer-based API if path opening failed
+            if (!opened) {
+                opened = analyzeWithBuffer(mi, file)
+            }
+
+            if (!opened) {
+                throw RuntimeException("MediaInfo: failed to open file: $path")
+            }
+
+            val json = mi.Inform()
+
+            if (json.isEmpty()) {
+                throw RuntimeException("MediaInfo: failed to extract metadata from: $path")
+            }
+
+            return json
+            
+        } catch (e: Exception) {
+            throw RuntimeException("MediaInfo: analysis failed for $path - ${e.message}")
+        } finally {
+            mi.Close()
+            mi.Destroy()
+        }
+    }
+
     /**
      * Buffer-based file analysis fallback.
      * Slower than FD-based opening but works in all scenarios.

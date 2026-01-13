@@ -385,41 +385,38 @@ const saveArtworkToFile = async (
     // Ensure the artwork directory exists
     await RNFS.mkdir(artworkDir);
 
-    // Detect image type from base64 signature
-    const isPng = base64Artwork.startsWith('iVBOR');
-    const mimeType = isPng ? 'image/png' : 'image/jpeg';
+    // Detect and fix image format
+    let imageData = base64Artwork;
+    const isPng = imageData.startsWith('iVBOR');
+    const isJpeg = imageData.startsWith('/9j/');
+    const isTruncatedJpeg = imageData.startsWith('/+'); // Missing FFD8 SOI header
 
-    // For large images (>500KB base64), write to temp file first to avoid
-    // Android Base64 memory limits in ImageResizer
-    const BASE64_SIZE_THRESHOLD = 500000;
-    let imageSource: string;
-    let tempFilePath: string | null = null;
+    // Determine file extension
+    const ext = isPng ? 'png' : 'jpg';
 
-    if (base64Artwork.length > BASE64_SIZE_THRESHOLD) {
-      const ext = isPng ? 'png' : 'jpg';
-      tempFilePath = `${RNFS.CachesDirectoryPath}/temp_artwork_${Date.now()}.${ext}`;
+    // Write base64 to temp file (ImageResizer works better with file paths)
+    const tempFilePath = `${RNFS.CachesDirectoryPath}/temp_artwork_${Date.now()}.${ext}`;
 
-      // Write in chunks to avoid Android Base64 memory limits
-      // Each chunk must be a multiple of 4 characters for valid base64 decoding
-      const CHUNK_SIZE = 16384; // 16KB chunks (multiple of 4)
+    if (isTruncatedJpeg) {
+      // Fix truncated JPEG: prepend FFD8 (SOI marker) before FFE0 (APP0 marker)
+      // Some MediaInfo extractions return JPEG missing the SOI header
 
-      const firstChunk = base64Artwork.substring(0, CHUNK_SIZE);
-      await RNFS.writeFile(tempFilePath, firstChunk, 'base64');
+      // Write SOI marker (FFD8) as raw bytes first
+      // Use Uint8Array converted to string for binary write
+      const soiMarker = new Uint8Array([0xFF, 0xD8]);
+      const soiString = String.fromCharCode(...soiMarker);
+      await RNFS.writeFile(tempFilePath, soiString, 'ascii');
 
-      for (let i = CHUNK_SIZE; i < base64Artwork.length; i += CHUNK_SIZE) {
-        const chunk = base64Artwork.substring(i, i + CHUNK_SIZE);
-        await RNFS.appendFile(tempFilePath, chunk, 'base64');
-      }
-
-      imageSource = `file://${tempFilePath}`;
+      // Then append the base64-decoded image data (which starts at FFE0)
+      await RNFS.appendFile(tempFilePath, imageData, 'base64');
     } else {
-      // For smaller images, use data URI format
-      imageSource = `data:${mimeType};base64,${base64Artwork}`;
+      // Normal case: write base64 directly
+      await RNFS.writeFile(tempFilePath, imageData, 'base64');
     }
 
     // Resize and convert the image to WebP format
     const tempImage = await ImageResizer.createResizedImage(
-      imageSource,
+      `file://${tempFilePath}`,
       800, // max width
       800, // max height
       'WEBP', // convert to WEBP
@@ -430,10 +427,8 @@ const saveArtworkToFile = async (
       { mode: 'contain', onlyScaleDown: true }
     );
 
-    // Clean up temp file if we created one
-    if (tempFilePath) {
-      await RNFS.unlink(tempFilePath).catch(() => {});
-    }
+    // Clean up temp file
+    await RNFS.unlink(tempFilePath).catch(() => {});
 
     // Move the resized image to its final destination with the correct filename
     await RNFS.moveFile(tempImage.path, finalImagePath);
