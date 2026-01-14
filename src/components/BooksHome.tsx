@@ -1,7 +1,9 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Book, Author } from '@/types/Book';
-import { colors, fontSize } from '@/constants/tokens';
+import { fontSize } from '@/constants/tokens';
+import { withOpacity } from '@/helpers/colorUtils';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
+import { useTheme } from '@/hooks/useTheme';
 
 import { ChevronRight } from 'lucide-react-native';
 import { memo, useCallback, useRef } from 'react';
@@ -31,6 +33,7 @@ const BooksHome = ({
   setActiveGridSection,
   activeGridSection,
 }: BookListProps) => {
+  const { colors: themeColors } = useTheme();
   const listRef =
     useRef<React.ComponentRef<typeof FlashList<ListDataItem>>>(null);
   const listContainerRef = useRef<View>(null);
@@ -130,7 +133,14 @@ const BooksHome = ({
         }
         getItemType={(item) => item.type}
         ListEmptyComponent={
-          <Text style={utilsStyles.emptyComponent}>No books found</Text>
+          <Text
+            style={[
+              utilsStyles.emptyComponent,
+              { color: themeColors.textMuted },
+            ]}
+          >
+            No books found
+          </Text>
         }
         // ItemSeparatorComponent={() => <View style={{ height: 4 }} />}
         contentContainerStyle={{ paddingBottom: 58 }}
@@ -216,6 +226,7 @@ const SectionHeader = memo(
     ) => void;
   }) => {
     const headerRef = useRef<View>(null);
+    const { colors: themeColors } = useTheme();
 
     const handlePress = useCallback(() => {
       headerRef.current?.measureInWindow((_x, y) => {
@@ -227,16 +238,19 @@ const SectionHeader = memo(
       <Pressable
         ref={headerRef}
         style={{ paddingVertical: 4 }}
-        android_ripple={{ color: '#cccccc28' }}
+        android_ripple={{ color: withOpacity(themeColors.divider, 0.16) }}
         onPress={handlePress}
       >
         <View style={styles.titleBar}>
-          <Text numberOfLines={1} style={styles.titleText}>
+          <Text
+            numberOfLines={1}
+            style={[styles.titleText, { color: themeColors.text }]}
+          >
             {title}
           </Text>
           <ChevronRight
             size={24}
-            color={colors.icon}
+            color={themeColors.icon}
             style={{
               marginRight: 12,
               transform: isActive ? [{ rotate: '90deg' }] : [],
@@ -259,7 +273,6 @@ const styles = StyleSheet.create({
   },
   titleText: {
     fontSize: fontSize.base,
-    color: colors.text,
     maxWidth: '95%',
   },
   containerGap: {

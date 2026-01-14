@@ -2,7 +2,7 @@ import { useSetupTrackPlayer } from '@/hooks/useSetupTrackPlayer';
 import { Stack, SplashScreen } from 'expo-router';
 import { SystemBars } from 'react-native-edge-to-edge';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import TrackPlayer from 'react-native-track-player';
 import { useLogTrackPlayerState } from '@/hooks/useLogTrackPlayerState';
 import { PlayerStateSync } from '@/components/PlayerStateSync';
@@ -17,7 +17,9 @@ import { DatabaseProvider } from '@nozbe/watermelondb/DatabaseProvider';
 import database from '@/db';
 import { PermissionProvider } from '@/contexts/PermissionContext';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useThemeStore } from '@/store/themeStore';
 import { usePlayerScreenRestoration } from '@/hooks/usePlayerScreenRestoration';
+import { useTheme } from '@/hooks/useTheme';
 import * as Sentry from '@sentry/react-native';
 
 Sentry.init({
@@ -53,7 +55,15 @@ const App = () => {
     SplashScreen.hideAsync();
   }, []);
 
+  const initializeTheme = useThemeStore((state) => state.initializeTheme);
+  const { activeColorScheme } = useTheme();
+
   useSettingsStore();
+
+  // Initialize theme on app start
+  useEffect(() => {
+    initializeTheme();
+  }, [initializeTheme]);
 
   useSetupTrackPlayer({
     onLoad: handleTrackPlayerLoaded,
@@ -74,7 +84,7 @@ const App = () => {
         </DatabaseProvider>
         <SystemBars
           hidden={{ statusBar: false, navigationBar: false }}
-          style={'auto'}
+          style={activeColorScheme === 'dark' ? 'light' : 'dark'}
         />
       </GestureHandlerRootView>
     </SafeAreaProvider>

@@ -13,6 +13,9 @@ import { colors, screenPadding } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import { useBookById } from '@/store/library';
 import { usePlayerStateStore } from '@/store/playerState';
+import { selectGradientColors } from '@/helpers/gradientColorSorter';
+import { withOpacity } from '@/helpers/colorUtils';
+import { useTheme } from '@/hooks/useTheme';
 
 // Memoized components - extracted to prevent re-renders
 import { PlayerArtwork } from '@/components/player/PlayerArtwork';
@@ -35,13 +38,7 @@ const gradientStart = { x: 0, y: 0 };
 const gradientEnd = { x: 0.5, y: 1 };
 const gradientLocations = [0.15, 0.35, 0.45, 0.6] as const;
 
-// Default gradient colors when no artwork colors are available
-const defaultGradientColors = [
-  colors.primary,
-  colors.primary,
-  colors.background,
-  colors.background,
-] as const;
+// Note: defaultGradientColors is now defined inside the component to use theme colors
 
 /**
  * Optimized PlayerScreen component.
@@ -68,6 +65,8 @@ const PlayerScreen = () => {
   // App state handling for background dismissal
   const appState = useRef(AppState.currentState);
   const navigation = useNavigation();
+
+  const { colors: themeColors } = useTheme();
 
   // These hooks only fire on track change, not during playback progress
   const activeTrack = useActiveTrack();
@@ -112,15 +111,13 @@ const PlayerScreen = () => {
   // Memoized gradient colors based on artwork colors
   const gradientColors = useMemo(
     () =>
-      book?.artworkColors
-        ? ([
-            book.artworkColors.darkVibrant as string,
-            book.artworkColors.lightVibrant as string,
-            book.artworkColors.vibrant as string,
-            book.artworkColors.darkMuted as string,
-          ] as const)
-        : defaultGradientColors,
-    [book?.artworkColors]
+      selectGradientColors(book?.artworkColors, [
+        themeColors.background,
+        themeColors.primary,
+        themeColors.primary,
+        themeColors.background,
+      ] as const),
+    [book?.artworkColors, themeColors.background, themeColors.primary]
   );
 
   // Loading state - only shown when no active track
@@ -172,6 +169,6 @@ const styles = StyleSheet.create({
   overlayContainer: {
     ...defaultStyles.container,
     paddingHorizontal: screenPadding.horizontal,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: withOpacity(colors.background, 0.5),
   },
 });

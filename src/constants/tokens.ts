@@ -1,6 +1,48 @@
+// Theme-specific color palettes
+export const colorTokens = {
+  dark: {
+    background: '#1C1C1C',
+    modalBackground: '#252525',
+    text: '#ECEFF4',
+    textMuted: '#d8dee9',
+    icon: '#E5E9F0',
+    maximumTrackTintColor: 'rgba(129, 161, 193, .4)',
+    minimumTrackTintColor: '#FFB606',
+    chapterActive: '#6d6d6d',
+    chapterInactive: '#1d2233',
+    chapterListItem: '#22273b',
+    divider: '#d8dee9',
+    overlay: '#1C1C1C',
+  },
+  light: {
+    background: '#F5F5F5',
+    modalBackground: '#E8E8E8',
+    text: '#1C1C1C',
+    textMuted: '#6B7280',
+    icon: '#374151',
+    maximumTrackTintColor: 'rgba(107, 114, 128, 0.4)',
+    minimumTrackTintColor: '#FFB606',
+    chapterActive: '#D1D5DB',
+    chapterInactive: '#F3F4F6',
+    chapterListItem: '#FFFFFF',
+    divider: '#9CA3AF',
+    overlay: '#FFFFFF',
+  },
+  shared: {
+    primary: '#FFB606',
+    danger: '#FF5F56',
+    success: '#8BD649',
+    warning: '#FFCA8A',
+    lightIcon: '#E5E9F0',
+    lightText: '#ECEFF4',
+    lightTextMuted: '#d8dee9',
+  },
+};
+
+// Legacy export for backwards compatibility (will be removed after migration)
 export const colors = {
-  primary: '#FFB606', // '#BF616A',
-  background: '#1C1C1C', //#2E3440
+  primary: '#FFB606',
+  background: '#1C1C1C',
   modalBackground: '#252525',
   text: '#ECEFF4',
   textMuted: '#d8dee9',
@@ -10,6 +52,10 @@ export const colors = {
   danger: '#FF5F56',
   success: '#8BD649',
   warning: '#FFCA8A',
+  divider: '#d8dee9',
+  chapterActive: '#6d6d6d',
+  chapterInactive: '#1d2233',
+  chapterListItem: '#22273b',
 };
 
 //? Gold/black/purple: #1C1C1C, # 3B3B3B, #FFE002, #FFB606, #B28228, #492666, #830982, #

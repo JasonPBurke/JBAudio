@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { colors } from '@/constants/tokens';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Grip, Library, List, Settings2 } from 'lucide-react-native';
+import { useTheme } from '@/hooks/useTheme';
 import TabScreen, { CustomTabs } from '@/components/TabScreen';
 import { useNavigation } from 'expo-router';
 import { DrawerActions } from '@react-navigation/native';
@@ -90,6 +91,7 @@ const Header = (props: headerProps) => {
     bookCounts,
   } = props;
   const navigation = useNavigation();
+  const { colors: themeColors } = useTheme();
   const { isScanning, processedBooks, totalBooks, scanJustCompleted } =
     useScanProgressStore();
 
@@ -100,20 +102,22 @@ const Header = (props: headerProps) => {
     setToggleView((prevState) => (prevState + 1) % 3);
   };
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
       <View style={styles.header}>
         <View style={styles.headerGroup}>
           <Pressable hitSlop={15} onPress={openSettingsDrawer}>
             <Settings2
               size={20}
-              color={colors.icon}
+              color={themeColors.icon}
               strokeWidth={1.0}
               absoluteStrokeWidth
             />
           </Pressable>
 
           <View style={styles.titleWrapper}>
-            <Text style={styles.titleStaticS}>S</Text>
+            <Text style={[styles.titleStaticS, { color: themeColors.primary }]}>
+              S
+            </Text>
             <View style={styles.titleContainer}>
               {isScanning ? (
                 <AnimatedView
@@ -125,12 +129,14 @@ const Header = (props: headerProps) => {
                     { flexDirection: 'row', alignItems: 'flex-end' },
                   ]}
                 >
-                  <Text style={styles.titleText}>canning books</Text>
-                  <AnimatedEllipsis style={styles.titleText} />
+                  <Text style={[styles.titleText, { color: themeColors.icon }]}>
+                    canning books
+                  </Text>
+                  <AnimatedEllipsis style={[styles.titleText, { color: themeColors.icon }]} />
                   {totalBooks !== 0 && (
                     <AnimatedText
                       entering={FadeIn}
-                      style={styles.titleText}
+                      style={[styles.titleText, { color: themeColors.icon }]}
                     >
                       {`${processedBooks} of ${totalBooks}`}
                     </AnimatedText>
@@ -141,12 +147,12 @@ const Header = (props: headerProps) => {
                   key='onicbooks'
                   entering={SlideInLeft.delay(2100).duration(1500)}
                   exiting={SlideOutLeft.duration(1500)}
-                  style={styles.titleText}
+                  style={[styles.titleText, { color: themeColors.icon }]}
                 >
                   onicbooks
                 </AnimatedText>
               ) : (
-                <Text key='onicbooks-static' style={styles.titleText}>
+                <Text key='onicbooks-static' style={[styles.titleText, { color: themeColors.icon }]}>
                   onicbooks
                 </Text>
               )}
@@ -159,7 +165,7 @@ const Header = (props: headerProps) => {
               <Library
                 style={{ transform: [{ rotateY: '180deg' }] }}
                 size={24}
-                color={colors.icon}
+                color={themeColors.icon}
                 strokeWidth={1.5}
                 absoluteStrokeWidth
               />
@@ -167,7 +173,7 @@ const Header = (props: headerProps) => {
             {toggleView === 1 && (
               <List
                 size={24}
-                color={colors.icon}
+                color={themeColors.icon}
                 strokeWidth={1.5}
                 absoluteStrokeWidth
                 style={{ transform: [{ rotateY: '180deg' }] }}
@@ -176,7 +182,7 @@ const Header = (props: headerProps) => {
             {toggleView === 2 && (
               <Grip
                 size={24}
-                color={colors.icon}
+                color={themeColors.icon}
                 strokeWidth={1.5}
                 absoluteStrokeWidth
               />
@@ -198,7 +204,7 @@ export default Header;
 const styles = StyleSheet.create({
   container: {
     gap: 16,
-    backgroundColor: colors.background,
+    // backgroundColor moved to inline for theme support
   },
   header: {
     flexDirection: 'row',
@@ -217,7 +223,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   titleStaticS: {
-    color: '#FFB606',
+    // color: '#FFB606',
     fontSize: 20,
     zIndex: 1,
     backgroundColor: 'transparent',
@@ -233,18 +239,17 @@ const styles = StyleSheet.create({
     minWidth: 200, // Set a minimum width to prevent clipping
   },
   titleText: {
-    color: colors.icon,
     fontSize: 20,
+    // color moved to inline for theme support
   },
   scanningText: {
     width: '100%',
   },
   bookStatusLinkText: {
-    color: colors.text,
     borderWidth: 1,
-    borderColor: colors.textMuted,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 4,
+    // colors moved to inline for theme support
   },
 });

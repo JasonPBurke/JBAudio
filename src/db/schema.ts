@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 15,
+  version: 16,
   tables: [
     tableSchema({
       name: 'authors',
@@ -38,6 +38,7 @@ export default appSchema({
         { name: 'artwork_height', type: 'number', isOptional: true },
         { name: 'artwork_width', type: 'number', isOptional: true },
         { name: 'book_progress_value', type: 'number' },
+        // DEPRECATED: cover_color_average is no longer used, will be removed in future version
         {
           name: 'cover_color_average',
           type: 'string',
@@ -143,6 +144,11 @@ export default appSchema({
         {
           name: 'skip_forward_duration',
           type: 'number',
+          isOptional: true,
+        },
+        {
+          name: 'theme_mode',
+          type: 'string',
           isOptional: true,
         },
       ],

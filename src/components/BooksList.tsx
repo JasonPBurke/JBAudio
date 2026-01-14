@@ -5,12 +5,14 @@ import { Author } from '@/types/Book';
 import { screenPadding } from '@/constants/tokens';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
 import { memo, useCallback, useMemo } from 'react';
+import { useTheme } from '@/hooks/useTheme';
 
 export type BookListProps = Partial<FlashListProps<string>> & {
   authors: Author[];
 };
 
 const BooksList = ({ authors }: BookListProps) => {
+  const { colors: themeColors } = useTheme();
   const bookIds = useMemo(() => {
     return authors
       .flatMap((author) => author.books.map((book) => book.bookId))
@@ -36,11 +38,20 @@ const BooksList = ({ authors }: BookListProps) => {
             showsVerticalScrollIndicator={false}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingTop: 12, paddingBottom: 82 }}
-            ListFooterComponent={bookIds.length > 0 ? ItemDivider : null}
-            ItemSeparatorComponent={ItemDivider}
+            ListFooterComponent={
+              bookIds.length > 0 ? (
+                <ItemDivider themeColors={themeColors} />
+              ) : null
+            }
+            ItemSeparatorComponent={() => <ItemDivider themeColors={themeColors} />}
             ListEmptyComponent={
               <View>
-                <Text style={utilsStyles.emptyComponent}>
+                <Text
+                  style={[
+                    utilsStyles.emptyComponent,
+                    { color: themeColors.textMuted },
+                  ]}
+                >
                   No books found
                 </Text>
               </View>
@@ -52,12 +63,13 @@ const BooksList = ({ authors }: BookListProps) => {
   );
 };
 
-const ItemDivider = () => (
+const ItemDivider = ({ themeColors }: { themeColors: any }) => (
   <View
     style={{
       ...utilsStyles.itemSeparator,
       marginVertical: 9,
       marginLeft: 75,
+      borderColor: themeColors.textMuted,
     }}
   />
 );

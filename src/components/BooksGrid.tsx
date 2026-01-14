@@ -6,6 +6,7 @@ import { utilsStyles } from '@/styles';
 import { Author, Book } from '@/types/Book';
 import { BookGridItem } from './BookGridItem';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useTheme } from '@/hooks/useTheme';
 
 export type BookGridProps = Partial<FlashListProps<string>> & {
   authors?: Author[];
@@ -20,6 +21,7 @@ const BooksGrid = ({
   standAlone,
   flowDirection,
 }: BookGridProps) => {
+  const { colors: themeColors } = useTheme();
   const numColumns = useSettingsStore((state) => state.numColumns);
 
   const { width: screenWidth } = Dimensions.get('window');
@@ -70,7 +72,9 @@ const BooksGrid = ({
         standAlone ? <View style={{ height: 82 }} /> : null
       }
       ListEmptyComponent={
-        <Text style={utilsStyles.emptyComponent}>No books found</Text>
+        <Text style={[utilsStyles.emptyComponent, { color: themeColors.textMuted }]}>
+          No books found
+        </Text>
       }
     />
   );

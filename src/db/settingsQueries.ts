@@ -278,3 +278,20 @@ export const removeLibraryFolder = async (folderPath: string) => {
     await writer.batch(...deletions);
   });
 };
+
+export async function getThemeMode(): Promise<string | null> {
+  const settingsCollection = database.collections.get<Settings>('settings');
+  const settingsRecord = await settingsCollection.query().fetch();
+
+  if (settingsRecord.length > 0) {
+    const settings = settingsRecord[0];
+    return settings.themeMode;
+  }
+  return null;
+}
+
+export async function setThemeMode(mode: string): Promise<void> {
+  return updateSetting((record) => {
+    record.themeMode = mode;
+  });
+}

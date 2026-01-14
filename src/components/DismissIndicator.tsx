@@ -3,6 +3,7 @@ import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors } from '@/constants/tokens';
+import { withOpacity } from '@/helpers/colorUtils';
 
 //? = (sheetRef: React.ForwardedRef<BottomSheetModal>) =>
 export const DismissIndicator = () => {
@@ -26,7 +27,7 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     width: 55,
     height: 7,
-    backgroundColor: '#1c1c1ca9',
+    backgroundColor: withOpacity(colors.background, 0.66),
     borderRadius: 50,
     borderColor: colors.textMuted,
     borderWidth: 1,

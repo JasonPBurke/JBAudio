@@ -11,7 +11,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Picker } from '@react-native-picker/picker';
 import { Info, ArrowLeft, Trash2 } from 'lucide-react-native';
 
-import { colors, screenPadding } from '@/constants/tokens';
+import { screenPadding } from '@/constants/tokens';
+import { withOpacity } from '@/helpers/colorUtils';
+import { useTheme } from '@/hooks/useTheme';
 import SegmentedControl from '@react-native-segmented-control/segmented-control';
 import { useRouter } from 'expo-router';
 import InfoDialogPopup from '@/modals/InfoDialogPopup';
@@ -26,6 +28,7 @@ import {
 } from '@/db/settingsQueries';
 
 const SettingsScreen = ({ navigation }: any) => {
+  const { colors: themeColors } = useTheme();
   const { numColumns, setNumColumns } = useSettingsStore();
   const [fadeoutDuration, setFadeoutDuration] = useState('10');
   const [maxFadeMinutes, setMaxFadeMinutes] = useState<number>(30);
@@ -124,7 +127,12 @@ const SettingsScreen = ({ navigation }: any) => {
     );
   };
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: themeColors.modalBackground },
+      ]}
+    >
       <View>
         <Pressable
           hitSlop={10}
@@ -133,17 +141,27 @@ const SettingsScreen = ({ navigation }: any) => {
             router.back();
           }}
         >
-          <ArrowLeft size={24} color={colors.textMuted} />
+          <ArrowLeft size={24} color={themeColors.textMuted} />
         </Pressable>
-        <Text style={styles.headerStyle}>Settings</Text>
+        <Text style={[styles.headerStyle, { color: themeColors.text }]}>
+          Settings
+        </Text>
       </View>
       <View>
-        <Text style={styles.sectionHeaderStyle}>General</Text>
+        <Text
+          style={[styles.sectionHeaderStyle, { color: themeColors.text }]}
+        >
+          General
+        </Text>
         <View style={styles.rowStyle}>
-          <Text style={styles.content}>Number of Columns:</Text>
+          <Text style={[styles.content, { color: themeColors.textMuted }]}>
+            Number of Columns:
+          </Text>
           <SegmentedControl
             style={{ flex: 1, height: 40 }}
-            activeFontStyle={{ color: colors.primary }}
+            backgroundColor={themeColors.background}
+            activeFontStyle={{ color: themeColors.primary }}
+            fontStyle={{ color: themeColors.textMuted }}
             values={['One', 'Two', 'Three']}
             selectedIndex={numColumns - 1}
             onChange={(event) => {
@@ -155,13 +173,19 @@ const SettingsScreen = ({ navigation }: any) => {
         </View>
       </View>
       <View>
-        <Text style={styles.sectionHeaderStyle}>Sleep Timer</Text>
+        <Text
+          style={[styles.sectionHeaderStyle, { color: themeColors.text }]}
+        >
+          Sleep Timer
+        </Text>
         <View style={styles.rowStyle}>
           <Pressable onPress={() => setModalVisible(true)}>
-            <Text style={styles.content}>
+            <Text
+              style={[styles.content, { color: themeColors.textMuted }]}
+            >
               Fadeout Duration{' '}
               <Info
-                color={colors.textMuted}
+                color={themeColors.textMuted}
                 size={12}
                 style={{ marginStart: 5 }}
                 strokeWidth={1}
@@ -173,10 +197,14 @@ const SettingsScreen = ({ navigation }: any) => {
             style={{
               width: 125,
               height: 50,
-              color: colors.text,
+              color: themeColors.text,
+              backgroundColor: themeColors.background,
             }}
-            itemStyle={{ borderColor: colors.primary, borderWidth: 1 }}
-            dropdownIconColor={colors.primary}
+            itemStyle={{
+              borderColor: themeColors.primary,
+              borderWidth: 1,
+            }}
+            dropdownIconColor={themeColors.primary}
             selectedValue={fadeoutDuration}
             onValueChange={(itemValue, itemIndex) => {
               setFadeoutDuration(itemValue);
@@ -191,6 +219,7 @@ const SettingsScreen = ({ navigation }: any) => {
             <Picker.Item label='None' value='' />
             {numbers.map((number) => (
               <Picker.Item
+                // color={themeColors.text}
                 key={number}
                 label={`${number.toString()} min${number > 1 ? 's' : ''}`}
                 value={number.toString()}
@@ -206,21 +235,45 @@ const SettingsScreen = ({ navigation }: any) => {
         />
       </View>
       <View>
-        <Text style={styles.sectionHeaderStyle}>Player</Text>
+        <Text
+          style={[styles.sectionHeaderStyle, { color: themeColors.text }]}
+        >
+          Player
+        </Text>
       </View>
       <View>
-        <Text style={styles.sectionHeaderStyle}>Library Folders</Text>
+        <Text
+          style={[styles.sectionHeaderStyle, { color: themeColors.text }]}
+        >
+          Library Folders
+        </Text>
         {libraryFolders.map((folder, index) => (
           <View key={index} style={styles.rowStyle}>
-            <Text style={[styles.content, { flex: 1 }]} numberOfLines={2}>
+            <Text
+              style={[
+                styles.content,
+                { flex: 1, color: themeColors.textMuted },
+              ]}
+              numberOfLines={2}
+            >
               {folder}
             </Text>
             <TouchableOpacity
               onPress={() => handleRemoveFolder(folder)}
-              style={styles.removeButton}
+              style={[
+                styles.removeButton,
+                { backgroundColor: withOpacity(themeColors.danger, 0.1) },
+              ]}
             >
-              <Trash2 size={20} color={colors.danger} />
-              <Text style={styles.removeButtonText}>Remove</Text>
+              <Trash2 size={20} color={themeColors.danger} />
+              <Text
+                style={[
+                  styles.removeButtonText,
+                  { color: themeColors.danger },
+                ]}
+              >
+                Remove
+              </Text>
             </TouchableOpacity>
           </View>
         ))}
@@ -236,7 +289,7 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     flex: 1,
     gap: 20,
-    backgroundColor: '#252525',
+    // backgroundColor moved to inline for theme support
     paddingHorizontal: screenPadding.horizontal,
   },
   headerStyle: {
@@ -245,12 +298,12 @@ const styles = StyleSheet.create({
     marginBottom: 50,
     fontSize: 36,
     fontWeight: 'bold',
-    color: colors.text,
+    // color moved to inline for theme support
   },
   sectionHeaderStyle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: colors.text,
+    // color moved to inline for theme support
   },
   rowStyle: {
     flexDirection: 'row',
@@ -260,7 +313,7 @@ const styles = StyleSheet.create({
   },
   content: {
     fontSize: 16,
-    color: colors.textMuted,
+    // color moved to inline for theme support
     marginVertical: 10,
   },
   removeButton: {
@@ -270,10 +323,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 6,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    // backgroundColor should be applied inline with theme colors
   },
   removeButtonText: {
-    color: colors.danger,
+    // color should be applied inline with theme colors
     fontWeight: '600',
   },
 });

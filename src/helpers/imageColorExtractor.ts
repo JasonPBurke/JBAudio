@@ -12,7 +12,7 @@ export type BookImageColors = {
   darkMuted: string | null;
   lightMuted: string | null;
   dominantAndroid: string | null;
-  average: string | null;
+  // average: string | null; // DEPRECATED: Removed from extraction, field remains in DB for now
 };
 
 export const extractImageColors = async (
@@ -40,14 +40,14 @@ export const extractImageColors = async (
       darkMuted: palette.darkMuted,
       lightMuted: palette.lightMuted,
       dominantAndroid: palette.dominantAndroid ?? null,
-      average: average ?? null,
+      // average: average ?? null, // DEPRECATED: No longer extracted
     };
   } catch (error) {
     console.error('Failed to extract image colors:', error);
   }
 
   return {
-    average: null,
+    // average: null, // DEPRECATED
     dominantAndroid: null,
     vibrant: null,
     darkVibrant: null,

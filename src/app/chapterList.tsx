@@ -12,9 +12,10 @@ import TrackPlayer from 'react-native-track-player';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CircleX } from 'lucide-react-native';
-import { colors, fontSize } from '@/constants/tokens';
-import { defaultStyles } from '@/styles';
+import { fontSize } from '@/constants/tokens';
 import { useBookById, useLibraryStore } from '@/store/library';
+import { useTheme } from '@/hooks/useTheme';
+import { withOpacity } from '@/helpers/colorUtils';
 import { useCurrentChapterStable } from '@/hooks/useCurrentChapterStable';
 import { Chapter } from '@/types/Book';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
@@ -26,6 +27,7 @@ import { FlashList } from '@shopify/flash-list';
 const ChapterListScreen = () => {
   const router = useRouter();
   const { bottom } = useSafeAreaInsets();
+  const { colors: themeColors } = useTheme();
   const { bookId: paramBookId, readOnly } = useLocalSearchParams<{
     bookId?: string;
     readOnly?: string;
@@ -115,8 +117,10 @@ const ChapterListScreen = () => {
       if (isReadOnly) {
         return (
           <View style={[styles.chapterItem, borderStyle]}>
-            <Text style={styles.chapterTitle}>{item.chapterTitle}</Text>
-            <Text style={styles.chapterDuration}>
+            <Text style={[styles.chapterTitle, { color: themeColors.text }]}>
+              {item.chapterTitle}
+            </Text>
+            <Text style={[styles.chapterDuration, { color: themeColors.textMuted }]}>
               {formatSecondsToMinutes(item.chapterDuration)}
             </Text>
           </View>
@@ -128,14 +132,16 @@ const ChapterListScreen = () => {
           onPress={() => handleChapterSelect(index, item)}
           style={{
             ...styles.chapterItem,
-            backgroundColor: isActive ? '#6d6d6d' : '#1d2233',
+            backgroundColor: isActive
+              ? themeColors.chapterActive
+              : themeColors.chapterInactive,
             ...borderStyle,
           }}
         >
           <Text
             style={{
               ...styles.chapterTitle,
-              color: isActive ? colors.primary : colors.textMuted,
+              color: isActive ? themeColors.primary : themeColors.textMuted,
             }}
           >
             {item.chapterTitle}
@@ -143,7 +149,11 @@ const ChapterListScreen = () => {
           <Text
             style={[
               styles.chapterDuration,
-              { color: isActive ? colors.primary : colors.textMuted },
+              {
+                color: isActive
+                  ? themeColors.primary
+                  : themeColors.textMuted,
+              },
             ]}
           >
             {formatSecondsToMinutes(item.chapterDuration)}
@@ -170,14 +180,27 @@ const ChapterListScreen = () => {
 
   if (!book?.chapters) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator color={colors.icon} />
+      <View
+        style={[
+          styles.loadingContainer,
+          { backgroundColor: withOpacity(themeColors.background, 0.92) },
+        ]}
+      >
+        <ActivityIndicator color={themeColors.icon} />
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { paddingBottom: bottom }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          paddingBottom: bottom,
+          backgroundColor: withOpacity(themeColors.background, 0.92),
+        },
+      ]}
+    >
       {book.chapters.length > 0 ? (
         <FlashList
           data={book.chapters}
@@ -190,7 +213,7 @@ const ChapterListScreen = () => {
           showsVerticalScrollIndicator={false}
         />
       ) : (
-        <Text style={styles.emptyText}>
+        <Text style={[styles.emptyText, { color: themeColors.textMuted }]}>
           No chapters found for this book.
         </Text>
       )}
@@ -199,7 +222,7 @@ const ChapterListScreen = () => {
         hitSlop={10}
         style={styles.handleIndicator}
       >
-        <CircleX color={colors.icon} size={42} strokeWidth={1} />
+        <CircleX color={themeColors.icon} size={42} strokeWidth={1} />
       </Pressable>
     </View>
   );
@@ -210,14 +233,14 @@ export default ChapterListScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#151520ea',
+    // backgroundColor moved to inline style for theme support
     paddingHorizontal: 4,
     paddingTop: 12,
     marginTop: 36,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#151520ea',
+    // backgroundColor moved to inline style for theme support
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -236,26 +259,25 @@ const styles = StyleSheet.create({
   chapterItem: {
     paddingVertical: 13,
     paddingHorizontal: 13,
-    backgroundColor: '#22273b',
+    // backgroundColor: colors.chapterListItem, //! check the look with this removed
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   chapterTitle: {
-    ...defaultStyles.text,
     fontSize: 16,
     maxWidth: '80%',
+    // color moved to inline for theme support
   },
   chapterDuration: {
-    ...defaultStyles.text,
     fontSize: 14,
-    color: colors.textMuted,
+    // color moved to inline for theme support
   },
   separator: {
     height: 3,
   },
   emptyText: {
-    color: colors.textMuted,
     textAlign: 'center',
+    // color moved to inline for theme support
   },
 });

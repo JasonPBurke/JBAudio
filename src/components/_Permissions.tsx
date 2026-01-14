@@ -7,6 +7,7 @@ import {
 	StyleSheet,
 	Text,
 } from 'react-native';
+import { colors } from '@/constants/tokens';
 import {
 	check,
 	openSettings,
@@ -93,6 +94,6 @@ export const Permissions = () => {
 
 const styles = StyleSheet.create({
 	screenWrapper: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-	title: { fontSize: 24, fontWeight: 'bold', color: '#000' },
+	title: { fontSize: 24, fontWeight: 'bold', color: colors.text },
 	camera: { width: '100%', aspectRatio: 1 },
 });

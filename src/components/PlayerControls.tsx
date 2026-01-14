@@ -26,6 +26,8 @@ import {
   SkipForward,
 } from 'lucide-react-native';
 import { colors } from '@/constants/tokens';
+import { withOpacity } from '@/helpers/colorUtils';
+import { useTheme } from '@/hooks/useTheme';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -362,6 +364,7 @@ export function PlaybackSpeed({ iconSize = 30 }: PlayerButtonProps) {
 }
 
 export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
+  const { colors: themeColors } = useTheme();
   const settings = useObserveSettings(database);
   const timerActive = settings?.timerActive === true;
   const chaptersCount: number | null = settings?.timerChapters ?? null;
@@ -496,12 +499,15 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
       {mountSheet && (
         <BottomSheetModal
           enablePanDownToClose
-          backgroundStyle={{ backgroundColor: '#151520' }}
+          backgroundStyle={{ backgroundColor: themeColors.modalBackground }}
           style={{ paddingBottom: bottom + 10, marginBottom: bottom + 10 }}
           handleComponent={() => (
             <Pressable
               hitSlop={10}
-              style={styles.handleIndicator}
+              style={[
+                styles.handleIndicator,
+                { backgroundColor: withOpacity(themeColors.background, 0.66) },
+              ]}
               onPress={() => bottomSheetModalRef.current?.dismiss()}
             />
           )}
@@ -565,7 +571,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
     width: 55,
     height: 7,
-    backgroundColor: '#1c1c1ca9',
     borderRadius: 50,
     borderColor: colors.textMuted,
     borderWidth: 1,

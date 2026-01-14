@@ -14,10 +14,11 @@ import {
 } from './mediainfo';
 import { BookImageColors, extractImageColors } from './imageColorExtractor';
 import { useScanProgressStore } from '@/helpers/useScanProgressStore';
+import { ArtworkColors } from './gradientColorSorter';
 
-const DEFAULT_BOOK_ARTWORK_COLORS = {
-  average: null,
-  dominant: null,
+const DEFAULT_BOOK_ARTWORK_COLORS: ArtworkColors = {
+  // average: null, // DEPRECATED: Removed from color extraction
+  dominantAndroid: null,
   vibrant: null,
   darkVibrant: null,
   lightVibrant: null,
@@ -499,7 +500,7 @@ async function saveArtworkToFile(
 }
 
 const DEFAULT_ARTWORK_COLORS: BookImageColors = {
-  average: null,
+  // average: null, // DEPRECATED: Removed from extraction
   dominantAndroid: null,
   vibrant: null,
   darkVibrant: null,

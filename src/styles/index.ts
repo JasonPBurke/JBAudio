@@ -4,11 +4,11 @@ import { StyleSheet } from 'react-native';
 export const defaultStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    // backgroundColor should be applied inline with theme colors
   },
   text: {
     fontSize: fontSize.base,
-    color: colors.text,
+    // color should be applied inline with theme colors
   },
 });
 
@@ -23,14 +23,14 @@ export const utilsStyles = StyleSheet.create({
     borderRadius: 16,
   },
   itemSeparator: {
-    borderColor: colors.textMuted,
     borderWidth: StyleSheet.hairlineWidth,
     opacity: 0.3,
+    // borderColor should be applied inline with theme colors
   },
   emptyComponent: {
-    ...defaultStyles.text,
-    color: colors.textMuted,
+    fontSize: fontSize.base,
     textAlign: 'center',
     marginTop: 20,
+    // color should be applied inline with theme colors
   },
 });

@@ -1,4 +1,5 @@
 import { colors } from '@/constants/tokens';
+import { withOpacity } from '@/helpers/colorUtils';
 import { X } from 'lucide-react-native';
 import {
   Modal,
@@ -51,7 +52,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent overlay
+    backgroundColor: withOpacity(colors.background, 0.5), // Semi-transparent overlay
   },
   modalView: {
     backgroundColor: colors.background,
@@ -59,7 +60,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 20,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: colors.background,
     shadowOffset: {
       width: 0,
       height: 2,

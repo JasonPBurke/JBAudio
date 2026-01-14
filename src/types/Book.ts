@@ -1,3 +1,5 @@
+import { ArtworkColors } from '@/helpers/gradientColorSorter';
+
 export interface Chapter {
   author: string;
   bookTitle: string;
@@ -16,7 +18,7 @@ export interface Book {
   artwork: string | null;
   artworkHeight: number | null;
   artworkWidth: number | null;
-  artworkColors: Record<string, string | null>;
+  artworkColors: ArtworkColors | null;
   bookDuration: number;
   bookProgress: {
     currentChapterIndex: number;

@@ -4,6 +4,8 @@ import React, { memo, useCallback } from 'react';
 import { FadeInImage } from '@/components/FadeInImage';
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
+import { withOpacity } from '@/helpers/colorUtils';
+import { useTheme } from '@/hooks/useTheme';
 import {
   useIsBookActive,
   useIsBookActiveAndPlaying,
@@ -25,6 +27,7 @@ export const BookListItem = memo(function BookListItem({
   bookId,
 }: BookListItemProps) {
   const router = useRouter();
+  const { colors: themeColors } = useTheme();
 
   // Fetch the specific data needed for display.
   // `useShallow` in this hook prevents re-renders if the data hasn't changed.
@@ -65,7 +68,7 @@ export const BookListItem = memo(function BookListItem({
 
   return (
     <Pressable
-      android_ripple={{ color: '#cccccc28' }}
+      android_ripple={{ color: withOpacity(colors.divider, 0.16) }}
       onPress={handlePress}
     >
       <View style={styles.bookItemContainer}>
@@ -82,14 +85,14 @@ export const BookListItem = memo(function BookListItem({
               numberOfLines={1}
               style={{
                 ...styles.bookTitleText,
-                color: isActiveBook ? '#ffb406be' : colors.text,
+                color: isActiveBook ? withOpacity(themeColors.primary, 0.75) : themeColors.text,
               }}
             >
               {bookTitle}
             </Text>
 
             {author && (
-              <Text numberOfLines={1} style={styles.bookAuthorText}>
+              <Text numberOfLines={1} style={[styles.bookAuthorText, { color: themeColors.textMuted }]}>
                 {author}
               </Text>
             )}
@@ -98,7 +101,7 @@ export const BookListItem = memo(function BookListItem({
             <Pressable style={{ padding: 8 }} hitSlop={10}>
               <EllipsisVertical
                 size={18}
-                color={colors.icon}
+                color={themeColors.icon}
                 strokeWidth={1}
                 absoluteStrokeWidth
               />
@@ -109,7 +112,7 @@ export const BookListItem = memo(function BookListItem({
                   style={styles.trackPlayingImageIcon}
                   name={'LineScaleParty'}
                   animationSpeedMultiplier={0.5}
-                  color={colors.primary}
+                  color={themeColors.primary}
                 />
               </View>
             ) : (
@@ -121,7 +124,7 @@ export const BookListItem = memo(function BookListItem({
                 <Play
                   // onPress={() => handlePressPlay(book)}
                   size={18}
-                  color={colors.textMuted}
+                  color={themeColors.textMuted}
                   strokeWidth={1}
                   absoluteStrokeWidth
                 />
@@ -158,10 +161,9 @@ const styles = StyleSheet.create({
     maxWidth: '90%',
   },
   bookAuthorText: {
-    ...defaultStyles.text,
-    color: colors.textMuted,
     fontSize: 14,
     marginTop: 4,
+    // color moved to inline for theme support
   },
   trackPlayingImageIcon: {
     padding: 8,

@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { colors } from '@/constants/tokens';
+import { withOpacity } from '@/helpers/colorUtils';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBehavior } from '@/hooks/useBehavior';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
@@ -240,7 +241,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     width: '100%',
-    backgroundColor: '#303030',
+    backgroundColor: colors.background,
     borderRadius: 8,
     padding: 14,
     marginVertical: 10,
@@ -265,7 +266,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   cancelButton: {
-    backgroundColor: '#4A4A4A',
+    backgroundColor: withOpacity(colors.textMuted, 0.3),
   },
   buttonText: {
     color: colors.text,

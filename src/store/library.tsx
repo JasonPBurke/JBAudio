@@ -108,8 +108,8 @@ export const useLibraryStore: UseBoundStore<StoreApi<LibraryState>> =
           artworkHeight: bookModel.artworkHeight,
           artworkWidth: bookModel.artworkWidth,
           artworkColors: {
-            average: bookModel.coverColorAverage,
-            dominant: bookModel.coverColorDominant,
+            // average: bookModel.coverColorAverage, // DEPRECATED
+            dominantAndroid: bookModel.coverColorDominant,
             vibrant: bookModel.coverColorVibrant,
             darkVibrant: bookModel.coverColorDarkVibrant,
             lightVibrant: bookModel.coverColorLightVibrant,

@@ -1,0 +1,68 @@
+import { create } from 'zustand';
+import { Appearance, ColorSchemeName } from 'react-native';
+import { getThemeMode, setThemeMode as setThemeModeInDB } from '@/db/settingsQueries';
+
+type ThemeMode = 'system' | 'light' | 'dark';
+
+interface ThemeState {
+  mode: ThemeMode;
+  activeColorScheme: 'light' | 'dark';
+  isInitialized: boolean;
+  initializeTheme: () => Promise<void>;
+  setMode: (mode: ThemeMode) => Promise<void>;
+}
+
+// Helper to determine active color scheme based on mode
+function getActiveColorScheme(
+  mode: ThemeMode,
+  systemScheme: ColorSchemeName
+): 'light' | 'dark' {
+  if (mode === 'system') {
+    return systemScheme === 'light' ? 'light' : 'dark';
+  }
+  return mode;
+}
+
+let appearanceSubscription: any = null;
+
+export const useThemeStore = create<ThemeState>((set, get) => ({
+  mode: 'system',
+  activeColorScheme: Appearance.getColorScheme() === 'light' ? 'light' : 'dark',
+  isInitialized: false,
+
+  initializeTheme: async () => {
+    if (get().isInitialized) return;
+
+    // Get saved theme mode from database
+    const savedMode = await getThemeMode();
+    const mode = (savedMode ?? 'system') as ThemeMode;
+
+    // Determine active color scheme
+    const systemScheme = Appearance.getColorScheme();
+    const activeColorScheme = getActiveColorScheme(mode, systemScheme);
+
+    set({ mode, activeColorScheme, isInitialized: true });
+
+    // Clean up any existing subscription
+    if (appearanceSubscription) {
+      appearanceSubscription.remove();
+    }
+
+    // Subscribe to system appearance changes
+    appearanceSubscription = Appearance.addChangeListener(({ colorScheme }) => {
+      const currentMode = get().mode;
+      if (currentMode === 'system') {
+        const newActiveScheme = getActiveColorScheme(currentMode, colorScheme);
+        set({ activeColorScheme: newActiveScheme });
+      }
+    });
+  },
+
+  setMode: async (mode: ThemeMode) => {
+    const systemScheme = Appearance.getColorScheme();
+    const activeColorScheme = getActiveColorScheme(mode, systemScheme);
+
+    set({ mode, activeColorScheme });
+    await setThemeModeInDB(mode);
+  },
+}));

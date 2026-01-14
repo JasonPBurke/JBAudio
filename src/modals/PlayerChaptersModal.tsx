@@ -1,11 +1,17 @@
 import React from 'react';
-import { View, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Pressable,
+  ActivityIndicator,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import { Logs } from 'lucide-react-native';
 import { MovingText } from '../components/MovingText';
 import { useCurrentChapterStable } from '@/hooks/useCurrentChapterStable';
+import { useTheme } from '@/hooks/useTheme';
 
 const logsIconStyle = { transform: [{ rotateY: '180deg' as const }] };
 const loadingContainerStyle = [
@@ -21,6 +27,7 @@ const loadingContainerStyle = [
  */
 export const PlayerChaptersModal = React.memo(() => {
   const router = useRouter();
+  const { colors: themeColors } = useTheme();
   const currentChapter = useCurrentChapterStable();
 
   const handlePress = () => {
@@ -30,7 +37,7 @@ export const PlayerChaptersModal = React.memo(() => {
   if (!currentChapter) {
     return (
       <View style={loadingContainerStyle}>
-        <ActivityIndicator color={colors.icon} />
+        <ActivityIndicator color={themeColors.icon} />
       </View>
     );
   }
@@ -40,7 +47,7 @@ export const PlayerChaptersModal = React.memo(() => {
       <Logs
         size={24}
         style={logsIconStyle}
-        color={colors.icon}
+        color={themeColors.lightIcon}
         strokeWidth={1.5}
         absoluteStrokeWidth
       />
@@ -49,7 +56,7 @@ export const PlayerChaptersModal = React.memo(() => {
         <MovingText
           text={currentChapter.chapterTitle ?? ''}
           animationThreshold={34}
-          style={styles.trackTitleText}
+          style={{ ...styles.trackTitleText, color: themeColors.lightIcon }}
         />
       </View>
     </Pressable>
@@ -73,8 +80,8 @@ const styles = StyleSheet.create({
   },
   trackTitleText: {
     flex: 1,
-    ...defaultStyles.text,
     fontSize: 18,
     fontWeight: '500',
+    // color moved to inline for theme support
   },
 });

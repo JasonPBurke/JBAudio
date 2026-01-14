@@ -1,4 +1,4 @@
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import {
   DrawerContentComponentProps,
   DrawerContentScrollView,
@@ -19,10 +19,27 @@ import {
 import { colors } from '@/constants/tokens';
 import { scanLibrary } from '@/helpers/scanLibrary';
 import { directoryPicker } from '@/helpers/directoryPicker';
+import { useThemeStore } from '@/store/themeStore';
+import { useTheme } from '@/hooks/useTheme';
 
 type Props = DrawerContentComponentProps;
 
 const DrawerContent = (props: Props) => {
+  const { colors: themeColors } = useTheme();
+  const mode = useThemeStore((state) => state.mode);
+  const activeScheme = useThemeStore((state) => state.activeColorScheme);
+  const setMode = useThemeStore((state) => state.setMode);
+
+  const handleThemeToggle = () => {
+    if (mode === 'system') {
+      setMode('light');
+    } else if (mode === 'light') {
+      setMode('dark');
+    } else {
+      setMode('system');
+    }
+  };
+
   const handleSettingsPress = () => {
     // props.navigation.closeDrawer(); //? could leave the drawer open
     props.navigation.navigate('settings');
@@ -33,15 +50,41 @@ const DrawerContent = (props: Props) => {
   };
 
   return (
-    <DrawerContentScrollView {...props} style={styles.drawerContainer}>
+    <DrawerContentScrollView
+      {...props}
+      style={[
+        styles.drawerContainer,
+        { backgroundColor: themeColors.modalBackground },
+      ]}
+    >
       <View style={styles.drawerHeader}>
         <X
           size={30}
-          color={colors.text}
+          color={themeColors.text}
           strokeWidth={1}
           onPress={() => props.navigation.closeDrawer()}
         />
-        <Sun size={30} color={colors.text} strokeWidth={1} />
+        <Pressable
+          onPress={handleThemeToggle}
+          style={styles.themeToggleContainer}
+        >
+          {activeScheme === 'dark' ? (
+            <Sun size={30} color={themeColors.text} strokeWidth={1} />
+          ) : (
+            <Moon size={30} color={themeColors.text} strokeWidth={1} />
+          )}
+          {/* Badge indicator: shows only when in system mode */}
+          {mode === 'system' && (
+            <View
+              style={[
+                styles.modeBadge,
+                {
+                  backgroundColor: themeColors.primary,
+                },
+              ]}
+            />
+          )}
+        </Pressable>
       </View>
       {/* Custom drawer items */}
       <DrawerItem
@@ -51,10 +94,13 @@ const DrawerContent = (props: Props) => {
           props.navigation.closeDrawer();
         }}
         icon={() => (
-          <RefreshCcw size={24} color={colors.text} strokeWidth={1} />
+          <RefreshCcw size={24} color={themeColors.text} strokeWidth={1} />
         )}
-        labelStyle={[styles.labelStyle, {}]}
-        style={styles.drawerItem}
+        labelStyle={[styles.labelStyle, { color: themeColors.text }]}
+        style={[
+          styles.drawerItem,
+          { borderBottomColor: themeColors.divider },
+        ]}
       />
       <DrawerItem
         label={'Library Folder'}
@@ -63,19 +109,33 @@ const DrawerContent = (props: Props) => {
           await directoryPicker();
         }}
         icon={() => (
-          <BookOpenText size={24} color={colors.text} strokeWidth={1} />
+          <BookOpenText
+            size={24}
+            color={themeColors.text}
+            strokeWidth={1}
+          />
         )}
-        labelStyle={[styles.labelStyle, {}]}
-        style={styles.drawerItem}
+        labelStyle={[styles.labelStyle, { color: themeColors.text }]}
+        style={[
+          styles.drawerItem,
+          { borderBottomColor: themeColors.divider },
+        ]}
       />
       <DrawerItem
         label={'FAQ'}
         onPress={() => {}}
         icon={() => (
-          <FileQuestionMark size={24} color={colors.text} strokeWidth={1} />
+          <FileQuestionMark
+            size={24}
+            color={themeColors.text}
+            strokeWidth={1}
+          />
         )}
-        labelStyle={[styles.labelStyle, {}]}
-        style={[styles.drawerItem, { opacity: 0.4 }]}
+        labelStyle={[styles.labelStyle, { color: themeColors.text }]}
+        style={[
+          styles.drawerItem,
+          { borderBottomColor: themeColors.divider, opacity: 0.4 },
+        ]}
       />
       <DrawerItem
         label={'Book Stats'}
@@ -83,21 +143,27 @@ const DrawerContent = (props: Props) => {
         icon={() => (
           <ChartNoAxesCombined
             size={24}
-            color={colors.text}
+            color={themeColors.text}
             strokeWidth={1}
           />
         )}
-        labelStyle={[styles.labelStyle, {}]}
-        style={[styles.drawerItem, { opacity: 0.4 }]}
+        labelStyle={[styles.labelStyle, { color: themeColors.text }]}
+        style={[
+          styles.drawerItem,
+          { borderBottomColor: themeColors.divider, opacity: 0.4 },
+        ]}
       />
       <DrawerItem
         label={'Settings'}
         onPress={handleSettingsPress}
         icon={() => (
-          <Settings size={24} color={colors.text} strokeWidth={1} />
+          <Settings size={24} color={themeColors.text} strokeWidth={1} />
         )}
-        labelStyle={[styles.labelStyle, {}]}
-        style={styles.drawerItem}
+        labelStyle={[styles.labelStyle, { color: themeColors.text }]}
+        style={[
+          styles.drawerItem,
+          { borderBottomColor: themeColors.divider },
+        ]}
       />
     </DrawerContentScrollView>
   );
@@ -105,13 +171,26 @@ const DrawerContent = (props: Props) => {
 
 const styles = StyleSheet.create({
   drawerContainer: {
-    backgroundColor: colors.modalBackground,
+    // backgroundColor moved to inline for theme support
   },
   drawerHeader: {
     padding: 10,
     marginBottom: 30,
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  themeToggleContainer: {
+    position: 'relative',
+  },
+  modeBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: colors.modalBackground,
   },
   drawerHeaderText: {
     color: 'white',
@@ -124,11 +203,11 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     marginBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
+    // borderBottomColor moved to inline for theme support
   },
   labelStyle: {
     fontSize: 16,
-    color: colors.text,
+    // color moved to inline for theme support
   },
 });
 

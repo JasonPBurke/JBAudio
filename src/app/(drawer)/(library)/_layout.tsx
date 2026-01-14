@@ -1,10 +1,13 @@
 import { StackScreenWithSearchBar } from '@/constants/layout';
 import { Stack } from 'expo-router';
 import { View } from 'react-native';
+import { useTheme } from '@/hooks/useTheme';
 
 const LibraryScreenLayout = () => {
+  const { colors } = useTheme();
+
   return (
-    <View style={[{ backgroundColor: '#fff', flex: 1 }]}>
+    <View style={[{ backgroundColor: colors.overlay, flex: 1 }]}>
       <Stack>
         <Stack.Screen
           name='index'

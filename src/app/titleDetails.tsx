@@ -20,10 +20,12 @@ import TrackPlayer, {
 } from 'react-native-track-player';
 
 import { useBookById } from '@/store/library';
-// import { ChapterList } from '@/components/ChapterList';
 import { unknownBookImageUri } from '@/constants/images';
 import { colors, fontSize } from '@/constants/tokens';
 import { useQueueStore } from '@/store/queue';
+import { selectGradientColors } from '@/helpers/gradientColorSorter';
+import { ensureReadable, withOpacity } from '@/helpers/colorUtils';
+import { useTheme } from '@/hooks/useTheme';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import TruncatedParagraph from '@/components/TruncatedParagraph';
 import { defaultStyles } from '@/styles';
@@ -44,6 +46,8 @@ const TitleDetails = () => {
   const book = useBookById(bookId);
   const [isLoading, setIsLoading] = useState(false);
   const [showLoading, setShowLoading] = useState(false);
+
+  const { colors: themeColors } = useTheme();
 
   const { playing } = useIsPlaying();
   const activeTrack = useActiveTrack();
@@ -66,20 +70,26 @@ const TitleDetails = () => {
 
   const gradientColors = useMemo(
     () =>
-      book.artworkColors
-        ? ([
-            book.artworkColors.darkVibrant as string,
-            book.artworkColors.lightVibrant as string,
-            book.artworkColors.vibrant as string,
-            book.artworkColors.darkMuted as string,
-          ] as const)
-        : ([
-            colors.background,
-            colors.primary,
-            colors.primary,
-            colors.background,
-          ] as const),
-    [book.artworkColors]
+      selectGradientColors(book.artworkColors, [
+        themeColors.background,
+        themeColors.primary,
+        themeColors.primary,
+        themeColors.background,
+      ] as const),
+    [book.artworkColors, themeColors.background, themeColors.primary]
+  );
+
+  // Position 4 color (darkest) - used for contrast checking
+  const position4Color = gradientColors[3];
+
+  // Calculate readable label color for Author/ReadBy text
+  const labelColor = useMemo(
+    () =>
+      ensureReadable(
+        book.artworkColors?.muted || themeColors.textMuted,
+        position4Color
+      ),
+    [book.artworkColors, themeColors.textMuted, position4Color]
   );
 
   const handleChapterPress = () => {
@@ -143,7 +153,12 @@ const TitleDetails = () => {
             }
             style={[styles.bookInfoContainer]}
           >
-            <Text style={styles.bookTitleText}>
+            <Text
+              style={[
+                styles.bookTitleText,
+                { color: themeColors.lightText },
+              ]}
+            >
               {book.bookTitle ?? bookTitle}
             </Text>
 
@@ -157,14 +172,18 @@ const TitleDetails = () => {
                 <Text
                   style={{
                     ...styles.bookInfoText,
-                    color: book.artworkColors.muted || colors.textMuted,
+                    color: labelColor,
                   }}
                 >
                   Author
                 </Text>
                 <Text
                   numberOfLines={3}
-                  style={{ ...styles.bookInfoText, textAlign: 'center' }}
+                  style={{
+                    ...styles.bookInfoText,
+                    textAlign: 'center',
+                    color: themeColors.lightText,
+                  }}
                 >
                   {book.author ?? author}
                 </Text>
@@ -172,8 +191,7 @@ const TitleDetails = () => {
               <View
                 style={{
                   ...styles.divider,
-                  backgroundColor:
-                    book.artworkColors.muted || colors.textMuted,
+                  backgroundColor: labelColor,
                 }}
               />
               <View
@@ -185,14 +203,18 @@ const TitleDetails = () => {
                 <Text
                   style={{
                     ...styles.bookInfoText,
-                    color: book.artworkColors.muted || colors.textMuted,
+                    color: labelColor,
                   }}
                 >
                   Read by
                 </Text>
                 <Text
                   numberOfLines={3}
-                  style={{ ...styles.bookInfoText, textAlign: 'center' }}
+                  style={{
+                    ...styles.bookInfoText,
+                    textAlign: 'center',
+                    color: themeColors.lightText,
+                  }}
                 >
                   {book.metadata.narrator}
                 </Text>
@@ -208,7 +230,7 @@ const TitleDetails = () => {
                     styles.genreText,
                     {
                       backgroundColor:
-                        book.artworkColors.darkVibrant ||
+                        book.artworkColors?.darkVibrant ||
                         colors.modalBackground,
                     },
                   ]}
@@ -222,7 +244,12 @@ const TitleDetails = () => {
               <View style={styles.infoCard}>
                 <Clock8 size={24} color={colors.text} strokeWidth={1.5} />
 
-                <Text style={[styles.bookInfoText, { marginTop: 12 }]}>
+                <Text
+                  style={[
+                    styles.bookInfoText,
+                    { marginTop: 12, color: themeColors.lightText },
+                  ]}
+                >
                   {formatSecondsToMinutes(book.bookDuration || 0)}
                 </Text>
                 <Text style={styles.listInfoText}>Duration</Text>
@@ -230,13 +257,17 @@ const TitleDetails = () => {
               <View
                 style={{
                   ...styles.divider,
-                  backgroundColor:
-                    book.artworkColors.muted || colors.textMuted,
+                  backgroundColor: labelColor,
                 }}
               />
               <View style={styles.infoCard}>
                 <Calendar size={24} color={colors.text} strokeWidth={1.5} />
-                <Text style={[styles.bookInfoText, { marginTop: 12 }]}>
+                <Text
+                  style={[
+                    styles.bookInfoText,
+                    { marginTop: 12, color: themeColors.lightText },
+                  ]}
+                >
                   {book.metadata.year}
                 </Text>
                 <Text style={styles.listInfoText}>Released</Text>
@@ -244,8 +275,7 @@ const TitleDetails = () => {
               <View
                 style={{
                   ...styles.divider,
-                  backgroundColor:
-                    book.artworkColors.muted || colors.textMuted,
+                  backgroundColor: labelColor,
                 }}
               />
               <Pressable
@@ -253,7 +283,12 @@ const TitleDetails = () => {
                 style={styles.infoCard}
               >
                 <Book size={24} color={colors.text} strokeWidth={1.5} />
-                <Text style={[styles.bookInfoText, { marginTop: 12 }]}>
+                <Text
+                  style={[
+                    styles.bookInfoText,
+                    { marginTop: 12, color: themeColors.lightText },
+                  ]}
+                >
                   {book.metadata.totalTrackCount! > 1
                     ? book.metadata.totalTrackCount
                     : book.chapters.length}
@@ -352,6 +387,7 @@ const TitleDetails = () => {
                   styles.bookInfoText,
                   {
                     paddingBottom: bottom + 24,
+                    color: themeColors.lightText,
                   },
                 ]}
               >
@@ -418,14 +454,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   bookTitleText: {
-    ...defaultStyles.text,
+    // ...defaultStyles.text,
     fontSize: 21,
     fontWeight: '600',
     textAlign: 'center',
     lineHeight: 26,
   },
   bookInfoText: {
-    ...defaultStyles.text,
+    // ...defaultStyles.text,
     fontSize: fontSize.sm,
   },
   listInfoText: {
@@ -445,7 +481,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     right: 20,
     padding: 10,
-    backgroundColor: '#1c1c1c7f',
+    backgroundColor: withOpacity(colors.background, 0.5),
     borderRadius: 50,
     zIndex: 10,
   },
@@ -482,7 +518,7 @@ const styles = StyleSheet.create({
   dismissIndicator: {
     width: 55,
     height: 7,
-    backgroundColor: '#1c1c1ca9',
+    backgroundColor: withOpacity(colors.background, 0.66),
     borderRadius: 50,
     borderColor: colors.textMuted,
     borderWidth: 1,

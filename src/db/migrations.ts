@@ -7,6 +7,21 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      toVersion: 16,
+      steps: [
+        addColumns({
+          table: 'settings',
+          columns: [
+            {
+              name: 'theme_mode',
+              type: 'string',
+              isOptional: true,
+            },
+          ],
+        }),
+      ],
+    },
+    {
       toVersion: 15,
       steps: [
         addColumns({

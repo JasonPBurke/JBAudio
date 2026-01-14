@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { colors, screenPadding } from '@/constants/tokens';
+import { withOpacity } from '@/helpers/colorUtils';
 import { useState } from 'react';
 import { TimerPickerModal } from 'react-native-timer-picker';
 import { Settings, CirclePlus, CircleMinus } from 'lucide-react-native';
@@ -292,7 +293,7 @@ const SleepTimerOptions = ({
             >
               <CircleMinus
                 size={28}
-                color={chaptersToEnd === 0 ? '#d8dee96f' : colors.textMuted}
+                color={chaptersToEnd === 0 ? withOpacity(colors.textMuted, 0.43) : colors.textMuted}
                 strokeWidth={1.5}
                 absoluteStrokeWidth
               />
@@ -317,7 +318,7 @@ const SleepTimerOptions = ({
                 size={28}
                 color={
                   chaptersToEnd >= maxChapters
-                    ? '#d8dee96f'
+                    ? withOpacity(colors.textMuted, 0.43)
                     : colors.textMuted
                 }
                 strokeWidth={1.5}
@@ -357,7 +358,7 @@ const SleepTimerOptions = ({
                 styles.buttonText,
                 customTimer.hours === 0 && customTimer.minutes === 0
                   ? { color: colors.textMuted }
-                  : { color: '#d8dee96f' },
+                  : { color: withOpacity(colors.textMuted, 0.43) },
               ]}
             >
               Custom

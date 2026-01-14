@@ -17,6 +17,7 @@ export default class Settings extends Model {
   @text('library_paths') libraryPaths!: string | null;
   @field('skip_back_duration') skipBackDuration!: number | null;
   @field('skip_forward_duration') skipForwardDuration!: number | null;
+  @text('theme_mode') themeMode!: string | null;
 
   // Getter to automatically parse the libraryPaths JSON string
   get parsedLibraryPaths(): string[] {

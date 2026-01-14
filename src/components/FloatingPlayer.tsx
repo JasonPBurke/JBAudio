@@ -14,6 +14,7 @@ import { MovingText } from '@/components/MovingText';
 import { useRouter } from 'expo-router';
 import { colors } from '@/constants/tokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '@/hooks/useTheme';
 import { useQueueStore } from '@/store/queue';
 import { useBookById } from '@/store/library';
 import { BookTimeRemaining } from '@/components/BookTimeRemaining';
@@ -31,6 +32,7 @@ import { BookTimeRemaining } from '@/components/BookTimeRemaining';
 export const FloatingPlayer = React.memo(() => {
   const { bottom } = useSafeAreaInsets();
   const isPlayerReady = useQueueStore((state) => state.isPlayerReady);
+  const { colors: themeColors } = useTheme();
 
   const router = useRouter();
   const activeTrack = useActiveTrack();
@@ -45,11 +47,12 @@ export const FloatingPlayer = React.memo(() => {
       styles.parentContainer,
       {
         marginBottom: bottom - 12,
-        borderColor: colors.primary,
+        borderColor: themeColors.primary,
         borderWidth: StyleSheet.hairlineWidth,
+        backgroundColor: themeColors.modalBackground,
       },
     ],
-    [bottom]
+    [bottom, themeColors.primary, themeColors.modalBackground]
   );
 
   // Memoize the navigation callback
@@ -78,11 +81,11 @@ export const FloatingPlayer = React.memo(() => {
 
         <View style={styles.bookTitleContainer}>
           <MovingText
-            style={styles.bookTitle}
+            style={[styles.bookTitle, { color: themeColors.text }]}
             text={displayedBook.bookTitle ?? ''}
             animationThreshold={25}
           />
-          <BookTimeRemaining />
+          <BookTimeRemaining color={themeColors.textMuted} />
         </View>
         <View style={styles.bookControlsContainer}>
           <SeekBackButton iconSize={32} top={4} right={9} fontSize={12} />
@@ -99,7 +102,7 @@ const styles = StyleSheet.create({
   parentContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1f2226ff', // 3B4252
+    // backgroundColor moved to containerStyle for theme support
     borderRadius: 6,
     position: 'absolute',
     left: 8,
@@ -118,9 +121,9 @@ const styles = StyleSheet.create({
     margin: 4,
   },
   bookTitle: {
-    ...defaultStyles.text,
     fontSize: 18,
     fontWeight: '600',
+    // color moved to inline for theme support
   },
   bookControlsContainer: {
     flexDirection: 'row',

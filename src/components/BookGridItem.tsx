@@ -4,6 +4,8 @@ import { PressableScale } from 'pressto';
 import { FadeInImage } from '@/components/FadeInImage';
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
+import { withOpacity } from '@/helpers/colorUtils';
+import { useTheme } from '@/hooks/useTheme';
 import LoaderKitView from 'react-native-loader-kit';
 import { Play } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
@@ -33,6 +35,7 @@ export const BookGridItem = memo(function BookGridItem({
   itemWidth = 0,
 }: BookGridItemProps) {
   const router = useRouter();
+  const { colors: themeColors } = useTheme();
 
   const bookData = useBookDisplayData(bookId);
   const fullBook = useBookById(bookId);
@@ -112,7 +115,7 @@ export const BookGridItem = memo(function BookGridItem({
   const bookTitleStyle = useMemo(
     () => ({
       ...styles.bookTitleText,
-      color: isActiveBook ? '#ffb406be' : colors.text,
+      color: isActiveBook ? withOpacity(themeColors.primary, 0.75) : themeColors.text,
       fontSize:
         flowDirection === 'row'
           ? fontSize.xs
@@ -122,12 +125,13 @@ export const BookGridItem = memo(function BookGridItem({
               ? fontSize.sm
               : 14,
     }),
-    [isActiveBook, flowDirection, numColumns]
+    [isActiveBook, flowDirection, numColumns, themeColors]
   );
 
   const bookAuthorStyle = useMemo(
     () => ({
       ...styles.bookAuthorText,
+      color: themeColors.textMuted,
       fontSize:
         flowDirection === 'row'
           ? 10
@@ -137,7 +141,7 @@ export const BookGridItem = memo(function BookGridItem({
               ? fontSize.xs
               : fontSize.xs,
     }),
-    [flowDirection, numColumns]
+    [flowDirection, numColumns, themeColors]
   );
 
   return (
@@ -178,7 +182,7 @@ export const BookGridItem = memo(function BookGridItem({
                           : 17,
                   bottom: flowDirection === 'row' ? 2 : 12,
                   borderRadius: 4,
-                  backgroundColor: '#1c1c1c96',
+                  backgroundColor: withOpacity(colors.background, 0.59),
                   justifyContent: 'center',
                   alignItems: 'center',
                 },
@@ -213,7 +217,7 @@ export const BookGridItem = memo(function BookGridItem({
                   bottom: flowDirection === 'row' ? 2 : 12,
                   padding: 6,
                   borderRadius: 4,
-                  backgroundColor: '#1c1c1c96',
+                  backgroundColor: withOpacity(colors.background, 0.59),
                 },
               ]}
               hitSlop={10}
@@ -273,8 +277,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   bookAuthorText: {
-    color: colors.textMuted,
     marginTop: 4,
+    // color moved to inline for theme support
   },
   trackPlayingImageIcon: {
     position: 'absolute',

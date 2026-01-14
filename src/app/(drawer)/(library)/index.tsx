@@ -3,6 +3,7 @@ import BooksHome from '@/components/BooksHome';
 import BooksGrid from '@/components/BooksGrid';
 import { defaultStyles } from '@/styles';
 import { useEffect, useMemo, useState } from 'react';
+import { useTheme } from '@/hooks/useTheme';
 import {
   View,
   TextInput,
@@ -30,6 +31,7 @@ import * as Sentry from '@sentry/react-native';
 const SEARCH_HEIGHT = 65;
 
 const LibraryScreen = ({ navigation }: any) => {
+  const { colors: themeColors } = useTheme();
   const [toggleView, setToggleView] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const scrollY = useSharedValue(0);
@@ -164,22 +166,22 @@ const LibraryScreen = ({ navigation }: any) => {
         placeholder='Search books, authors...'
         value={searchQuery}
         onChangeText={setSearchQuery}
-        cursorColor={colors.primary}
-        selectionColor={colors.primary}
+        cursorColor={themeColors.primary}
+        selectionColor={themeColors.primary}
       />
       {searchQuery.length > 0 && (
         <TouchableOpacity
           onPress={() => setSearchQuery('')}
           style={styles.clearButton}
         >
-          <X size={21} color={colors.text} strokeWidth={1} />
+          <X size={21} color={themeColors.text} strokeWidth={1} />
         </TouchableOpacity>
       )}
     </Animated.View>
   );
 
   return (
-    <View style={defaultStyles.container}>
+    <View style={[defaultStyles.container, { backgroundColor: themeColors.background }]}>
       <SafeAreaView style={{ flex: 1 }}>
         {/* MOVE HEADER ABOVE SCROLL VIEW TO DOCK IT AT TOP OF SCREEN */}
         <Header
@@ -221,7 +223,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     width: '95%',
-    backgroundColor: '#303030',
+    backgroundColor: colors.background,
     borderRadius: 5,
     padding: 10,
     margin: 10,
@@ -234,7 +236,7 @@ const styles = StyleSheet.create({
   },
   clearButtonText: {
     fontSize: 16,
-    color: '#999',
+    color: colors.textMuted,
   },
 });
 

@@ -1,6 +1,8 @@
 import { Text, Animated, Easing } from 'react-native';
 import { useRef } from 'react';
 import { AnimatedCircularProgress } from 'react-native-circular-progress';
+import { colors } from '@/constants/tokens';
+import { withOpacity } from '@/helpers/colorUtils';
 // import { bookTimeRemaining } from './BookTimeRemaining';
 
 type ProgressCircleProps = {
@@ -45,13 +47,13 @@ const ProgressCircle = ({ size }: ProgressCircleProps) => {
       size={size}
       width={2}
       fill={100}
-      tintColor={'#ffb406b9'}
+      tintColor={withOpacity(colors.primary, 0.73)}
       onAnimationComplete={spin}
-      backgroundColor='#3d5875a2'
+      backgroundColor={withOpacity(colors.textMuted, 0.64)}
       children={(value: any) => (
         <Text
           style={{
-            color: '#d8dee9a4',
+            color: withOpacity(colors.textMuted, 0.64),
             fontSize: 12,
             fontWeight: 'bold',
             textAlign: 'center',

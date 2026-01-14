@@ -7,7 +7,9 @@ import {
   View,
 } from 'react-native';
 import { colors } from '@/constants/tokens';
+import { useTheme } from '@/hooks/useTheme';
 import { useState } from 'react';
+import { withOpacity } from '@/helpers/colorUtils';
 import { scheduleOnRN } from 'react-native-worklets';
 import Animated, {
   useAnimatedStyle,
@@ -32,6 +34,8 @@ const TabButtons = ({
   selectedTab,
   setSelectedTab,
 }: TabButtonsProps) => {
+  const { colors: themeColors } = useTheme();
+
   const [buttonMeasurements, setButtonMeasurements] = useState<
     { width: number; x: number }[]
   >([]);
@@ -88,14 +92,17 @@ const TabButtons = ({
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={{ flexGrow: 1 }}
       accessibilityRole='tablist'
-      style={styles.container}
+      style={[
+        styles.container,
+        { backgroundColor: themeColors.background },
+      ]}
     >
       <Animated.View
         style={[
           animatedStyle,
           {
             position: 'absolute',
-            backgroundColor: '#ffb606cc',
+            backgroundColor: withOpacity(themeColors.primary, 0.8),
             borderRadius: 4,
             height: tabbarHeight - 10,
             top: 5,
@@ -111,7 +118,10 @@ const TabButtons = ({
         }}
       >
         {buttons.map((button, index) => {
-          const color = selectedTab === index ? colors.text : '#d8dee98f';
+          const color =
+            selectedTab === index
+              ? themeColors.text
+              : withOpacity(themeColors.textMuted, 0.56);
 
           return (
             <Pressable
