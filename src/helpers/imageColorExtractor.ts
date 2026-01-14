@@ -19,8 +19,11 @@ export const extractImageColors = async (
   uri: string
 ): Promise<BookImageColors> => {
   try {
-    // Exclude the bottom 30% of the image (which includes the bottom-right corner)
-    const segments = [{ fromX: 0, toX: 100, fromY: 0, toY: 60 }];
+    // Exclude the bottom 30% and top 15% of the image (which includes the bottom-right corner)
+    const segments = [
+      { fromX: 0, toX: 100, fromY: 12, toY: 60 },
+      // { fromX: 0, toX: 60, fromY: 15, toY: 85 },
+    ];
     const [palettes, averages] = await Promise.all([
       getSegmentsPalette(uri, segments, {
         fallbackColor: color.background,
