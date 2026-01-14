@@ -1,4 +1,7 @@
-import { TinyColor, isReadable as tinyColorIsReadable } from '@ctrl/tinycolor';
+import {
+  TinyColor,
+  isReadable as tinyColorIsReadable,
+} from '@ctrl/tinycolor';
 
 /**
  * Creates a color with specified opacity
@@ -57,7 +60,12 @@ export const ensureReadable = (
   let text = new TinyColor(textColor);
 
   // If already readable, return as-is
-  if (tinyColorIsReadable(text.toHexString(), bg.toHexString(), { level: 'AA', size: 'large' })) {
+  if (
+    tinyColorIsReadable(text.toHexString(), bg.toHexString(), {
+      level: 'AA',
+      size: 'large',
+    })
+  ) {
     return text.toHexString();
   }
 
@@ -67,13 +75,19 @@ export const ensureReadable = (
 
   // Iteratively adjust text color
   for (let i = 0; i < maxIterations; i++) {
+    console.log('thinking', i);
     if (isDarkBg) {
       text = text.lighten(4); // Lighten for dark backgrounds
     } else {
       text = text.darken(4); // Darken for light backgrounds
     }
 
-    if (tinyColorIsReadable(text.toHexString(), bg.toHexString(), { level: 'AA', size: 'large' })) {
+    if (
+      tinyColorIsReadable(text.toHexString(), bg.toHexString(), {
+        level: 'AA',
+        size: 'large',
+      })
+    ) {
       return text.toHexString();
     }
   }

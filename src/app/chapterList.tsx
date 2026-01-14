@@ -12,17 +12,13 @@ import TrackPlayer from 'react-native-track-player';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CircleX } from 'lucide-react-native';
-import { fontSize } from '@/constants/tokens';
 import { useBookById, useLibraryStore } from '@/store/library';
 import { useTheme } from '@/hooks/useTheme';
-import { withOpacity } from '@/helpers/colorUtils';
+import { withOpacity, ensureReadable } from '@/helpers/colorUtils';
 import { useCurrentChapterStable } from '@/hooks/useCurrentChapterStable';
 import { Chapter } from '@/types/Book';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { FlashList } from '@shopify/flash-list';
-
-// const ITEM_HEIGHT = 46;
-// const SEPARATOR_HEIGHT = 3;
 
 const ChapterListScreen = () => {
   const router = useRouter();
@@ -117,10 +113,17 @@ const ChapterListScreen = () => {
       if (isReadOnly) {
         return (
           <View style={[styles.chapterItem, borderStyle]}>
-            <Text style={[styles.chapterTitle, { color: themeColors.text }]}>
+            <Text
+              style={[styles.chapterTitle, { color: themeColors.text }]}
+            >
               {item.chapterTitle}
             </Text>
-            <Text style={[styles.chapterDuration, { color: themeColors.textMuted }]}>
+            <Text
+              style={[
+                styles.chapterDuration,
+                { color: themeColors.textMuted },
+              ]}
+            >
               {formatSecondsToMinutes(item.chapterDuration)}
             </Text>
           </View>
@@ -141,7 +144,12 @@ const ChapterListScreen = () => {
           <Text
             style={{
               ...styles.chapterTitle,
-              color: isActive ? themeColors.primary : themeColors.textMuted,
+              color: isActive
+                ? ensureReadable(
+                    themeColors.primary,
+                    themeColors.chapterActive
+                  )
+                : themeColors.textMuted,
             }}
           >
             {item.chapterTitle}
@@ -151,7 +159,10 @@ const ChapterListScreen = () => {
               styles.chapterDuration,
               {
                 color: isActive
-                  ? themeColors.primary
+                  ? ensureReadable(
+                      themeColors.primary,
+                      themeColors.chapterActive
+                    )
                   : themeColors.textMuted,
               },
             ]}
@@ -235,8 +246,7 @@ const styles = StyleSheet.create({
     flex: 1,
     // backgroundColor moved to inline style for theme support
     paddingHorizontal: 4,
-    paddingTop: 12,
-    marginTop: 36,
+    paddingTop: 36,
   },
   loadingContainer: {
     flex: 1,
@@ -259,7 +269,6 @@ const styles = StyleSheet.create({
   chapterItem: {
     paddingVertical: 13,
     paddingHorizontal: 13,
-    // backgroundColor: colors.chapterListItem, //! check the look with this removed
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',

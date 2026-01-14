@@ -62,6 +62,7 @@ type PlayerButtonProps = {
   top?: number;
   right?: number;
   left?: number;
+  color?: string;
 };
 
 /**
@@ -177,13 +178,16 @@ export function PlayPauseButton({
 }
 
 export function SeekBackButton({
+  // style,
   iconSize = 30,
   top = 7,
   right = 12,
   fontSize,
+  color,
 }: PlayerButtonProps) {
   const seekDuration = 30;
   const rotation = useSharedValue(0);
+  const iconColor = color ?? colors.icon;
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -217,7 +221,7 @@ export function SeekBackButton({
       <Animated.View style={animatedStyle}>
         <IterationCw
           size={iconSize}
-          color={colors.icon}
+          color={iconColor}
           strokeWidth={1.5}
           absoluteStrokeWidth
         />
@@ -228,7 +232,7 @@ export function SeekBackButton({
             fontSize: fontSize,
             top: top,
             right: right,
-            color: colors.icon,
+            color: iconColor,
           }}
         >
           {seekDuration}
@@ -506,7 +510,12 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
               hitSlop={10}
               style={[
                 styles.handleIndicator,
-                { backgroundColor: withOpacity(themeColors.background, 0.66) },
+                {
+                  backgroundColor: withOpacity(
+                    themeColors.background,
+                    0.66
+                  ),
+                },
               ]}
               onPress={() => bottomSheetModalRef.current?.dismiss()}
             />

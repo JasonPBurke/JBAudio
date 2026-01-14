@@ -88,7 +88,13 @@ export const FloatingPlayer = React.memo(() => {
           <BookTimeRemaining color={themeColors.textMuted} />
         </View>
         <View style={styles.bookControlsContainer}>
-          <SeekBackButton iconSize={32} top={4} right={9} fontSize={12} />
+          <SeekBackButton
+            iconSize={32}
+            top={4}
+            right={9}
+            fontSize={12}
+            color={themeColors.icon}
+          />
           <PlayPauseButton iconSize={40} top={6} left={6} />
         </View>
       </>

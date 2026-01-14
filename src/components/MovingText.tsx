@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { TextStyle } from 'react-native';
+import { StyleProp, TextStyle } from 'react-native';
 import Animated, {
   cancelAnimation,
   Easing,
@@ -13,7 +13,7 @@ import Animated, {
 export type MovingTextProps = {
   text: string;
   animationThreshold: number;
-  style?: TextStyle; //StyleProps
+  style?: StyleProp<TextStyle>;
 };
 
 export const MovingText = ({

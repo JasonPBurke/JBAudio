@@ -8,25 +8,25 @@ export const colorTokens = {
     icon: '#E5E9F0',
     maximumTrackTintColor: 'rgba(129, 161, 193, .4)',
     minimumTrackTintColor: '#FFB606',
-    chapterActive: '#6d6d6d',
-    chapterInactive: '#1d2233',
-    chapterListItem: '#22273b',
+    chapterActive: '#6d6d6dbf',
+    chapterInactive: '#1d2233bf',
     divider: '#d8dee9',
     overlay: '#1C1C1C',
+    // chapterListItem: '#22273b',
   },
   light: {
-    background: '#F5F5F5',
-    modalBackground: '#E8E8E8',
+    background: '#eceff4', //#F5F5F5
+    modalBackground: '#d8dee9', //#E8E8E8
     text: '#1C1C1C',
-    textMuted: '#6B7280',
+    textMuted: '#6B7280', //#a0a9ba
     icon: '#374151',
     maximumTrackTintColor: 'rgba(107, 114, 128, 0.4)',
     minimumTrackTintColor: '#FFB606',
-    chapterActive: '#D1D5DB',
-    chapterInactive: '#F3F4F6',
-    chapterListItem: '#FFFFFF',
+    chapterActive: '#a0a9babf',
+    chapterInactive: '#F3F4F6bf',
     divider: '#9CA3AF',
     overlay: '#FFFFFF',
+    // chapterListItem: '#FFFFFF',
   },
   shared: {
     primary: '#FFB606',
@@ -55,7 +55,7 @@ export const colors = {
   divider: '#d8dee9',
   chapterActive: '#6d6d6d',
   chapterInactive: '#1d2233',
-  chapterListItem: '#22273b',
+  // chapterListItem: '#22273b',
 };
 
 //? Gold/black/purple: #1C1C1C, # 3B3B3B, #FFE002, #FFB606, #B28228, #492666, #830982, #
