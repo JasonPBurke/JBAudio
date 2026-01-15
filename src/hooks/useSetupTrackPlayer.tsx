@@ -62,6 +62,9 @@ const setupPlayer = async () => {
       // Capability.SeekTo,
       // Capability.Pause,
     ],
+    android: {
+      appKilledPlaybackBehavior: 'ContinuePlayback' as any,
+    },
   });
 
   await TrackPlayer.setRepeatMode(RepeatMode.Off);
