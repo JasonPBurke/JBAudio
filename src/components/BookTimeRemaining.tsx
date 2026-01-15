@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react';
 import { Text } from 'react-native';
 import TrackPlayer, {
   useActiveTrack,
@@ -8,15 +8,57 @@ import { useBookById } from '@/store/library';
 import { formatSecondsToHoursMinutes } from '@/helpers/miscellaneous';
 import { useLastActiveTrack } from '@/hooks/useLastActiveTrack';
 import { colors } from '@/constants/tokens';
-
-// Normalize URLs to improve matching between TrackPlayer track URLs and stored chapter URLs
-const normalizeUrl = (u?: string | null) =>
-  u ? u.replace(/^file:\/\//, '') : '';
+import { Book, Chapter } from '@/types/Book';
 
 type BookTimeRemainingProps = {
   size?: number;
   color?: string;
 };
+
+/**
+ * Calculates remaining book time based on position and book structure.
+ * For single-file books (one audio file with chapters via startMs), position is the book position.
+ * For multi-file books, position is the current chapter position.
+ */
+function calculateRemainingTime(
+  book: Book,
+  position: number,
+  currentIndex: number | undefined,
+  isSingleFileBook: boolean
+): number {
+  if (!book.chapters) {
+    return Math.max(0, book.bookDuration - position);
+  }
+
+  let totalPlayedTime: number;
+
+  if (isSingleFileBook) {
+    totalPlayedTime = position;
+  } else {
+    const chapters = book.chapters;
+    const idx =
+      typeof currentIndex === 'number' &&
+      currentIndex >= 0 &&
+      currentIndex < chapters.length
+        ? currentIndex
+        : 0;
+
+    totalPlayedTime = position;
+    for (let i = 0; i < idx; i++) {
+      totalPlayedTime += chapters[i]?.chapterDuration ?? 0;
+    }
+  }
+
+  return Math.max(0, book.bookDuration - totalPlayedTime);
+}
+
+/**
+ * Detects if a book is a single-file book (one audio file with multiple chapters via startMs).
+ */
+function isSingleFile(chapters: Chapter[] | undefined): boolean {
+  if (!chapters || chapters.length <= 1) return false;
+  return chapters.every((c) => c.url === chapters[0].url);
+}
 
 /**
  * Inner component that handles the progress-dependent time calculation.
@@ -40,37 +82,14 @@ const BookTimeRemainingInner = React.memo(
     const [remainingText, setRemainingText] = useState('');
     const lastUpdateRef = useRef(0);
 
-    // Calculate remaining time based on position and book structure
+    const isSingleFileBook = useMemo(() => isSingleFile(book?.chapters), [book]);
+
     const calculateRemaining = useCallback(
       (position: number) => {
-        let totalPlayedTime = 0;
-
-        if (book.chapters) {
-          const chapters = book.chapters;
-
-          // Use the current index if available, otherwise fall back to 0
-          const idx =
-            typeof currentIndex === 'number' &&
-            currentIndex >= 0 &&
-            currentIndex < chapters.length
-              ? currentIndex
-              : 0;
-
-          // Sum durations of chapters before the current chapter index
-          const upper = Math.min(idx, chapters.length);
-          for (let i = 0; i < upper; i++) {
-            totalPlayedTime += chapters[i]?.chapterDuration ?? 0;
-          }
-          totalPlayedTime += position;
-        }
-
-        const remainingSeconds = Math.max(
-          0,
-          book.bookDuration - totalPlayedTime
-        );
-        return formatSecondsToHoursMinutes(remainingSeconds);
+        const remaining = calculateRemainingTime(book, position, currentIndex, isSingleFileBook);
+        return formatSecondsToHoursMinutes(remaining);
       },
-      [book, currentIndex]
+      [book, currentIndex, isSingleFileBook]
     );
 
     // Initial calculation and event-based updates
@@ -196,36 +215,26 @@ BookTimeRemaining.displayName = 'BookTimeRemaining';
  * Utility function to calculate book time remaining.
  * This is a non-hook version for use outside of React components.
  */
-export const bookTimeRemaining = async (
+export async function bookTimeRemaining(
   bookId: string,
   getBook: (id: string) => ReturnType<typeof useBookById>
-) => {
+): Promise<number | null> {
   const book = getBook(bookId);
   if (!book) return null;
 
   try {
-    const { position } = await TrackPlayer.getProgress();
-    const currentIndex = await TrackPlayer.getActiveTrackIndex();
+    const [{ position }, currentIndex] = await Promise.all([
+      TrackPlayer.getProgress(),
+      TrackPlayer.getActiveTrackIndex(),
+    ]);
 
-    let totalPlayedTime = 0;
-    if (book.chapters) {
-      const chapters = book.chapters;
-      const idx =
-        typeof currentIndex === 'number' &&
-        currentIndex >= 0 &&
-        currentIndex < chapters.length
-          ? currentIndex
-          : 0;
-
-      const upper = Math.min(idx, chapters.length);
-      for (let i = 0; i < upper; i++) {
-        totalPlayedTime += chapters[i]?.chapterDuration ?? 0;
-      }
-      totalPlayedTime += position;
-    }
-
-    return Math.max(0, book.bookDuration - totalPlayedTime);
+    return calculateRemainingTime(
+      book,
+      position,
+      currentIndex ?? undefined,
+      isSingleFile(book.chapters)
+    );
   } catch {
     return null;
   }
-};
+}

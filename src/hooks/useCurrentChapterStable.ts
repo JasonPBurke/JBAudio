@@ -76,55 +76,49 @@ export const useCurrentChapterStable = () => {
       return;
     }
 
-    // Get initial position and chapter
-    const initializeChapter = async () => {
+    // Shared logic to update chapter from current position
+    const updateFromPosition = async () => {
       try {
         const { position } = await TrackPlayer.getProgress();
         positionRef.current = position;
-        const chapter = findChapter(position);
-        updateChapterIfChanged(chapter);
-      } catch (error) {
+        updateChapterIfChanged(findChapter(position));
+      } catch {
         // Player might not be initialized yet
       }
     };
 
-    initializeChapter();
+    // Initialize chapter on mount
+    updateFromPosition();
 
-    // For multi-file books, we only need to update on track changes
-    // which is already handled by activeTrack dependency
+    // Listen for track changes to re-initialize chapter (helps after cold start)
+    const trackChangedSubscription = TrackPlayer.addEventListener(
+      Event.PlaybackActiveTrackChanged,
+      updateFromPosition
+    );
+
+    // For multi-file books, only track changes matter (handled by activeTrack dependency)
     if (!isSingleFileBook) {
-      const chapter = findChapter(0);
-      updateChapterIfChanged(chapter);
-      return;
+      updateChapterIfChanged(findChapter(0));
+      return () => trackChangedSubscription.remove();
     }
 
-    // For single-file books, listen to progress updates but only
-    // update state when chapter boundary is crossed
+    // For single-file books, listen to progress updates for chapter boundary detection
     const progressSubscription = TrackPlayer.addEventListener(
       Event.PlaybackProgressUpdated,
       ({ position }) => {
         positionRef.current = position;
-        const chapter = findChapter(position);
-        updateChapterIfChanged(chapter);
+        updateChapterIfChanged(findChapter(position));
       }
     );
 
-    // Also listen for seek events to update chapter immediately
+    // Listen for seek/playback state changes to update chapter immediately
     const seekSubscription = TrackPlayer.addEventListener(
       Event.PlaybackState,
-      async () => {
-        try {
-          const { position } = await TrackPlayer.getProgress();
-          positionRef.current = position;
-          const chapter = findChapter(position);
-          updateChapterIfChanged(chapter);
-        } catch (error) {
-          // Ignore errors
-        }
-      }
+      updateFromPosition
     );
 
     return () => {
+      trackChangedSubscription.remove();
       progressSubscription.remove();
       seekSubscription.remove();
     };

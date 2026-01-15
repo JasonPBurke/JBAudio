@@ -14,6 +14,7 @@ import { defaultStyles, utilsStyles } from '@/styles';
 import { useProgressReanimated } from '@/hooks/useProgressReanimated';
 import { useCurrentChapterStable } from '@/hooks/useCurrentChapterStable';
 import { useTheme } from '@/hooks/useTheme';
+import { useLibraryStore } from '@/store/library';
 
 // Pre-defined styles to avoid inline object creation
 const bubbleContainerStyle = {
@@ -71,6 +72,40 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
       chapterStart.value = 0;
       chapterDuration.value = 0;
     }
+  }, [currentChapter, chapterStart, chapterDuration]);
+
+  // Fallback: when currentChapter is undefined, try to get chapter from track index
+  useEffect(() => {
+    if (currentChapter || chapterDuration.value > 0) return;
+
+    const initializeChapterFromIndex = async () => {
+      try {
+        const [trackIndex, activeTrack, { position }] = await Promise.all([
+          TrackPlayer.getActiveTrackIndex(),
+          TrackPlayer.getActiveTrack(),
+          TrackPlayer.getProgress(),
+        ]);
+        if (trackIndex == null || !activeTrack?.bookId) return;
+
+        const book = useLibraryStore.getState().books[activeTrack.bookId];
+        const chapter = book?.chapters?.[trackIndex];
+        if (!chapter) return;
+
+        const start = (chapter.startMs ?? 0) / 1000;
+        const duration = chapter.chapterDuration ?? 0;
+        chapterStart.value = start;
+        chapterDuration.value = duration;
+
+        const chapterPos = Math.max(0, position - start);
+        const remaining = Math.max(0, duration - chapterPos);
+        setTrackElapsedTime(formatSecondsToMinutes(chapterPos));
+        setTrackRemainingTime('-' + formatSecondsToMinutes(remaining));
+      } catch {
+        // Ignore errors during initialization
+      }
+    };
+
+    initializeChapterFromIndex();
   }, [currentChapter, chapterStart, chapterDuration]);
 
   // State for time text displays - updated at reduced frequency
@@ -200,10 +235,10 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
         onValueChange={handleValueChange}
       />
       <View style={styles.timeRow}>
-        <Text style={[styles.timeText, { color: themeColors.text }]}>
+        <Text style={[styles.timeText, { color: themeColors.lightText }]}>
           {trackElapsedTime}
         </Text>
-        <Text style={[styles.timeText, { color: themeColors.text }]}>
+        <Text style={[styles.timeText, { color: themeColors.lightText }]}>
           {trackRemainingTime}
         </Text>
       </View>
@@ -221,7 +256,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   timeText: {
-    ...defaultStyles.text,
     opacity: 0.75,
     fontSize: fontSize.xs,
     letterSpacing: 0.7,

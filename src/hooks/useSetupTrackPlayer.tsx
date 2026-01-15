@@ -62,9 +62,10 @@ const setupPlayer = async () => {
       // Capability.SeekTo,
       // Capability.Pause,
     ],
-    android: {
-      appKilledPlaybackBehavior: 'ContinuePlayback' as any,
-    },
+    //! this is the default behavior already
+    // android: {
+    //   appKilledPlaybackBehavior: 'ContinuePlayback' as any,
+    // },
   });
 
   await TrackPlayer.setRepeatMode(RepeatMode.Off);
@@ -101,6 +102,9 @@ export const useSetupTrackPlayer = ({
         isInitialized.current = true;
         const lastActiveBookId = await getLastActiveBook();
         if (lastActiveBookId) {
+          // Force refresh to ensure book data is loaded from database
+          //! await useLibraryStore.getState().refresh();
+
           const book = useLibraryStore.getState().books[lastActiveBookId];
           if (book) {
             const queue = await TrackPlayer.getQueue();

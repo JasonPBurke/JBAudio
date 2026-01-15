@@ -2,7 +2,7 @@ import BooksList from '@/components/BooksList';
 import BooksHome from '@/components/BooksHome';
 import BooksGrid from '@/components/BooksGrid';
 import { defaultStyles } from '@/styles';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTheme } from '@/hooks/useTheme';
 import {
   View,
@@ -45,12 +45,7 @@ const LibraryScreen = ({ navigation }: any) => {
 
   useScanExternalFileSystem();
 
-  const initStore = useLibraryStore((state) => state.init);
-  useEffect(() => {
-    // Start observing the database and return the cleanup function.
-    const unsubscribe = initStore();
-    return () => unsubscribe();
-  }, [initStore]);
+  // Note: Library store init is handled in _layout.tsx to ensure it runs before useSetupTrackPlayer
 
   const allAuthors = useLibraryStore((state) => state.authors);
 

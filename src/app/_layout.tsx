@@ -18,6 +18,7 @@ import database from '@/db';
 import { PermissionProvider } from '@/contexts/PermissionContext';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useThemeStore } from '@/store/themeStore';
+import { useLibraryStore } from '@/store/library';
 import { usePlayerScreenRestoration } from '@/hooks/usePlayerScreenRestoration';
 import { useTheme } from '@/hooks/useTheme';
 import * as Sentry from '@sentry/react-native';
@@ -59,6 +60,13 @@ const App = () => {
   const { activeColorScheme } = useTheme();
 
   useSettingsStore();
+
+  // Initialize library store BEFORE useSetupTrackPlayer so book data is available
+  const initLibraryStore = useLibraryStore((state) => state.init);
+  useEffect(() => {
+    const unsubscribe = initLibraryStore();
+    return () => unsubscribe();
+  }, [initLibraryStore]);
 
   // Initialize theme on app start
   useEffect(() => {
