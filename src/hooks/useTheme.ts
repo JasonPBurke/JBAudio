@@ -17,14 +17,20 @@ import { colorTokens } from '@/constants/tokens';
  */
 export const useTheme = () => {
   const activeColorScheme = useThemeStore((state) => state.activeColorScheme);
+  const customPrimaryColor = useThemeStore((state) => state.customPrimaryColor);
 
-  const colors = useMemo(
-    () => ({
+  const colors = useMemo(() => {
+    // Use custom primary color if set, otherwise use default primary
+    const effectivePrimaryColor = customPrimaryColor || colorTokens.shared.primary;
+
+    // Return merged colors with primary override and minimumTrackTintColor added
+    return {
       ...colorTokens[activeColorScheme],
       ...colorTokens.shared,
-    }),
-    [activeColorScheme]
-  );
+      primary: effectivePrimaryColor,
+      minimumTrackTintColor: effectivePrimaryColor,
+    };
+  }, [activeColorScheme, customPrimaryColor]);
 
   return {
     colors,

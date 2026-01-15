@@ -54,6 +54,14 @@ const setupPlayer = async () => {
       Capability.SeekTo,
       Capability.Stop,
     ],
+    notificationCapabilities: [
+      Capability.Play,
+      Capability.JumpForward,
+      Capability.JumpBackward,
+      Capability.Stop,
+      // Capability.SeekTo,
+      // Capability.Pause,
+    ],
   });
 
   await TrackPlayer.setRepeatMode(RepeatMode.Off);

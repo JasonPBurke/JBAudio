@@ -7,7 +7,6 @@ export const colorTokens = {
     textMuted: '#d8dee9',
     icon: '#E5E9F0',
     maximumTrackTintColor: 'rgba(129, 161, 193, .4)',
-    minimumTrackTintColor: '#FFB606',
     chapterActive: '#6d6d6dbf',
     chapterInactive: '#1d2233bf',
     divider: '#d8dee9',
@@ -21,7 +20,6 @@ export const colorTokens = {
     textMuted: '#6B7280', //#a0a9ba
     icon: '#374151',
     maximumTrackTintColor: 'rgba(107, 114, 128, 0.4)',
-    minimumTrackTintColor: '#FFB606',
     chapterActive: '#a0a9babf',
     chapterInactive: '#F3F4F6bf',
     divider: '#9CA3AF',
@@ -40,6 +38,7 @@ export const colorTokens = {
 };
 
 // Legacy export for backwards compatibility (will be removed after migration)
+// Note: minimumTrackTintColor has been consolidated with primary color
 export const colors = {
   primary: '#FFB606',
   background: '#1C1C1C',
@@ -48,7 +47,6 @@ export const colors = {
   textMuted: '#d8dee9',
   icon: '#E5E9F0',
   maximumTrackTintColor: 'rgba(129, 161, 193, .4)',
-  minimumTrackTintColor: '#FFB606',
   danger: '#FF5F56',
   success: '#8BD649',
   warning: '#FFCA8A',

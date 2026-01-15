@@ -68,7 +68,7 @@ export const BookListItem = memo(function BookListItem({
 
   return (
     <Pressable
-      android_ripple={{ color: withOpacity(colors.divider, 0.16) }}
+      android_ripple={{ color: withOpacity(themeColors.divider, 0.16) }}
       onPress={handlePress}
     >
       <View style={styles.bookItemContainer}>
@@ -85,14 +85,22 @@ export const BookListItem = memo(function BookListItem({
               numberOfLines={1}
               style={{
                 ...styles.bookTitleText,
-                color: isActiveBook ? withOpacity(themeColors.primary, 0.75) : themeColors.text,
+                color: isActiveBook
+                  ? withOpacity(themeColors.primary, 0.75)
+                  : themeColors.text,
               }}
             >
               {bookTitle}
             </Text>
 
             {author && (
-              <Text numberOfLines={1} style={[styles.bookAuthorText, { color: themeColors.textMuted }]}>
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.bookAuthorText,
+                  { color: themeColors.textMuted },
+                ]}
+              >
                 {author}
               </Text>
             )}

@@ -295,3 +295,20 @@ export async function setThemeMode(mode: string): Promise<void> {
     record.themeMode = mode;
   });
 }
+
+export async function getCustomPrimaryColor(): Promise<string | null> {
+  const settingsCollection = database.collections.get<Settings>('settings');
+  const settingsRecord = await settingsCollection.query().fetch();
+
+  if (settingsRecord.length > 0) {
+    const settings = settingsRecord[0];
+    return settings.customPrimaryColor;
+  }
+  return null;
+}
+
+export async function setCustomPrimaryColor(color: string | null): Promise<void> {
+  return updateSetting((record) => {
+    record.customPrimaryColor = color;
+  });
+}

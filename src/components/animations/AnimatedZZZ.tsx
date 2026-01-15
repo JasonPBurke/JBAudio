@@ -10,6 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { View } from 'react-native';
 import { colors } from '@/constants/tokens';
+import { useTheme } from '@/hooks/useTheme';
 
 type AnimatedZZZProps = {
   timerActiveValue: boolean;
@@ -19,6 +20,7 @@ const AnimatedZZZ = ({ timerActiveValue }: AnimatedZZZProps) => {
   const opacity1 = useSharedValue(0);
   const opacity2 = useSharedValue(0);
   const opacity3 = useSharedValue(0);
+  const { colors: themeColors } = useTheme();
 
   useEffect(() => {
     if (timerActiveValue) {
@@ -89,7 +91,7 @@ const AnimatedZZZ = ({ timerActiveValue }: AnimatedZZZProps) => {
             bottom: 14,
             left: 22,
             fontSize: 10,
-            color: colors.primary,
+            color: themeColors.primary,
           },
           animatedStyle1,
         ]}
@@ -103,7 +105,7 @@ const AnimatedZZZ = ({ timerActiveValue }: AnimatedZZZProps) => {
             bottom: 17,
             left: 28,
             fontSize: 11,
-            color: colors.primary,
+            color: themeColors.primary,
           },
           animatedStyle2,
         ]}

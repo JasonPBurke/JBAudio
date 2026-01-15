@@ -6,6 +6,7 @@ import { TimerPickerModal } from 'react-native-timer-picker';
 import { Settings, CirclePlus, CircleMinus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '@/hooks/useTheme';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { RefObject } from 'react';
 import {
@@ -26,7 +27,11 @@ const SleepTimerOptions = ({
   onOptimisticUpdate,
 }: {
   bottomSheetModalRef: RefObject<BottomSheetModal | null>;
-  onOptimisticUpdate?: (next: { active: boolean; endTimeMs: number | null; chapters: number | null }) => void;
+  onOptimisticUpdate?: (next: {
+    active: boolean;
+    endTimeMs: number | null;
+    chapters: number | null;
+  }) => void;
 }) => {
   const [showSlider, setShowSlider] = useState(false);
   const [customTimer, setCustomTimer] = useState({ hours: 0, minutes: 0 });
@@ -38,6 +43,7 @@ const SleepTimerOptions = ({
   const [maxChapters, setMaxChapters] = useState(0);
   const { bottom } = useSafeAreaInsets();
   const router = useRouter();
+  const { colors: themeColors, activeColorScheme } = useTheme();
 
   const db = useDatabase();
   useEffect(() => {
@@ -109,14 +115,22 @@ const SleepTimerOptions = ({
 
     if (activeTimerDuration === totalMilliseconds) {
       //! deactivate timer
-      onOptimisticUpdate?.({ active: false, endTimeMs: null, chapters: null });
+      onOptimisticUpdate?.({
+        active: false,
+        endTimeMs: null,
+        chapters: null,
+      });
       await updateTimerActive(false);
       await updateTimerDuration(null);
       await updateSleepTime(null);
       setActiveTimerDuration(null);
     } else {
       //! activate timer
-      onOptimisticUpdate?.({ active: true, endTimeMs: Date.now() + totalMilliseconds, chapters: null });
+      onOptimisticUpdate?.({
+        active: true,
+        endTimeMs: Date.now() + totalMilliseconds,
+        chapters: null,
+      });
       await updateTimerActive(true);
       await updateTimerDuration(totalMilliseconds);
       await updateSleepTime(Date.now() + totalMilliseconds);
@@ -138,7 +152,11 @@ const SleepTimerOptions = ({
       value.hours * 60 * 60 * 1000 + value.minutes * 60 * 1000;
     if (totalMilliseconds === 0) {
       //! deactivate timer
-      onOptimisticUpdate?.({ active: false, endTimeMs: null, chapters: null });
+      onOptimisticUpdate?.({
+        active: false,
+        endTimeMs: null,
+        chapters: null,
+      });
       await updateTimerActive(false);
       await updateTimerDuration(null);
       await updateSleepTime(null);
@@ -147,7 +165,11 @@ const SleepTimerOptions = ({
       setActiveTimerDuration(null);
     } else {
       //! activate timer
-      onOptimisticUpdate?.({ active: true, endTimeMs: Date.now() + totalMilliseconds, chapters: null });
+      onOptimisticUpdate?.({
+        active: true,
+        endTimeMs: Date.now() + totalMilliseconds,
+        chapters: null,
+      });
       await updateTimerActive(true);
       await updateTimerDuration(totalMilliseconds);
       await updateSleepTime(Date.now() + totalMilliseconds);
@@ -165,14 +187,22 @@ const SleepTimerOptions = ({
   const handleChapterTimerPress = async () => {
     if (chapterTimerActive) {
       //! deactivate timer
-      onOptimisticUpdate?.({ active: false, endTimeMs: null, chapters: null });
+      onOptimisticUpdate?.({
+        active: false,
+        endTimeMs: null,
+        chapters: null,
+      });
       await updateTimerActive(false);
       await updateTimerDuration(null);
       await updateChapterTimer(null);
       setActiveTimerDuration(null);
     } else {
       //! activate timer
-      onOptimisticUpdate?.({ active: true, endTimeMs: null, chapters: chaptersToEnd });
+      onOptimisticUpdate?.({
+        active: true,
+        endTimeMs: null,
+        chapters: chaptersToEnd,
+      });
       await updateTimerActive(true);
       await updateTimerDuration(null);
       await updateChapterTimer(chaptersToEnd);
@@ -190,11 +220,13 @@ const SleepTimerOptions = ({
   return (
     <View style={[styles.container, { marginBottom: bottom }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Timer Options</Text>
+        <Text style={[styles.title, { color: themeColors.textMuted }]}>
+          Timer Options
+        </Text>
         <TouchableOpacity>
           <Settings
             size={24}
-            color={colors.primary}
+            color={themeColors.primary}
             strokeWidth={1}
             absoluteStrokeWidth
             onPress={() => {
@@ -212,30 +244,54 @@ const SleepTimerOptions = ({
               styles.button,
               //! check in milliseconds
               activeTimerDuration === 15 * 60 * 1000 && styles.activeButton,
+              {
+                backgroundColor: themeColors.background,
+                borderColor: themeColors.textMuted,
+              },
             ]}
             onPress={() => handlePresetPress(15)}
           >
-            <Text style={styles.buttonText}>15 mins</Text>
+            <Text
+              style={[styles.buttonText, { color: themeColors.textMuted }]}
+            >
+              15 mins
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[
               styles.button,
               //! check in milliseconds
               activeTimerDuration === 30 * 60 * 1000 && styles.activeButton,
+              {
+                backgroundColor: themeColors.background,
+                borderColor: themeColors.textMuted,
+              },
             ]}
             onPress={() => handlePresetPress(30)}
           >
-            <Text style={styles.buttonText}>30 mins</Text>
+            <Text
+              style={[styles.buttonText, { color: themeColors.textMuted }]}
+            >
+              30 mins
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[
               styles.button,
               //! check in milliseconds
               activeTimerDuration === 45 * 60 * 1000 && styles.activeButton,
+              {
+                backgroundColor: themeColors.background,
+                borderColor: themeColors.textMuted,
+              },
             ]}
             onPress={() => handlePresetPress(45)}
           >
-            <Text style={styles.buttonText}>45 mins</Text>
+            <Text
+              style={[styles.buttonText, { color: themeColors.textMuted }]}
+            >
+              45 mins
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -245,20 +301,36 @@ const SleepTimerOptions = ({
               styles.button,
               //! check in milliseconds
               activeTimerDuration === 60 * 60 * 1000 && styles.activeButton,
+              {
+                backgroundColor: themeColors.background,
+                borderColor: themeColors.textMuted,
+              },
             ]}
             onPress={() => handlePresetPress(60)}
           >
-            <Text style={styles.buttonText}>1 hr</Text>
+            <Text
+              style={[styles.buttonText, { color: themeColors.textMuted }]}
+            >
+              1 hr
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[
               styles.button,
               //! check in milliseconds
               activeTimerDuration === 90 * 60 * 1000 && styles.activeButton,
+              {
+                backgroundColor: themeColors.background,
+                borderColor: themeColors.textMuted,
+              },
             ]}
             onPress={() => handlePresetPress(90)}
           >
-            <Text style={styles.buttonText}>1.5 hrs</Text>
+            <Text
+              style={[styles.buttonText, { color: themeColors.textMuted }]}
+            >
+              1.5 hrs
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[
@@ -266,10 +338,18 @@ const SleepTimerOptions = ({
               //! check in milliseconds
               activeTimerDuration === 120 * 60 * 1000 &&
                 styles.activeButton,
+              {
+                backgroundColor: themeColors.background,
+                borderColor: themeColors.textMuted,
+              },
             ]}
             onPress={() => handlePresetPress(120)}
           >
-            <Text style={styles.buttonText}>2 hrs</Text>
+            <Text
+              style={[styles.buttonText, { color: themeColors.textMuted }]}
+            >
+              2 hrs
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -280,6 +360,10 @@ const SleepTimerOptions = ({
               styles.button,
               styles.chapterEndButton,
               chapterTimerActive && styles.activeButton,
+              {
+                backgroundColor: themeColors.background,
+                borderColor: themeColors.textMuted,
+              },
             ]}
           >
             <TouchableOpacity
@@ -293,12 +377,18 @@ const SleepTimerOptions = ({
             >
               <CircleMinus
                 size={28}
-                color={chaptersToEnd === 0 ? withOpacity(colors.textMuted, 0.43) : colors.textMuted}
+                color={
+                  chaptersToEnd === 0
+                    ? withOpacity(themeColors.textMuted, 0.43)
+                    : themeColors.textMuted
+                }
                 strokeWidth={1.5}
                 absoluteStrokeWidth
               />
             </TouchableOpacity>
-            <Text style={styles.buttonText}>
+            <Text
+              style={[styles.buttonText, { color: themeColors.textMuted }]}
+            >
               {chaptersToEnd === maxChapters && maxChapters > 0
                 ? 'End of Book'
                 : chaptersToEnd > 0
@@ -318,8 +408,8 @@ const SleepTimerOptions = ({
                 size={28}
                 color={
                   chaptersToEnd >= maxChapters
-                    ? withOpacity(colors.textMuted, 0.43)
-                    : colors.textMuted
+                    ? withOpacity(themeColors.textMuted, 0.43)
+                    : themeColors.textMuted
                 }
                 strokeWidth={1.5}
                 absoluteStrokeWidth
@@ -335,6 +425,10 @@ const SleepTimerOptions = ({
               (customTimer.hours !== 0 || customTimer.minutes !== 0)
                 ? styles.activeButton
                 : null,
+              {
+                backgroundColor: themeColors.background,
+                borderColor: themeColors.textMuted,
+              },
             ]}
             onPress={() => {
               const totalCustomMinutes =
@@ -357,14 +451,20 @@ const SleepTimerOptions = ({
               style={[
                 styles.buttonText,
                 customTimer.hours === 0 && customTimer.minutes === 0
-                  ? { color: colors.textMuted }
-                  : { color: withOpacity(colors.textMuted, 0.43) },
+                  ? { color: themeColors.textMuted }
+                  : { color: withOpacity(themeColors.textMuted, 0.43) },
+                { color: themeColors.textMuted },
               ]}
             >
               Custom
             </Text>
             {customTimer.hours === 0 && customTimer.minutes === 0 ? null : (
-              <Text style={styles.buttonText}>
+              <Text
+                style={[
+                  styles.buttonText,
+                  { color: themeColors.textMuted },
+                ]}
+              >
                 {customTimer.hours}:
                 {customTimer.minutes < 10
                   ? `0${customTimer.minutes}`
@@ -382,20 +482,29 @@ const SleepTimerOptions = ({
         hideSeconds
         maximumHours={24} //! SET TO HOURS REMAINING IN QUEUE
         modalTitle='Custom Sleep Timer'
+        modalTitleProps={{ style: { color: themeColors.text } }}
         confirmButtonText='   Set   '
         LinearGradient={LinearGradient}
         onCancel={() => setShowSlider(false)}
         onConfirm={handleCustomTimerConfirm}
         styles={{
-          theme: 'dark',
+          theme: activeColorScheme,
           contentContainer: {
-            backgroundColor: colors.modalBackground,
+            backgroundColor: themeColors.modalBackground,
           },
+          backgroundColor: themeColors.modalBackground,
           button: { borderRadius: 4 },
-          cancelButton: { backgroundColor: colors.background },
+          cancelButton: {
+            backgroundColor: themeColors.background,
+            color: themeColors.text,
+          },
           confirmButton: {
-            backgroundColor: colors.background,
-            borderColor: colors.primary,
+            backgroundColor: themeColors.background,
+            borderColor: themeColors.primary,
+            color: themeColors.text,
+          },
+          modalTitle: {
+            color: themeColors.text,
           },
         }}
       />
@@ -421,7 +530,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   title: {
-    color: colors.textMuted,
+    // color: colors.textMuted,
     fontSize: 18,
     fontWeight: 'bold',
     marginStart: 12,
@@ -434,19 +543,19 @@ const styles = StyleSheet.create({
   },
   button: {
     flex: 1,
-    backgroundColor: colors.background,
+    // backgroundColor: colors.background,
     paddingVertical: 12,
     paddingHorizontal: 8,
     marginHorizontal: 15,
     borderRadius: 4,
-    borderColor: colors.textMuted,
+    // borderColor: colors.textMuted,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     // boxShadow: '1px 1px 6px rgba(158, 128, 28, 0.541)',
   },
   buttonText: {
-    color: colors.textMuted,
+    // color: colors.textMuted,
     alignSelf: 'center',
     fontSize: 16,
     fontWeight: 'bold',
@@ -460,11 +569,11 @@ const styles = StyleSheet.create({
   },
   customButton: {
     flex: 1, // Span one button
-    backgroundColor: colors.background,
+    // backgroundColor: colors.background,
     paddingHorizontal: 8,
     marginHorizontal: 15,
     borderRadius: 4,
-    borderColor: colors.textMuted,
+    // borderColor: colors.textMuted,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',

@@ -10,7 +10,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { Picker } from '@react-native-picker/picker';
 import { Info, ArrowLeft, Trash2 } from 'lucide-react-native';
-
+import { ColorPickerModal } from '@/components/ColorPicker';
 import { screenPadding } from '@/constants/tokens';
 import { withOpacity } from '@/helpers/colorUtils';
 import { useTheme } from '@/hooks/useTheme';
@@ -26,6 +26,7 @@ import {
   getLibraryFolders,
   removeLibraryFolder,
 } from '@/db/settingsQueries';
+import { shadowStyle } from 'react-native-fast-shadow';
 
 const SettingsScreen = ({ navigation }: any) => {
   const { colors: themeColors } = useTheme();
@@ -34,6 +35,7 @@ const SettingsScreen = ({ navigation }: any) => {
   const [maxFadeMinutes, setMaxFadeMinutes] = useState<number>(30);
   const [libraryFolders, setLibraryFolders] = useState<string[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [colorPickerVisible, setColorPickerVisible] = useState(false);
   const router = useRouter();
   const fadeOutDurationInfo =
     'When the sleep timer is activated, the audio will begin to fade out when the sleep time remaining is the same as the fade-out duration you have set.  If the fade-out duration exceeds the timer duration, fade-out will begin when the timer begins.';
@@ -126,6 +128,11 @@ const SettingsScreen = ({ navigation }: any) => {
       ]
     );
   };
+
+  const showColorPicker = () => {
+    setColorPickerVisible(true);
+  };
+
   return (
     <View
       style={[
@@ -147,7 +154,7 @@ const SettingsScreen = ({ navigation }: any) => {
           Settings
         </Text>
       </View>
-      <View>
+      <View style={{ gap: 8 }}>
         <Text
           style={[styles.sectionHeaderStyle, { color: themeColors.text }]}
         >
@@ -170,6 +177,20 @@ const SettingsScreen = ({ navigation }: any) => {
               setNumColumns(numberOfColumns);
             }}
           />
+        </View>
+        <View style={styles.rowStyle}>
+          <Text style={[styles.content, { color: themeColors.textMuted }]}>
+            Change Primary Color:
+          </Text>
+          <Pressable onPress={showColorPicker}>
+            <View
+              style={[
+                styles.showPrimaryColor,
+
+                { backgroundColor: themeColors.primary, borderRadius: 50 },
+              ]}
+            />
+          </Pressable>
         </View>
       </View>
       <View>
@@ -278,6 +299,10 @@ const SettingsScreen = ({ navigation }: any) => {
           </View>
         ))}
       </View>
+      <ColorPickerModal
+        isVisible={colorPickerVisible}
+        onClose={() => setColorPickerVisible(false)}
+      />
     </View>
   );
 };
@@ -328,5 +353,9 @@ const styles = StyleSheet.create({
   removeButtonText: {
     // color should be applied inline with theme colors
     fontWeight: '600',
+  },
+  showPrimaryColor: {
+    height: 30,
+    width: 30,
   },
 });

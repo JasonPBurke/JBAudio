@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import { StyleSheet, Text, View, ViewProps } from 'react-native';
 import { Slider } from 'react-native-awesome-slider';
 import {
@@ -9,24 +9,17 @@ import {
 import { runOnJS } from 'react-native-worklets';
 import TrackPlayer from 'react-native-track-player';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
-import { colors, fontSize } from '@/constants/tokens';
+import { fontSize } from '@/constants/tokens';
 import { defaultStyles, utilsStyles } from '@/styles';
 import { useProgressReanimated } from '@/hooks/useProgressReanimated';
 import { useCurrentChapterStable } from '@/hooks/useCurrentChapterStable';
+import { useTheme } from '@/hooks/useTheme';
 
 // Pre-defined styles to avoid inline object creation
 const bubbleContainerStyle = {
   justifyContent: 'center' as const,
   alignItems: 'center' as const,
   flex: 1,
-};
-
-const bubbleTextStyle = { color: colors.textMuted };
-
-// Slider theme object - created once outside component
-const sliderTheme = {
-  minimumTrackTintColor: colors.minimumTrackTintColor,
-  maximumTrackTintColor: colors.maximumTrackTintColor,
 };
 
 /**
@@ -41,6 +34,24 @@ const sliderTheme = {
  * 6. Uses shared values instead of refs for worklet access
  */
 export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
+  // Get theme colors
+  const { colors: themeColors } = useTheme();
+
+  // Memoized slider theme - responsive to theme changes
+  const sliderTheme = useMemo(
+    () => ({
+      minimumTrackTintColor: themeColors.primary,
+      maximumTrackTintColor: themeColors.maximumTrackTintColor,
+    }),
+    [themeColors.primary, themeColors.maximumTrackTintColor]
+  );
+
+  // Memoized bubble text style
+  const bubbleTextStyle = useMemo(
+    () => ({ color: themeColors.textMuted }),
+    [themeColors.textMuted]
+  );
+
   // Use Reanimated-based progress hook - updates shared values without React re-renders
   const { position, duration } = useProgressReanimated();
 
@@ -170,7 +181,7 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
         <Text style={bubbleTextStyle}>{bubbleElapsedTime}</Text>
       </View>
     ),
-    [bubbleElapsedTime]
+    [bubbleElapsedTime, bubbleTextStyle]
   );
 
   return (
@@ -189,8 +200,12 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
         onValueChange={handleValueChange}
       />
       <View style={styles.timeRow}>
-        <Text style={styles.timeText}>{trackElapsedTime}</Text>
-        <Text style={styles.timeText}>{trackRemainingTime}</Text>
+        <Text style={[styles.timeText, { color: themeColors.text }]}>
+          {trackElapsedTime}
+        </Text>
+        <Text style={[styles.timeText, { color: themeColors.text }]}>
+          {trackRemainingTime}
+        </Text>
       </View>
     </View>
   );
@@ -207,7 +222,6 @@ const styles = StyleSheet.create({
   },
   timeText: {
     ...defaultStyles.text,
-    color: colors.text,
     opacity: 0.75,
     fontSize: fontSize.xs,
     letterSpacing: 0.7,

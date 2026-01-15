@@ -7,6 +7,21 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      toVersion: 17,
+      steps: [
+        addColumns({
+          table: 'settings',
+          columns: [
+            {
+              name: 'custom_primary_color',
+              type: 'string',
+              isOptional: true,
+            },
+          ],
+        }),
+      ],
+    },
+    {
       toVersion: 16,
       steps: [
         addColumns({

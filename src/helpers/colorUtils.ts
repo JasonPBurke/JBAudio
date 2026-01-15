@@ -75,7 +75,6 @@ export const ensureReadable = (
 
   // Iteratively adjust text color
   for (let i = 0; i < maxIterations; i++) {
-    console.log('thinking', i);
     if (isDarkBg) {
       text = text.lighten(4); // Lighten for dark backgrounds
     } else {

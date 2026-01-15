@@ -18,6 +18,7 @@ export default class Settings extends Model {
   @field('skip_back_duration') skipBackDuration!: number | null;
   @field('skip_forward_duration') skipForwardDuration!: number | null;
   @text('theme_mode') themeMode!: string | null;
+  @text('custom_primary_color') customPrimaryColor!: string | null;
 
   // Getter to automatically parse the libraryPaths JSON string
   get parsedLibraryPaths(): string[] {

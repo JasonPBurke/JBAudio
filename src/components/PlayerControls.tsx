@@ -102,6 +102,7 @@ export function PlayPauseButton({
   top = 10,
   left = 10,
 }: PlayerButtonProps) {
+  const { colors: themeColors } = useTheme();
   const { playing } = useIsPlaying();
   const playButtonScale = useSharedValue(playing ? 0 : 1);
   const pauseButtonScale = useSharedValue(playing ? 1 : 0);
@@ -160,7 +161,7 @@ export function PlayPauseButton({
       <Animated.View style={animatedPlayButtonStyle}>
         <Play
           size={iconSize}
-          color={colors.primary}
+          color={themeColors.primary}
           strokeWidth={1.5}
           absoluteStrokeWidth
         />
@@ -168,7 +169,7 @@ export function PlayPauseButton({
       <Animated.View style={animatedPauseButtonStyle}>
         <Pause
           size={iconSize}
-          color={colors.primary}
+          color={themeColors.primary}
           strokeWidth={1.5}
           absoluteStrokeWidth
         />
@@ -536,7 +537,7 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
       <Animated.View style={animatedBellStyle}>
         <Bell
           size={iconSize}
-          color={uiActive ? colors.primary : colors.icon}
+          color={uiActive ? themeColors.primary : themeColors.lightIcon}
           strokeWidth={1.5}
           absoluteStrokeWidth
         />

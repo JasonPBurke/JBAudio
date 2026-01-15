@@ -115,7 +115,9 @@ export const BookGridItem = memo(function BookGridItem({
   const bookTitleStyle = useMemo(
     () => ({
       ...styles.bookTitleText,
-      color: isActiveBook ? withOpacity(themeColors.primary, 0.75) : themeColors.text,
+      color: isActiveBook
+        ? withOpacity(themeColors.primary, 0.75)
+        : themeColors.text,
       fontSize:
         flowDirection === 'row'
           ? fontSize.xs
@@ -182,7 +184,10 @@ export const BookGridItem = memo(function BookGridItem({
                           : 17,
                   bottom: flowDirection === 'row' ? 2 : 12,
                   borderRadius: 4,
-                  backgroundColor: withOpacity(colors.background, 0.59),
+                  backgroundColor: withOpacity(
+                    themeColors.background,
+                    0.59
+                  ),
                   justifyContent: 'center',
                   alignItems: 'center',
                 },
@@ -204,7 +209,7 @@ export const BookGridItem = memo(function BookGridItem({
                 ]}
                 name={'LineScaleParty'}
                 // animationSpeedMultiplier={0.5}
-                color={colors.primary}
+                color={themeColors.primary}
               />
             </View>
           ) : (
@@ -217,7 +222,10 @@ export const BookGridItem = memo(function BookGridItem({
                   bottom: flowDirection === 'row' ? 2 : 12,
                   padding: 6,
                   borderRadius: 4,
-                  backgroundColor: withOpacity(colors.background, 0.59),
+                  backgroundColor: withOpacity(
+                    themeColors.background,
+                    0.59
+                  ),
                 },
               ]}
               hitSlop={10}
@@ -232,7 +240,7 @@ export const BookGridItem = memo(function BookGridItem({
                         ? 28
                         : 22
                 } //* 24 is the 3 column size
-                color={colors.icon}
+                color={themeColors.icon}
                 strokeWidth={1}
                 absoluteStrokeWidth
               />

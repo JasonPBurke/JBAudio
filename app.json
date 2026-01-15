@@ -4,7 +4,7 @@
     "slug": "JBAudio",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/music-ring-icon.svg",
     "scheme": "sonicbooks",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
@@ -19,7 +19,7 @@
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/music-ring-icon.svg",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
