@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
-import { View, ActivityIndicator } from 'react-native';
 
 /**
  * This route handles deep links from TrackPlayer notification taps.
