@@ -198,9 +198,21 @@ export async function getTimerSettings() {
       timerChapters: settings.timerChapters,
       sleepTime: settings.sleepTime,
       fadeoutDuration: settings.timerFadeoutDuration,
+      bedtimeModeEnabled: settings.bedtimeModeEnabled === true,
+      bedtimeStart: settings.bedtimeStart,
+      bedtimeEnd: settings.bedtimeEnd,
     };
   }
-  return { timerDuration: null, timerActive: false };
+  return {
+    timerDuration: null,
+    timerActive: false,
+    timerChapters: null,
+    sleepTime: null,
+    fadeoutDuration: null,
+    bedtimeModeEnabled: false,
+    bedtimeStart: null,
+    bedtimeEnd: null,
+  };
 }
 
 export async function updateCurrentBookArtworkUri(uri: string | null) {
@@ -263,7 +275,10 @@ export const removeLibraryFolder = async (folderPath: string) => {
     const booksToDelete = [];
     for (const book of allBooks) {
       const chapters = await (book.chapters as any).fetch();
-      if (chapters.length > 0 && chapters[0].url.startsWith(absoluteFolderPath)) {
+      if (
+        chapters.length > 0 &&
+        chapters[0].url.startsWith(absoluteFolderPath)
+      ) {
         booksToDelete.push(book);
       }
     }
@@ -307,8 +322,51 @@ export async function getCustomPrimaryColor(): Promise<string | null> {
   return null;
 }
 
-export async function setCustomPrimaryColor(color: string | null): Promise<void> {
+export async function setCustomPrimaryColor(
+  color: string | null
+): Promise<void> {
   return updateSetting((record) => {
     record.customPrimaryColor = color;
+  });
+}
+
+export async function getBedtimeSettings() {
+  const settingsCollection = database.collections.get<Settings>('settings');
+  const settingsRecord = await settingsCollection.query().fetch();
+
+  if (settingsRecord.length > 0) {
+    const settings = settingsRecord[0];
+    return {
+      bedtimeStart: settings.bedtimeStart,
+      bedtimeEnd: settings.bedtimeEnd,
+      bedtimeModeEnabled: settings.bedtimeModeEnabled === true,
+    };
+  }
+  return { bedtimeStart: null, bedtimeEnd: null, bedtimeModeEnabled: false };
+}
+
+export async function getBedtimeModeEnabled(): Promise<boolean> {
+  const settingsCollection = database.collections.get<Settings>('settings');
+  const settingsRecord = await settingsCollection.query().fetch();
+
+  if (settingsRecord.length > 0) {
+    return settingsRecord[0].bedtimeModeEnabled === true;
+  }
+  return false;
+}
+
+export async function setBedtimeModeEnabled(enabled: boolean): Promise<void> {
+  return updateSetting((record) => {
+    record.bedtimeModeEnabled = enabled;
+  });
+}
+
+export async function setBedtimeSettings(
+  bedtimeStart: number | null,
+  bedtimeEnd: number | null
+): Promise<void> {
+  return updateSetting((record) => {
+    record.bedtimeStart = bedtimeStart;
+    record.bedtimeEnd = bedtimeEnd;
   });
 }

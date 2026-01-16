@@ -19,6 +19,10 @@ export default class Settings extends Model {
   @field('skip_forward_duration') skipForwardDuration!: number | null;
   @text('theme_mode') themeMode!: string | null;
   @text('custom_primary_color') customPrimaryColor!: string | null;
+  @text('bedtime') bedtime!: number | null; // DEPRECATED
+  @field('bedtime_start') bedtimeStart!: number | null;
+  @field('bedtime_end') bedtimeEnd!: number | null;
+  @field('bedtime_mode_enabled') bedtimeModeEnabled!: boolean | null;
 
   // Getter to automatically parse the libraryPaths JSON string
   get parsedLibraryPaths(): string[] {

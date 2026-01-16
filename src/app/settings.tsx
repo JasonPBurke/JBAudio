@@ -6,7 +6,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
+import { useSharedValue } from 'react-native-reanimated';
 import { useFocusEffect } from '@react-navigation/native';
 import { Picker } from '@react-native-picker/picker';
 import { Info, ArrowLeft, Trash2 } from 'lucide-react-native';
@@ -17,6 +18,7 @@ import { useTheme } from '@/hooks/useTheme';
 import SegmentedControl from '@react-native-segmented-control/segmented-control';
 import { useRouter } from 'expo-router';
 import InfoDialogPopup from '@/modals/InfoDialogPopup';
+import ToggleSwitch from '@/components/animations/ToggleSwitch';
 import { useSettingsStore } from '@/store/settingsStore';
 import { refreshLibraryStore } from '@/store/library';
 import {
@@ -25,8 +27,19 @@ import {
   getTimerSettings,
   getLibraryFolders,
   removeLibraryFolder,
+  getBedtimeSettings,
+  setBedtimeSettings,
+  setBedtimeModeEnabled,
+  updateTimerActive,
+  updateSleepTime,
 } from '@/db/settingsQueries';
-import { shadowStyle } from 'react-native-fast-shadow';
+import RNDateTimePicker from '@react-native-community/datetimepicker';
+import TrackPlayer, { State } from 'react-native-track-player';
+import {
+  isWithinBedtimeWindow,
+  dateToMinutesSinceMidnight,
+  minutesSinceMidnightToDate,
+} from '@/helpers/bedtimeUtils';
 
 const SettingsScreen = ({ navigation }: any) => {
   const { colors: themeColors } = useTheme();
@@ -36,6 +49,16 @@ const SettingsScreen = ({ navigation }: any) => {
   const [libraryFolders, setLibraryFolders] = useState<string[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
+  const bedtimeDefaultStart = new Date();
+  bedtimeDefaultStart.setHours(0, 0, 0, 0);
+  const [bedtimeStartValue, setBedtimeStartValue] = useState<Date>(
+    new Date()
+  );
+  const [bedtimeEndValue, setBedtimeEndValue] = useState<Date>(new Date());
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
+  const [bedtimeModeEnabled, setBedtimeModeEnabledLocal] = useState(false);
+  const [hasTimerConfigured, setHasTimerConfigured] = useState(false);
   const router = useRouter();
   const fadeOutDurationInfo =
     'When the sleep timer is activated, the audio will begin to fade out when the sleep time remaining is the same as the fade-out duration you have set.  If the fade-out duration exceeds the timer duration, fade-out will begin when the timer begins.';
@@ -65,10 +88,10 @@ const SettingsScreen = ({ navigation }: any) => {
               : null;
 
           // Get current timer settings to derive cap (minutes)
-          const { timerDuration } = await getTimerSettings();
+          const timerSettings = await getTimerSettings();
           const timerDurationMinutes =
-            timerDuration !== null
-              ? Math.floor(timerDuration / 60000)
+            timerSettings.timerDuration !== null
+              ? Math.floor(timerSettings.timerDuration / 60000)
               : null;
 
           // Compute cap: min(timerDurationMinutes, 30); default 30 when timer not set
@@ -91,8 +114,37 @@ const SettingsScreen = ({ navigation }: any) => {
           } else if (isActive) {
             setFadeoutDuration('');
           }
+
+          // Check if timer is configured
+          if (isActive) {
+            const hasTimer =
+              timerSettings.timerDuration !== null ||
+              timerSettings.timerChapters !== null;
+            setHasTimerConfigured(hasTimer);
+          }
         } catch (error) {
           console.error('Failed to fetch fadeout/timer settings:', error);
+        }
+
+        // Fetch bedtime settings
+        try {
+          const bedtimeSettings = await getBedtimeSettings();
+          if (isActive) {
+            if (bedtimeSettings.bedtimeStart !== null) {
+              setBedtimeStartValue(
+                minutesSinceMidnightToDate(bedtimeSettings.bedtimeStart)
+              );
+            }
+            if (bedtimeSettings.bedtimeEnd !== null) {
+              setBedtimeEndValue(
+                minutesSinceMidnightToDate(bedtimeSettings.bedtimeEnd)
+              );
+            }
+            setBedtimeModeEnabledLocal(bedtimeSettings.bedtimeModeEnabled);
+            enabledValue.value = bedtimeSettings.bedtimeModeEnabled ? 1 : 0;
+          }
+        } catch (error) {
+          console.error('Failed to fetch bedtime settings:', error);
         }
       };
       fetchSettingsState();
@@ -131,6 +183,45 @@ const SettingsScreen = ({ navigation }: any) => {
 
   const showColorPicker = () => {
     setColorPickerVisible(true);
+  };
+
+  const enabledValue = useSharedValue(0);
+  const toggleSwitch = async () => {
+    // Check if timer is configured
+    if (!hasTimerConfigured && !bedtimeModeEnabled) {
+      Alert.alert(
+        'No Timer Configured',
+        'Please configure a sleep timer duration or chapter count before enabling Bedtime Mode.',
+        [{ text: 'OK', style: 'default' }]
+      );
+      return;
+    }
+
+    const newValue = !bedtimeModeEnabled;
+
+    // Update UI immediately
+    enabledValue.value = newValue ? 1 : 0;
+    setBedtimeModeEnabledLocal(newValue);
+
+    // Persist to database
+    await setBedtimeModeEnabled(newValue);
+
+    // If enabling within window AND audio playing, activate timer immediately
+    if (newValue) {
+      const { bedtimeStart, bedtimeEnd } = await getBedtimeSettings();
+      if (isWithinBedtimeWindow(bedtimeStart, bedtimeEnd)) {
+        const playerState = await TrackPlayer.getPlaybackState();
+        if (playerState.state === State.Playing) {
+          const { timerDuration, timerChapters } = await getTimerSettings();
+          if (timerDuration !== null) {
+            await updateTimerActive(true);
+            await updateSleepTime(Date.now() + timerDuration);
+          } else if (timerChapters !== null) {
+            await updateTimerActive(true);
+          }
+        }
+      }
+    }
   };
 
   return (
@@ -254,6 +345,97 @@ const SettingsScreen = ({ navigation }: any) => {
           title='Fadeout Duration'
           message={fadeOutDurationInfo}
         />
+        <View
+          style={[styles.rowStyle, !hasTimerConfigured && { opacity: 0.5 }]}
+        >
+          <Text style={[styles.content, { color: themeColors.textMuted }]}>
+            Toggle Bedtime Mode
+          </Text>
+          <ToggleSwitch
+            value={enabledValue}
+            onPress={
+              hasTimerConfigured
+                ? toggleSwitch
+                : () => {
+                    Alert.alert(
+                      'No Timer Configured',
+                      'Please configure a sleep timer before enabling Bedtime Mode.',
+                      [{ text: 'OK' }]
+                    );
+                  }
+            }
+            style={{ width: 72, height: 36, padding: 5 }}
+            trackColors={{
+              on: themeColors.primary,
+              off: themeColors.overlay,
+            }}
+          />
+        </View>
+        <Pressable
+          onPress={() => setShowStartPicker(true)}
+          style={styles.rowStyle}
+        >
+          <Text style={[styles.content, { color: themeColors.textMuted }]}>
+            Bedtime Start
+          </Text>
+          <Text style={[styles.content, { color: themeColors.primary }]}>
+            {bedtimeStartValue.toLocaleTimeString('en-US', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true,
+            })}
+          </Text>
+        </Pressable>
+        {showStartPicker && (
+          <RNDateTimePicker
+            value={bedtimeStartValue}
+            mode='time'
+            display='spinner'
+            onChange={(event, selectedDate) => {
+              if (event.type === 'set' && selectedDate) {
+                setBedtimeStartValue(selectedDate);
+                const startMinutes =
+                  dateToMinutesSinceMidnight(selectedDate);
+                const endMinutes =
+                  dateToMinutesSinceMidnight(bedtimeEndValue);
+                setBedtimeSettings(startMinutes, endMinutes);
+              }
+              setShowStartPicker(false);
+            }}
+          />
+        )}
+        <Pressable
+          onPress={() => setShowEndPicker(true)}
+          style={styles.rowStyle}
+        >
+          <Text style={[styles.content, { color: themeColors.textMuted }]}>
+            Bedtime End
+          </Text>
+          <Text style={[styles.content, { color: themeColors.primary }]}>
+            {bedtimeEndValue.toLocaleTimeString('en-US', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true,
+            })}
+          </Text>
+        </Pressable>
+        {showEndPicker && (
+          <RNDateTimePicker
+            value={bedtimeEndValue}
+            mode='time'
+            display='spinner'
+            onChange={(event, selectedDate) => {
+              if (event.type === 'set' && selectedDate) {
+                setBedtimeEndValue(selectedDate);
+                const startMinutes =
+                  dateToMinutesSinceMidnight(bedtimeStartValue);
+                const endMinutes = dateToMinutesSinceMidnight(selectedDate);
+                setBedtimeSettings(startMinutes, endMinutes);
+              }
+              setShowEndPicker(false);
+            }}
+          />
+        )}
       </View>
       <View>
         <Text

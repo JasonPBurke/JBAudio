@@ -32,10 +32,10 @@ export function useObserveSettings(database: any): SettingsSlice {
         typeof (query as any).observeWithColumns === 'function';
       const observable = hasObserveWithColumns
         ? (query as any).observeWithColumns([
-            'timerActive',
-            'timerDuration',
-            'timerChapters',
-            'sleepTime',
+            'timer_active',
+            'timer_duration',
+            'timer_chapters',
+            'sleep_time',
           ])
         : query.observe();
 

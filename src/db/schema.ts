@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 17,
+  version: 20,
   tables: [
     tableSchema({
       name: 'authors',
@@ -154,6 +154,26 @@ export default appSchema({
         {
           name: 'custom_primary_color',
           type: 'string',
+          isOptional: true,
+        },
+        {
+          name: 'bedtime',
+          type: 'number',
+          isOptional: true,
+        },
+        {
+          name: 'bedtime_start',
+          type: 'number',
+          isOptional: true,
+        },
+        {
+          name: 'bedtime_end',
+          type: 'number',
+          isOptional: true,
+        },
+        {
+          name: 'bedtime_mode_enabled',
+          type: 'boolean',
           isOptional: true,
         },
       ],

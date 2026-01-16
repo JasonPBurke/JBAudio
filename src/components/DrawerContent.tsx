@@ -15,6 +15,9 @@ import {
   ChartNoAxesCombined,
   FileQuestionMark,
   TestTube,
+  PencilRuler,
+  Timer,
+  CassetteTape,
 } from 'lucide-react-native';
 import { colors } from '@/constants/tokens';
 import { scanLibrary } from '@/helpers/scanLibrary';
@@ -103,7 +106,7 @@ const DrawerContent = (props: Props) => {
         ]}
       />
       <DrawerItem
-        label={'Library Folder'}
+        label={'Manage Library'}
         onPress={async () => {
           props.navigation.closeDrawer();
           await directoryPicker();
@@ -158,6 +161,46 @@ const DrawerContent = (props: Props) => {
         onPress={handleSettingsPress}
         icon={() => (
           <Settings size={24} color={themeColors.text} strokeWidth={1} />
+        )}
+        labelStyle={[styles.labelStyle, { color: themeColors.text }]}
+        style={[
+          styles.drawerItem,
+          { borderBottomColor: themeColors.divider },
+        ]}
+      />
+      <DrawerItem
+        label={'General'}
+        onPress={handleSettingsPress}
+        icon={() => (
+          <PencilRuler size={24} color={themeColors.text} strokeWidth={1} />
+        )}
+        labelStyle={[styles.labelStyle, { color: themeColors.text }]}
+        style={[
+          styles.drawerItem,
+          { borderBottomColor: themeColors.divider },
+        ]}
+      />
+      <DrawerItem
+        label={'Timer'}
+        onPress={handleSettingsPress}
+        icon={() => (
+          <Timer size={24} color={themeColors.text} strokeWidth={1} />
+        )}
+        labelStyle={[styles.labelStyle, { color: themeColors.text }]}
+        style={[
+          styles.drawerItem,
+          { borderBottomColor: themeColors.divider },
+        ]}
+      />
+      <DrawerItem
+        label={'Player'}
+        onPress={handleSettingsPress}
+        icon={() => (
+          <CassetteTape
+            size={24}
+            color={themeColors.text}
+            strokeWidth={1}
+          />
         )}
         labelStyle={[styles.labelStyle, { color: themeColors.text }]}
         style={[

@@ -7,6 +7,56 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      toVersion: 20,
+      steps: [
+        addColumns({
+          table: 'settings',
+          columns: [
+            {
+              name: 'bedtime_mode_enabled',
+              type: 'boolean',
+              isOptional: true,
+            },
+          ],
+        }),
+      ],
+    },
+    {
+      toVersion: 19,
+      steps: [
+        addColumns({
+          table: 'settings',
+          columns: [
+            {
+              name: 'bedtime_start',
+              type: 'number',
+              isOptional: true,
+            },
+            {
+              name: 'bedtime_end',
+              type: 'number',
+              isOptional: true,
+            },
+          ],
+        }),
+      ],
+    },
+    {
+      toVersion: 18,
+      steps: [
+        addColumns({
+          table: 'settings',
+          columns: [
+            {
+              name: 'bedtime',
+              type: 'number',
+              isOptional: true,
+            },
+          ],
+        }),
+      ],
+    },
+    {
       toVersion: 17,
       steps: [
         addColumns({

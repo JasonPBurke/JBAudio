@@ -5,12 +5,12 @@ import {
   updateSleepTime,
   updateTimerActive,
   updateChapterTimer,
-  getTimerFadeoutDuration,
 } from '@/db/settingsQueries';
 import {
   updateChapterProgressInDB,
   updateChapterIndexInDB,
 } from '@/db/chapterQueries';
+import { isWithinBedtimeWindow } from '@/helpers/bedtimeUtils';
 
 const { setPlaybackIndex, setPlaybackProgress } =
   useLibraryStore.getState();
@@ -29,6 +29,12 @@ let cachedTimer = {
   timerActive: false,
   fadeoutDuration: 0,
   lastRefreshedAt: 0,
+  // Bedtime fields
+  bedtimeModeEnabled: false,
+  bedtimeStart: null,
+  bedtimeEnd: null,
+  timerDuration: null,
+  timerChapters: null,
 };
 
 // Refresh interval for cached settings (ms)
@@ -76,12 +82,19 @@ export default module.exports = async function () {
         !cachedTimer.lastRefreshedAt ||
         nowTs - cachedTimer.lastRefreshedAt >= SETTINGS_REFRESH_INTERVAL
       ) {
-        const { sleepTime, timerActive } = await getTimerSettings();
-        const fadeoutDuration = await getTimerFadeoutDuration();
-        cachedTimer.sleepTime = sleepTime;
-        cachedTimer.timerActive = !!timerActive;
+        const timerSettings = await getTimerSettings();
+        cachedTimer.sleepTime = timerSettings.sleepTime;
+        cachedTimer.timerActive = !!timerSettings.timerActive;
         cachedTimer.fadeoutDuration =
-          typeof fadeoutDuration === 'number' ? fadeoutDuration : 0;
+          typeof timerSettings.fadeoutDuration === 'number'
+            ? timerSettings.fadeoutDuration
+            : 0;
+        // Bedtime fields
+        cachedTimer.bedtimeModeEnabled = !!timerSettings.bedtimeModeEnabled;
+        cachedTimer.bedtimeStart = timerSettings.bedtimeStart;
+        cachedTimer.bedtimeEnd = timerSettings.bedtimeEnd;
+        cachedTimer.timerDuration = timerSettings.timerDuration;
+        cachedTimer.timerChapters = timerSettings.timerChapters;
         cachedTimer.lastRefreshedAt = nowTs;
       }
 
@@ -128,6 +141,10 @@ export default module.exports = async function () {
         typeof fadeoutDuration === 'number' &&
         fadeoutDuration > 0
       ) {
+        //! moved from after this first if statement
+        const now = Date.now();
+        const beginFadeout = sleepTime - fadeoutDuration;
+
         if (now < beginFadeout && fadeState.isFading) {
           // If the timer is reset to be longer than the fadeout,
           // and a fade was already in progress, reset volume to 1.
@@ -136,8 +153,6 @@ export default module.exports = async function () {
           fadeState.lastAppliedVolume = 1;
           fadeState.baselineVolume = 1;
         }
-        const now = Date.now();
-        const beginFadeout = sleepTime - fadeoutDuration;
 
         if (now < beginFadeout) {
           // Before fade window: reset fade state and don't force user volume
@@ -202,6 +217,34 @@ export default module.exports = async function () {
     if (event.state === State.Stopped) {
       await updateChapterTimer(null);
       updateTimerActive(false);
+    }
+
+    // Bedtime mode activation on play
+    if (event.state === State.Playing) {
+      const timerSettings = await getTimerSettings();
+
+      // Check all conditions for bedtime mode activation:
+      // 1. Bedtime mode is enabled
+      // 2. Timer is not already active
+      // 3. Current time is within bedtime window
+      // 4. A timer duration or chapter count is configured
+      if (
+        timerSettings.bedtimeModeEnabled &&
+        !timerSettings.timerActive &&
+        isWithinBedtimeWindow(
+          timerSettings.bedtimeStart,
+          timerSettings.bedtimeEnd
+        )
+      ) {
+        // Activate the timer based on what's configured
+        if (timerSettings.timerDuration !== null) {
+          await updateTimerActive(true);
+          await updateSleepTime(Date.now() + timerSettings.timerDuration);
+        } else if (timerSettings.timerChapters !== null) {
+          await updateTimerActive(true);
+          // Chapter timer doesn't need sleepTime
+        }
+      }
     }
   });
 
