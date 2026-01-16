@@ -104,7 +104,7 @@ const RootNavigation = () => {
     <BottomSheetModalProvider>
       <Stack
         screenOptions={{
-          animation: 'fade_from_bottom',
+          // animation: 'fade_from_bottom',
           headerShown: false,
         }}
       >
@@ -113,15 +113,16 @@ const RootNavigation = () => {
           name='player'
           options={{
             presentation: 'formSheet',
+            animation: 'slide_from_bottom',
             sheetCornerRadius: 15,
           }}
         />
         <Stack.Screen
           name='titleDetails'
           options={{
-            sheetCornerRadius: 15,
             presentation: 'formSheet',
             animation: 'slide_from_bottom',
+            sheetCornerRadius: 15,
           }}
         />
         <Stack.Screen
@@ -137,12 +138,13 @@ const RootNavigation = () => {
           name='chapterList'
           options={{
             presentation: 'transparentModal',
-            animation: 'slide_from_bottom',
-            // sheetCornerRadius: 15,
-            sheetAllowedDetents: [0.7],
-            sheetGrabberVisible: false,
-            sheetExpandsWhenScrolledToEdge: false,
-            gestureEnabled: false,
+            animation: 'fade',
+          }}
+        />
+        <Stack.Screen
+          name='(settings)'
+          options={{
+            animation: 'slide_from_left',
           }}
         />
       </Stack>

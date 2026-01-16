@@ -231,7 +231,7 @@ const SleepTimerOptions = ({
             absoluteStrokeWidth
             onPress={() => {
               bottomSheetModalRef.current?.close();
-              router.navigate('/settings');
+              router.navigate('/timer');
             }}
           />
         </TouchableOpacity>

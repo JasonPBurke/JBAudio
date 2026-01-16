@@ -21,9 +21,9 @@ import {
 } from 'lucide-react-native';
 import { colors } from '@/constants/tokens';
 import { scanLibrary } from '@/helpers/scanLibrary';
-import { directoryPicker } from '@/helpers/directoryPicker';
 import { useThemeStore } from '@/store/themeStore';
 import { useTheme } from '@/hooks/useTheme';
+import { useRouter } from 'expo-router';
 
 type Props = DrawerContentComponentProps;
 
@@ -32,6 +32,7 @@ const DrawerContent = (props: Props) => {
   const mode = useThemeStore((state) => state.mode);
   const activeScheme = useThemeStore((state) => state.activeColorScheme);
   const setMode = useThemeStore((state) => state.setMode);
+  const router = useRouter();
 
   const handleThemeToggle = () => {
     if (mode === 'system') {
@@ -43,9 +44,20 @@ const DrawerContent = (props: Props) => {
     }
   };
 
-  const handleSettingsPress = () => {
-    // props.navigation.closeDrawer(); //? could leave the drawer open
-    props.navigation.navigate('settings');
+  const handleGeneralPress = () => {
+    router.navigate('/general');
+  };
+
+  const handleTimerPress = () => {
+    router.navigate('/timer');
+  };
+
+  const handlePlayerPress = () => {
+    router.navigate('/playerOptions');
+  };
+
+  const handleLibraryPress = () => {
+    router.navigate('/library');
   };
 
   const handleTestScreenPress = () => {
@@ -107,10 +119,7 @@ const DrawerContent = (props: Props) => {
       />
       <DrawerItem
         label={'Manage Library'}
-        onPress={async () => {
-          props.navigation.closeDrawer();
-          await directoryPicker();
-        }}
+        onPress={handleLibraryPress}
         icon={() => (
           <BookOpenText
             size={24}
@@ -156,9 +165,9 @@ const DrawerContent = (props: Props) => {
           { borderBottomColor: themeColors.divider, opacity: 0.4 },
         ]}
       />
-      <DrawerItem
+      {/* <DrawerItem
         label={'Settings'}
-        onPress={handleSettingsPress}
+        onPress={handleGeneralPress}
         icon={() => (
           <Settings size={24} color={themeColors.text} strokeWidth={1} />
         )}
@@ -167,10 +176,10 @@ const DrawerContent = (props: Props) => {
           styles.drawerItem,
           { borderBottomColor: themeColors.divider },
         ]}
-      />
+      /> */}
       <DrawerItem
-        label={'General'}
-        onPress={handleSettingsPress}
+        label={'Appearance'}
+        onPress={handleGeneralPress}
         icon={() => (
           <PencilRuler size={24} color={themeColors.text} strokeWidth={1} />
         )}
@@ -182,7 +191,7 @@ const DrawerContent = (props: Props) => {
       />
       <DrawerItem
         label={'Timer'}
-        onPress={handleSettingsPress}
+        onPress={handleTimerPress}
         icon={() => (
           <Timer size={24} color={themeColors.text} strokeWidth={1} />
         )}
@@ -193,8 +202,8 @@ const DrawerContent = (props: Props) => {
         ]}
       />
       <DrawerItem
-        label={'Player'}
-        onPress={handleSettingsPress}
+        label={'Player Options'}
+        onPress={handlePlayerPress}
         icon={() => (
           <CassetteTape
             size={24}
@@ -205,7 +214,7 @@ const DrawerContent = (props: Props) => {
         labelStyle={[styles.labelStyle, { color: themeColors.text }]}
         style={[
           styles.drawerItem,
-          { borderBottomColor: themeColors.divider },
+          { borderBottomColor: themeColors.divider, opacity: 0.4 },
         ]}
       />
     </DrawerContentScrollView>
