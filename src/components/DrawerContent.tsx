@@ -60,6 +60,14 @@ const DrawerContent = (props: Props) => {
     router.navigate('/library');
   };
 
+  const handleFaqPress = () => {
+    router.navigate('/faq');
+  };
+
+  const handleBookStatsPress = () => {
+    router.navigate('/bookStats');
+  };
+
   const handleTestScreenPress = () => {
     props.navigation.navigate('testScreen');
   };
@@ -135,7 +143,7 @@ const DrawerContent = (props: Props) => {
       />
       <DrawerItem
         label={'FAQ'}
-        onPress={() => {}}
+        onPress={handleFaqPress}
         icon={() => (
           <FileQuestionMark
             size={24}
@@ -151,7 +159,7 @@ const DrawerContent = (props: Props) => {
       />
       <DrawerItem
         label={'Book Stats'}
-        onPress={() => {}}
+        onPress={handleBookStatsPress}
         icon={() => (
           <ChartNoAxesCombined
             size={24}

@@ -1,11 +1,11 @@
 import { StyleSheet, Text, View, ScrollView } from 'react-native';
-import { AudioWaveform } from 'lucide-react-native';
+import { BarChart3 } from 'lucide-react-native';
 import SettingsHeader from '@/components/SettingsHeader';
 import SettingsCard from '@/components/settings/SettingsCard';
 import { screenPadding } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 
-const PlayerSettingsScreen = () => {
+const BookStatsScreen = () => {
   const { colors: themeColors } = useTheme();
 
   return (
@@ -15,14 +15,14 @@ const PlayerSettingsScreen = () => {
         { backgroundColor: themeColors.modalBackground },
       ]}
     >
-      <SettingsHeader title='Player' />
+      <SettingsHeader title='Book Stats' />
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <SettingsCard title='Player Options' icon={AudioWaveform}>
+        <SettingsCard title='Statistics' icon={BarChart3}>
           <View style={styles.placeholderContent}>
             <Text
               style={[
@@ -30,7 +30,7 @@ const PlayerSettingsScreen = () => {
                 { color: themeColors.textMuted },
               ]}
             >
-              Player settings coming soon
+              Book statistics coming soon
             </Text>
             <Text
               style={[
@@ -38,8 +38,8 @@ const PlayerSettingsScreen = () => {
                 { color: themeColors.textMuted },
               ]}
             >
-              Future options may include playback speed, skip intervals, and
-              audio quality settings.
+              Track your listening time, completed books, and reading
+              progress.
             </Text>
           </View>
         </SettingsCard>
@@ -48,7 +48,7 @@ const PlayerSettingsScreen = () => {
   );
 };
 
-export default PlayerSettingsScreen;
+export default BookStatsScreen;
 
 const styles = StyleSheet.create({
   container: {

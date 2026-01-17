@@ -1,10 +1,20 @@
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  ScrollView,
+} from 'react-native';
 import { useState, useCallback } from 'react';
 import { useSharedValue } from 'react-native-reanimated';
 import { useFocusEffect } from '@react-navigation/native';
 import { Picker } from '@react-native-picker/picker';
-import { Info } from 'lucide-react-native';
+import { Info, Clock, Sunrise, Sunset, Moon } from 'lucide-react-native';
 import SettingsHeader from '@/components/SettingsHeader';
+import SettingsCard from '@/components/settings/SettingsCard';
+import CompactSettingsRow from '@/components/settings/CompactSettingsRow';
+import SettingsGrid from '@/components/settings/SettingsGrid';
 import { screenPadding } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import InfoDialogPopup from '@/modals/InfoDialogPopup';
@@ -32,7 +42,9 @@ const TimerSettingsScreen = () => {
   const [fadeoutDuration, setFadeoutDuration] = useState('10');
   const [maxFadeMinutes, setMaxFadeMinutes] = useState<number>(30);
   const [modalVisible, setModalVisible] = useState(false);
-  const [bedtimeStartValue, setBedtimeStartValue] = useState<Date>(new Date());
+  const [bedtimeStartValue, setBedtimeStartValue] = useState<Date>(
+    new Date(),
+  );
   const [bedtimeEndValue, setBedtimeEndValue] = useState<Date>(new Date());
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
@@ -45,7 +57,7 @@ const TimerSettingsScreen = () => {
 
   const numbers = Array.from(
     { length: Math.max(0, maxFadeMinutes) },
-    (_, index) => index + 1
+    (_, index) => index + 1,
   );
 
   useFocusEffect(
@@ -99,12 +111,12 @@ const TimerSettingsScreen = () => {
           if (isActive) {
             if (bedtimeSettings.bedtimeStart !== null) {
               setBedtimeStartValue(
-                minutesSinceMidnightToDate(bedtimeSettings.bedtimeStart)
+                minutesSinceMidnightToDate(bedtimeSettings.bedtimeStart),
               );
             }
             if (bedtimeSettings.bedtimeEnd !== null) {
               setBedtimeEndValue(
-                minutesSinceMidnightToDate(bedtimeSettings.bedtimeEnd)
+                minutesSinceMidnightToDate(bedtimeSettings.bedtimeEnd),
               );
             }
             setBedtimeModeEnabledLocal(bedtimeSettings.bedtimeModeEnabled);
@@ -119,7 +131,7 @@ const TimerSettingsScreen = () => {
       return () => {
         isActive = false;
       };
-    }, [])
+    }, []),
   );
 
   const toggleSwitch = async () => {
@@ -127,7 +139,7 @@ const TimerSettingsScreen = () => {
       Alert.alert(
         'No Timer Configured',
         'Please configure a sleep timer duration or chapter count before enabling Bedtime Mode.',
-        [{ text: 'OK', style: 'default' }]
+        [{ text: 'OK', style: 'default' }],
       );
       return;
     }
@@ -164,149 +176,205 @@ const TimerSettingsScreen = () => {
       ]}
     >
       <SettingsHeader title='Timer' />
-      <View>
-        <View style={styles.rowStyle}>
-          <Pressable onPress={() => setModalVisible(true)}>
-            <Text style={[styles.content, { color: themeColors.textMuted }]}>
-              Fadeout Duration{' '}
-              <Info
-                color={themeColors.textMuted}
-                size={12}
-                style={{ marginStart: 5 }}
-                strokeWidth={1}
-                absoluteStrokeWidth
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <SettingsCard title='Fadeout Settings' icon={Clock}>
+          <View style={styles.fadeoutSection}>
+            <View style={styles.fadeoutHeader}>
+              <Text
+                style={[
+                  styles.fadeoutLabel,
+                  { color: themeColors.textMuted },
+                ]}
+              >
+                Fadeout Duration
+              </Text>
+              <Pressable
+                onPress={() => setModalVisible(true)}
+                hitSlop={10}
+                style={styles.infoButton}
+              >
+                <Info
+                  color={themeColors.textMuted}
+                  size={16}
+                  strokeWidth={1.5}
+                />
+              </Pressable>
+            </View>
+            <Picker
+              style={{
+                width: '100%',
+                height: 50,
+                color: themeColors.text,
+                backgroundColor: themeColors.modalBackground,
+              }}
+              itemStyle={{
+                borderColor: themeColors.primary,
+                borderWidth: 1,
+              }}
+              dropdownIconColor={themeColors.primary}
+              selectedValue={fadeoutDuration}
+              onValueChange={(itemValue, itemIndex) => {
+                setFadeoutDuration(itemValue);
+                if (itemIndex > 0) {
+                  updateTimerFadeoutDuration(itemIndex * 60000);
+                } else {
+                  updateTimerFadeoutDuration(null);
+                }
+              }}
+              mode='dropdown'
+            >
+              <Picker.Item label='None' value='' />
+              {numbers.map((number) => (
+                <Picker.Item
+                  key={number}
+                  label={`${number.toString()} min${number > 1 ? 's' : ''}`}
+                  value={number.toString()}
+                />
+              ))}
+            </Picker>
+          </View>
+        </SettingsCard>
+
+        <SettingsCard title='Bedtime Mode' icon={Moon}>
+          <CompactSettingsRow
+            label='Enable Bedtime Mode'
+            control={
+              <ToggleSwitch
+                value={enabledValue}
+                onPress={
+                  hasTimerConfigured
+                    ? toggleSwitch
+                    : () => {
+                        Alert.alert(
+                          'No Timer Configured',
+                          'Please configure a sleep timer before enabling Bedtime Mode.',
+                          [{ text: 'OK' }],
+                        );
+                      }
+                }
+                style={{ width: 72, height: 36, padding: 5 }}
+                trackColors={{
+                  on: themeColors.primary,
+                  off: themeColors.modalBackground,
+                }}
               />
-            </Text>
-          </Pressable>
-          <Picker
-            style={{
-              width: 125,
-              height: 50,
-              color: themeColors.text,
-              backgroundColor: themeColors.background,
-            }}
-            itemStyle={{
-              borderColor: themeColors.primary,
-              borderWidth: 1,
-            }}
-            dropdownIconColor={themeColors.primary}
-            selectedValue={fadeoutDuration}
-            onValueChange={(itemValue, itemIndex) => {
-              setFadeoutDuration(itemValue);
-              if (itemIndex > 0) {
-                updateTimerFadeoutDuration(itemIndex * 60000);
-              } else {
-                updateTimerFadeoutDuration(null);
-              }
-            }}
-            mode='dropdown'
-          >
-            <Picker.Item label='None' value='' />
-            {numbers.map((number) => (
-              <Picker.Item
-                key={number}
-                label={`${number.toString()} min${number > 1 ? 's' : ''}`}
-                value={number.toString()}
-              />
-            ))}
-          </Picker>
-        </View>
-        <InfoDialogPopup
-          isVisible={modalVisible}
-          onClose={() => setModalVisible(false)}
-          title='Fadeout Duration'
-          message={fadeOutDurationInfo}
-        />
-        <View
-          style={[styles.rowStyle, !hasTimerConfigured && { opacity: 0.5 }]}
-        >
-          <Text style={[styles.content, { color: themeColors.textMuted }]}>
-            Toggle Bedtime Mode
-          </Text>
-          <ToggleSwitch
-            value={enabledValue}
-            onPress={
-              hasTimerConfigured
-                ? toggleSwitch
-                : () => {
-                    Alert.alert(
-                      'No Timer Configured',
-                      'Please configure a sleep timer before enabling Bedtime Mode.',
-                      [{ text: 'OK' }]
-                    );
-                  }
             }
-            style={{ width: 72, height: 36, padding: 5 }}
-            trackColors={{
-              on: themeColors.primary,
-              off: themeColors.overlay,
-            }}
           />
-        </View>
-        <Pressable
-          onPress={() => setShowStartPicker(true)}
-          style={styles.rowStyle}
-        >
-          <Text style={[styles.content, { color: themeColors.textMuted }]}>
-            Bedtime Start
-          </Text>
-          <Text style={[styles.content, { color: themeColors.primary }]}>
-            {bedtimeStartValue.toLocaleTimeString('en-US', {
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: true,
-            })}
-          </Text>
-        </Pressable>
-        {showStartPicker && (
-          <RNDateTimePicker
-            value={bedtimeStartValue}
-            mode='time'
-            display='spinner'
-            onChange={(event, selectedDate) => {
-              if (event.type === 'set' && selectedDate) {
-                setBedtimeStartValue(selectedDate);
-                const startMinutes = dateToMinutesSinceMidnight(selectedDate);
-                const endMinutes = dateToMinutesSinceMidnight(bedtimeEndValue);
-                setBedtimeSettings(startMinutes, endMinutes);
-              }
-              setShowStartPicker(false);
-            }}
-          />
-        )}
-        <Pressable
-          onPress={() => setShowEndPicker(true)}
-          style={styles.rowStyle}
-        >
-          <Text style={[styles.content, { color: themeColors.textMuted }]}>
-            Bedtime End
-          </Text>
-          <Text style={[styles.content, { color: themeColors.primary }]}>
-            {bedtimeEndValue.toLocaleTimeString('en-US', {
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: true,
-            })}
-          </Text>
-        </Pressable>
-        {showEndPicker && (
-          <RNDateTimePicker
-            value={bedtimeEndValue}
-            mode='time'
-            display='spinner'
-            onChange={(event, selectedDate) => {
-              if (event.type === 'set' && selectedDate) {
-                setBedtimeEndValue(selectedDate);
-                const startMinutes =
-                  dateToMinutesSinceMidnight(bedtimeStartValue);
-                const endMinutes = dateToMinutesSinceMidnight(selectedDate);
-                setBedtimeSettings(startMinutes, endMinutes);
-              }
-              setShowEndPicker(false);
-            }}
-          />
-        )}
-      </View>
+
+          <SettingsGrid>
+            <View style={styles.timePickerContainer}>
+              <Sunrise
+                size={16}
+                color={themeColors.primary}
+                style={styles.timeIcon}
+              />
+              <View style={styles.timePickerContent}>
+                <Text
+                  style={[
+                    styles.timeLabel,
+                    { color: themeColors.textMuted },
+                  ]}
+                >
+                  Start
+                </Text>
+                <Pressable onPress={() => setShowStartPicker(true)}>
+                  <Text
+                    style={[
+                      styles.timeValue,
+                      { color: themeColors.primary },
+                    ]}
+                  >
+                    {bedtimeStartValue.toLocaleTimeString('en-US', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: true,
+                    })}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.timePickerContainer}>
+              <Sunset
+                size={16}
+                color={themeColors.primary}
+                style={styles.timeIcon}
+              />
+              <View style={styles.timePickerContent}>
+                <Text
+                  style={[
+                    styles.timeLabel,
+                    { color: themeColors.textMuted },
+                  ]}
+                >
+                  End
+                </Text>
+                <Pressable onPress={() => setShowEndPicker(true)}>
+                  <Text
+                    style={[
+                      styles.timeValue,
+                      { color: themeColors.primary },
+                    ]}
+                  >
+                    {bedtimeEndValue.toLocaleTimeString('en-US', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: true,
+                    })}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </SettingsGrid>
+        </SettingsCard>
+      </ScrollView>
+
+      {showStartPicker && (
+        <RNDateTimePicker
+          value={bedtimeStartValue}
+          mode='time'
+          display='spinner'
+          onChange={(event, selectedDate) => {
+            if (event.type === 'set' && selectedDate) {
+              setBedtimeStartValue(selectedDate);
+              const startMinutes = dateToMinutesSinceMidnight(selectedDate);
+              const endMinutes =
+                dateToMinutesSinceMidnight(bedtimeEndValue);
+              setBedtimeSettings(startMinutes, endMinutes);
+            }
+            setShowStartPicker(false);
+          }}
+        />
+      )}
+      {showEndPicker && (
+        <RNDateTimePicker
+          value={bedtimeEndValue}
+          mode='time'
+          display='spinner'
+          onChange={(event, selectedDate) => {
+            if (event.type === 'set' && selectedDate) {
+              setBedtimeEndValue(selectedDate);
+              const startMinutes =
+                dateToMinutesSinceMidnight(bedtimeStartValue);
+              const endMinutes = dateToMinutesSinceMidnight(selectedDate);
+              setBedtimeSettings(startMinutes, endMinutes);
+            }
+            setShowEndPicker(false);
+          }}
+        />
+      )}
+
+      <InfoDialogPopup
+        isVisible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        title='Fadeout Duration'
+        message={fadeOutDurationInfo}
+      />
     </View>
   );
 };
@@ -317,17 +385,50 @@ const styles = StyleSheet.create({
   container: {
     paddingTop: 50,
     flex: 1,
-    gap: 20,
+  },
+  scrollView: {
+    // flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: screenPadding.horizontal,
+    paddingBottom: 20,
+    flexGrow: 1,
   },
-  rowStyle: {
+  fadeoutSection: {
+    paddingHorizontal: 16,
+    paddingBottom: 4,
+    gap: 8,
+  },
+  fadeoutHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 30,
     alignItems: 'center',
+    gap: 8,
   },
-  content: {
+  fadeoutLabel: {
     fontSize: 16,
-    marginVertical: 10,
+  },
+  infoButton: {
+    padding: 4,
+  },
+  timePickerContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  timeIcon: {
+    flexShrink: 0,
+  },
+  timePickerContent: {
+    flex: 1,
+  },
+  timeLabel: {
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  timeValue: {
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

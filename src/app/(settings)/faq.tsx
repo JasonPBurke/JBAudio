@@ -1,11 +1,11 @@
 import { StyleSheet, Text, View, ScrollView } from 'react-native';
-import { AudioWaveform } from 'lucide-react-native';
+import { HelpCircle } from 'lucide-react-native';
 import SettingsHeader from '@/components/SettingsHeader';
 import SettingsCard from '@/components/settings/SettingsCard';
 import { screenPadding } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 
-const PlayerSettingsScreen = () => {
+const FaqScreen = () => {
   const { colors: themeColors } = useTheme();
 
   return (
@@ -15,14 +15,14 @@ const PlayerSettingsScreen = () => {
         { backgroundColor: themeColors.modalBackground },
       ]}
     >
-      <SettingsHeader title='Player' />
+      <SettingsHeader title='FAQ' />
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <SettingsCard title='Player Options' icon={AudioWaveform}>
+        <SettingsCard title='Frequently Asked Questions' icon={HelpCircle}>
           <View style={styles.placeholderContent}>
             <Text
               style={[
@@ -30,7 +30,7 @@ const PlayerSettingsScreen = () => {
                 { color: themeColors.textMuted },
               ]}
             >
-              Player settings coming soon
+              FAQ section coming soon
             </Text>
             <Text
               style={[
@@ -38,8 +38,8 @@ const PlayerSettingsScreen = () => {
                 { color: themeColors.textMuted },
               ]}
             >
-              Future options may include playback speed, skip intervals, and
-              audio quality settings.
+              Find answers to common questions about using the audiobook
+              player.
             </Text>
           </View>
         </SettingsCard>
@@ -48,7 +48,7 @@ const PlayerSettingsScreen = () => {
   );
 };
 
-export default PlayerSettingsScreen;
+export default FaqScreen;
 
 const styles = StyleSheet.create({
   container: {
