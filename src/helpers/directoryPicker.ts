@@ -14,14 +14,14 @@ export async function directoryPicker() {
 
       const decodedPath = decodeURIComponent(pathAfterDelimiter);
       const currentPaths = (await getLibraryPaths()) || [];
-      const isSubpath = currentPaths.some((path) =>
-        decodedPath.startsWith(path + '/')
+      const isSubpath = currentPaths.some((path: string) =>
+        decodedPath.startsWith(path + '/'),
       );
 
       if (!currentPaths.includes(decodedPath) && !isSubpath) {
         // Filter out any existing paths that are subpaths of the new path
         const updatedPaths = currentPaths.filter(
-          (path) => !path.startsWith(decodedPath + '/')
+          (path: string) => !path.startsWith(decodedPath + '/'),
         );
 
         const newPaths = [...updatedPaths, decodedPath];

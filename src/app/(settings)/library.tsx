@@ -22,6 +22,7 @@ import {
   removeLibraryFolder,
 } from '@/db/settingsQueries';
 import { directoryPicker } from '@/helpers/directoryPicker';
+import { router } from 'expo-router';
 
 const LibrarySettingsScreen = () => {
   const { colors: themeColors } = useTheme();
@@ -70,9 +71,8 @@ const LibrarySettingsScreen = () => {
   };
 
   const handleAddFolder = async () => {
+    router.back();
     await directoryPicker();
-    const folders = await getLibraryFolders();
-    setLibraryFolders(folders);
   };
 
   return (
