@@ -13,7 +13,7 @@ import {
   analyzeFileWithMediaInfoNoCover,
 } from './mediainfo';
 import { BookImageColors, extractImageColors } from './imageColorExtractor';
-import { useScanProgressStore } from '@/helpers/useScanProgressStore';
+import { useScanProgressStore } from '@/hooks/useScanProgressStore';
 import { ArtworkColors } from './gradientColorSorter';
 
 const DEFAULT_BOOK_ARTWORK_COLORS: ArtworkColors = {
@@ -32,7 +32,7 @@ const DEFAULT_BOOK_ARTWORK_COLORS: ArtworkColors = {
  * Returns array of { authorName, book } for immediate processing.
  */
 function groupChaptersIntoBooks(
-  chapters: any[]
+  chapters: any[],
 ): { authorName: string; book: Book }[] {
   const bookMap = new Map<string, { authorName: string; book: Book }>();
 
@@ -104,7 +104,7 @@ function groupChaptersIntoBooks(
  */
 async function processAndPersistBook(
   authorName: string,
-  book: Book
+  book: Book,
 ): Promise<void> {
   try {
     const bookWithArtwork = await extractArtworkForBook(book);
@@ -112,7 +112,7 @@ async function processAndPersistBook(
   } catch (error) {
     console.error(
       `Error processing book "${book.bookTitle}" by ${authorName}:`,
-      error
+      error,
     );
   } finally {
     // Always increment progress so UI reflects attempted processing
@@ -147,7 +147,7 @@ function needsCoverForFile(chapters: any[]): boolean {
  */
 async function handleReadDirectory(
   dirPath: string,
-  allFiles: string[] = []
+  allFiles: string[] = [],
 ): Promise<{ allFiles: string[] }> {
   try {
     const dirContents = await RNFS.readDir(dirPath);
@@ -191,7 +191,9 @@ async function handleReadDirectory(
       const booksInDir = groupChaptersIntoBooks(newChaptersInDir);
       const progressStore = useScanProgressStore.getState();
 
-      progressStore.setTotalBooks(progressStore.totalBooks + booksInDir.length);
+      progressStore.setTotalBooks(
+        progressStore.totalBooks + booksInDir.length,
+      );
 
       for (const { authorName, book } of booksInDir) {
         await processAndPersistBook(authorName, book);
@@ -232,7 +234,9 @@ const CUE_FRAMES_PER_SECOND = 75;
  * Parses a CUE sheet file and extracts chapter information.
  * Returns null if parsing fails or no chapters are found.
  */
-async function parseCueFile(cueFilePath: string): Promise<CueChapter[] | null> {
+async function parseCueFile(
+  cueFilePath: string,
+): Promise<CueChapter[] | null> {
   try {
     const cueContent = await RNFS.readFile(cueFilePath, 'utf8');
     const lines = cueContent.split('\n');
@@ -289,16 +293,17 @@ function buildChapterMetadata(
   metadata: any,
   filePath: string,
   bookTitleBackup: string | undefined,
+  authorBackup: string | undefined,
   chapterInfo: {
     title: string;
     number: number;
     duration: number;
     startMs: number;
     totalTracks: number;
-  }
+  },
 ) {
   return {
-    author: metadata.author || 'Unknown Author',
+    author: metadata.author || authorBackup || 'Unknown Author',
     narrator: metadata.narrator || 'Unknown Voice Artist',
     bookTitle: metadata.album || bookTitleBackup,
     chapterTitle: chapterInfo.title,
@@ -322,15 +327,20 @@ function buildChapterMetadata(
   };
 }
 
-async function extractMetadata(filePath: string, skipCoverExtraction = false) {
+async function extractMetadata(
+  filePath: string,
+  skipCoverExtraction = false,
+) {
   try {
     const metadata = skipCoverExtraction
       ? await analyzeFileWithMediaInfoNoCover(filePath)
       : await analyzeFileWithMediaInfo(filePath);
 
     let chapters = metadata.chapters || [];
-    const bookTitleBackup = filePath
-      .substring(0, filePath.lastIndexOf('/'))
+    const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
+    const bookTitleBackup = dirPath.split('/').pop();
+    const authorBackup = dirPath
+      .substring(0, dirPath.lastIndexOf('/'))
       .split('/')
       .pop();
 
@@ -357,7 +367,7 @@ async function extractMetadata(filePath: string, skipCoverExtraction = false) {
           : metadata.durationMs || 0;
         const chapterDuration = (chapterEndMs - chapter.startMs) / 1000;
 
-        return buildChapterMetadata(metadata, filePath, bookTitleBackup, {
+        return buildChapterMetadata(metadata, filePath, bookTitleBackup, authorBackup, {
           title: chapter.title || `Chapter ${index + 1}`,
           number: index + 1,
           duration: chapterDuration,
@@ -368,12 +378,15 @@ async function extractMetadata(filePath: string, skipCoverExtraction = false) {
     }
 
     // Single-chapter file (e.g. mp3)
-    const chapterDuration = metadata.durationMs ? metadata.durationMs / 1000 : 0;
+    const chapterDuration = metadata.durationMs
+      ? metadata.durationMs / 1000
+      : 0;
     const fileName = filePath.split('/').pop() ?? '';
-    const chapterTitle = fileName.split('.')[0] || metadata.title || 'Unknown Chapter';
+    const chapterTitle =
+      fileName.split('.')[0] || metadata.title || 'Unknown Chapter';
 
     return [
-      buildChapterMetadata(metadata, filePath, bookTitleBackup, {
+      buildChapterMetadata(metadata, filePath, bookTitleBackup, authorBackup, {
         title: chapterTitle,
         number: metadata.trackPosition || 1,
         duration: chapterDuration,
@@ -430,7 +443,7 @@ function detectImageFormat(base64Data: string): {
 async function writeTempImageFile(
   tempFilePath: string,
   base64Data: string,
-  needsJpegRepair: boolean
+  needsJpegRepair: boolean,
 ): Promise<void> {
   if (needsJpegRepair) {
     // Prepend SOI marker (FFD8) before the data (which starts at FFE0/APP0)
@@ -456,7 +469,7 @@ type ArtworkResult = {
 async function saveArtworkToFile(
   base64Artwork: string,
   bookTitle: string,
-  author: string
+  author: string,
 ): Promise<ArtworkResult> {
   const safeBookTitle = sanitizeForFilename(bookTitle);
   const safeAuthor = sanitizeForFilename(author);
@@ -482,7 +495,7 @@ async function saveArtworkToFile(
       0,
       undefined,
       false,
-      { mode: 'contain', onlyScaleDown: true }
+      { mode: 'contain', onlyScaleDown: true },
     );
 
     await RNFS.unlink(tempFilePath).catch(() => {});
@@ -563,7 +576,7 @@ async function extractArtworkForBook(book: Book): Promise<Book> {
     const { artworkUri, width, height } = await saveArtworkToFile(
       cleanedBase64,
       book.bookTitle,
-      book.author
+      book.author,
     );
 
     // Extract colors from saved file to reduce memory pressure
@@ -602,7 +615,7 @@ async function removeMissingFiles(allFiles: string[]): Promise<void> {
     .query()
     .fetch();
   const chaptersToRemove = allChapters.filter(
-    (chapter) => !fileSet.has(chapter.url)
+    (chapter) => !fileSet.has(chapter.url),
   );
 
   if (chaptersToRemove.length > 0) {
@@ -634,7 +647,10 @@ async function removeMissingFiles(allFiles: string[]): Promise<void> {
   }
 
   // Clean up orphaned authors
-  const allAuthors = await database.get<AuthorModel>('authors').query().fetch();
+  const allAuthors = await database
+    .get<AuthorModel>('authors')
+    .query()
+    .fetch();
   const orphanedAuthors: AuthorModel[] = [];
 
   for (const author of allAuthors) {
@@ -673,7 +689,7 @@ export async function scanLibrary(): Promise<void> {
   // Scan directories - books are processed incrementally as they are discovered
   for (const libraryPath of libraryPaths) {
     const { allFiles } = await handleReadDirectory(
-      RNFS.ExternalStorageDirectoryPath + '/' + libraryPath
+      RNFS.ExternalStorageDirectoryPath + '/' + libraryPath,
     );
     combinedAllFiles.push(...allFiles);
   }

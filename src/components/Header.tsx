@@ -6,7 +6,7 @@ import { useTheme } from '@/hooks/useTheme';
 import TabScreen, { CustomTabs } from '@/components/TabScreen';
 import { useNavigation } from 'expo-router';
 import { DrawerActions } from '@react-navigation/native';
-import { useScanProgressStore } from '@/helpers/useScanProgressStore';
+import { useScanProgressStore } from '@/hooks/useScanProgressStore';
 import Reanimated, {
   FadeIn,
   SlideInLeft,
@@ -53,15 +53,15 @@ const Dot = ({ delay, style }: { delay: number; style: any }) => {
         withDelay(delay, withTiming(1, { duration: FADE_IN_DURATION })),
         withDelay(
           SYNC_BASE - delay,
-          withTiming(0, { duration: FADE_OUT_DURATION })
+          withTiming(0, { duration: FADE_OUT_DURATION }),
         ),
-        withDelay(LOOP_PAUSE, withTiming(0, { duration: 0 }))
+        withDelay(LOOP_PAUSE, withTiming(0, { duration: 0 })),
         //  withDelay(delay, withTiming(1, { duration: 300 })),
         // withDelay(1000 - delay, withTiming(0, { duration: 600 })),
         // withDelay(500, withTiming(0, { duration: 0 }))
       ),
       -1,
-      false
+      false,
     );
   }, [delay, opacity]);
 
@@ -102,7 +102,12 @@ const Header = (props: headerProps) => {
     setToggleView((prevState) => (prevState + 1) % 3);
   };
   return (
-    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: themeColors.background },
+      ]}
+    >
       <View style={styles.header}>
         <View style={styles.headerGroup}>
           <Pressable hitSlop={15} onPress={openSettingsDrawer}>
@@ -115,7 +120,9 @@ const Header = (props: headerProps) => {
           </Pressable>
 
           <View style={styles.titleWrapper}>
-            <Text style={[styles.titleStaticS, { color: themeColors.primary }]}>
+            <Text
+              style={[styles.titleStaticS, { color: themeColors.primary }]}
+            >
               S
             </Text>
             <View style={styles.titleContainer}>
@@ -129,14 +136,21 @@ const Header = (props: headerProps) => {
                     { flexDirection: 'row', alignItems: 'flex-end' },
                   ]}
                 >
-                  <Text style={[styles.titleText, { color: themeColors.icon }]}>
+                  <Text
+                    style={[styles.titleText, { color: themeColors.icon }]}
+                  >
                     canning books
                   </Text>
-                  <AnimatedEllipsis style={[styles.titleText, { color: themeColors.icon }]} />
+                  <AnimatedEllipsis
+                    style={[styles.titleText, { color: themeColors.icon }]}
+                  />
                   {totalBooks !== 0 && (
                     <AnimatedText
                       entering={FadeIn}
-                      style={[styles.titleText, { color: themeColors.icon }]}
+                      style={[
+                        styles.titleText,
+                        { color: themeColors.icon },
+                      ]}
                     >
                       {`${processedBooks} of ${totalBooks}`}
                     </AnimatedText>
@@ -152,7 +166,10 @@ const Header = (props: headerProps) => {
                   onicbooks
                 </AnimatedText>
               ) : (
-                <Text key='onicbooks-static' style={[styles.titleText, { color: themeColors.icon }]}>
+                <Text
+                  key='onicbooks-static'
+                  style={[styles.titleText, { color: themeColors.icon }]}
+                >
                   onicbooks
                 </Text>
               )}

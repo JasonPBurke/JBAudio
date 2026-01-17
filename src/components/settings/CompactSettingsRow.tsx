@@ -25,9 +25,11 @@ const CompactSettingsRow = ({
   const content = (
     <>
       <View style={styles.container}>
-        <Text style={[styles.label, { color: themeColors.textMuted }]}>
-          {label}
-        </Text>
+        <View style={styles.labelContainer}>
+          <Text style={[styles.label, { color: themeColors.textMuted }]}>
+            {label}
+          </Text>
+        </View>
         <View style={styles.control}>{control}</View>
       </View>
       {showDivider && (
@@ -68,6 +70,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 12,
     paddingHorizontal: 16,
+  },
+  labelContainer: {
+    flex: 1,
+    marginRight: 12,
   },
   label: {
     fontSize: 16,
