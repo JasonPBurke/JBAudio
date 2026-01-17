@@ -128,7 +128,7 @@ const LibrarySettingsScreen = () => {
           >
             {libraryFolders.map((folder, index) => (
               <CompactSettingsRow
-                key={index}
+                key={folder}
                 label={folder}
                 showDivider={index < libraryFolders.length - 1}
                 control={

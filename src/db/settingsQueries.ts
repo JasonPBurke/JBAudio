@@ -286,8 +286,13 @@ export const removeLibraryFolder = async (folderPath: string) => {
     // 3. Prepare and execute batch deletion
     const deletions: any[] = [];
     for (const book of booksToDelete) {
-      // This will also delete related chapters due to cascading behavior in the schema
-      deletions.push(book.prepareDestroyPermanently()); //! destroyPermanently
+      // Explicitly delete chapters first (WatermelonDB doesn't auto-cascade deletes)
+      const chapters = await (book.chapters as any).fetch();
+      for (const chapter of chapters) {
+        deletions.push(chapter.prepareDestroyPermanently());
+      }
+      // Then delete the book
+      deletions.push(book.prepareDestroyPermanently());
     }
 
     await writer.batch(...deletions);
