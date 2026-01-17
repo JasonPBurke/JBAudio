@@ -38,6 +38,13 @@ export const handleBookPlay = async (
     })();
   }
 
+  // If the book is already active, just resume playback without seeking
+  if (isActiveBook) {
+    await TrackPlayer.seekBy(-1);
+    await TrackPlayer.play();
+    return;
+  }
+
   const progressInfo = await getChapterProgressInDB(book.bookId!);
 
   if (!progressInfo || progressInfo.chapterIndex === -1) return;

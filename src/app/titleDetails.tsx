@@ -57,9 +57,7 @@ const TitleDetails = () => {
     return null;
   }
 
-  const isActiveBook =
-    activeTrack?.url ===
-    book.chapters[book.bookProgress.currentChapterIndex].url;
+  const isActiveBook = activeTrack?.bookId === book.bookId;
 
   const isBookStarted =
     book.bookProgressValue !== BookProgressState.NotStarted;

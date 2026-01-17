@@ -251,6 +251,18 @@ export default module.exports = async function () {
   TrackPlayer.addEventListener(
     Event.PlaybackActiveTrackChanged,
     async (event) => {
+      // Update chapter index when track changes
+      if (event.track !== undefined && event.track !== null) {
+        const activeTrack = await TrackPlayer.getActiveTrack();
+        if (activeTrack?.bookId) {
+          // Update Zustand store immediately for UI reactivity
+          setPlaybackIndex(activeTrack.bookId, event.track);
+          // Update database for persistence
+          await updateChapterIndexInDB(activeTrack.bookId, event.track);
+        }
+      }
+
+      // Handle sleep timer chapter countdown
       const { timerChapters, timerActive } = await getTimerSettings();
       if (timerActive && timerChapters !== null && timerChapters > 0) {
         await updateChapterTimer(timerChapters - 1);
