@@ -35,50 +35,39 @@ type headerProps = {
 const AnimatedText = Reanimated.createAnimatedComponent(Text);
 const AnimatedView = Reanimated.createAnimatedComponent(View);
 
-// Animation Configuration
-const DOT_INTERVAL = 300; // Time between each dot appearing (Speed)
-const FADE_IN_DURATION = 300; // should match dot interval
-const FADE_OUT_DURATION = 600;
-const LOOP_PAUSE = 500; // Pause before restarting the loop
-const HOLD_TIME = 400; // How long the last dot waits before fading out
-const SYNC_BASE = DOT_INTERVAL * 2 + HOLD_TIME; // Ensures all dots fade out together
+// Pulse Animation Configuration
+const PULSE_DURATION = 1250; // Duration for each fade in/out cycle
+const MIN_OPACITY = 0.3; // Minimum opacity for pulse effect
 
-const Dot = ({ delay, style }: { delay: number; style: any }) => {
-  const opacity = useSharedValue(0);
+const PulsingText = ({
+  style,
+  children,
+}: {
+  style: any;
+  children: string;
+}) => {
+  const opacity = useSharedValue(1);
 
   useEffect(() => {
-    setTimeout(() => {}, 500);
-    opacity.value = withRepeat(
-      withSequence(
-        withDelay(delay, withTiming(1, { duration: FADE_IN_DURATION })),
-        withDelay(
-          SYNC_BASE - delay,
-          withTiming(0, { duration: FADE_OUT_DURATION }),
+    opacity.value = withDelay(
+      1250,
+      withRepeat(
+        withSequence(
+          withTiming(MIN_OPACITY, { duration: PULSE_DURATION }),
+          withTiming(1, { duration: PULSE_DURATION }),
         ),
-        withDelay(LOOP_PAUSE, withTiming(0, { duration: 0 })),
-        //  withDelay(delay, withTiming(1, { duration: 300 })),
-        // withDelay(1000 - delay, withTiming(0, { duration: 600 })),
-        // withDelay(500, withTiming(0, { duration: 0 }))
+        -1,
+        false,
       ),
-      -1,
-      false,
     );
-  }, [delay, opacity]);
+  }, [opacity]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
   }));
 
-  return <AnimatedText style={[style, animatedStyle]}>.</AnimatedText>;
-};
-
-const AnimatedEllipsis = ({ style }: { style: any }) => {
   return (
-    <View style={{ flexDirection: 'row' }}>
-      <Dot delay={0} style={style} />
-      <Dot delay={DOT_INTERVAL} style={style} />
-      <Dot delay={DOT_INTERVAL * 2} style={style} />
-    </View>
+    <AnimatedText style={[style, animatedStyle]}>{children}</AnimatedText>
   );
 };
 
@@ -92,7 +81,7 @@ const Header = (props: headerProps) => {
   } = props;
   const navigation = useNavigation();
   const { colors: themeColors } = useTheme();
-  const { isScanning, processedBooks, totalBooks, scanJustCompleted } =
+  const { isScanning, totalBooks, scanJustCompleted } =
     useScanProgressStore();
 
   const openSettingsDrawer = () => {
@@ -133,17 +122,18 @@ const Header = (props: headerProps) => {
                   exiting={SlideOutLeft.delay(2000).duration(1500)}
                   style={[
                     styles.scanningText,
-                    { flexDirection: 'row', alignItems: 'flex-end' },
+                    {
+                      flexDirection: 'row',
+                      alignItems: 'flex-end',
+                      gap: 8,
+                    },
                   ]}
                 >
-                  <Text
+                  <PulsingText
                     style={[styles.titleText, { color: themeColors.icon }]}
                   >
-                    canning books
-                  </Text>
-                  <AnimatedEllipsis
-                    style={[styles.titleText, { color: themeColors.icon }]}
-                  />
+                    canning books...
+                  </PulsingText>
                   {totalBooks !== 0 && (
                     <AnimatedText
                       entering={FadeIn}
@@ -152,7 +142,7 @@ const Header = (props: headerProps) => {
                         { color: themeColors.icon },
                       ]}
                     >
-                      {`${processedBooks} of ${totalBooks}`}
+                      {`${totalBooks} added`}
                     </AnimatedText>
                   )}
                 </AnimatedView>

@@ -24,16 +24,22 @@ export function ColorPickerModal({
   onClose,
 }: ColorPickerModalProps) {
   const { colors: themeColors } = useTheme();
-  const customPrimaryColor = useThemeStore((state) => state.customPrimaryColor);
-  const setCustomPrimaryColor = useThemeStore((state) => state.setCustomPrimaryColor);
+  const customPrimaryColor = useThemeStore(
+    (state) => state.customPrimaryColor,
+  );
+  const setCustomPrimaryColor = useThemeStore(
+    (state) => state.setCustomPrimaryColor,
+  );
 
   const [resultColor, setResultColor] = useState(themeColors.primary);
+  const [originalColor, setOriginalColor] = useState(themeColors.primary);
   const currentColor = useSharedValue(themeColors.primary);
 
   // Update colors when modal opens
   useEffect(() => {
     if (isVisible) {
       setResultColor(themeColors.primary);
+      setOriginalColor(themeColors.primary);
       currentColor.value = themeColors.primary;
     }
   }, [isVisible, themeColors.primary]);
@@ -111,6 +117,7 @@ export function ColorPickerModal({
           )}
           <PrimaryColorPicker
             resultColor={resultColor}
+            originalColor={originalColor}
             onColorChange={onColorChange}
             onColorPick={onColorPick}
           />
@@ -138,20 +145,20 @@ export function ColorPickerModal({
 
 interface PrimaryColorPickerProps {
   resultColor?: string;
+  originalColor?: string;
   onColorChange?: (color: ColorFormatsObject) => void;
   onColorPick?: (color: ColorFormatsObject) => void;
 }
 
 function PrimaryColorPicker({
   resultColor: initialResultColor,
+  originalColor,
   onColorChange: customOnColorChange,
   onColorPick: customOnColorPick,
 }: PrimaryColorPickerProps) {
   const { colors: themeColors } = useTheme();
-  const [resultColor, setResultColor] = useState(
-    initialResultColor || themeColors.primary
-  );
-  const currentColor = useSharedValue(initialResultColor || themeColors.primary);
+  const initialColor = originalColor || initialResultColor || themeColors.primary;
+  const currentColor = useSharedValue(initialColor);
 
   const onColorChange = (color: ColorFormatsObject) => {
     'worklet';
@@ -160,14 +167,14 @@ function PrimaryColorPicker({
   };
 
   const onColorPick = (color: ColorFormatsObject) => {
-    setResultColor(color.hex);
     customOnColorPick?.(color);
   };
 
   return (
     <View style={colorPickerStyle.pickerContainer}>
       <ColorPicker
-        value={resultColor}
+        value={initialColor}
+        // onComplete={}
         sliderThickness={25}
         thumbSize={24}
         thumbShape='circle'
@@ -176,7 +183,7 @@ function PrimaryColorPicker({
         style={colorPickerStyle.picker}
       >
         <Panel5 style={[colorPickerStyle.panelStyle]} />
-        <OpacitySlider style={colorPickerStyle.sliderStyle} adaptSpectrum />
+        {/* <OpacitySlider style={colorPickerStyle.sliderStyle} adaptSpectrum /> */}
         <InputWidget formats={['HEX']} />
         <Preview />
       </ColorPicker>
