@@ -10,7 +10,14 @@ import { useState, useCallback } from 'react';
 import { useSharedValue } from 'react-native-reanimated';
 import { useFocusEffect } from '@react-navigation/native';
 import { Picker } from '@react-native-picker/picker';
-import { Info, Clock, Sunrise, Sunset, Moon } from 'lucide-react-native';
+import {
+  Info,
+  Clock,
+  Sunrise,
+  Sunset,
+  Moon,
+  ClockFading,
+} from 'lucide-react-native';
 import SettingsHeader from '@/components/SettingsHeader';
 import SettingsCard from '@/components/settings/SettingsCard';
 import CompactSettingsRow from '@/components/settings/CompactSettingsRow';
@@ -182,7 +189,7 @@ const TimerSettingsScreen = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <SettingsCard title='Fadeout Settings' icon={Clock}>
+        <SettingsCard title='Fadeout Settings' icon={ClockFading}>
           <View style={styles.fadeoutSection}>
             <View style={styles.fadeoutHeader}>
               <Text
@@ -239,6 +246,11 @@ const TimerSettingsScreen = () => {
             </Picker>
           </View>
         </SettingsCard>
+        {/* <SettingsCard title='Set Timer' icon={Clock}>
+          <CompactSettingsRow
+            label='Set Timer'
+          />
+        </SettingsCard> */}
 
         <SettingsCard title='Bedtime Mode' icon={Moon}>
           <CompactSettingsRow
@@ -268,7 +280,7 @@ const TimerSettingsScreen = () => {
 
           <SettingsGrid>
             <View style={styles.timePickerContainer}>
-              <Sunrise
+              <Sunset
                 size={16}
                 color={themeColors.primary}
                 style={styles.timeIcon}
@@ -300,7 +312,7 @@ const TimerSettingsScreen = () => {
             </View>
 
             <View style={styles.timePickerContainer}>
-              <Sunset
+              <Sunrise
                 size={16}
                 color={themeColors.primary}
                 style={styles.timeIcon}

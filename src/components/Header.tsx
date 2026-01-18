@@ -109,11 +109,11 @@ const Header = (props: headerProps) => {
           </Pressable>
 
           <View style={styles.titleWrapper}>
-            <Text
+            <PulsingText
               style={[styles.titleStaticS, { color: themeColors.primary }]}
             >
               S
-            </Text>
+            </PulsingText>
             <View style={styles.titleContainer}>
               {isScanning ? (
                 <AnimatedView
