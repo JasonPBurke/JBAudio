@@ -7,8 +7,8 @@ import {
   KeyboardAvoidingView,
   TouchableOpacity,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { colors } from '@/constants/tokens';
+import { useTheme } from '@/hooks/useTheme';
 import { withOpacity } from '@/helpers/colorUtils';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBehavior } from '@/hooks/useBehavior';
@@ -22,6 +22,7 @@ import { BookEditableFields } from '@/types/Book';
 import { updateBookDetails } from '@/db/bookQueries';
 
 const editTitleDetails = () => {
+  const { colors: themeColors } = useTheme();
   const { top, bottom } = useSafeAreaInsets();
   const behavior = useBehavior();
   const { bookId } = useLocalSearchParams<{
@@ -55,7 +56,7 @@ const editTitleDetails = () => {
 
   const handleInputChange = (
     field: keyof BookEditableFields,
-    value: string
+    value: string,
   ) => {
     setFormState((prevState) => ({ ...prevState, [field]: value }));
   };
@@ -68,7 +69,9 @@ const editTitleDetails = () => {
   if (!book) {
     return (
       <View style={styles.container}>
-        <Text style={styles.header}>Book not found</Text>
+        <Text
+          style={[styles.header, { color: themeColors.textMuted }]}
+        ></Text>
       </View>
     );
   }
@@ -90,18 +93,9 @@ const editTitleDetails = () => {
           paddingBottom: bottom + 24,
         }}
       >
-        {/* <BlurView
-          experimentalBlurMethod='dimezisBlurView'
-          intensity={30}
-          tint='dark'
-          style={[
-            styles.container,
-            { paddingTop: top, paddingBottom: bottom },
-          ]}
-        > */}
         <Animated.Text
           entering={FadeInUp.duration(400).delay(100)}
-          style={styles.header}
+          style={[styles.header, { color: themeColors.textMuted }]}
         >
           {/* Edit {book?.bookTitle} Details */}
           Edit Book Details
@@ -115,45 +109,98 @@ const editTitleDetails = () => {
         />
         <Animated.View
           entering={FadeInDown.duration(600).delay(400)}
-          style={styles.card}
+          style={[
+            styles.card,
+            { backgroundColor: themeColors.modalBackgroundWithOpacity },
+          ]}
         >
-          <Text style={styles.fieldTitle}>Title</Text>
+          <Text
+            style={[styles.fieldTitle, { color: themeColors.textMuted }]}
+          >
+            Title
+          </Text>
           <TextInput
-            style={styles.searchInput}
+            style={[
+              styles.searchInput,
+              {
+                backgroundColor: themeColors.background,
+                color: themeColors.textMuted,
+              },
+            ]}
             value={formState.bookTitle}
             onChangeText={(text) => handleInputChange('bookTitle', text)}
             cursorColor={colors.primary}
             selectionColor={colors.primary}
           ></TextInput>
-          <Text style={styles.fieldTitle}>Author</Text>
+          <Text
+            style={[styles.fieldTitle, { color: themeColors.textMuted }]}
+          >
+            Author
+          </Text>
           <TextInput
-            style={styles.searchInput}
+            style={[
+              styles.searchInput,
+              {
+                backgroundColor: themeColors.background,
+                color: themeColors.textMuted,
+              },
+            ]}
             value={formState.author}
             editable={false} //! Author editing is complex due to the data model
             cursorColor={colors.primary}
             selectionColor={colors.primary}
           ></TextInput>
-          <Text style={styles.fieldTitle}>Narrator</Text>
+          <Text
+            style={[styles.fieldTitle, { color: themeColors.textMuted }]}
+          >
+            Narrator
+          </Text>
           <TextInput
-            style={styles.searchInput}
+            style={[
+              styles.searchInput,
+              {
+                backgroundColor: themeColors.background,
+                color: themeColors.textMuted,
+              },
+            ]}
             placeholder={'Narrator'}
             value={formState.narrator ?? ''}
             onChangeText={(text) => handleInputChange('narrator', text)}
             cursorColor={colors.primary}
             selectionColor={colors.primary}
           ></TextInput>
-          <Text style={styles.fieldTitle}>Genre Tags</Text>
+          <Text
+            style={[styles.fieldTitle, { color: themeColors.textMuted }]}
+          >
+            Genre Tags
+          </Text>
           <TextInput
-            style={styles.searchInput}
+            style={[
+              styles.searchInput,
+              {
+                backgroundColor: themeColors.background,
+                color: themeColors.textMuted,
+              },
+            ]}
             placeholder={'Genre Tags (comma separated)'}
             value={formState.genre ?? ''}
             onChangeText={(text) => handleInputChange('genre', text)}
             cursorColor={colors.primary}
             selectionColor={colors.primary}
           ></TextInput>
-          <Text style={styles.fieldTitle}>Release Year</Text>
+          <Text
+            style={[styles.fieldTitle, { color: themeColors.textMuted }]}
+          >
+            Release Year
+          </Text>
           <TextInput
-            style={styles.searchInput}
+            style={[
+              styles.searchInput,
+              {
+                backgroundColor: themeColors.background,
+                color: themeColors.textMuted,
+              },
+            ]}
             placeholder={'Release Year'}
             value={formState.year ?? ''}
             onChangeText={(text) => handleInputChange('year', text)}
@@ -161,9 +208,19 @@ const editTitleDetails = () => {
             selectionColor={colors.primary}
             keyboardType='numeric'
           ></TextInput>
-          <Text style={styles.fieldTitle}>Description</Text>
+          <Text
+            style={[styles.fieldTitle, { color: themeColors.textMuted }]}
+          >
+            Description
+          </Text>
           <TextInput
-            style={styles.searchInput}
+            style={[
+              styles.searchInput,
+              {
+                backgroundColor: themeColors.background,
+                color: themeColors.textMuted,
+              },
+            ]}
             placeholder={'Description'}
             value={formState.description ?? ''}
             onChangeText={(text) => handleInputChange('description', text)}
@@ -172,9 +229,19 @@ const editTitleDetails = () => {
             multiline
             textAlignVertical='top'
           ></TextInput>
-          <Text style={styles.fieldTitle}>Copyright</Text>
+          <Text
+            style={[styles.fieldTitle, { color: themeColors.textMuted }]}
+          >
+            Copyright
+          </Text>
           <TextInput
-            style={styles.searchInput}
+            style={[
+              styles.searchInput,
+              {
+                backgroundColor: themeColors.background,
+                color: themeColors.textMuted,
+              },
+            ]}
             placeholder={'Copyright'}
             value={formState.copyright ?? ''}
             onChangeText={(text) => handleInputChange('copyright', text)}
@@ -183,16 +250,32 @@ const editTitleDetails = () => {
           ></TextInput>
           <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
+              style={[
+                styles.button,
+                {
+                  backgroundColor: withOpacity(themeColors.textMuted, 0.3),
+                },
+              ]}
               onPress={() => router.back()}
             >
               <Text style={styles.buttonText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.button, styles.saveButton]}
+              style={[
+                styles.button,
+                styles.saveButton,
+                {
+                  backgroundColor: themeColors.background,
+                  borderColor: themeColors.primary,
+                },
+              ]}
               onPress={handleSave}
             >
-              <Text style={styles.buttonText}>Save</Text>
+              <Text
+                style={[styles.buttonText, { color: themeColors.text }]}
+              >
+                Save
+              </Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -207,46 +290,40 @@ export default editTitleDetails;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    // alignItems: 'center',
     paddingTop: 25,
   },
   header: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: colors.textMuted,
     paddingBottom: 10,
   },
   image: {
     width: '100%',
     height: 345,
-    // resizeMode: 'contain',
   },
   text: {
     fontSize: 30,
     margin: 20,
   },
   card: {
-    width: 375,
+    width: '100%',
     height: 'auto',
-    backgroundColor: colors.modalBackground,
-    borderRadius: 10,
     padding: 20,
-    margin: 20,
+    paddingBottom: 40,
+    marginTop: 20,
   },
   fieldTitle: {
     marginStart: 4,
     fontSize: 16,
     fontWeight: 'bold',
-    color: colors.textMuted,
   },
   searchInput: {
     width: '100%',
-    backgroundColor: colors.background,
     borderRadius: 8,
     padding: 14,
     marginVertical: 10,
-    color: colors.textMuted,
-    fontSize: 16,
+    fontSize: 18,
+    lineHeight: 24,
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -261,15 +338,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   saveButton: {
-    backgroundColor: colors.background,
-    borderColor: colors.primary,
     borderWidth: 1,
   },
-  cancelButton: {
-    backgroundColor: withOpacity(colors.textMuted, 0.3),
-  },
   buttonText: {
-    color: colors.text,
     fontSize: 16,
     fontWeight: '600',
   },

@@ -3,6 +3,7 @@ export const colorTokens = {
   dark: {
     background: '#1C1C1C',
     modalBackground: '#252525',
+    modalBackgroundWithOpacity: '#252525bf',
     text: '#ECEFF4',
     textMuted: '#d8dee9',
     icon: '#E5E9F0',
@@ -16,6 +17,7 @@ export const colorTokens = {
   light: {
     background: '#eceff4', //#F5F5F5
     modalBackground: '#d8dee9', //#E8E8E8
+    modalBackgroundWithOpacity: '#d8dee9bf',
     text: '#1C1C1C',
     textMuted: '#6B7280', //#a0a9ba
     icon: '#374151',
@@ -43,6 +45,7 @@ export const colors = {
   primary: '#FFB606',
   background: '#1C1C1C',
   modalBackground: '#252525',
+  modalBackgroundWithOpacity: '#252525bf',
   text: '#ECEFF4',
   textMuted: '#d8dee9',
   icon: '#E5E9F0',

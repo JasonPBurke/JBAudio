@@ -9,7 +9,7 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Play, Pause } from 'lucide-react-native';
+import { Play, Pause, EllipsisVertical } from 'lucide-react-native';
 import { ShadowedView, shadowStyle } from 'react-native-fast-shadow';
 import { ScrollView } from 'react-native-gesture-handler';
 import { Clock8, Calendar, Book } from 'lucide-react-native';
@@ -74,7 +74,7 @@ const TitleDetails = () => {
         themeColors.primary,
         themeColors.background,
       ] as const),
-    [book.artworkColors, themeColors.background, themeColors.primary]
+    [book.artworkColors, themeColors.background, themeColors.primary],
   );
 
   // Position 4 color (darkest) - used for contrast checking
@@ -85,13 +85,17 @@ const TitleDetails = () => {
     () =>
       ensureReadable(
         book.artworkColors?.muted || themeColors.textMuted,
-        position4Color
+        position4Color,
       ),
-    [book.artworkColors, themeColors.textMuted, position4Color]
+    [book.artworkColors, themeColors.textMuted, position4Color],
   );
 
   const handleChapterPress = () => {
     router.push(`/chapterList?bookId=${bookId}&readOnly=true`);
+  };
+
+  const handleEditTitle = () => {
+    router.push(`./editTitleDetails?bookId=${bookId}`);
   };
 
   let genres: string[] = [];
@@ -111,12 +115,24 @@ const TitleDetails = () => {
       colors={gradientColors}
     >
       <View style={styles.bookContainer}>
-        <Pressable
-          hitSlop={10}
-          style={styles.dismissIndicator}
-          onPress={() => router.back()}
-        />
-        {/* <DismissIndicator /> */}
+        <View style={styles.dismissContainer}>
+          <Pressable
+            hitSlop={10}
+            style={styles.dismissIndicator}
+            onPress={() => router.back()}
+          />
+          <Pressable
+            onPress={handleEditTitle}
+            hitSlop={15}
+            style={styles.editTitleIcon}
+          >
+            <EllipsisVertical
+              size={24}
+              color={themeColors.lightIcon}
+              strokeWidth={1.5}
+            />
+          </Pressable>
+        </View>
         <View
           style={{
             ...styles.bookArtworkContainer,
@@ -146,9 +162,7 @@ const TitleDetails = () => {
           showsVerticalScrollIndicator={false}
         >
           <Pressable
-            onLongPress={() =>
-              router.push(`./editTitleDetails?bookId=${bookId}`)
-            }
+            onLongPress={handleEditTitle}
             style={[styles.bookInfoContainer]}
           >
             <Text
@@ -320,7 +334,7 @@ const TitleDetails = () => {
                         playing,
                         isActiveBook,
                         activeBookId,
-                        setActiveBookId
+                        setActiveBookId,
                       );
                     } finally {
                       clearTimeout(timer);
@@ -513,6 +527,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     elevation: 5,
   },
+  dismissContainer: {
+    position: 'relative',
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editTitleIcon: {
+    position: 'absolute',
+    right: 0,
+  },
   dismissIndicator: {
     width: 55,
     height: 7,
@@ -520,7 +544,5 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     borderColor: colors.textMuted,
     borderWidth: 1,
-    justifyContent: 'center',
-    alignSelf: 'center',
   },
 });
