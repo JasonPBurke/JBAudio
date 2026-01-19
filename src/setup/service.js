@@ -251,16 +251,19 @@ export default module.exports = async function () {
   TrackPlayer.addEventListener(
     Event.PlaybackActiveTrackChanged,
     async (event) => {
-      // Update chapter index when track changes
-      if (event.track !== undefined && event.track !== null) {
-        const activeTrack = await TrackPlayer.getActiveTrack();
-        if (activeTrack?.bookId) {
-          // Update Zustand store immediately for UI reactivity
-          setPlaybackIndex(activeTrack.bookId, event.track);
-          // Update database for persistence
-          await updateChapterIndexInDB(activeTrack.bookId, event.track);
-        }
-      }
+      // CRITICAL FIX: Only process valid track indices (>= 0)
+      // The event.track can be -1 during queue reset, which would corrupt chapter index
+      if (typeof event.track !== 'number' || event.track < 0) return;
+
+      // CRITICAL FIX: Use getTrack(index) instead of getActiveTrack()
+      // getActiveTrack() can return stale data during queue transitions
+      const trackAtIndex = await TrackPlayer.getTrack(event.track);
+      if (!trackAtIndex?.bookId) return;
+
+      // Update Zustand store immediately for UI reactivity
+      setPlaybackIndex(trackAtIndex.bookId, event.track);
+      // Update database for persistence
+      await updateChapterIndexInDB(trackAtIndex.bookId, event.track);
 
       // Handle sleep timer chapter countdown
       const { timerChapters, timerActive } = await getTimerSettings();

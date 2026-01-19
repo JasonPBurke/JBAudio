@@ -38,16 +38,14 @@ export const handleBookPlay = async (
     })();
   }
 
-  // If the book is already active, just resume playback without seeking
-  if (isActiveBook) {
-    await TrackPlayer.seekBy(-1);
-    await TrackPlayer.play();
-    return;
-  }
-
   const progressInfo = await getChapterProgressInDB(book.bookId!);
 
-  if (!progressInfo || progressInfo.chapterIndex === -1) return;
+  // Default to chapter 0 if no valid progress info exists (prevents silent failure)
+  const chapterIndex =
+    progressInfo?.chapterIndex !== undefined && progressInfo.chapterIndex >= 0
+      ? progressInfo.chapterIndex
+      : 0;
+  const chapterProgress = progressInfo?.progress ?? 0;
 
   const isChangingBook = book.bookId !== activeBookId;
 
@@ -63,8 +61,8 @@ export const handleBookPlay = async (
     }));
 
     await TrackPlayer.add(tracks);
-    await TrackPlayer.skip(progressInfo.chapterIndex);
-    await TrackPlayer.seekTo(progressInfo.progress || 0);
+    await TrackPlayer.skip(chapterIndex);
+    await TrackPlayer.seekTo(chapterProgress);
     await TrackPlayer.play();
     await TrackPlayer.setVolume(1);
 
@@ -73,8 +71,8 @@ export const handleBookPlay = async (
       await updateLastActiveBook(book.bookId);
     }
   } else {
-    await TrackPlayer.skip(progressInfo.chapterIndex);
-    await TrackPlayer.seekTo(progressInfo.progress || 0);
+    await TrackPlayer.skip(chapterIndex);
+    await TrackPlayer.seekTo(chapterProgress);
     await TrackPlayer.play();
     await TrackPlayer.setVolume(1);
   }

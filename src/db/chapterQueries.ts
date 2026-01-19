@@ -18,6 +18,14 @@ export const updateChapterIndexInDB = async (
   bookId: string,
   index: number
 ) => {
+  // Guard against invalid indices (defense in depth)
+  if (typeof index !== 'number' || index < 0) {
+    console.warn(
+      `Attempted to write invalid chapterIndex ${index} for book ${bookId}`
+    );
+    return;
+  }
+
   const book = (await database.collections
     .get('books')
     .find(bookId)) as Book;

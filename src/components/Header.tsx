@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { colors } from '@/constants/tokens';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Grip, Library, List, Settings2 } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
@@ -36,8 +35,8 @@ const AnimatedText = Reanimated.createAnimatedComponent(Text);
 const AnimatedView = Reanimated.createAnimatedComponent(View);
 
 // Pulse Animation Configuration
-const PULSE_DURATION = 1250; // Duration for each fade in/out cycle
-const MIN_OPACITY = 0.3; // Minimum opacity for pulse effect
+const PULSE_DURATION = 1250;
+const MIN_OPACITY = 0.3;
 
 const PulsingText = ({
   style,
@@ -109,11 +108,11 @@ const Header = (props: headerProps) => {
           </Pressable>
 
           <View style={styles.titleWrapper}>
-            <PulsingText
+            <Text
               style={[styles.titleStaticS, { color: themeColors.primary }]}
             >
               S
-            </PulsingText>
+            </Text>
             <View style={styles.titleContainer}>
               {isScanning ? (
                 <AnimatedView
@@ -211,7 +210,6 @@ export default Header;
 const styles = StyleSheet.create({
   container: {
     gap: 16,
-    // backgroundColor moved to inline for theme support
   },
   header: {
     flexDirection: 'row',
@@ -230,7 +228,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   titleStaticS: {
-    // color: '#FFB606',
     fontSize: 20,
     zIndex: 1,
     backgroundColor: 'transparent',
@@ -247,7 +244,6 @@ const styles = StyleSheet.create({
   },
   titleText: {
     fontSize: 20,
-    // color moved to inline for theme support
   },
   scanningText: {
     width: '100%',
@@ -257,6 +253,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 4,
-    // colors moved to inline for theme support
   },
 });
