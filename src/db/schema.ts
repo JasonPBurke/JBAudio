@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 20,
+  version: 21,
   tables: [
     tableSchema({
       name: 'authors',
@@ -79,6 +79,11 @@ export default appSchema({
           type: 'string',
           isOptional: true,
         },
+        {
+          name: 'has_auto_generated_chapters',
+          type: 'boolean',
+          isOptional: true,
+        },
       ],
     }),
     tableSchema({
@@ -90,6 +95,7 @@ export default appSchema({
         { name: 'chapter_duration', type: 'number' },
         { name: 'url', type: 'string' },
         { name: 'start_ms', type: 'number', isOptional: true },
+        { name: 'is_auto_generated', type: 'boolean', isOptional: true },
       ],
     }),
     tableSchema({
@@ -174,6 +180,11 @@ export default appSchema({
         {
           name: 'bedtime_mode_enabled',
           type: 'boolean',
+          isOptional: true,
+        },
+        {
+          name: 'auto_chapter_interval',
+          type: 'number',
           isOptional: true,
         },
       ],

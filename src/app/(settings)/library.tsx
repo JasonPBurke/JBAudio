@@ -7,12 +7,15 @@ import {
   ScrollView,
 } from 'react-native';
 import { useState, useCallback } from 'react';
+import { useSharedValue } from 'react-native-reanimated';
 import { useFocusEffect } from '@react-navigation/native';
-import { FolderOpen, Trash2, FolderPlus } from 'lucide-react-native';
+import { Picker } from '@react-native-picker/picker';
+import { FolderOpen, Trash2, FolderPlus, Layers } from 'lucide-react-native';
 import SettingsHeader from '@/components/SettingsHeader';
 import SettingsCard from '@/components/settings/SettingsCard';
 import CollapsibleSettingsSection from '@/components/settings/CollapsibleSettingsSection';
 import CompactSettingsRow from '@/components/settings/CompactSettingsRow';
+import ToggleSwitch from '@/components/animations/ToggleSwitch';
 import { screenPadding } from '@/constants/tokens';
 import { withOpacity } from '@/helpers/colorUtils';
 import { useTheme } from '@/hooks/useTheme';
@@ -20,25 +23,46 @@ import { refreshLibraryStore } from '@/store/library';
 import {
   getLibraryFolders,
   removeLibraryFolder,
+  getAutoChapterInterval,
+  setAutoChapterInterval,
+  getBooksWithoutChapterData,
 } from '@/db/settingsQueries';
+import { applyAutoChaptersToExistingBooks } from '@/helpers/autoChapterGenerator';
 import { directoryPicker } from '@/helpers/directoryPicker';
 import { router } from 'expo-router';
 
 const LibrarySettingsScreen = () => {
   const { colors: themeColors } = useTheme();
   const [libraryFolders, setLibraryFolders] = useState<string[]>([]);
+  const [autoChapterEnabled, setAutoChapterEnabled] = useState(false);
+  const [autoChapterInterval, setAutoChapterIntervalState] = useState<string>('30');
+  const [booksWithoutChaptersCount, setBooksWithoutChaptersCount] = useState(0);
+  const [isApplying, setIsApplying] = useState(false);
+  const autoChapterToggleValue = useSharedValue(0);
 
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
 
-      const fetchLibraryFolders = async () => {
+      const fetchSettings = async () => {
         const folders = await getLibraryFolders();
+        const interval = await getAutoChapterInterval();
+        const booksWithoutChapters = await getBooksWithoutChapterData();
+
         if (isActive) {
           setLibraryFolders(folders);
+          if (interval !== null) {
+            setAutoChapterEnabled(true);
+            setAutoChapterIntervalState(interval.toString());
+            autoChapterToggleValue.value = 1;
+          } else {
+            setAutoChapterEnabled(false);
+            autoChapterToggleValue.value = 0;
+          }
+          setBooksWithoutChaptersCount(booksWithoutChapters.length);
         }
       };
-      fetchLibraryFolders();
+      fetchSettings();
 
       return () => {
         isActive = false;
@@ -73,6 +97,73 @@ const LibrarySettingsScreen = () => {
   const handleAddFolder = async () => {
     router.back();
     await directoryPicker();
+  };
+
+  const handleAutoChapterToggle = async () => {
+    const newEnabled = !autoChapterEnabled;
+    setAutoChapterEnabled(newEnabled);
+    autoChapterToggleValue.value = newEnabled ? 1 : 0;
+
+    if (newEnabled) {
+      // Enable with the currently selected interval
+      await setAutoChapterInterval(parseInt(autoChapterInterval, 10));
+    } else {
+      // Disable auto-chapter generation
+      await setAutoChapterInterval(null);
+    }
+  };
+
+  const handleIntervalChange = async (value: string) => {
+    setAutoChapterIntervalState(value);
+    if (autoChapterEnabled) {
+      await setAutoChapterInterval(parseInt(value, 10));
+    }
+  };
+
+  const handleApplyToExisting = () => {
+    if (booksWithoutChaptersCount === 0) {
+      Alert.alert(
+        'No Books Found',
+        'All books in your library already have chapter data.',
+        [{ text: 'OK' }],
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Apply Auto-Chapters',
+      `This will generate ${autoChapterInterval}-minute chapters for ${booksWithoutChaptersCount} book${booksWithoutChaptersCount > 1 ? 's' : ''} without chapter data. Continue?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Apply',
+          onPress: async () => {
+            setIsApplying(true);
+            try {
+              const count = await applyAutoChaptersToExistingBooks();
+              await refreshLibraryStore();
+              setBooksWithoutChaptersCount(0);
+              Alert.alert(
+                'Success',
+                `Auto-chapters generated for ${count} book${count > 1 ? 's' : ''}.`,
+                [{ text: 'OK' }],
+              );
+            } catch (error) {
+              Alert.alert(
+                'Error',
+                'Failed to apply auto-chapters. Please try again.',
+                [{ text: 'OK' }],
+              );
+            } finally {
+              setIsApplying(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -120,6 +211,87 @@ const LibrarySettingsScreen = () => {
             </TouchableOpacity>
           </View>
         </SettingsCard>
+
+        <SettingsCard title='Auto-Generate Chapters' icon={Layers}>
+          <View style={styles.autoChapterContent}>
+            <Text
+              style={[
+                styles.addFolderDescription,
+                { color: themeColors.textMuted },
+              ]}
+            >
+              Automatically create chapter markers for audiobooks that don't have
+              embedded chapter data
+            </Text>
+            <CompactSettingsRow
+              label='Enable Auto-Chapters'
+              control={
+                <ToggleSwitch
+                  value={autoChapterToggleValue}
+                  onPress={handleAutoChapterToggle}
+                  style={{ width: 72, height: 36, padding: 5 }}
+                  trackColors={{
+                    on: themeColors.primary,
+                    off: themeColors.modalBackground,
+                  }}
+                />
+              }
+            />
+            {autoChapterEnabled && (
+              <>
+                <View style={styles.pickerContainer}>
+                  <Text
+                    style={[
+                      styles.pickerLabel,
+                      { color: themeColors.textMuted },
+                    ]}
+                  >
+                    Chapter Interval
+                  </Text>
+                  <Picker
+                    style={{
+                      flex: 1,
+                      height: 50,
+                      color: themeColors.text,
+                      backgroundColor: themeColors.modalBackground,
+                    }}
+                    dropdownIconColor={themeColors.primary}
+                    selectedValue={autoChapterInterval}
+                    onValueChange={handleIntervalChange}
+                    mode='dropdown'
+                  >
+                    <Picker.Item label='30 minutes' value='30' />
+                    <Picker.Item label='60 minutes' value='60' />
+                  </Picker>
+                </View>
+                <TouchableOpacity
+                  onPress={handleApplyToExisting}
+                  disabled={isApplying}
+                  style={[
+                    styles.addButton,
+                    {
+                      backgroundColor: withOpacity(themeColors.primary, 0.1),
+                      opacity: isApplying ? 0.5 : 1,
+                    },
+                  ]}
+                >
+                  <Layers size={20} color={themeColors.primary} />
+                  <Text
+                    style={[
+                      styles.addButtonText,
+                      { color: themeColors.primary },
+                    ]}
+                  >
+                    {isApplying
+                      ? 'Applying...'
+                      : `Apply to Existing Books (${booksWithoutChaptersCount})`}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </SettingsCard>
+
         {libraryFolders.length > 0 && (
           <CollapsibleSettingsSection
             title='Library Folders'
@@ -211,6 +383,19 @@ const styles = StyleSheet.create({
   },
   addButtonText: {
     fontWeight: '600',
+    fontSize: 16,
+  },
+  autoChapterContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 4,
+    gap: 12,
+  },
+  pickerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pickerLabel: {
     fontSize: 16,
   },
 });

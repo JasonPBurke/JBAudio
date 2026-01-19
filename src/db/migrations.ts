@@ -7,6 +7,41 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      toVersion: 21,
+      steps: [
+        addColumns({
+          table: 'books',
+          columns: [
+            {
+              name: 'has_auto_generated_chapters',
+              type: 'boolean',
+              isOptional: true,
+            },
+          ],
+        }),
+        addColumns({
+          table: 'chapters',
+          columns: [
+            {
+              name: 'is_auto_generated',
+              type: 'boolean',
+              isOptional: true,
+            },
+          ],
+        }),
+        addColumns({
+          table: 'settings',
+          columns: [
+            {
+              name: 'auto_chapter_interval',
+              type: 'number',
+              isOptional: true,
+            },
+          ],
+        }),
+      ],
+    },
+    {
       toVersion: 20,
       steps: [
         addColumns({
