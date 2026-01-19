@@ -14,7 +14,7 @@ import { unknownBookImageUri } from '@/constants/images';
  */
 export const populateSingleBook = async (
   authorName: string,
-  bookData: BookType
+  bookData: BookType,
 ) => {
   await database.write(async () => {
     const batchOperations = [];
@@ -42,7 +42,7 @@ export const populateSingleBook = async (
       .get<Book>('books')
       .query(
         Q.where('author_id', authorRecord.id),
-        Q.where('title', bookData.bookTitle)
+        Q.where('title', bookData.bookTitle),
       )
       .fetch();
 
@@ -59,41 +59,49 @@ export const populateSingleBook = async (
 
     // Create or update book
     if (!bookRecord) {
-      bookRecord = await database.get<Book>('books').prepareCreate((book) => {
-        book.title = bookData.bookTitle;
-        book.artwork = bookData.artwork || unknownBookImageUri;
-        book.artworkHeight = bookData.artworkHeight || null;
-        book.artworkWidth = bookData.artworkWidth || null;
-        // book.coverColorAverage = bookData.artworkColors.average || null; // DEPRECATED
-        book.coverColorDominant = bookData.artworkColors.dominant || null;
-        book.coverColorVibrant = bookData.artworkColors.vibrant || null;
-        book.coverColorDarkVibrant = bookData.artworkColors.darkVibrant || null;
-        book.coverColorLightVibrant =
-          bookData.artworkColors.lightVibrant || null;
-        book.coverColorMuted = bookData.artworkColors.muted || null;
-        book.coverColorDarkMuted = bookData.artworkColors.darkMuted || null;
-        book.coverColorLightMuted = bookData.artworkColors.lightMuted || null;
-        book.bookDuration = bookData.bookDuration || 0;
-        book.currentChapterIndex =
-          bookData.bookProgress.currentChapterIndex || 0;
-        book.currentChapterProgress =
-          bookData.bookProgress.currentChapterProgress || 0;
-        book.year = bookData.metadata.year || 0;
-        book.description = bookData.metadata.description || '';
-        book.copyright = bookData.metadata.copyright || '';
-        book.narrator = bookData.metadata.narrator || '';
-        book.genre = bookData.metadata.genre || '';
-        book.sampleRate = bookData.metadata.sampleRate || 0;
-        book.bitrate = bookData.metadata.bitrate || 0;
-        book.codec = bookData.metadata.codec || '';
-        book.totalTrackCount =
-          bookData.metadata.totalTrackCount || bookData.chapters.length || 0;
-        book.createdAt = bookData.metadata.ctime || new Date();
-        book.updatedAt = new Date();
-        book.bookProgressValue = 0;
-        // Set the foreign key relationship
-        (book._raw as any).author_id = authorRecord.id;
-      });
+      bookRecord = await database
+        .get<Book>('books')
+        .prepareCreate((book) => {
+          book.title = bookData.bookTitle;
+          book.artwork = bookData.artwork || unknownBookImageUri;
+          book.artworkHeight = bookData.artworkHeight || null;
+          book.artworkWidth = bookData.artworkWidth || null;
+          // book.coverColorAverage = bookData.artworkColors.average || null; // DEPRECATED
+          book.coverColorDominant =
+            bookData.artworkColors?.dominantAndroid || null;
+          book.coverColorVibrant = bookData.artworkColors?.vibrant || null;
+          book.coverColorDarkVibrant =
+            bookData.artworkColors?.darkVibrant || null;
+          book.coverColorLightVibrant =
+            bookData.artworkColors?.lightVibrant || null;
+          book.coverColorMuted = bookData.artworkColors?.muted || null;
+          book.coverColorDarkMuted =
+            bookData.artworkColors?.darkMuted || null;
+          book.coverColorLightMuted =
+            bookData.artworkColors?.lightMuted || null;
+          book.bookDuration = bookData.bookDuration || 0;
+          book.currentChapterIndex =
+            bookData.bookProgress.currentChapterIndex || 0;
+          book.currentChapterProgress =
+            bookData.bookProgress.currentChapterProgress || 0;
+          book.year = bookData.metadata.year || 0;
+          book.description = bookData.metadata.description || '';
+          book.copyright = bookData.metadata.copyright || '';
+          book.narrator = bookData.metadata.narrator || '';
+          book.genre = bookData.metadata.genre || '';
+          book.sampleRate = bookData.metadata.sampleRate || 0;
+          book.bitrate = bookData.metadata.bitrate || 0;
+          book.codec = bookData.metadata.codec || '';
+          book.totalTrackCount =
+            bookData.metadata.totalTrackCount ||
+            bookData.chapters.length ||
+            0;
+          book.createdAt = bookData.metadata.ctime || new Date();
+          book.updatedAt = new Date();
+          book.bookProgressValue = 0;
+          // Set the foreign key relationship
+          (book._raw as any).author_id = authorRecord.id;
+        });
       batchOperations.push(bookRecord);
     } else {
       // Update existing book
@@ -103,15 +111,18 @@ export const populateSingleBook = async (
           book.artworkHeight = bookData.artworkHeight || null;
           book.artworkWidth = bookData.artworkWidth || null;
           // book.coverColorAverage = bookData.artworkColors.average || null; // DEPRECATED
-          book.coverColorDominant = bookData.artworkColors.dominant || null;
-          book.coverColorVibrant = bookData.artworkColors.vibrant || null;
+          book.coverColorDominant =
+            bookData.artworkColors?.dominantAndroid || null;
+          book.coverColorVibrant = bookData.artworkColors?.vibrant || null;
           book.coverColorDarkVibrant =
-            bookData.artworkColors.darkVibrant || null;
+            bookData.artworkColors?.darkVibrant || null;
           book.coverColorLightVibrant =
-            bookData.artworkColors.lightVibrant || null;
-          book.coverColorMuted = bookData.artworkColors.muted || null;
-          book.coverColorDarkMuted = bookData.artworkColors.darkMuted || null;
-          book.coverColorLightMuted = bookData.artworkColors.lightMuted || null;
+            bookData.artworkColors?.lightVibrant || null;
+          book.coverColorMuted = bookData.artworkColors?.muted || null;
+          book.coverColorDarkMuted =
+            bookData.artworkColors?.darkMuted || null;
+          book.coverColorLightMuted =
+            bookData.artworkColors?.lightMuted || null;
           book.bookDuration = bookData.bookDuration || 0;
           book.currentChapterIndex =
             bookData.bookProgress.currentChapterIndex || 0;
@@ -126,9 +137,11 @@ export const populateSingleBook = async (
           book.bitrate = bookData.metadata.bitrate || 0;
           book.codec = bookData.metadata.codec || '';
           book.totalTrackCount =
-            bookData.metadata.totalTrackCount || bookData.chapters.length || 0;
+            bookData.metadata.totalTrackCount ||
+            bookData.chapters.length ||
+            0;
           book.updatedAt = new Date();
-        })
+        }),
       );
     }
 
@@ -218,7 +231,7 @@ export const populateDatabase = async (authors: AuthorType[]) => {
           .get<Book>('books')
           .query(
             Q.where('author_id', authorRecord.id),
-            Q.where('title', bookData.bookTitle)
+            Q.where('title', bookData.bookTitle),
           )
           .fetch();
 
@@ -227,7 +240,7 @@ export const populateDatabase = async (authors: AuthorType[]) => {
           const chapters = await (book.chapters as any).fetch();
           if (
             chapters.some(
-              (chapter: Chapter) => chapter.url === bookData.bookId
+              (chapter: Chapter) => chapter.url === bookData.bookId,
             )
           ) {
             bookRecord = book;
@@ -245,20 +258,20 @@ export const populateDatabase = async (authors: AuthorType[]) => {
               book.artworkHeight = bookData.artworkHeight || null;
               book.artworkWidth = bookData.artworkWidth || null;
               book.coverColorAverage =
-                bookData.artworkColors.average || null;
-              book.coverColorDominant =
-                bookData.artworkColors.dominant || null;
+                //   bookData.artworkColors?.average || null;
+                // book.coverColorDominant =
+                bookData.artworkColors?.dominantAndroid || null;
               book.coverColorVibrant =
-                bookData.artworkColors.vibrant || null;
+                bookData.artworkColors?.vibrant || null;
               book.coverColorDarkVibrant =
-                bookData.artworkColors.darkVibrant || null;
+                bookData.artworkColors?.darkVibrant || null;
               book.coverColorLightVibrant =
-                bookData.artworkColors.lightVibrant || null;
-              book.coverColorMuted = bookData.artworkColors.muted || null;
+                bookData.artworkColors?.lightVibrant || null;
+              book.coverColorMuted = bookData.artworkColors?.muted || null;
               book.coverColorDarkMuted =
-                bookData.artworkColors.darkMuted || null;
+                bookData.artworkColors?.darkMuted || null;
               book.coverColorLightMuted =
-                bookData.artworkColors.lightMuted || null;
+                bookData.artworkColors?.lightMuted || null;
               book.bookDuration = bookData.bookDuration || 0; // Add bookDuration
               book.currentChapterIndex =
                 bookData.bookProgress.currentChapterIndex || 0;
@@ -291,20 +304,20 @@ export const populateDatabase = async (authors: AuthorType[]) => {
               book.artworkHeight = bookData.artworkHeight || null;
               book.artworkWidth = bookData.artworkWidth || null;
               book.coverColorAverage =
-                bookData.artworkColors.average || null;
-              book.coverColorDominant =
-                bookData.artworkColors.dominant || null;
+                //   bookData.artworkColors.average || null;
+                // book.coverColorDominant =
+                bookData.artworkColors?.dominantAndroid || null;
               book.coverColorVibrant =
-                bookData.artworkColors.vibrant || null;
+                bookData.artworkColors?.vibrant || null;
               book.coverColorDarkVibrant =
-                bookData.artworkColors.darkVibrant || null;
+                bookData.artworkColors?.darkVibrant || null;
               book.coverColorLightVibrant =
-                bookData.artworkColors.lightVibrant || null;
-              book.coverColorMuted = bookData.artworkColors.muted || null;
+                bookData.artworkColors?.lightVibrant || null;
+              book.coverColorMuted = bookData.artworkColors?.muted || null;
               book.coverColorDarkMuted =
-                bookData.artworkColors.darkMuted || null;
+                bookData.artworkColors?.darkMuted || null;
               book.coverColorLightMuted =
-                bookData.artworkColors.lightMuted || null;
+                bookData.artworkColors?.lightMuted || null;
               book.bookDuration = bookData.bookDuration || 0; // Update bookDuration
               book.currentChapterIndex =
                 bookData.bookProgress.currentChapterIndex || 0;
@@ -323,7 +336,7 @@ export const populateDatabase = async (authors: AuthorType[]) => {
                 bookData.chapters.length ||
                 0;
               book.updatedAt = new Date();
-            })
+            }),
           );
         }
 
