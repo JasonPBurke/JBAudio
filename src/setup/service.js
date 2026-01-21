@@ -11,6 +11,7 @@ import {
   updateChapterIndexInDB,
 } from '@/db/chapterQueries';
 import { isWithinBedtimeWindow } from '@/helpers/bedtimeUtils';
+import { recordFootprint } from '@/db/footprintQueries';
 
 const { setPlaybackIndex, setPlaybackProgress } =
   useLibraryStore.getState();
@@ -236,6 +237,16 @@ export default module.exports = async function () {
           timerSettings.bedtimeEnd
         )
       ) {
+        // Record footprint for bedtime auto-activation
+        try {
+          const activeTrack = await TrackPlayer.getActiveTrack();
+          if (activeTrack?.bookId) {
+            await recordFootprint(activeTrack.bookId, 'timer_activation');
+          }
+        } catch {
+          // Silently fail if footprint recording fails
+        }
+
         // Activate the timer based on what's configured
         if (timerSettings.timerDuration !== null) {
           await updateTimerActive(true);

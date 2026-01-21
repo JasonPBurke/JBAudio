@@ -15,6 +15,7 @@ import { useProgressReanimated } from '@/hooks/useProgressReanimated';
 import { useCurrentChapterStable } from '@/hooks/useCurrentChapterStable';
 import { useTheme } from '@/hooks/useTheme';
 import { useLibraryStore } from '@/store/library';
+import { recordSeekFootprint } from '@/db/footprintQueries';
 
 // Pre-defined styles to avoid inline object creation
 const bubbleContainerStyle = {
@@ -173,6 +174,25 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
   const handleSeek = useCallback(
     async (value: number) => {
       isSliding.value = false;
+
+      // Record footprint with position before the seek
+      // TrackPlayer still has the original position since seekTo hasn't been called yet
+      try {
+        const [activeTrack, { position: currentPos }] = await Promise.all([
+          TrackPlayer.getActiveTrack(),
+          TrackPlayer.getProgress(),
+        ]);
+        if (activeTrack?.bookId) {
+          // recordSeekFootprint handles chapter detection for single-file books
+          // currentPos is in seconds, convert to ms
+          await recordSeekFootprint(
+            activeTrack.bookId,
+            Math.round(currentPos * 1000)
+          );
+        }
+      } catch {
+        // Silently fail if footprint recording fails
+      }
 
       const chapStart = chapterStart.value;
       const chapDur =

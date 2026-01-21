@@ -16,6 +16,7 @@ import {
   updateTimerActive,
   updateSleepTime,
 } from '@/db/settingsQueries';
+import { recordFootprint } from '@/db/footprintQueries';
 import UserSettings from '@/db/models/Settings';
 import { useDatabase } from '@nozbe/watermelondb/hooks';
 import { useEffect } from 'react';
@@ -109,6 +110,18 @@ const SleepTimerOptions = ({
     setChaptersToEnd((prev) => Math.max(prev - 1, 0));
   };
 
+  // Helper to record timer activation footprint
+  const recordTimerFootprintAsync = async () => {
+    try {
+      const activeTrack = await TrackPlayer.getActiveTrack();
+      if (activeTrack?.bookId) {
+        await recordFootprint(activeTrack.bookId, 'timer_activation');
+      }
+    } catch {
+      // Silently fail if footprint recording fails
+    }
+  };
+
   const handlePresetPress = async (duration: number) => {
     //! convert to milliseconds (timestamp) before saving for timer calculation
     const totalMilliseconds = duration * 60 * 1000;
@@ -137,6 +150,7 @@ const SleepTimerOptions = ({
       await updateChapterTimer(null);
       setChapterTimerActive(false);
       setActiveTimerDuration(totalMilliseconds);
+      await recordTimerFootprintAsync();
       setTimeout(() => {
         bottomSheetModalRef.current?.close();
       }, 250);
@@ -176,6 +190,7 @@ const SleepTimerOptions = ({
       await updateCustomTimer(value.hours, value.minutes);
       setChapterTimerActive(false);
       setActiveTimerDuration(totalMilliseconds);
+      await recordTimerFootprintAsync();
       setTimeout(() => {
         bottomSheetModalRef.current?.close();
       }, 250);
@@ -207,6 +222,7 @@ const SleepTimerOptions = ({
       await updateTimerDuration(null);
       await updateChapterTimer(chaptersToEnd);
       setActiveTimerDuration(null);
+      await recordTimerFootprintAsync();
       setTimeout(() => {
         bottomSheetModalRef.current?.close();
       }, 250);

@@ -7,6 +7,7 @@ import {
   getLastActiveBook,
   updateLastActiveBook,
 } from '@/db/settingsQueries';
+import { recordFootprint } from '@/db/footprintQueries';
 
 export enum BookProgressState {
   NotStarted = 0,
@@ -19,7 +20,7 @@ export const handleBookPlay = async (
   playing: boolean | undefined,
   isActiveBook: boolean,
   activeBookId: string | null,
-  setActiveBookId: (bookId: string) => void
+  setActiveBookId: (bookId: string) => void,
 ) => {
   if (!book) return;
   if (isActiveBook && playing) return;
@@ -42,7 +43,8 @@ export const handleBookPlay = async (
 
   // Default to chapter 0 if no valid progress info exists (prevents silent failure)
   const chapterIndex =
-    progressInfo?.chapterIndex !== undefined && progressInfo.chapterIndex >= 0
+    progressInfo?.chapterIndex !== undefined &&
+    progressInfo.chapterIndex >= 0
       ? progressInfo.chapterIndex
       : 0;
   const chapterProgress = progressInfo?.progress ?? 0;
@@ -61,6 +63,16 @@ export const handleBookPlay = async (
     }));
 
     await TrackPlayer.add(tracks);
+    // // Record footprint before playing
+    // try {
+    //   const activeTrack = await TrackPlayer.getActiveTrack();
+    //   if (activeTrack?.bookId) {
+    //     await recordFootprint(activeTrack.bookId, 'play');
+    //   }
+    // } catch {
+    //   // Silently fail if footprint recording fails
+    // }
+
     await TrackPlayer.skip(chapterIndex);
     await TrackPlayer.seekTo(chapterProgress);
     await TrackPlayer.play();
@@ -71,6 +83,16 @@ export const handleBookPlay = async (
       await updateLastActiveBook(book.bookId);
     }
   } else {
+    // // Record footprint before playing
+    // try {
+    //   const activeTrack = await TrackPlayer.getActiveTrack();
+    //   if (activeTrack?.bookId) {
+    //     await recordFootprint(activeTrack.bookId, 'play');
+    //   }
+    // } catch {
+    //   // Silently fail if footprint recording fails
+    // }
+
     await TrackPlayer.skip(chapterIndex);
     await TrackPlayer.seekTo(chapterProgress);
     await TrackPlayer.play();

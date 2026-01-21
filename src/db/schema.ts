@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 21,
+  version: 22,
   tables: [
     tableSchema({
       name: 'authors',
@@ -187,6 +187,16 @@ export default appSchema({
           type: 'number',
           isOptional: true,
         },
+      ],
+    }),
+    tableSchema({
+      name: 'footprints',
+      columns: [
+        { name: 'book_id', type: 'string', isIndexed: true },
+        { name: 'chapter_index', type: 'number' },
+        { name: 'position_ms', type: 'number' },
+        { name: 'trigger_type', type: 'string' },
+        { name: 'created_at', type: 'number' },
       ],
     }),
   ],

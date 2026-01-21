@@ -8,6 +8,7 @@ import {
 import { useActiveTrack } from 'react-native-track-player';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 
 import { colors, screenPadding } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
@@ -65,6 +66,7 @@ const PlayerScreen = () => {
   // App state handling for background dismissal
   const appState = useRef(AppState.currentState);
   const navigation = useNavigation();
+  const router = useRouter();
 
   const { colors: themeColors } = useTheme();
 
@@ -120,6 +122,11 @@ const PlayerScreen = () => {
     [book?.artworkColors, themeColors.background, themeColors.primary]
   );
 
+  // Handle long press on artwork to navigate to footprints
+  const handleArtworkLongPress = useCallback(() => {
+    router.push('/footprintList' as any);
+  }, [router]);
+
   // Loading state - only shown when no active track
   if (!activeTrack) {
     return (
@@ -141,7 +148,11 @@ const PlayerScreen = () => {
         <DismissIndicator />
 
         {/* Memoized artwork component - only re-renders when artwork/width changes */}
-        <PlayerArtwork artwork={book?.artwork} width={artworkWidth} />
+        <PlayerArtwork
+          artwork={book?.artwork}
+          width={artworkWidth}
+          onLongPress={handleArtworkLongPress}
+        />
 
         <View style={chapterSectionStyle}>
           {/* Chapter trigger - navigates to chapter list screen */}

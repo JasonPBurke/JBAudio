@@ -19,6 +19,7 @@ import { useCurrentChapterStable } from '@/hooks/useCurrentChapterStable';
 import { Chapter } from '@/types/Book';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { FlashList } from '@shopify/flash-list';
+import { recordFootprint } from '@/db/footprintQueries';
 
 const ChapterListScreen = () => {
   const router = useRouter();
@@ -69,6 +70,13 @@ const ChapterListScreen = () => {
       ) {
         router.back();
         return;
+      }
+
+      // Record footprint before chapter change
+      try {
+        await recordFootprint(book.bookId, 'chapter_change');
+      } catch {
+        // Silently fail if footprint recording fails
       }
 
       // Check if it's a single-file book

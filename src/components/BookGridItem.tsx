@@ -69,7 +69,7 @@ export const BookGridItem = memo(function BookGridItem({
       isCurrentlyPlaying,
       isActiveBook,
       activeBookId,
-      setActiveBookId
+      setActiveBookId,
     );
   }, [fullBook, isActiveBook, activeBookId, setActiveBookId]);
 
@@ -109,7 +109,7 @@ export const BookGridItem = memo(function BookGridItem({
           ? (safeArtworkWidth / safeArtworkHeight) * 150 - 10
           : itemWidth,
     }),
-    [flowDirection, itemWidth, safeArtworkWidth, safeArtworkHeight]
+    [flowDirection, itemWidth, safeArtworkWidth, safeArtworkHeight],
   );
 
   const bookTitleStyle = useMemo(
@@ -127,7 +127,7 @@ export const BookGridItem = memo(function BookGridItem({
               ? fontSize.sm
               : 14,
     }),
-    [isActiveBook, flowDirection, numColumns, themeColors]
+    [isActiveBook, flowDirection, numColumns, themeColors],
   );
 
   const bookAuthorStyle = useMemo(
@@ -143,17 +143,12 @@ export const BookGridItem = memo(function BookGridItem({
               ? fontSize.xs
               : fontSize.xs,
     }),
-    [flowDirection, numColumns, themeColors]
+    [flowDirection, numColumns, themeColors],
   );
 
   return (
     <PressableScale
-      // rippleColor={'#5c575749'}
       rippleRadius={0}
-      // android_ripple={{
-      //   color: '#cccccc28',
-      //   foreground: false,
-      // }}
       style={{
         paddingTop: 4,
         alignItems: 'center',
@@ -186,7 +181,7 @@ export const BookGridItem = memo(function BookGridItem({
                   borderRadius: 4,
                   backgroundColor: withOpacity(
                     themeColors.background,
-                    0.59
+                    0.59,
                   ),
                   justifyContent: 'center',
                   alignItems: 'center',
@@ -224,7 +219,7 @@ export const BookGridItem = memo(function BookGridItem({
                   borderRadius: 4,
                   backgroundColor: withOpacity(
                     themeColors.background,
-                    0.59
+                    0.59,
                   ),
                 },
               ]}

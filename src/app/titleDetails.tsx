@@ -42,6 +42,7 @@ import {
   BookProgressState,
 } from '@/helpers/handleBookPlay';
 import { removeAutoChapters } from '@/helpers/autoChapterGenerator';
+import { recordFootprint } from '@/db/footprintQueries';
 
 const TitleDetails = () => {
   const { top, bottom } = useSafeAreaInsets();
@@ -144,6 +145,40 @@ const TitleDetails = () => {
   const handleEditPress = () => {
     setShowMenu(false);
     handleEditTitle();
+  };
+
+  const handlePlayPress = async () => {
+    if (isPlayingBook) {
+      await TrackPlayer.pause();
+    } else {
+      // Record footprint before playing (only if this is the active book)
+      try {
+        const activeTrack = await TrackPlayer.getActiveTrack();
+        if (activeTrack?.bookId === book.bookId) {
+          await recordFootprint(activeTrack.bookId, 'play');
+        }
+      } catch {
+        // Silently fail if footprint recording fails
+      }
+
+      setIsLoading(true);
+      const timer = setTimeout(() => {
+        setShowLoading(true);
+      }, 100);
+      try {
+        await handleBookPlay(
+          book,
+          playing,
+          isActiveBook,
+          activeBookId,
+          setActiveBookId,
+        );
+      } finally {
+        clearTimeout(timer);
+        setIsLoading(false);
+        setShowLoading(false);
+      }
+    }
   };
 
   let genres: string[] = [];
@@ -408,29 +443,7 @@ const TitleDetails = () => {
               <TouchableOpacity
                 activeOpacity={0.9}
                 disabled={isLoading}
-                onPress={async () => {
-                  if (isPlayingBook) {
-                    await TrackPlayer.pause();
-                  } else {
-                    setIsLoading(true);
-                    const timer = setTimeout(() => {
-                      setShowLoading(true);
-                    }, 100);
-                    try {
-                      await handleBookPlay(
-                        book,
-                        playing,
-                        isActiveBook,
-                        activeBookId,
-                        setActiveBookId,
-                      );
-                    } finally {
-                      clearTimeout(timer);
-                      setIsLoading(false);
-                      setShowLoading(false);
-                    }
-                  }
-                }}
+                onPress={handlePlayPress}
               >
                 <View style={styles.playButton}>
                   {isPlayingBook ? (

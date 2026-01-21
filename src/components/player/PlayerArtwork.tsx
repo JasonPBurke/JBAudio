@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Pressable } from 'react-native';
 import { ShadowedView, shadowStyle } from 'react-native-fast-shadow';
 import { Image } from 'expo-image';
 import { unknownBookImageUri } from '@/constants/images';
@@ -9,6 +9,7 @@ const FIXED_ARTWORK_HEIGHT = 350;
 type PlayerArtworkProps = {
   artwork: string | null | undefined;
   width: number;
+  onLongPress?: () => void;
 };
 
 /**
@@ -19,11 +20,16 @@ type PlayerArtworkProps = {
  * The artwork only needs to re-render when:
  * - The book changes (different artwork URL)
  * - The calculated width changes (different aspect ratio)
+ * - Long press to access footprints
  */
 export const PlayerArtwork = React.memo(
-  ({ artwork, width }: PlayerArtworkProps) => {
+  ({ artwork, width, onLongPress }: PlayerArtworkProps) => {
     return (
-      <View style={[styles.container, { width }]}>
+      <Pressable
+        onLongPress={onLongPress}
+        delayLongPress={400}
+        style={[styles.container, { width }]}
+      >
         <ShadowedView
           style={shadowStyle({
             opacity: 0.4,
@@ -37,7 +43,7 @@ export const PlayerArtwork = React.memo(
             style={styles.image}
           />
         </ShadowedView>
-      </View>
+      </Pressable>
     );
   }
 );

@@ -15,7 +15,7 @@ import { useBehavior } from '@/hooks/useBehavior';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useBookById } from '@/store/library';
+import { useBookById, refreshLibraryStore } from '@/store/library';
 import { unknownBookImageUri } from '@/constants/images';
 import { useEffect, useState } from 'react';
 import { BookEditableFields } from '@/types/Book';
@@ -44,7 +44,7 @@ const editTitleDetails = () => {
     if (book) {
       setFormState({
         bookTitle: book.bookTitle,
-        author: book.author, // Author is not editable in this implementation
+        author: book.author,
         narrator: book.metadata.narrator ?? '',
         genre: book.metadata.genre ?? '',
         year: book.metadata.year ?? '',
@@ -63,6 +63,7 @@ const editTitleDetails = () => {
 
   const handleSave = async () => {
     await updateBookDetails(bookId, formState);
+    await refreshLibraryStore();
     router.back();
   };
 
@@ -146,7 +147,7 @@ const editTitleDetails = () => {
               },
             ]}
             value={formState.author}
-            editable={false} //! Author editing is complex due to the data model
+            onChangeText={(text) => handleInputChange('author', text)}
             cursorColor={colors.primary}
             selectionColor={colors.primary}
           ></TextInput>

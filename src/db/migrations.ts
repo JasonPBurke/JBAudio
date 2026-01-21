@@ -7,6 +7,21 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      toVersion: 22,
+      steps: [
+        createTable({
+          name: 'footprints',
+          columns: [
+            { name: 'book_id', type: 'string', isIndexed: true },
+            { name: 'chapter_index', type: 'number' },
+            { name: 'position_ms', type: 'number' },
+            { name: 'trigger_type', type: 'string' },
+            { name: 'created_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
+    {
       toVersion: 21,
       steps: [
         addColumns({

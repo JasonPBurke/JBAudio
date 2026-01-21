@@ -1,9 +1,10 @@
-import React, {
+import {
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
+  memo,
 } from 'react';
 import {
   StyleSheet,
@@ -21,7 +22,6 @@ import {
   IterationCw,
   Gauge,
   Bell,
-  // Hourglass,
   SkipBack,
   SkipForward,
 } from 'lucide-react-native';
@@ -48,6 +48,7 @@ import {
   updateTimerActive,
   updateTimerFadeoutDuration,
 } from '@/db/settingsQueries';
+import { recordFootprint } from '@/db/footprintQueries';
 import database from '@/db';
 import { useObserveSettings } from '@/hooks/useObserveSettings';
 
@@ -71,28 +72,21 @@ type PlayerButtonProps = {
  * Child button components use Reanimated for animations,
  * which don't cause React re-renders.
  */
-export const PlayerControls = React.memo(
-  ({ style }: PlayerControlsProps) => {
-    return (
-      <View style={[styles.controlsContainer, style]}>
-        <View style={styles.playerRow}>
-          <PlaybackSpeed iconSize={25} />
-          <SeekBackButton iconSize={42} top={6} right={12} fontSize={15} />
+export const PlayerControls = memo(({ style }: PlayerControlsProps) => {
+  return (
+    <View style={[styles.controlsContainer, style]}>
+      <View style={styles.playerRow}>
+        <PlaybackSpeed iconSize={25} />
+        <SeekBackButton iconSize={42} top={6} right={12} fontSize={15} />
 
-          <PlayPauseButton iconSize={70} />
+        <PlayPauseButton iconSize={70} />
 
-          <SeekForwardButton
-            iconSize={42}
-            top={6}
-            right={12}
-            fontSize={15}
-          />
-          <SleepTimer iconSize={25} />
-        </View>
+        <SeekForwardButton iconSize={42} top={6} right={12} fontSize={15} />
+        <SleepTimer iconSize={25} />
       </View>
-    );
-  }
-);
+    </View>
+  );
+});
 
 PlayerControls.displayName = 'PlayerControls';
 
@@ -113,6 +107,16 @@ export function PlayPauseButton({
       pauseButtonScale.value = withTiming(0, { duration: 200 });
       await TrackPlayer.pause();
     } else {
+      // Record footprint before playing
+      try {
+        const activeTrack = await TrackPlayer.getActiveTrack();
+        if (activeTrack?.bookId) {
+          await recordFootprint(activeTrack.bookId, 'play');
+        }
+      } catch {
+        // Silently fail if footprint recording fails
+      }
+
       playButtonScale.value = withTiming(0, { duration: 200 });
       pauseButtonScale.value = withTiming(1, { duration: 200 });
       await TrackPlayer.seekBy(-1);
@@ -200,11 +204,11 @@ export function SeekBackButton({
     rotation.value = withSequence(
       withTiming(4, { duration: 100 }),
       withTiming(-2, { duration: 100 }),
-      withTiming(0, { duration: 100 })
+      withTiming(0, { duration: 100 }),
     );
 
     const currentPosition = await TrackPlayer.getProgress().then(
-      (progress) => progress.position
+      (progress) => progress.position,
     );
     const newPosition = currentPosition - seekDuration;
 
@@ -262,7 +266,7 @@ export function SeekForwardButton({
     rotation.value = withSequence(
       withTiming(-4, { duration: 100 }),
       withTiming(2, { duration: 100 }),
-      withTiming(0, { duration: 100 })
+      withTiming(0, { duration: 100 }),
     );
 
     const { position, duration } = await TrackPlayer.getProgress();
@@ -431,7 +435,7 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
         appearsOnIndex={0}
       />
     ),
-    []
+    [],
   );
 
   const onOptimisticUpdate = useCallback(
@@ -442,7 +446,7 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
     }) => {
       setOptimistic(next);
     },
-    []
+    [],
   );
 
   const handlePresentModalPress = useCallback(() => {
@@ -453,6 +457,19 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
   const handlePress = useCallback(async () => {
     const { timerDuration, timerActive, timerChapters, fadeoutDuration } =
       await getTimerSettings();
+
+    // Helper to record timer activation footprint
+    const recordTimerFootprintAsync = async () => {
+      try {
+        const activeTrack = await TrackPlayer.getActiveTrack();
+        if (activeTrack?.bookId) {
+          await recordFootprint(activeTrack.bookId, 'timer_activation');
+        }
+      } catch {
+        // Silently fail if footprint recording fails
+      }
+    };
+
     if (timerDuration !== null && timerActive === false) {
       // Optimistically activate duration timer
       setOptimistic({
@@ -460,6 +477,7 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
         chapters: null,
         endTimeMs: Date.now() + timerDuration,
       });
+      await recordTimerFootprintAsync();
       await updateTimerActive(true);
       if (fadeoutDuration && fadeoutDuration > timerDuration) {
         await updateTimerFadeoutDuration(timerDuration);
@@ -478,6 +496,7 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
         chapters: timerChapters ?? null,
         endTimeMs: null,
       });
+      await recordTimerFootprintAsync();
       await updateTimerActive(true);
     } else if (timerChapters !== null && timerActive === true) {
       // Optimistically deactivate chapter timer
@@ -491,7 +510,7 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
     rotation.value = withSequence(
       withTiming(-10, { duration: 100 }),
       withTiming(10, { duration: 200 }),
-      withTiming(0, { duration: 100 })
+      withTiming(0, { duration: 100 }),
     );
   }, [handlePresentModalPress]);
 
@@ -514,7 +533,7 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
                 {
                   backgroundColor: withOpacity(
                     themeColors.background,
-                    0.66
+                    0.66,
                   ),
                 },
               ]}

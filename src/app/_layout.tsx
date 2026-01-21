@@ -147,6 +147,13 @@ const RootNavigation = () => {
             animation: 'slide_from_left',
           }}
         />
+        <Stack.Screen
+          name='footprintList'
+          options={{
+            presentation: 'transparentModal',
+            animation: 'fade',
+          }}
+        />
       </Stack>
     </BottomSheetModalProvider>
   );
