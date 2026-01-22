@@ -99,8 +99,8 @@ export default module.exports = async function () {
         isLastTrack,
         isSingleFileBook,
         queueLength: queue.length,
-        hasTriggeredEnd: singleFileEndState.hasTriggeredEnd,
-        lastPosition: singleFileEndState.lastPosition,
+        // hasTriggeredEnd: singleFileEndState.hasTriggeredEnd,
+        // lastPosition: singleFileEndState.lastPosition,
       });
       //! REMOVE AFTER BOOK END FIX FOR SINGLE FILE BOOKS
 
