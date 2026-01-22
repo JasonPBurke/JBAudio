@@ -49,6 +49,8 @@ import {
   updateTimerFadeoutDuration,
 } from '@/db/settingsQueries';
 import { recordFootprint } from '@/db/footprintQueries';
+import { getBookById } from '@/db/bookQueries';
+import { BookProgressState } from '@/helpers/handleBookPlay';
 import database from '@/db';
 import { useObserveSettings } from '@/hooks/useObserveSettings';
 import {
@@ -211,15 +213,22 @@ export function SeekBackButton({
       withTiming(0, { duration: 100 }),
     );
 
+    const currentTrackIndex = await TrackPlayer.getActiveTrackIndex();
     const currentPosition = await TrackPlayer.getProgress().then(
       (progress) => progress.position,
     );
     const newPosition = currentPosition - seekDuration;
 
     if (newPosition < 0) {
-      await TrackPlayer.skipToPrevious();
-      const { duration } = await TrackPlayer.getProgress();
-      await TrackPlayer.seekTo(duration + newPosition);
+      if (currentTrackIndex === 0) {
+        // On first track: clamp to start
+        await TrackPlayer.seekTo(0);
+      } else {
+        // Skip to previous track and seek to appropriate position
+        await TrackPlayer.skipToPrevious();
+        const { duration } = await TrackPlayer.getProgress();
+        await TrackPlayer.seekTo(duration + newPosition);
+      }
     } else {
       await TrackPlayer.seekTo(newPosition);
     }
@@ -274,13 +283,33 @@ export function SeekForwardButton({
       withTiming(0, { duration: 100 }),
     );
 
+    const currentTrackIndex = await TrackPlayer.getActiveTrackIndex();
+    const queue = await TrackPlayer.getQueue();
     const { position, duration } = await TrackPlayer.getProgress();
     const newPosition = position + seekDuration;
 
     if (newPosition > duration) {
-      const seekToTime = newPosition - duration;
-      await TrackPlayer.skipToNext();
-      await TrackPlayer.seekTo(seekToTime);
+      if (
+        currentTrackIndex !== undefined &&
+        currentTrackIndex === queue.length - 1
+      ) {
+        // On last track: mark book as finished, reset to first track and stop
+        const activeTrack = await TrackPlayer.getActiveTrack();
+        if (activeTrack?.bookId) {
+          const bookModel = await getBookById(activeTrack.bookId);
+          if (bookModel) {
+            await bookModel.updateBookProgress(BookProgressState.Finished);
+          }
+        }
+        await TrackPlayer.skip(0);
+        await TrackPlayer.seekTo(0);
+        await TrackPlayer.pause();
+      } else {
+        // Skip to next track and seek to appropriate position
+        const seekToTime = newPosition - duration;
+        await TrackPlayer.skipToNext();
+        await TrackPlayer.seekTo(seekToTime);
+      }
     } else {
       await TrackPlayer.seekTo(position + seekDuration);
     }
