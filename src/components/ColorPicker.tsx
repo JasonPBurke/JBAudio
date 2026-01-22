@@ -157,7 +157,8 @@ function PrimaryColorPicker({
   onColorPick: customOnColorPick,
 }: PrimaryColorPickerProps) {
   const { colors: themeColors } = useTheme();
-  const initialColor = originalColor || initialResultColor || themeColors.primary;
+  const initialColor =
+    originalColor || initialResultColor || themeColors.primary;
   const currentColor = useSharedValue(initialColor);
 
   const onColorChange = (color: ColorFormatsObject) => {
@@ -174,7 +175,6 @@ function PrimaryColorPicker({
     <View style={colorPickerStyle.pickerContainer}>
       <ColorPicker
         value={initialColor}
-        // onComplete={}
         sliderThickness={25}
         thumbSize={24}
         thumbShape='circle'
@@ -194,12 +194,6 @@ function PrimaryColorPicker({
 export default PrimaryColorPicker;
 
 const colorPickerStyle = StyleSheet.create({
-  title: {
-    textAlign: 'center',
-    fontFamily: 'Quicksand',
-    fontWeight: 'bold',
-    marginVertical: 20,
-  },
   picker: {
     gap: 20,
   },
@@ -232,69 +226,6 @@ const colorPickerStyle = StyleSheet.create({
 
     elevation: 5,
   },
-  sliderStyle: {
-    borderRadius: 20,
-
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-
-    elevation: 5,
-  },
-  sliderVerticalStyle: {
-    borderRadius: 20,
-    height: 300,
-
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-
-    elevation: 5,
-  },
-  sliderTitle: {
-    color: '#000',
-    fontWeight: 'bold',
-    marginBottom: 5,
-    paddingHorizontal: 4,
-    fontFamily: 'Quicksand',
-  },
-  previewStyle: {
-    height: 40,
-    borderRadius: 14,
-  },
-  previewTxt: {
-    color: '#707070',
-    fontFamily: 'Quicksand',
-  },
-  inputStyle: {
-    color: '#707070',
-    paddingVertical: 2,
-    borderColor: '#707070',
-    fontSize: 12,
-    marginLeft: 5,
-  },
-  swatchesContainer: {
-    alignItems: 'center',
-    flexWrap: 'nowrap',
-    gap: 10,
-  },
-  swatchStyle: {
-    borderRadius: 20,
-    height: 30,
-    width: 30,
-    margin: 0,
-    marginBottom: 0,
-    marginHorizontal: 0,
-    marginVertical: 0,
-  },
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',
@@ -315,11 +246,11 @@ const colorPickerStyle = StyleSheet.create({
   },
   colorPickerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-SemiBold',
   },
   colorPickerCloseButton: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Rubik-SemiBold',
   },
   statusContainer: {
     marginBottom: 12,
@@ -327,7 +258,7 @@ const colorPickerStyle = StyleSheet.create({
   },
   statusText: {
     fontSize: 12,
-    fontStyle: 'italic',
+    fontFamily: 'Rubik',
   },
   resetButton: {
     marginTop: 16,
@@ -338,6 +269,6 @@ const colorPickerStyle = StyleSheet.create({
   },
   resetButtonText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'Rubik-SemiBold',
   },
 });

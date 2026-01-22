@@ -109,7 +109,12 @@ const Header = (props: headerProps) => {
 
           <View style={styles.titleWrapper}>
             <Text
-              style={[styles.titleStaticS, { color: themeColors.primary }]}
+              style={[
+                styles.titleStaticS,
+                {
+                  color: themeColors.primary,
+                },
+              ]}
             >
               S
             </Text>
@@ -129,7 +134,12 @@ const Header = (props: headerProps) => {
                   ]}
                 >
                   <PulsingText
-                    style={[styles.titleText, { color: themeColors.icon }]}
+                    style={[
+                      styles.titleText,
+                      {
+                        color: themeColors.icon,
+                      },
+                    ]}
                   >
                     canning books...
                   </PulsingText>
@@ -157,7 +167,12 @@ const Header = (props: headerProps) => {
               ) : (
                 <Text
                   key='onicbooks-static'
-                  style={[styles.titleText, { color: themeColors.icon }]}
+                  style={[
+                    styles.titleText,
+                    {
+                      color: themeColors.icon,
+                    },
+                  ]}
                 >
                   onicbooks
                 </Text>
@@ -228,6 +243,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   titleStaticS: {
+    fontFamily: 'Rubik-Medium',
     fontSize: 20,
     zIndex: 1,
     backgroundColor: 'transparent',
@@ -243,6 +259,7 @@ const styles = StyleSheet.create({
     minWidth: 200, // Set a minimum width to prevent clipping
   },
   titleText: {
+    fontFamily: 'Rubik-Medium',
     fontSize: 20,
   },
   scanningText: {

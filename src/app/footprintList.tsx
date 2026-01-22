@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
   },
   headerText: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'Rubik-SemiBold',
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -284,10 +284,11 @@ const styles = StyleSheet.create({
   },
   chapterTitle: {
     fontSize: 15,
-    fontWeight: '500',
+    fontFamily: 'Rubik-Medium',
     maxWidth: '60%',
   },
   positionText: {
+    fontFamily: 'Rubik',
     fontSize: 14,
   },
   footprintMeta: {
@@ -296,9 +297,10 @@ const styles = StyleSheet.create({
   },
   triggerText: {
     fontSize: 12,
-    fontWeight: '500',
+    fontFamily: 'Rubik-Medium',
   },
   timeText: {
+    fontFamily: 'Rubik',
     fontSize: 11,
   },
   separator: {
@@ -311,11 +313,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   emptyText: {
+    fontFamily: 'Rubik',
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 8,
   },
   emptySubtext: {
+    fontFamily: 'Rubik',
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,

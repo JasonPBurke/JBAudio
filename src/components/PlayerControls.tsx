@@ -238,6 +238,7 @@ export function SeekBackButton({
             top: top,
             right: right,
             color: iconColor,
+            fontFamily: 'Rubik',
           }}
         >
           {seekDuration}
@@ -363,6 +364,7 @@ export function PlaybackSpeed({ iconSize = 30 }: PlayerButtonProps) {
           bottom: 14,
           left: 22,
           fontSize: 10,
+          fontFamily: 'Rubik',
           color: colors.icon,
         }}
       >

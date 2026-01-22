@@ -81,7 +81,6 @@ const styles = StyleSheet.create({
   trackTitleText: {
     flex: 1,
     fontSize: 18,
-    fontWeight: '500',
-    // color moved to inline for theme support
+    fontFamily: 'Rubik-Medium',
   },
 });

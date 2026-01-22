@@ -29,28 +29,28 @@ const AnimatedZZZ = ({ timerActiveValue }: AnimatedZZZProps) => {
         withSequence(
           withTiming(1, { duration: 1500, easing: Easing.linear }),
           withTiming(0, { duration: 1500, easing: Easing.linear }),
-          withTiming(0, { duration: 3000, easing: Easing.linear })
+          withTiming(0, { duration: 3000, easing: Easing.linear }),
         ),
         -1,
-        false
+        false,
       );
       opacity2.value = withRepeat(
         withSequence(
           withTiming(0, { duration: 1500, easing: Easing.linear }),
           withTiming(1, { duration: 1500, easing: Easing.linear }),
-          withTiming(0, { duration: 3000, easing: Easing.linear })
+          withTiming(0, { duration: 3000, easing: Easing.linear }),
         ),
         -1,
-        false
+        false,
       );
       opacity3.value = withRepeat(
         withSequence(
           withTiming(0, { duration: 3000, easing: Easing.linear }),
           withTiming(1, { duration: 1500, easing: Easing.linear }),
-          withTiming(0, { duration: 1500, easing: Easing.linear })
+          withTiming(0, { duration: 1500, easing: Easing.linear }),
         ),
         -1,
-        false
+        false,
       );
     } else {
       // PROPERLY CANCEL animations before resetting
@@ -78,9 +78,9 @@ const AnimatedZZZ = ({ timerActiveValue }: AnimatedZZZProps) => {
     return { opacity: opacity2.value };
   });
 
-  const animatedStyle3 = useAnimatedStyle(() => {
-    return { opacity: opacity3.value };
-  });
+  // const animatedStyle3 = useAnimatedStyle(() => {
+  //   return { opacity: opacity3.value };
+  // });
 
   return (
     <View>
@@ -92,6 +92,7 @@ const AnimatedZZZ = ({ timerActiveValue }: AnimatedZZZProps) => {
             left: 22,
             fontSize: 10,
             color: themeColors.primary,
+            fontFamily: 'Rubik',
           },
           animatedStyle1,
         ]}
@@ -106,6 +107,7 @@ const AnimatedZZZ = ({ timerActiveValue }: AnimatedZZZProps) => {
             left: 28,
             fontSize: 11,
             color: themeColors.primary,
+            fontFamily: 'Rubik',
           },
           animatedStyle2,
         ]}

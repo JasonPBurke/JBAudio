@@ -80,6 +80,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   timerText: {
+    fontFamily: 'Rubik',
     fontSize: 12,
     color: colors.textMuted,
   },

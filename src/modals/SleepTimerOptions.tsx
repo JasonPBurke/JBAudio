@@ -497,19 +497,21 @@ const SleepTimerOptions = ({
         closeOnOverlayPress
         hideSeconds
         maximumHours={24} //! SET TO HOURS REMAINING IN QUEUE
-        modalTitle='Custom Sleep Timer'
+        modalTitle='Custom Timer'
         modalTitleProps={{ style: { color: themeColors.text } }}
         confirmButtonText='   Set   '
         LinearGradient={LinearGradient}
         onCancel={() => setShowSlider(false)}
         onConfirm={handleCustomTimerConfirm}
         styles={{
+          // text: { fontFamily: 'Rubik' },
+          // pickerLabel: { fontFamily: 'Rubik' },
           theme: activeColorScheme,
           contentContainer: {
             backgroundColor: themeColors.modalBackground,
           },
           backgroundColor: themeColors.modalBackground,
-          button: { borderRadius: 4 },
+          button: { borderRadius: 4, fontFamily: 'Rubik-Medium' },
           cancelButton: {
             backgroundColor: themeColors.background,
             color: themeColors.text,
@@ -521,6 +523,7 @@ const SleepTimerOptions = ({
           },
           modalTitle: {
             color: themeColors.text,
+            fontFamily: 'Rubik',
           },
         }}
       />
@@ -546,9 +549,8 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   title: {
-    // color: colors.textMuted,
+    fontFamily: 'Rubik-SemiBold',
     fontSize: 18,
-    fontWeight: 'bold',
     marginStart: 12,
   },
 
@@ -559,22 +561,18 @@ const styles = StyleSheet.create({
   },
   button: {
     flex: 1,
-    // backgroundColor: colors.background,
     paddingVertical: 12,
     paddingHorizontal: 8,
     marginHorizontal: 15,
     borderRadius: 4,
-    // borderColor: colors.textMuted,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    // boxShadow: '1px 1px 6px rgba(158, 128, 28, 0.541)',
   },
   buttonText: {
-    // color: colors.textMuted,
+    fontFamily: 'Rubik-SemiBold',
     alignSelf: 'center',
     fontSize: 16,
-    fontWeight: 'bold',
   },
   chapterEndButton: {
     flex: 2.8, // Span two buttons
@@ -585,11 +583,9 @@ const styles = StyleSheet.create({
   },
   customButton: {
     flex: 1, // Span one button
-    // backgroundColor: colors.background,
     paddingHorizontal: 8,
     marginHorizontal: 15,
     borderRadius: 4,
-    // borderColor: colors.textMuted,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',

@@ -275,13 +275,13 @@ const styles = StyleSheet.create({
   },
   bookTitleText: {
     ...defaultStyles.text,
-    fontWeight: '600',
+    fontFamily: 'Rubik-SemiBold',
     maxWidth: '100%',
     marginTop: 2,
   },
   bookAuthorText: {
+    fontFamily: 'Rubik',
     marginTop: 4,
-    // color moved to inline for theme support
   },
   trackPlayingImageIcon: {
     position: 'absolute',

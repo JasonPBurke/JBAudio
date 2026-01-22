@@ -78,6 +78,32 @@
           "project": "react-native",
           "organization": "studio-jas"
         }
+      ],
+      [
+        "expo-font",
+        {
+          "android": {
+            "fonts": [
+              {
+                "fontFamily": "Rubik",
+                "fontDefinitions": [
+                  {
+                    "path": "./assets/fonts/rubik_regular.ttf",
+                    "weight": 400
+                  },
+                  {
+                    "path": "./assets/fonts/rubik_medium.ttf",
+                    "weight": 500
+                  },
+                  {
+                    "path": "./assets/fonts/rubik_semi_bold.ttf",
+                    "weight": 600
+                  }
+                ]
+              }
+            ]
+          }
+        }
       ]
     ],
     "experiments": {

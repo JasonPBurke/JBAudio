@@ -1,14 +1,12 @@
-import { colors, fontSize } from '@/constants/tokens';
+import { fontSize } from '@/constants/tokens';
 import { StyleSheet } from 'react-native';
 
 export const defaultStyles = StyleSheet.create({
   container: {
     flex: 1,
-    // backgroundColor should be applied inline with theme colors
   },
   text: {
     fontSize: fontSize.base,
-    // color should be applied inline with theme colors
   },
 });
 
@@ -31,6 +29,6 @@ export const utilsStyles = StyleSheet.create({
     fontSize: fontSize.base,
     textAlign: 'center',
     marginTop: 20,
-    // color should be applied inline with theme colors
+    fontFamily: 'Rubik',
   },
 });

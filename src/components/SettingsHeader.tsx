@@ -39,6 +39,6 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 50,
     fontSize: 36,
-    fontWeight: 'bold',
+    fontFamily: 'Rubik-SemiBold',
   },
 });

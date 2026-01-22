@@ -8,13 +8,10 @@ import {
   X,
   Sun,
   Moon,
-  Settings,
-  GalleryHorizontalEnd,
   RefreshCcw,
   BookOpenText,
   ChartNoAxesCombined,
   FileQuestionMark,
-  TestTube,
   PencilRuler,
   Timer,
   CassetteTape,
@@ -173,18 +170,6 @@ const DrawerContent = (props: Props) => {
           { borderBottomColor: themeColors.divider, opacity: 0.4 },
         ]}
       />
-      {/* <DrawerItem
-        label={'Settings'}
-        onPress={handleGeneralPress}
-        icon={() => (
-          <Settings size={24} color={themeColors.text} strokeWidth={1} />
-        )}
-        labelStyle={[styles.labelStyle, { color: themeColors.text }]}
-        style={[
-          styles.drawerItem,
-          { borderBottomColor: themeColors.divider },
-        ]}
-      /> */}
       <DrawerItem
         label={'Appearance'}
         onPress={handleGeneralPress}
@@ -252,22 +237,16 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.modalBackground,
   },
-  drawerHeaderText: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
   drawerItem: {
     paddingStart: 4,
     gap: 20,
     marginHorizontal: 10,
     marginBottom: 10,
     borderBottomWidth: 1,
-    // borderBottomColor moved to inline for theme support
   },
   labelStyle: {
+    fontFamily: 'Rubik-Medium',
     fontSize: 16,
-    // color moved to inline for theme support
   },
 });
 

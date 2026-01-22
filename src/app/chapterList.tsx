@@ -36,7 +36,7 @@ const ChapterListScreen = () => {
   const activeChapter = useCurrentChapterStable();
 
   const updateBookChapterIndex = useLibraryStore(
-    useCallback((state) => state.updateBookChapterIndex, [])
+    useCallback((state) => state.updateBookChapterIndex, []),
   );
 
   // Calculate active chapter index
@@ -45,7 +45,7 @@ const ChapterListScreen = () => {
     return book.chapters.findIndex(
       (ch) =>
         ch.url === activeChapter.url &&
-        ch.chapterNumber === activeChapter.chapterNumber
+        ch.chapterNumber === activeChapter.chapterNumber,
     );
   }, [book?.chapters, activeChapter]);
 
@@ -97,7 +97,7 @@ const ChapterListScreen = () => {
       await updateBookChapterIndex(book.bookId, chapterIndex);
       router.back();
     },
-    [book, activeChapter, updateBookChapterIndex, router, isReadOnly]
+    [book, activeChapter, updateBookChapterIndex, router, isReadOnly],
   );
 
   const renderItem = useCallback(
@@ -155,7 +155,7 @@ const ChapterListScreen = () => {
               color: isActive
                 ? ensureReadable(
                     themeColors.primary,
-                    themeColors.chapterActive
+                    themeColors.chapterActive,
                   )
                 : themeColors.textMuted,
             }}
@@ -169,7 +169,7 @@ const ChapterListScreen = () => {
                 color: isActive
                   ? ensureReadable(
                       themeColors.primary,
-                      themeColors.chapterActive
+                      themeColors.chapterActive,
                     )
                   : themeColors.textMuted,
               },
@@ -180,17 +180,22 @@ const ChapterListScreen = () => {
         </PressableScale>
       );
     },
-    [book?.chapters?.length, activeChapter, handleChapterSelect, isReadOnly]
+    [
+      book?.chapters?.length,
+      activeChapter,
+      handleChapterSelect,
+      isReadOnly,
+    ],
   );
 
   const keyExtractor = useCallback(
     (item: Chapter) => `${item.url}-${item.chapterNumber}`,
-    []
+    [],
   );
 
   const ItemSeparator = useCallback(
     () => <View style={styles.separator} />,
-    []
+    [],
   );
 
   const handleClose = useCallback(() => {
@@ -282,19 +287,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   chapterTitle: {
+    fontFamily: 'Rubik',
     fontSize: 16,
     maxWidth: '80%',
-    // color moved to inline for theme support
   },
   chapterDuration: {
+    fontFamily: 'Rubik',
     fontSize: 14,
-    // color moved to inline for theme support
   },
   separator: {
     height: 3,
   },
   emptyText: {
+    fontFamily: 'Rubik',
     textAlign: 'center',
-    // color moved to inline for theme support
   },
 });

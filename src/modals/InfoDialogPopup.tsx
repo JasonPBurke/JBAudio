@@ -5,7 +5,6 @@ import {
   Modal,
   View,
   Text,
-  Button,
   StyleSheet,
   Pressable,
   TouchableOpacity,
@@ -29,9 +28,7 @@ const InfoDialogPopup = ({ isVisible, onClose, title, message }: any) => {
             <Pressable style={styles.closeX} onPress={onClose} hitSlop={10}>
               <X size={20} color={colors.textMuted} />
             </Pressable>
-            <Text style={[styles.modalText, { fontWeight: 'bold' }]}>
-              {title}
-            </Text>
+            <Text style={styles.modalTitleText}>{title}</Text>
             <Text style={styles.modalText}>{message}</Text>
           </TouchableOpacity>
         </TouchableOpacity>
@@ -69,7 +66,17 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
+  modalTitleText: {
+    fontFamily: 'Rubik-SemiBold',
+    color: colors.text,
+    marginBottom: 15,
+    textAlign: 'left',
+    fontSize: 16,
+    lineHeight: 24,
+    letterSpacing: 0.5,
+  },
   modalText: {
+    fontFamily: 'Rubik',
     color: colors.text,
     marginBottom: 15,
     textAlign: 'left',

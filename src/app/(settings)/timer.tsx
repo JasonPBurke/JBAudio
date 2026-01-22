@@ -12,7 +12,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Picker } from '@react-native-picker/picker';
 import {
   Info,
-  Clock,
   Sunrise,
   Sunset,
   Moon,
@@ -417,6 +416,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   fadeoutLabel: {
+    fontFamily: 'Rubik',
     fontSize: 16,
   },
   infoButton: {
@@ -436,11 +436,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   timeLabel: {
+    fontFamily: 'Rubik',
     fontSize: 12,
     marginBottom: 2,
   },
   timeValue: {
+    fontFamily: 'Rubik-SemiBold',
     fontSize: 15,
-    fontWeight: '600',
   },
 });

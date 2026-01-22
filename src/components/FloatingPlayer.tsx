@@ -4,7 +4,6 @@ import { useActiveTrack } from 'react-native-track-player';
 import { Image } from 'expo-image';
 
 import { unknownBookImageUri } from '@/constants/images';
-import { defaultStyles } from '@/styles';
 import {
   PlayPauseButton,
   SeekBackButton,
@@ -12,7 +11,6 @@ import {
 import { useLastActiveTrack } from '@/hooks/useLastActiveTrack';
 import { MovingText } from '@/components/MovingText';
 import { useRouter } from 'expo-router';
-import { colors } from '@/constants/tokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/useTheme';
 import { useQueueStore } from '@/store/queue';
@@ -52,7 +50,7 @@ export const FloatingPlayer = React.memo(() => {
         backgroundColor: themeColors.modalBackground,
       },
     ],
-    [bottom, themeColors.primary, themeColors.modalBackground]
+    [bottom, themeColors.primary, themeColors.modalBackground],
   );
 
   // Memoize the navigation callback
@@ -127,9 +125,8 @@ const styles = StyleSheet.create({
     margin: 4,
   },
   bookTitle: {
+    fontFamily: 'Rubik-SemiBold',
     fontSize: 18,
-    fontWeight: '600',
-    // color moved to inline for theme support
   },
   bookControlsContainer: {
     flexDirection: 'row',

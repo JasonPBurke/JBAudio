@@ -10,7 +10,12 @@ import { useState, useCallback } from 'react';
 import { useSharedValue } from 'react-native-reanimated';
 import { useFocusEffect } from '@react-navigation/native';
 import { Picker } from '@react-native-picker/picker';
-import { FolderOpen, Trash2, FolderPlus, Layers } from 'lucide-react-native';
+import {
+  FolderOpen,
+  Trash2,
+  FolderPlus,
+  Layers,
+} from 'lucide-react-native';
 import SettingsHeader from '@/components/SettingsHeader';
 import SettingsCard from '@/components/settings/SettingsCard';
 import CollapsibleSettingsSection from '@/components/settings/CollapsibleSettingsSection';
@@ -35,8 +40,10 @@ const LibrarySettingsScreen = () => {
   const { colors: themeColors } = useTheme();
   const [libraryFolders, setLibraryFolders] = useState<string[]>([]);
   const [autoChapterEnabled, setAutoChapterEnabled] = useState(false);
-  const [autoChapterInterval, setAutoChapterIntervalState] = useState<string>('30');
-  const [booksWithoutChaptersCount, setBooksWithoutChaptersCount] = useState(0);
+  const [autoChapterInterval, setAutoChapterIntervalState] =
+    useState<string>('30');
+  const [booksWithoutChaptersCount, setBooksWithoutChaptersCount] =
+    useState(0);
   const [isApplying, setIsApplying] = useState(false);
   const autoChapterToggleValue = useSharedValue(0);
 
@@ -220,8 +227,8 @@ const LibrarySettingsScreen = () => {
                 { color: themeColors.textMuted },
               ]}
             >
-              Automatically create chapter markers for audiobooks that don't have
-              embedded chapter data
+              Automatically create chapter markers for audiobooks that don't
+              have embedded chapter data
             </Text>
             <CompactSettingsRow
               label='Enable Auto-Chapters'
@@ -254,7 +261,9 @@ const LibrarySettingsScreen = () => {
                       height: 50,
                       color: themeColors.text,
                       backgroundColor: themeColors.modalBackground,
+                      fontFamily: 'Rubik',
                     }}
+                    // itemStyle={{ fontFamily: 'Rubik' }}
                     dropdownIconColor={themeColors.primary}
                     selectedValue={autoChapterInterval}
                     onValueChange={handleIntervalChange}
@@ -270,7 +279,10 @@ const LibrarySettingsScreen = () => {
                   style={[
                     styles.addButton,
                     {
-                      backgroundColor: withOpacity(themeColors.primary, 0.1),
+                      backgroundColor: withOpacity(
+                        themeColors.primary,
+                        0.1,
+                      ),
                       opacity: isApplying ? 0.5 : 1,
                     },
                   ]}
@@ -360,7 +372,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   removeButtonText: {
-    fontWeight: '600',
+    fontFamily: 'Rubik-SemiBold',
     fontSize: 14,
   },
   addFolderContent: {
@@ -369,6 +381,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   addFolderDescription: {
+    fontFamily: 'Rubik',
     fontSize: 14,
     lineHeight: 18,
   },
@@ -382,7 +395,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   addButtonText: {
-    fontWeight: '600',
+    fontFamily: 'Rubik-SemiBold',
     fontSize: 16,
   },
   autoChapterContent: {
@@ -396,6 +409,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   pickerLabel: {
+    fontFamily: 'Rubik',
     fontSize: 16,
   },
 });

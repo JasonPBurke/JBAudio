@@ -22,6 +22,7 @@ import { useLibraryStore } from '@/store/library';
 import { usePlayerScreenRestoration } from '@/hooks/usePlayerScreenRestoration';
 import { useTheme } from '@/hooks/useTheme';
 import * as Sentry from '@sentry/react-native';
+import { useFonts } from 'expo-font';
 
 Sentry.init({
   dsn: 'https://f560ec15a66fbab84326dc1d343ea729@o4510664873541632.ingest.us.sentry.io/4510664874590208',
@@ -52,14 +53,28 @@ configureReanimatedLogger({
 SplashScreen.preventAutoHideAsync();
 
 const App = () => {
+  const [fontsLoaded, fontError] = useFonts({
+    Rubik: require('../../assets/fonts/rubik_regular.ttf'),
+    'Rubik-Medium': require('../../assets/fonts/rubik_medium.ttf'),
+    'Rubik-SemiBold': require('../../assets/fonts/rubik_semi_bold.ttf'),
+  });
+
   const handleTrackPlayerLoaded = useCallback(() => {
-    SplashScreen.hideAsync();
-  }, []);
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
 
   const initializeTheme = useThemeStore((state) => state.initializeTheme);
   const { activeColorScheme } = useTheme();
 
   useSettingsStore();
+
+  useEffect(() => {
+    if (fontError) {
+      console.error('Font loading error:', fontError);
+    }
+  }, [fontError]);
 
   // Initialize library store BEFORE useSetupTrackPlayer so book data is available
   const initLibraryStore = useLibraryStore((state) => state.init);
@@ -82,6 +97,10 @@ const App = () => {
 
   //* for debugging
   // useLogTrackPlayerState();
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
 
   return (
     <SafeAreaProvider>

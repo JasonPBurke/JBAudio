@@ -1,4 +1,10 @@
-import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react';
+import React, {
+  useCallback,
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+} from 'react';
 import { Text } from 'react-native';
 import TrackPlayer, {
   useActiveTrack,
@@ -24,7 +30,7 @@ function calculateRemainingTime(
   book: Book,
   position: number,
   currentIndex: number | undefined,
-  isSingleFileBook: boolean
+  isSingleFileBook: boolean,
 ): number {
   if (!book.chapters) {
     return Math.max(0, book.bookDuration - position);
@@ -82,14 +88,22 @@ const BookTimeRemainingInner = React.memo(
     const [remainingText, setRemainingText] = useState('');
     const lastUpdateRef = useRef(0);
 
-    const isSingleFileBook = useMemo(() => isSingleFile(book?.chapters), [book]);
+    const isSingleFileBook = useMemo(
+      () => isSingleFile(book?.chapters),
+      [book],
+    );
 
     const calculateRemaining = useCallback(
       (position: number) => {
-        const remaining = calculateRemainingTime(book, position, currentIndex, isSingleFileBook);
+        const remaining = calculateRemainingTime(
+          book,
+          position,
+          currentIndex,
+          isSingleFileBook,
+        );
         return formatSecondsToHoursMinutes(remaining);
       },
-      [book, currentIndex, isSingleFileBook]
+      [book, currentIndex, isSingleFileBook],
     );
 
     // Initial calculation and event-based updates
@@ -117,7 +131,7 @@ const BookTimeRemainingInner = React.memo(
             lastUpdateRef.current = currentBucket;
             setRemainingText(calculateRemaining(position));
           }
-        }
+        },
       );
 
       return () => subscription.remove();
@@ -128,13 +142,13 @@ const BookTimeRemainingInner = React.memo(
         style={{
           fontSize: size ?? 12,
           color: color ?? colors.textMuted,
-          fontWeight: '400',
+          fontFamily: 'Rubik',
         }}
       >
         {remainingText} left
       </Text>
     );
-  }
+  },
 );
 
 BookTimeRemainingInner.displayName = 'BookTimeRemainingInner';
@@ -157,7 +171,7 @@ export const BookTimeRemaining = React.memo(
 
     // Track current index for chapter calculations
     const [currentIndex, setCurrentIndex] = useState<number | undefined>(
-      undefined
+      undefined,
     );
 
     // Update current index when track changes
@@ -185,7 +199,7 @@ export const BookTimeRemaining = React.memo(
           } catch {
             // ignore
           }
-        }
+        },
       );
 
       return () => {
@@ -206,7 +220,7 @@ export const BookTimeRemaining = React.memo(
         color={color}
       />
     );
-  }
+  },
 );
 
 BookTimeRemaining.displayName = 'BookTimeRemaining';
@@ -217,7 +231,7 @@ BookTimeRemaining.displayName = 'BookTimeRemaining';
  */
 export async function bookTimeRemaining(
   bookId: string,
-  getBook: (id: string) => ReturnType<typeof useBookById>
+  getBook: (id: string) => ReturnType<typeof useBookById>,
 ): Promise<number | null> {
   const book = getBook(bookId);
   if (!book) return null;
@@ -232,7 +246,7 @@ export async function bookTimeRemaining(
       book,
       position,
       currentIndex ?? undefined,
-      isSingleFile(book.chapters)
+      isSingleFile(book.chapters),
     );
   } catch {
     return null;

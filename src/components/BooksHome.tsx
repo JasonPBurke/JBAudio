@@ -51,7 +51,7 @@ const BooksHome = ({
   allBooks.sort(
     (a, b) =>
       new Date(b.metadata.ctime).getTime() -
-      new Date(a.metadata.ctime).getTime()
+      new Date(a.metadata.ctime).getTime(),
   );
   const recentlyAddedBooks = allBooks.slice(0, 25);
 
@@ -92,7 +92,7 @@ const BooksHome = ({
         });
       });
     },
-    [setActiveGridSection]
+    [setActiveGridSection],
   );
 
   const renderItem = useCallback(
@@ -119,7 +119,7 @@ const BooksHome = ({
       }
       return null;
     },
-    [activeGridSection, handleSectionPress]
+    [activeGridSection, handleSectionPress],
   );
 
   return (
@@ -173,7 +173,7 @@ const RecentlyAddedSection = memo(
         <BooksHorizontal books={books} flowDirection='row' />
       )}
     </View>
-  )
+  ),
 );
 
 type AuthorSectionProps = {
@@ -204,7 +204,7 @@ const AuthorSection = memo(
         <BooksHorizontal authors={[author]} flowDirection='row' />
       )}
     </View>
-  )
+  ),
 );
 
 const SectionHeader = memo(
@@ -222,7 +222,7 @@ const SectionHeader = memo(
     onSectionPress: (
       sectionId: string,
       index: number,
-      pageY: number
+      pageY: number,
     ) => void;
   }) => {
     const headerRef = useRef<View>(null);
@@ -259,7 +259,7 @@ const SectionHeader = memo(
         </View>
       </Pressable>
     );
-  }
+  },
 );
 
 export default memo(BooksHome);
@@ -272,6 +272,7 @@ const styles = StyleSheet.create({
     paddingLeft: 14,
   },
   titleText: {
+    fontFamily: 'Rubik',
     fontSize: fontSize.base,
     maxWidth: '95%',
   },

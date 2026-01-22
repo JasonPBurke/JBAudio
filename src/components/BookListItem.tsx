@@ -62,7 +62,7 @@ export const BookListItem = memo(function BookListItem({
       isCurrentlyPlaying,
       isActiveBook,
       activeBookId,
-      setActiveBookId
+      setActiveBookId,
     );
   }, [fullBook, isActiveBook, activeBookId, setActiveBookId]);
 
@@ -165,13 +165,14 @@ const styles = StyleSheet.create({
   bookTitleText: {
     ...defaultStyles.text,
     fontSize: fontSize.sm,
-    fontWeight: '600',
+    fontFamily: 'Rubik-SemiBold',
+    // fontWeight: '600',
     maxWidth: '90%',
   },
   bookAuthorText: {
+    fontFamily: 'Rubik',
     fontSize: 14,
     marginTop: 4,
-    // color moved to inline for theme support
   },
   trackPlayingImageIcon: {
     padding: 8,

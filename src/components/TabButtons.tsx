@@ -27,8 +27,6 @@ interface TabButtonsProps {
   setSelectedTab: (index: number) => void;
 }
 
-//? black/gold/purple: #1C1C1C, #3B3B3B, #FFE002, #FFB606, #B28228, #492666, #830982
-
 const TabButtons = ({
   buttons,
   selectedTab,
@@ -55,7 +53,7 @@ const TabButtons = ({
         {},
         () => {
           scheduleOnRN(handlePress, index);
-        }
+        },
       );
       tabWidth.value = withTiming(buttonMeasurements[index].width);
     }
@@ -130,7 +128,13 @@ const TabButtons = ({
               onPress={() => onTabPress(index)}
               onLayout={(event) => onButtonLayout(event, index)}
             >
-              <Text style={{ ...styles.buttonText, color: color }}>
+              <Text
+                style={{
+                  ...styles.buttonText,
+                  color: color,
+                  fontFamily: 'Rubik-Regular',
+                }}
+              >
                 {button.title}
               </Text>
             </Pressable>

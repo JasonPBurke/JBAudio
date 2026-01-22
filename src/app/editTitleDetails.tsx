@@ -183,7 +183,7 @@ const editTitleDetails = () => {
                 color: themeColors.textMuted,
               },
             ]}
-            placeholder={'Genre Tags (comma separated)'}
+            placeholder={'Genre Tags (, / or & separated)'}
             value={formState.genre ?? ''}
             onChangeText={(text) => handleInputChange('genre', text)}
             cursorColor={colors.primary}
@@ -280,7 +280,6 @@ const editTitleDetails = () => {
             </TouchableOpacity>
           </View>
         </Animated.View>
-        {/* </BlurView> */}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -294,17 +293,13 @@ const styles = StyleSheet.create({
     paddingTop: 25,
   },
   header: {
+    fontFamily: 'Rubik-SemiBold',
     fontSize: 24,
-    fontWeight: 'bold',
     paddingBottom: 10,
   },
   image: {
     width: '100%',
     height: 345,
-  },
-  text: {
-    fontSize: 30,
-    margin: 20,
   },
   card: {
     width: '100%',
@@ -315,14 +310,15 @@ const styles = StyleSheet.create({
   },
   fieldTitle: {
     marginStart: 4,
+    fontFamily: 'Rubik',
     fontSize: 16,
-    fontWeight: 'bold',
   },
   searchInput: {
     width: '100%',
     borderRadius: 8,
     padding: 14,
     marginVertical: 10,
+    fontFamily: 'Rubik',
     fontSize: 18,
     lineHeight: 24,
   },
@@ -342,7 +338,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   buttonText: {
+    fontFamily: 'Rubik-SemiBold',
     fontSize: 16,
-    fontWeight: '600',
   },
 });

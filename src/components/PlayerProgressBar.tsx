@@ -45,13 +45,13 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
       minimumTrackTintColor: themeColors.primary,
       maximumTrackTintColor: themeColors.maximumTrackTintColor,
     }),
-    [themeColors.primary, themeColors.maximumTrackTintColor]
+    [themeColors.primary, themeColors.maximumTrackTintColor],
   );
 
   // Memoized bubble text style
   const bubbleTextStyle = useMemo(
-    () => ({ color: themeColors.textMuted }),
-    [themeColors.textMuted]
+    () => ({ color: themeColors.textMuted, fontFamily: 'Rubik' }),
+    [themeColors.textMuted],
   );
 
   // Use Reanimated-based progress hook - updates shared values without React re-renders
@@ -151,7 +151,7 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
       setTrackElapsedTime(formatSecondsToMinutes(chapterPos));
       setTrackRemainingTime('-' + formatSecondsToMinutes(remaining));
     },
-    []
+    [],
   );
 
   // Update time text only every second (not every 250ms)
@@ -163,11 +163,11 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
           position.value,
           chapterStart.value,
           chapterDuration.value,
-          duration.value
+          duration.value,
         );
       }
     },
-    []
+    [],
   );
 
   // Handle seek completion
@@ -187,7 +187,7 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
           // currentPos is in seconds, convert to ms
           await recordSeekFootprint(
             activeTrack.bookId,
-            Math.round(currentPos * 1000)
+            Math.round(currentPos * 1000),
           );
         }
       } catch {
@@ -205,10 +205,10 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
       const chapterPos = value * chapDur;
       setTrackElapsedTime(formatSecondsToMinutes(chapterPos));
       setTrackRemainingTime(
-        '-' + formatSecondsToMinutes(chapDur - chapterPos)
+        '-' + formatSecondsToMinutes(chapDur - chapterPos),
       );
     },
-    [chapterStart, chapterDuration, duration, isSliding]
+    [chapterStart, chapterDuration, duration, isSliding],
   );
 
   // Handle sliding start
@@ -226,7 +226,7 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
         chapterDuration.value > 0 ? chapterDuration.value : duration.value;
       setBubbleElapsedTime(formatSecondsToMinutes(value * chapDur));
     },
-    [chapterDuration, duration, slidingProgress]
+    [chapterDuration, duration, slidingProgress],
   );
 
   // Render bubble component
@@ -236,7 +236,7 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
         <Text style={bubbleTextStyle}>{bubbleElapsedTime}</Text>
       </View>
     ),
-    [bubbleElapsedTime, bubbleTextStyle]
+    [bubbleElapsedTime, bubbleTextStyle],
   );
 
   return (
@@ -279,6 +279,6 @@ const styles = StyleSheet.create({
     opacity: 0.75,
     fontSize: fontSize.xs,
     letterSpacing: 0.7,
-    fontWeight: '500',
+    fontFamily: 'Rubik-Medium',
   },
 });

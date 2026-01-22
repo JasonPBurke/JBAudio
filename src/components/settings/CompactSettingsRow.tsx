@@ -76,6 +76,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   label: {
+    fontFamily: 'Rubik',
     fontSize: 16,
   },
   control: {

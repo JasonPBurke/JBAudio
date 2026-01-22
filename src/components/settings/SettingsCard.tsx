@@ -72,8 +72,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
+    fontFamily: 'Rubik-SemiBold',
     fontSize: 17,
-    fontWeight: '600',
   },
   content: {
     paddingBottom: 16,

@@ -60,7 +60,10 @@ const GeneralSettingsScreen = () => {
               style={{ height: 40, marginTop: 8 }}
               backgroundColor={themeColors.modalBackground}
               activeFontStyle={{ color: themeColors.primary }}
-              fontStyle={{ color: themeColors.textMuted }}
+              fontStyle={{
+                color: themeColors.textMuted,
+                fontFamily: 'Rubik',
+              }}
               values={['One', 'Two', 'Three']}
               selectedIndex={numColumns - 1}
               onChange={(event) => {
@@ -134,10 +137,11 @@ const styles = StyleSheet.create({
   },
   settingLabel: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Rubik-SemiBold',
     marginBottom: 4,
   },
   settingDescription: {
+    fontFamily: 'Rubik',
     fontSize: 13,
     lineHeight: 17,
   },
