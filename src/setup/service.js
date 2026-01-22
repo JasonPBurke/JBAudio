@@ -10,7 +10,9 @@ import {
   updateChapterProgressInDB,
   updateChapterIndexInDB,
 } from '@/db/chapterQueries';
+import { getBookById } from '@/db/bookQueries';
 import { isWithinBedtimeWindow } from '@/helpers/bedtimeUtils';
+import { BookProgressState } from '@/helpers/handleBookPlay';
 import { recordFootprint } from '@/db/footprintQueries';
 
 const { setPlaybackIndex, setPlaybackProgress } =
@@ -203,6 +205,12 @@ export default module.exports = async function () {
 
     await updateChapterProgressInDB(trackToUpdate.bookId, steppedPosition);
     await updateChapterIndexInDB(trackToUpdate.bookId, track);
+
+    // Mark book as finished when queue ends
+    const bookModel = await getBookById(trackToUpdate.bookId);
+    if (bookModel) {
+      await bookModel.updateBookProgress(BookProgressState.Finished);
+    }
   });
 
   TrackPlayer.addEventListener(Event.PlaybackState, async (event) => {
