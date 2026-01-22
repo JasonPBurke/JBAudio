@@ -87,7 +87,8 @@ export default module.exports = async function () {
       const activeTrackIndex = await TrackPlayer.getActiveTrackIndex();
       const isLastTrack = activeTrackIndex === queue.length - 1;
       const isSingleFileBook =
-        queue.length > 1 && queue.every((t) => t.url === queue[0].url);
+        queue.length === 1 ||
+        (queue.length > 1 && queue.every((t) => t.url === queue[0].url));
       const url = trackToUpdate.url;
 
       // Log every tick for books
