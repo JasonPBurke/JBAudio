@@ -4,19 +4,23 @@ interface PlayerState {
   activeBookId: string | null;
   isPlaying: boolean;
   wasPlayerScreenDismissedToBackground: boolean;
+  remainingSleepTimeMs: number | null;
   setActiveBookId: (id: string | null) => void;
   setIsPlaying: (playing: boolean) => void;
   setWasPlayerScreenDismissedToBackground: (value: boolean) => void;
+  setRemainingSleepTimeMs: (ms: number | null) => void;
 }
 
 export const usePlayerStateStore = create<PlayerState>()((set) => ({
   activeBookId: null,
   isPlaying: false,
   wasPlayerScreenDismissedToBackground: false,
+  remainingSleepTimeMs: null,
   setActiveBookId: (id) => set({ activeBookId: id }),
   setIsPlaying: (playing) => set({ isPlaying: playing }),
   setWasPlayerScreenDismissedToBackground: (value) =>
     set({ wasPlayerScreenDismissedToBackground: value }),
+  setRemainingSleepTimeMs: (ms) => set({ remainingSleepTimeMs: ms }),
 }));
 
 /**
@@ -45,3 +49,10 @@ export const useIsBookActive = (bookId: string): boolean =>
  */
 export const useIsPlayerPlaying = (): boolean =>
   usePlayerStateStore((state) => state.isPlaying);
+
+/**
+ * Selector: Get the remaining sleep time in ms (used when paused).
+ * Returns null when playing (countdown uses live calculation).
+ */
+export const useRemainingSleepTimeMs = (): number | null =>
+  usePlayerStateStore((state) => state.remainingSleepTimeMs);

@@ -121,7 +121,7 @@ export const useSetupTrackPlayer = ({
               }));
 
               const progressInfo = await getChapterProgressInDB(
-                book.bookId
+                book.bookId,
               );
               await TrackPlayer.add(tracks);
 

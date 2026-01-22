@@ -5,6 +5,7 @@ import { View, Text, StyleSheet } from 'react-native';
 type CountdownTimerProps = {
   timerChapters: number | null;
   endTimeMs: number | null;
+  frozenTimeMs?: number | null;
 };
 
 // Display format: minutes only (no seconds)
@@ -23,10 +24,17 @@ const formatTime = (milliseconds: number): string => {
 const CountdownTimer = ({
   timerChapters,
   endTimeMs,
+  frozenTimeMs,
 }: CountdownTimerProps) => {
   const [remainingTime, setRemainingTime] = useState('');
 
   useEffect(() => {
+    // When frozen (paused), display the frozen time without interval
+    if (frozenTimeMs != null && frozenTimeMs > 0) {
+      setRemainingTime(formatTime(frozenTimeMs));
+      return;
+    }
+
     if (!endTimeMs) {
       setRemainingTime('');
       return;
@@ -55,7 +63,7 @@ const CountdownTimer = ({
 
     const intervalId = setInterval(updateRemainingTime, interval);
     return () => clearInterval(intervalId);
-  }, [endTimeMs]);
+  }, [endTimeMs, frozenTimeMs]);
 
   // For chapter-based timer (no countdown needed)
   if (timerChapters && !endTimeMs) {

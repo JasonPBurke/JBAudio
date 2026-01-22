@@ -36,7 +36,6 @@ import { ensureReadable, withOpacity } from '@/helpers/colorUtils';
 import { useTheme } from '@/hooks/useTheme';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import TruncatedParagraph from '@/components/TruncatedParagraph';
-import { defaultStyles } from '@/styles';
 import {
   handleBookPlay,
   BookProgressState,

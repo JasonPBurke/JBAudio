@@ -51,6 +51,10 @@ import {
 import { recordFootprint } from '@/db/footprintQueries';
 import database from '@/db';
 import { useObserveSettings } from '@/hooks/useObserveSettings';
+import {
+  useIsPlayerPlaying,
+  useRemainingSleepTimeMs,
+} from '@/store/playerState';
 
 type PlayerControlsProps = {
   style?: ViewStyle;
@@ -380,6 +384,8 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
   const timerActive = settings?.timerActive === true;
   const chaptersCount: number | null = settings?.timerChapters ?? null;
   const sleepTime: number | null = settings?.sleepTime ?? null;
+  const isPlaying = useIsPlayerPlaying();
+  const remainingSleepTimeMs = useRemainingSleepTimeMs();
 
   // Optimistic UI state to reflect immediate press feedback
   const [optimistic, setOptimistic] = useState<{
@@ -570,11 +576,12 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
             <CountdownTimer
               timerChapters={uiChapters != null ? uiChapters + 1 : null}
               endTimeMs={uiSleepTime}
+              frozenTimeMs={!isPlaying ? remainingSleepTimeMs : null}
             />
           </Animated.View>
         )}
       </Animated.View>
-      {uiActive && <AnimatedZZZ timerActiveValue={uiActive} />}
+      {uiActive && isPlaying && <AnimatedZZZ timerActiveValue={uiActive} />}
     </Pressable>
   );
 }

@@ -1,5 +1,6 @@
 import TrackPlayer, { Event, State } from 'react-native-track-player';
 import { useLibraryStore } from '@/store/library';
+import { usePlayerStateStore } from '@/store/playerState';
 import {
   getTimerSettings,
   updateSleepTime,
@@ -17,6 +18,7 @@ import { recordFootprint } from '@/db/footprintQueries';
 
 const { setPlaybackIndex, setPlaybackProgress } =
   useLibraryStore.getState();
+const { setRemainingSleepTimeMs } = usePlayerStateStore.getState();
 
 // Sleep timer fade state (module-scope)
 let fadeState = {
@@ -51,7 +53,7 @@ const skip_forward_duration = 30;
 export default module.exports = async function () {
   TrackPlayer.addEventListener(Event.RemotePlay, () => TrackPlayer.play());
   TrackPlayer.addEventListener(Event.RemotePause, () =>
-    TrackPlayer.pause()
+    TrackPlayer.pause(),
   );
   TrackPlayer.addEventListener(Event.RemoteStop, () => TrackPlayer.stop());
   TrackPlayer.addEventListener(Event.RemoteSeek, ({ position }) => {
@@ -64,10 +66,10 @@ export default module.exports = async function () {
     TrackPlayer.seekBy(-skip_back_duration);
   });
   TrackPlayer.addEventListener(Event.RemoteNext, () =>
-    TrackPlayer.skipToNext()
+    TrackPlayer.skipToNext(),
   );
   TrackPlayer.addEventListener(Event.RemotePrevious, () =>
-    TrackPlayer.skipToPrevious()
+    TrackPlayer.skipToPrevious(),
   );
 
   TrackPlayer.addEventListener(
@@ -78,6 +80,29 @@ export default module.exports = async function () {
 
       //? trackToUpdate ["title", "album", "url", "artwork", "bookId", "artist"]
       setPlaybackProgress(trackToUpdate.bookId, position - 1);
+
+      //! REMOVE AFTER BOOK END FIX FOR SINGLE FILE BOOKS
+      // Single-file book end detection log check
+      const queue = await TrackPlayer.getQueue();
+      const activeTrackIndex = await TrackPlayer.getActiveTrackIndex();
+      const isLastTrack = activeTrackIndex === queue.length - 1;
+      const isSingleFileBook =
+        queue.length > 1 && queue.every((t) => t.url === queue[0].url);
+      const url = trackToUpdate.url;
+
+      // Log every tick for books
+      console.log('[SF] Progress tick:', {
+        position,
+        activeTrackIndex,
+        track,
+        url,
+        isLastTrack,
+        isSingleFileBook,
+        queueLength: queue.length,
+        hasTriggeredEnd: singleFileEndState.hasTriggeredEnd,
+        lastPosition: singleFileEndState.lastPosition,
+      });
+      //! REMOVE AFTER BOOK END FIX FOR SINGLE FILE BOOKS
 
       // Refresh cached settings at most every SETTINGS_REFRESH_INTERVAL
       const nowTs = Date.now();
@@ -118,14 +143,8 @@ export default module.exports = async function () {
           await TrackPlayer.setVolume(0);
         }
 
-        await TrackPlayer.setVolume(0);
         await TrackPlayer.pause();
-
-        // In this app model, internal TrackPlayer volume is always 1 except during fade.
-        // Restore it to 1 so next playback is audible and consistent.
-        if (usedFade) {
-          await TrackPlayer.setVolume(1);
-        }
+        await TrackPlayer.setVolume(1);
 
         // Cleanup state (reflect restored volume = 1)
         fadeState.isFading = false;
@@ -144,7 +163,6 @@ export default module.exports = async function () {
         typeof fadeoutDuration === 'number' &&
         fadeoutDuration > 0
       ) {
-        //! moved from after this first if statement
         const now = Date.now();
         const beginFadeout = sleepTime - fadeoutDuration;
 
@@ -174,7 +192,7 @@ export default module.exports = async function () {
           // Compute linear fade from baseline -> 0
           const t = Math.min(
             1,
-            Math.max(0, (now - beginFadeout) / fadeoutDuration)
+            Math.max(0, (now - beginFadeout) / fadeoutDuration),
           );
           const volume = Math.max(0, fadeState.baselineVolume * (1 - t));
 
@@ -191,13 +209,12 @@ export default module.exports = async function () {
         }
         // When now >= sleepTime the earlier single-source block already handled stopping/cleanup
       }
-    }
+    },
   );
 
   TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async (event) => {
     const { track, position } = event;
     const steppedPosition = position - 1;
-    //?trackToUpdate.bookId ["title", "album", "url", "artwork", "bookId", "artist"]
     const trackToUpdate = await TrackPlayer.getTrack(track);
     // Perform the WatermelonDB update here
     setPlaybackProgress(trackToUpdate.bookId, steppedPosition);
@@ -211,6 +228,10 @@ export default module.exports = async function () {
     if (bookModel) {
       await bookModel.updateBookProgress(BookProgressState.Finished);
     }
+
+    // Reset to first track and stop playback
+    await TrackPlayer.skip(0);
+    await TrackPlayer.stop();
   });
 
   TrackPlayer.addEventListener(Event.PlaybackState, async (event) => {
@@ -223,13 +244,33 @@ export default module.exports = async function () {
       const { position } = await TrackPlayer.getProgress();
       await updateChapterProgressInDB(bookId, position - 1);
     }
+
+    // On pause: freeze the timer by saving remaining time
+    if (event.state === State.Paused) {
+      const { sleepTime, timerActive } = await getTimerSettings();
+      if (timerActive && sleepTime !== null) {
+        const remaining = Math.max(0, sleepTime - Date.now());
+        setRemainingSleepTimeMs(remaining);
+      }
+    }
+
     if (event.state === State.Stopped) {
       await updateChapterTimer(null);
       updateTimerActive(false);
+      setRemainingSleepTimeMs(null);
     }
 
-    // Bedtime mode activation on play
+    // On play: resume timer from saved remaining time (if any)
     if (event.state === State.Playing) {
+      const playerState = usePlayerStateStore.getState();
+      const remainingMs = playerState.remainingSleepTimeMs;
+
+      if (remainingMs !== null && remainingMs > 0) {
+        // Resume timer: recalculate sleepTime from remaining duration
+        await updateSleepTime(Date.now() + remainingMs);
+        setRemainingSleepTimeMs(null);
+      }
+
       const timerSettings = await getTimerSettings();
 
       // Check all conditions for bedtime mode activation:
@@ -242,7 +283,7 @@ export default module.exports = async function () {
         !timerSettings.timerActive &&
         isWithinBedtimeWindow(
           timerSettings.bedtimeStart,
-          timerSettings.bedtimeEnd
+          timerSettings.bedtimeEnd,
         )
       ) {
         // Record footprint for bedtime auto-activation
@@ -293,6 +334,6 @@ export default module.exports = async function () {
         await TrackPlayer.pause();
         updateTimerActive(false);
       }
-    }
+    },
   );
 };
