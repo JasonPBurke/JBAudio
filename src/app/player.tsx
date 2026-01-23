@@ -74,35 +74,35 @@ const PlayerScreen = () => {
   const activeTrack = useActiveTrack();
   const book = useBookById(activeTrack?.bookId ?? '');
 
-  // // Get the setter for tracking player screen dismissal
-  // const setWasPlayerScreenDismissedToBackground = usePlayerStateStore(
-  //   useCallback(
-  //     (state) => state.setWasPlayerScreenDismissedToBackground,
-  //     [],
-  //   ),
-  // );
+  // Get the setter for tracking player screen dismissal
+  const setWasPlayerScreenDismissedToBackground = usePlayerStateStore(
+    useCallback(
+      (state) => state.setWasPlayerScreenDismissedToBackground,
+      [],
+    ),
+  );
 
-  // // App state subscription for dismissing player when app goes to background
-  // useEffect(() => {
-  //   const subscription = AppState.addEventListener(
-  //     'change',
-  //     (nextAppState) => {
-  //       if (
-  //         appState.current.match(/active|inactive/) &&
-  //         nextAppState === 'background'
-  //       ) {
-  //         // Set flag BEFORE navigating away so we can restore on foreground
-  //         setWasPlayerScreenDismissedToBackground(true);
+  // App state subscription for dismissing player when app goes to background
+  useEffect(() => {
+    const subscription = AppState.addEventListener(
+      'change',
+      (nextAppState) => {
+        if (
+          appState.current.match(/active|inactive/) &&
+          nextAppState === 'background'
+        ) {
+          // Set flag BEFORE navigating away so we can restore on foreground
+          setWasPlayerScreenDismissedToBackground(true);
 
-  //         if (navigation.canGoBack()) {
-  //           navigation.goBack();
-  //         }
-  //       }
-  //       appState.current = nextAppState;
-  //     },
-  //   );
-  //   return () => subscription.remove();
-  // }, [navigation, setWasPlayerScreenDismissedToBackground]);
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          }
+        }
+        appState.current = nextAppState;
+      },
+    );
+    return () => subscription.remove();
+  }, [navigation, setWasPlayerScreenDismissedToBackground]);
 
   // Memoized artwork width calculation based on aspect ratio
   const artworkWidth = useMemo(() => {

@@ -89,3 +89,13 @@ export function getChapterEndPosition(
   // End is start of next chapter
   return (chapters[clampedIndex + 1].startMs || 0) / 1000;
 }
+
+/**
+ * Determines if a book has valid chapter timing data.
+ * Returns true if the book has multiple chapters with at least one having a non-zero startMs.
+ * Used to decide whether to show chapter-level metadata on lock screen.
+ */
+export function hasValidChapterData(chapters: Chapter[] | undefined): boolean {
+  if (!chapters || chapters.length <= 1) return false;
+  return chapters.some((c) => (c.startMs || 0) > 0);
+}

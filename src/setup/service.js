@@ -18,6 +18,7 @@ import { recordFootprint } from '@/db/footprintQueries';
 import {
   findChapterIndexByPosition,
   calculateProgressWithinChapter,
+  hasValidChapterData,
 } from '@/helpers/singleFileBook';
 
 const { setPlaybackIndex, setPlaybackProgress } =
@@ -114,6 +115,19 @@ export default module.exports = async function () {
             progressWithinChapter - 1,
           );
 
+          //! this was unstable and did not update the notification player w/chapter durations.
+          // // Update now playing metadata with chapter-relative position for lock screen
+          // // This makes the progress bar show chapter progress instead of full book progress
+          // if (hasValidChapterData(chapters)) {
+          //   const currentChapter = chapters[currentChapterIndex];
+          //   if (currentChapter) {
+          //     await TrackPlayer.updateNowPlayingMetadata({
+          //       elapsedTime: progressWithinChapter,
+          //       duration: currentChapter.chapterDuration,
+          //     });
+          //   }
+          // }
+
           // Check if chapter changed
           if (
             singleFileChapterState.bookId !== trackToUpdate.bookId ||
@@ -136,6 +150,21 @@ export default module.exports = async function () {
               trackToUpdate.bookId,
               currentChapterIndex,
             );
+
+            // Update track metadata for lock screen/notification
+            if (hasValidChapterData(chapters)) {
+              const currentChapter = chapters[currentChapterIndex];
+              if (currentChapter) {
+                await TrackPlayer.updateMetadataForTrack(track, {
+                  title: currentChapter.chapterTitle,
+                  duration: currentChapter.chapterDuration,
+                  // Preserve existing metadata that shouldn't change
+                  artwork: book.artwork,
+                  artist: book.author,
+                  album: book.bookTitle,
+                });
+              }
+            }
 
             // Handle sleep timer chapter countdown on chapter change
             if (wasChapterChange) {

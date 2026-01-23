@@ -15,6 +15,7 @@ import { unknownBookImageUri } from '@/constants/images';
 import {
   isSingleFileBook,
   calculateAbsolutePosition,
+  hasValidChapterData,
 } from '@/helpers/singleFileBook';
 
 async function requestAudioPermission(): Promise<
@@ -121,13 +122,19 @@ export const useSetupTrackPlayer = ({
 
               if (singleFile) {
                 // Single-file book: load only 1 track
+                // Use chapter title/duration when valid chapter data exists
+                const hasChapterData = hasValidChapterData(book.chapters);
+                const chapterIndex = progressInfo?.chapterIndex || 0;
+                const initialChapter = hasChapterData ? book.chapters[chapterIndex] : null;
+
                 const track: Track = {
                   url: book.chapters[0].url,
-                  title: book.bookTitle,
+                  title: initialChapter?.chapterTitle ?? book.bookTitle,
                   artist: book.author,
                   artwork: book.artwork ?? unknownBookImageUri,
                   album: book.bookTitle,
                   bookId: book.bookId,
+                  duration: initialChapter?.chapterDuration,
                 };
                 await TrackPlayer.add(track);
 
@@ -149,6 +156,7 @@ export const useSetupTrackPlayer = ({
                   artwork: book.artwork ?? unknownBookImageUri,
                   album: book.bookTitle,
                   bookId: book.bookId,
+                  duration: chapter.chapterDuration,
                 }));
 
                 await TrackPlayer.add(tracks);
