@@ -75,7 +75,14 @@ const SleepTimerOptions = ({
       if (settings.length > 0) {
         const timerDuration = settings[0].timerDuration;
         const customTimerValue = settings[0].customTimer;
+        const timerChaptersValue = settings[0].timerChapters;
+
         setActiveTimerDuration(timerDuration);
+
+        setChapterTimerActive(timerChaptersValue !== null);
+        if (timerChaptersValue !== null) {
+          setChaptersToEnd(timerChaptersValue);
+        }
 
         if (customTimerValue !== null) {
           const hours = Math.floor(customTimerValue / 60);
@@ -243,6 +250,7 @@ const SleepTimerOptions = ({
       });
       await updateTimerActive(true);
       await updateTimerDuration(null);
+      await updateSleepTime(null);
       await updateChapterTimer(chaptersToEnd);
       setActiveTimerDuration(null);
       await recordTimerFootprintAsync();

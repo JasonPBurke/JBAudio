@@ -151,7 +151,7 @@ export default module.exports = async function () {
                 await TrackPlayer.setVolume(0);
                 await TrackPlayer.pause();
                 await TrackPlayer.setVolume(1);
-                updateTimerActive(false);
+                await updateTimerActive(false);
               }
             }
           }
@@ -409,7 +409,7 @@ export default module.exports = async function () {
 
     if (event.state === State.Stopped) {
       await updateChapterTimer(null);
-      updateTimerActive(false);
+      await updateTimerActive(false);
       setRemainingSleepTimeMs(null);
     }
 
@@ -465,12 +465,12 @@ export default module.exports = async function () {
     Event.PlaybackActiveTrackChanged,
     async (event) => {
       // CRITICAL FIX: Only process valid track indices (>= 0)
-      // The event.track can be -1 during queue reset, which would corrupt chapter index
-      if (typeof event.track !== 'number' || event.track < 0) return;
+      // The event.index can be undefined during queue reset, which would corrupt chapter index
+      if (typeof event.index !== 'number' || event.index < 0) return;
 
       // CRITICAL FIX: Use getTrack(index) instead of getActiveTrack()
       // getActiveTrack() can return stale data during queue transitions
-      const trackAtIndex = await TrackPlayer.getTrack(event.track);
+      const trackAtIndex = await TrackPlayer.getTrack(event.index);
       if (!trackAtIndex?.bookId) return;
 
       // Skip chapter index updates for single-file books - handled in PlaybackProgressUpdated
@@ -479,9 +479,9 @@ export default module.exports = async function () {
       if (isSingleFile) return;
 
       // Multi-file book: Update Zustand store immediately for UI reactivity
-      setPlaybackIndex(trackAtIndex.bookId, event.track);
+      setPlaybackIndex(trackAtIndex.bookId, event.index);
       // Update database for persistence
-      await updateChapterIndexInDB(trackAtIndex.bookId, event.track);
+      await updateChapterIndexInDB(trackAtIndex.bookId, event.index);
 
       // Handle sleep timer chapter countdown (multi-file books only)
       const { timerChapters, timerActive } = await getTimerSettings();
@@ -491,7 +491,7 @@ export default module.exports = async function () {
         await TrackPlayer.setVolume(0);
         await TrackPlayer.pause();
         await TrackPlayer.setVolume(1);
-        updateTimerActive(false);
+        await updateTimerActive(false);
       }
     },
   );
