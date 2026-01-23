@@ -22,6 +22,8 @@ import { useDatabase } from '@nozbe/watermelondb/hooks';
 import { useEffect } from 'react';
 import TrackPlayer from 'react-native-track-player';
 import { useRouter } from 'expo-router';
+import { useLibraryStore } from '@/store/library';
+import { findChapterIndexByPosition } from '@/helpers/singleFileBook';
 
 const SleepTimerOptions = ({
   bottomSheetModalRef,
@@ -87,11 +89,32 @@ const SleepTimerOptions = ({
 
     const updateMaxChapters = async () => {
       const queue = await TrackPlayer.getQueue();
-      const currentTrackIndex = await TrackPlayer.getActiveTrackIndex();
-      if (currentTrackIndex === undefined) {
+      const isSingleFile = queue.length === 1;
+
+      if (isSingleFile) {
+        // Single-file book: get chapter count from library store
+        const activeTrack = await TrackPlayer.getActiveTrack();
+        if (activeTrack?.bookId) {
+          const book = useLibraryStore.getState().books[activeTrack.bookId];
+          if (book?.chapters && book.chapters.length > 1) {
+            const { position } = await TrackPlayer.getProgress();
+            const currentChapterIndex = findChapterIndexByPosition(
+              book.chapters,
+              position
+            );
+            setMaxChapters(book.chapters.length - 1 - currentChapterIndex);
+            return;
+          }
+        }
         setMaxChapters(0);
       } else {
-        setMaxChapters(queue.length - 1 - currentTrackIndex);
+        // Multi-file book: use queue length
+        const currentTrackIndex = await TrackPlayer.getActiveTrackIndex();
+        if (currentTrackIndex === undefined) {
+          setMaxChapters(0);
+        } else {
+          setMaxChapters(queue.length - 1 - currentTrackIndex);
+        }
       }
     };
 

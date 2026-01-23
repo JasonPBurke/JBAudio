@@ -15,6 +15,10 @@ import { getBookById } from '@/db/bookQueries';
 import { isWithinBedtimeWindow } from '@/helpers/bedtimeUtils';
 import { BookProgressState } from '@/helpers/handleBookPlay';
 import { recordFootprint } from '@/db/footprintQueries';
+import {
+  findChapterIndexByPosition,
+  calculateProgressWithinChapter,
+} from '@/helpers/singleFileBook';
 
 const { setPlaybackIndex, setPlaybackProgress } =
   useLibraryStore.getState();
@@ -26,6 +30,12 @@ let fadeState = {
   baselineVolume: 1,
   lastAppliedVolume: 1,
   lastSetVolumeAt: 0,
+};
+
+// Single-file book chapter tracking state (module-scope)
+let singleFileChapterState = {
+  lastChapterIndex: -1,
+  bookId: null,
 };
 
 // Cached timer settings to avoid DB reads each tick
@@ -79,31 +89,104 @@ export default module.exports = async function () {
       const trackToUpdate = await TrackPlayer.getTrack(track);
 
       //? trackToUpdate ["title", "album", "url", "artwork", "bookId", "artist"]
-      setPlaybackProgress(trackToUpdate.bookId, position - 1);
 
-      //! REMOVE AFTER BOOK END FIX FOR SINGLE FILE BOOKS
-      // Single-file book end detection log check
+      // Single-file book detection and chapter tracking
       const queue = await TrackPlayer.getQueue();
-      const activeTrackIndex = await TrackPlayer.getActiveTrackIndex();
-      const isLastTrack = activeTrackIndex === queue.length - 1;
-      const isSingleFileBook =
-        queue.length === 1 ||
-        (queue.length > 1 && queue.every((t) => t.url === queue[0].url));
-      const url = trackToUpdate.url;
+      const isSingleFile = queue.length === 1;
 
-      // Log every tick for books
-      console.log('[SF] Progress tick:', {
-        position,
-        activeTrackIndex,
-        track,
-        url,
-        isLastTrack,
-        isSingleFileBook,
-        queueLength: queue.length,
-        // hasTriggeredEnd: singleFileEndState.hasTriggeredEnd,
-        // lastPosition: singleFileEndState.lastPosition,
-      });
-      //! REMOVE AFTER BOOK END FIX FOR SINGLE FILE BOOKS
+      if (isSingleFile && trackToUpdate.bookId) {
+        // Get book data from library store for chapter info
+        const book = useLibraryStore.getState().books[trackToUpdate.bookId];
+        if (book && book.chapters && book.chapters.length > 1) {
+          const chapters = book.chapters;
+          const currentChapterIndex = findChapterIndexByPosition(
+            chapters,
+            position,
+          );
+          const progressWithinChapter = calculateProgressWithinChapter(
+            chapters,
+            position,
+          );
+
+          // Update progress in store using progress within chapter
+          setPlaybackProgress(
+            trackToUpdate.bookId,
+            progressWithinChapter - 1,
+          );
+
+          // Check if chapter changed
+          if (
+            singleFileChapterState.bookId !== trackToUpdate.bookId ||
+            singleFileChapterState.lastChapterIndex !== currentChapterIndex
+          ) {
+            const wasChapterChange =
+              singleFileChapterState.bookId === trackToUpdate.bookId &&
+              singleFileChapterState.lastChapterIndex !== -1 &&
+              singleFileChapterState.lastChapterIndex !==
+                currentChapterIndex;
+
+            // Update state
+            singleFileChapterState.bookId = trackToUpdate.bookId;
+            singleFileChapterState.lastChapterIndex = currentChapterIndex;
+
+            // Update Zustand store for UI reactivity
+            setPlaybackIndex(trackToUpdate.bookId, currentChapterIndex);
+            // Update database for persistence
+            await updateChapterIndexInDB(
+              trackToUpdate.bookId,
+              currentChapterIndex,
+            );
+
+            // Handle sleep timer chapter countdown on chapter change
+            if (wasChapterChange) {
+              const { timerChapters, timerActive } =
+                await getTimerSettings();
+              if (
+                timerActive &&
+                timerChapters !== null &&
+                timerChapters > 0
+              ) {
+                await updateChapterTimer(timerChapters - 1);
+              } else if (timerActive && timerChapters === 0) {
+                await TrackPlayer.setVolume(0);
+                await TrackPlayer.pause();
+                await TrackPlayer.setVolume(1);
+                updateTimerActive(false);
+              }
+            }
+          }
+
+          // Book end detection: check if position is near end of book
+          const { duration } = await TrackPlayer.getProgress();
+          const END_THRESHOLD = 0.2; // .2 seconds before end to trigger
+          if (duration > 0 && position >= duration - END_THRESHOLD) {
+            // Mark book as finished
+            const bookModel = await getBookById(trackToUpdate.bookId);
+            if (bookModel) {
+              await bookModel.updateBookProgress(
+                BookProgressState.Finished,
+              );
+            }
+
+            // Save final progress
+            await updateChapterProgressInDB(trackToUpdate.bookId, 0);
+            await updateChapterIndexInDB(trackToUpdate.bookId, 0);
+
+            // Reset to beginning and stop
+            await TrackPlayer.seekTo(0);
+            await TrackPlayer.pause();
+
+            // Reset chapter tracking state
+            singleFileChapterState.lastChapterIndex = 0;
+          }
+        } else {
+          // Single chapter book - just update progress normally
+          setPlaybackProgress(trackToUpdate.bookId, position - 1);
+        }
+      } else {
+        // Multi-file book - update progress normally
+        setPlaybackProgress(trackToUpdate.bookId, position - 1);
+      }
 
       // Refresh cached settings at most every SETTINGS_REFRESH_INTERVAL
       const nowTs = Date.now();
@@ -129,12 +212,25 @@ export default module.exports = async function () {
 
       const { sleepTime, timerActive, fadeoutDuration } = cachedTimer;
 
+      // // Debug: trace timer logic
+      // console.log('[TIMER DEBUG]', {
+      //   sleepTime,
+      //   timerActive,
+      //   fadeoutDuration,
+      //   now: Date.now(),
+      //   shouldStop: sleepTime !== null && timerActive === true && sleepTime <= Date.now(),
+      //   sleepTimeCheck: sleepTime !== null,
+      //   timerActiveCheck: timerActive === true,
+      //   timeCheck: sleepTime ? sleepTime <= Date.now() : 'N/A',
+      // });
+
       // Single source of truth for stopping at or after sleep time for both fade and non-fade
       if (
         sleepTime !== null &&
         timerActive === true &&
         sleepTime <= Date.now()
       ) {
+        // console.log('[TIMER DEBUG] Timer stop condition met! Stopping playback...');
         // End of timer reached: ensure pause and cleanup
         const usedFade =
           typeof fadeoutDuration === 'number' && fadeoutDuration > 0;
@@ -215,14 +311,43 @@ export default module.exports = async function () {
 
   TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async (event) => {
     const { track, position } = event;
-    const steppedPosition = position - 1;
     const trackToUpdate = await TrackPlayer.getTrack(track);
-    // Perform the WatermelonDB update here
-    setPlaybackProgress(trackToUpdate.bookId, steppedPosition);
-    setPlaybackIndex(trackToUpdate.bookId, track);
+    if (!trackToUpdate?.bookId) return;
 
-    await updateChapterProgressInDB(trackToUpdate.bookId, steppedPosition);
-    await updateChapterIndexInDB(trackToUpdate.bookId, track);
+    const queue = await TrackPlayer.getQueue();
+    const isSingleFile = queue.length === 1;
+
+    if (isSingleFile) {
+      // Single-file book: calculate chapter index and progress from position
+      const book = useLibraryStore.getState().books[trackToUpdate.bookId];
+      if (book && book.chapters && book.chapters.length > 1) {
+        // Update stores and DB with chapter-relative data
+        setPlaybackProgress(trackToUpdate.bookId, 0);
+        setPlaybackIndex(trackToUpdate.bookId, 0);
+
+        await updateChapterProgressInDB(trackToUpdate.bookId, 0);
+        await updateChapterIndexInDB(trackToUpdate.bookId, 0);
+
+        // Reset chapter tracking state
+        singleFileChapterState.lastChapterIndex = 0;
+        singleFileChapterState.bookId = trackToUpdate.bookId;
+      } else {
+        // Single chapter single-file book
+        setPlaybackProgress(trackToUpdate.bookId, 0);
+        await updateChapterProgressInDB(trackToUpdate.bookId, 0);
+      }
+    } else {
+      // Multi-file book: use track index as chapter index
+      const steppedPosition = position - 1;
+      setPlaybackProgress(trackToUpdate.bookId, steppedPosition);
+      setPlaybackIndex(trackToUpdate.bookId, track);
+
+      await updateChapterProgressInDB(
+        trackToUpdate.bookId,
+        steppedPosition,
+      );
+      await updateChapterIndexInDB(trackToUpdate.bookId, track);
+    }
 
     // Mark book as finished when queue ends
     const bookModel = await getBookById(trackToUpdate.bookId);
@@ -230,8 +355,12 @@ export default module.exports = async function () {
       await bookModel.updateBookProgress(BookProgressState.Finished);
     }
 
-    // Reset to first track and stop playback
-    await TrackPlayer.skip(0);
+    // Reset to beginning and stop playback
+    if (!isSingleFile) {
+      await TrackPlayer.skip(0);
+    } else {
+      await TrackPlayer.seekTo(0);
+    }
     await TrackPlayer.stop();
   });
 
@@ -241,9 +370,32 @@ export default module.exports = async function () {
       event.state === State.Stopped ||
       event.state === State.Buffering
     ) {
-      const { bookId } = await TrackPlayer.getActiveTrack();
+      const activeTrack = await TrackPlayer.getActiveTrack();
+      if (!activeTrack?.bookId) return;
+
       const { position } = await TrackPlayer.getProgress();
-      await updateChapterProgressInDB(bookId, position - 1);
+      const queue = await TrackPlayer.getQueue();
+      const isSingleFile = queue.length === 1;
+
+      if (isSingleFile) {
+        // Single-file book: save progress within chapter
+        const book = useLibraryStore.getState().books[activeTrack.bookId];
+        if (book && book.chapters && book.chapters.length > 1) {
+          const progressWithinChapter = calculateProgressWithinChapter(
+            book.chapters,
+            position,
+          );
+          await updateChapterProgressInDB(
+            activeTrack.bookId,
+            progressWithinChapter - 1,
+          );
+        } else {
+          await updateChapterProgressInDB(activeTrack.bookId, position - 1);
+        }
+      } else {
+        // Multi-file book: save progress directly
+        await updateChapterProgressInDB(activeTrack.bookId, position - 1);
+      }
     }
 
     // On pause: freeze the timer by saving remaining time
@@ -321,18 +473,24 @@ export default module.exports = async function () {
       const trackAtIndex = await TrackPlayer.getTrack(event.track);
       if (!trackAtIndex?.bookId) return;
 
-      // Update Zustand store immediately for UI reactivity
+      // Skip chapter index updates for single-file books - handled in PlaybackProgressUpdated
+      const queue = await TrackPlayer.getQueue();
+      const isSingleFile = queue.length === 1;
+      if (isSingleFile) return;
+
+      // Multi-file book: Update Zustand store immediately for UI reactivity
       setPlaybackIndex(trackAtIndex.bookId, event.track);
       // Update database for persistence
       await updateChapterIndexInDB(trackAtIndex.bookId, event.track);
 
-      // Handle sleep timer chapter countdown
+      // Handle sleep timer chapter countdown (multi-file books only)
       const { timerChapters, timerActive } = await getTimerSettings();
       if (timerActive && timerChapters !== null && timerChapters > 0) {
         await updateChapterTimer(timerChapters - 1);
       } else if (timerActive && timerChapters === 0) {
         await TrackPlayer.setVolume(0);
         await TrackPlayer.pause();
+        await TrackPlayer.setVolume(1);
         updateTimerActive(false);
       }
     },

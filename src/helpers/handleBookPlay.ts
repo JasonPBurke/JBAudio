@@ -8,6 +8,10 @@ import {
   updateLastActiveBook,
 } from '@/db/settingsQueries';
 import { recordFootprint } from '@/db/footprintQueries';
+import {
+  isSingleFileBook,
+  calculateAbsolutePosition,
+} from '@/helpers/singleFileBook';
 
 export enum BookProgressState {
   NotStarted = 0,
@@ -51,30 +55,46 @@ export const handleBookPlay = async (
 
   const isChangingBook = book.bookId !== activeBookId;
 
+  const singleFile = isSingleFileBook(book.chapters);
+
   if (isChangingBook) {
     await TrackPlayer.reset();
-    const tracks: Track[] = book.chapters.map((chapter) => ({
-      url: chapter.url,
-      title: chapter.chapterTitle,
-      artist: chapter.author,
-      artwork: book.artwork ?? unknownBookImageUri,
-      album: book.bookTitle,
-      bookId: book.bookId,
-    }));
 
-    await TrackPlayer.add(tracks);
-    // // Record footprint before playing
-    // try {
-    //   const activeTrack = await TrackPlayer.getActiveTrack();
-    //   if (activeTrack?.bookId) {
-    //     await recordFootprint(activeTrack.bookId, 'play');
-    //   }
-    // } catch {
-    //   // Silently fail if footprint recording fails
-    // }
+    if (singleFile) {
+      // Single-file book: load only 1 track
+      const track: Track = {
+        url: book.chapters[0].url,
+        title: book.bookTitle,
+        artist: book.author,
+        artwork: book.artwork ?? unknownBookImageUri,
+        album: book.bookTitle,
+        bookId: book.bookId,
+      };
+      await TrackPlayer.add(track);
 
-    await TrackPlayer.skip(chapterIndex);
-    await TrackPlayer.seekTo(chapterProgress);
+      // Seek to absolute position (chapter start + progress within chapter)
+      const absolutePosition = calculateAbsolutePosition(
+        book.chapters,
+        chapterIndex,
+        chapterProgress
+      );
+      await TrackPlayer.seekTo(absolutePosition);
+    } else {
+      // Multi-file book: load N tracks (one per chapter)
+      const tracks: Track[] = book.chapters.map((chapter) => ({
+        url: chapter.url,
+        title: chapter.chapterTitle,
+        artist: chapter.author,
+        artwork: book.artwork ?? unknownBookImageUri,
+        album: book.bookTitle,
+        bookId: book.bookId,
+      }));
+
+      await TrackPlayer.add(tracks);
+      await TrackPlayer.skip(chapterIndex);
+      await TrackPlayer.seekTo(chapterProgress);
+    }
+
     await TrackPlayer.play();
     await TrackPlayer.setVolume(1);
 
@@ -83,18 +103,21 @@ export const handleBookPlay = async (
       await updateLastActiveBook(book.bookId);
     }
   } else {
-    // // Record footprint before playing
-    // try {
-    //   const activeTrack = await TrackPlayer.getActiveTrack();
-    //   if (activeTrack?.bookId) {
-    //     await recordFootprint(activeTrack.bookId, 'play');
-    //   }
-    // } catch {
-    //   // Silently fail if footprint recording fails
-    // }
+    // Same book - just seek to the correct position
+    if (singleFile) {
+      // Single-file book: seek to absolute position
+      const absolutePosition = calculateAbsolutePosition(
+        book.chapters,
+        chapterIndex,
+        chapterProgress
+      );
+      await TrackPlayer.seekTo(absolutePosition);
+    } else {
+      // Multi-file book: skip to chapter and seek
+      await TrackPlayer.skip(chapterIndex);
+      await TrackPlayer.seekTo(chapterProgress);
+    }
 
-    await TrackPlayer.skip(chapterIndex);
-    await TrackPlayer.seekTo(chapterProgress);
     await TrackPlayer.play();
     await TrackPlayer.setVolume(1);
   }

@@ -12,6 +12,10 @@ import { useLibraryStore } from '@/store/library';
 import { useQueueStore } from '@/store/queue';
 import { getChapterProgressInDB } from '@/db/chapterQueries';
 import { unknownBookImageUri } from '@/constants/images';
+import {
+  isSingleFileBook,
+  calculateAbsolutePosition,
+} from '@/helpers/singleFileBook';
 
 async function requestAudioPermission(): Promise<
   'granted' | 'denied' | 'undetermined'
@@ -111,23 +115,48 @@ export const useSetupTrackPlayer = ({
             // Only load tracks if queue is empty or has the wrong book.
             if (!queue.length || queue[0]?.bookId !== lastActiveBookId) {
               await TrackPlayer.reset();
-              const tracks: Track[] = book.chapters.map((chapter) => ({
-                url: chapter.url,
-                title: chapter.chapterTitle,
-                artist: book.author,
-                artwork: book.artwork ?? unknownBookImageUri,
-                album: book.bookTitle,
-                bookId: book.bookId,
-              }));
 
-              const progressInfo = await getChapterProgressInDB(
-                book.bookId,
-              );
-              await TrackPlayer.add(tracks);
+              const singleFile = isSingleFileBook(book.chapters);
+              const progressInfo = await getChapterProgressInDB(book.bookId);
 
-              if (progressInfo?.chapterIndex) {
-                await TrackPlayer.skip(progressInfo.chapterIndex);
-                await TrackPlayer.seekTo(progressInfo.progress || 0);
+              if (singleFile) {
+                // Single-file book: load only 1 track
+                const track: Track = {
+                  url: book.chapters[0].url,
+                  title: book.bookTitle,
+                  artist: book.author,
+                  artwork: book.artwork ?? unknownBookImageUri,
+                  album: book.bookTitle,
+                  bookId: book.bookId,
+                };
+                await TrackPlayer.add(track);
+
+                // Restore position by calculating absolute position from chapter + progress
+                if (progressInfo) {
+                  const absolutePosition = calculateAbsolutePosition(
+                    book.chapters,
+                    progressInfo.chapterIndex || 0,
+                    progressInfo.progress || 0
+                  );
+                  await TrackPlayer.seekTo(absolutePosition);
+                }
+              } else {
+                // Multi-file book: load N tracks (one per chapter)
+                const tracks: Track[] = book.chapters.map((chapter) => ({
+                  url: chapter.url,
+                  title: chapter.chapterTitle,
+                  artist: book.author,
+                  artwork: book.artwork ?? unknownBookImageUri,
+                  album: book.bookTitle,
+                  bookId: book.bookId,
+                }));
+
+                await TrackPlayer.add(tracks);
+
+                if (progressInfo?.chapterIndex) {
+                  await TrackPlayer.skip(progressInfo.chapterIndex);
+                  await TrackPlayer.seekTo(progressInfo.progress || 0);
+                }
               }
             }
             // Always update the active book in our own state

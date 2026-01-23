@@ -14,7 +14,7 @@ import {
   ViewStyle,
   Pressable,
 } from 'react-native';
-import TrackPlayer, { useIsPlaying } from 'react-native-track-player';
+import TrackPlayer, { useIsPlaying, useActiveTrack } from 'react-native-track-player';
 import {
   Play,
   Pause,
@@ -57,6 +57,11 @@ import {
   useIsPlayerPlaying,
   useRemainingSleepTimeMs,
 } from '@/store/playerState';
+import { useBookById } from '@/store/library';
+import {
+  isSingleFileBook,
+  findChapterIndexByPosition,
+} from '@/helpers/singleFileBook';
 
 type PlayerControlsProps = {
   style?: ViewStyle;
@@ -219,12 +224,16 @@ export function SeekBackButton({
     );
     const newPosition = currentPosition - seekDuration;
 
+    // Check if single-file book
+    const queue = await TrackPlayer.getQueue();
+    const isSingleFile = queue.length === 1;
+
     if (newPosition < 0) {
-      if (currentTrackIndex === 0) {
-        // On first track: clamp to start
+      if (isSingleFile || currentTrackIndex === 0) {
+        // Single-file book or first track: clamp to start
         await TrackPlayer.seekTo(0);
       } else {
-        // Skip to previous track and seek to appropriate position
+        // Multi-file book: skip to previous track and seek to appropriate position
         await TrackPlayer.skipToPrevious();
         const { duration } = await TrackPlayer.getProgress();
         await TrackPlayer.seekTo(duration + newPosition);
@@ -288,12 +297,16 @@ export function SeekForwardButton({
     const { position, duration } = await TrackPlayer.getProgress();
     const newPosition = position + seekDuration;
 
+    // Check if single-file book
+    const isSingleFile = queue.length === 1;
+
     if (newPosition > duration) {
       if (
-        currentTrackIndex !== undefined &&
-        currentTrackIndex === queue.length - 1
+        isSingleFile ||
+        (currentTrackIndex !== undefined &&
+          currentTrackIndex === queue.length - 1)
       ) {
-        // On last track: mark book as finished, reset to first track and stop
+        // Single-file book or last track: mark as finished, reset and stop
         const activeTrack = await TrackPlayer.getActiveTrack();
         if (activeTrack?.bookId) {
           const bookModel = await getBookById(activeTrack.bookId);
@@ -301,11 +314,15 @@ export function SeekForwardButton({
             await bookModel.updateBookProgress(BookProgressState.Finished);
           }
         }
-        await TrackPlayer.skip(0);
-        await TrackPlayer.seekTo(0);
+        if (isSingleFile) {
+          await TrackPlayer.seekTo(0);
+        } else {
+          await TrackPlayer.skip(0);
+          await TrackPlayer.seekTo(0);
+        }
         await TrackPlayer.pause();
       } else {
-        // Skip to next track and seek to appropriate position
+        // Multi-file book: skip to next track and seek to appropriate position
         const seekToTime = newPosition - duration;
         await TrackPlayer.skipToNext();
         await TrackPlayer.seekTo(seekToTime);
@@ -342,11 +359,38 @@ export function SeekForwardButton({
 }
 
 export function SkipToPreviousButton({ iconSize = 30 }: PlayerButtonProps) {
+  const activeTrack = useActiveTrack();
+  const book = useBookById(activeTrack?.bookId ?? '');
+
+  const handlePress = async () => {
+    const queue = await TrackPlayer.getQueue();
+    const isSingleFile = queue.length === 1;
+
+    if (isSingleFile && book?.chapters && book.chapters.length > 1) {
+      // Single-file book: seek to previous chapter's startMs
+      const { position } = await TrackPlayer.getProgress();
+      const currentChapterIndex = findChapterIndexByPosition(
+        book.chapters,
+        position
+      );
+
+      if (currentChapterIndex > 0) {
+        // Seek to start of previous chapter
+        const prevChapterStart =
+          (book.chapters[currentChapterIndex - 1].startMs || 0) / 1000;
+        await TrackPlayer.seekTo(prevChapterStart);
+      } else {
+        // At first chapter: seek to start
+        await TrackPlayer.seekTo(0);
+      }
+    } else {
+      // Multi-file book: use default behavior
+      await TrackPlayer.skipToPrevious();
+    }
+  };
+
   return (
-    <TouchableOpacity
-      activeOpacity={0.7}
-      onPress={() => TrackPlayer.skipToPrevious()}
-    >
+    <TouchableOpacity activeOpacity={0.7} onPress={handlePress}>
       <SkipBack
         size={iconSize}
         color={colors.icon}
@@ -358,11 +402,45 @@ export function SkipToPreviousButton({ iconSize = 30 }: PlayerButtonProps) {
 }
 
 export function SkipToNextButton({ iconSize = 30 }: PlayerButtonProps) {
+  const activeTrack = useActiveTrack();
+  const book = useBookById(activeTrack?.bookId ?? '');
+
+  const handlePress = async () => {
+    const queue = await TrackPlayer.getQueue();
+    const isSingleFile = queue.length === 1;
+
+    if (isSingleFile && book?.chapters && book.chapters.length > 1) {
+      // Single-file book: seek to next chapter's startMs
+      const { position } = await TrackPlayer.getProgress();
+      const currentChapterIndex = findChapterIndexByPosition(
+        book.chapters,
+        position
+      );
+
+      if (currentChapterIndex < book.chapters.length - 1) {
+        // Seek to start of next chapter
+        const nextChapterStart =
+          (book.chapters[currentChapterIndex + 1].startMs || 0) / 1000;
+        await TrackPlayer.seekTo(nextChapterStart);
+      } else {
+        // At last chapter: mark finished, reset and stop
+        if (activeTrack?.bookId) {
+          const bookModel = await getBookById(activeTrack.bookId);
+          if (bookModel) {
+            await bookModel.updateBookProgress(BookProgressState.Finished);
+          }
+        }
+        await TrackPlayer.seekTo(0);
+        await TrackPlayer.pause();
+      }
+    } else {
+      // Multi-file book: use default behavior
+      await TrackPlayer.skipToNext();
+    }
+  };
+
   return (
-    <TouchableOpacity
-      activeOpacity={0.7}
-      onPress={() => TrackPlayer.skipToNext()}
-    >
+    <TouchableOpacity activeOpacity={0.7} onPress={handlePress}>
       <SkipForward
         size={iconSize}
         color={colors.icon}
