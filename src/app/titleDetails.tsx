@@ -11,6 +11,7 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import {
   Play,
   Pause,
@@ -104,7 +105,8 @@ const TitleDetails = () => {
     router.push(`/chapterList?bookId=${bookId}&readOnly=true`);
   };
 
-  const handleEditTitle = () => {
+  const handleEditTitle = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push(`./editTitleDetails?bookId=${bookId}`);
   };
 
@@ -308,6 +310,7 @@ const TitleDetails = () => {
         >
           <Pressable
             onLongPress={handleEditTitle}
+            delayLongPress={400}
             style={[styles.bookInfoContainer]}
           >
             <Text

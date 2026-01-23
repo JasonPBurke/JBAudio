@@ -14,7 +14,10 @@ import {
   ViewStyle,
   Pressable,
 } from 'react-native';
-import TrackPlayer, { useIsPlaying, useActiveTrack } from 'react-native-track-player';
+import TrackPlayer, {
+  useIsPlaying,
+  useActiveTrack,
+} from 'react-native-track-player';
 import {
   Play,
   Pause,
@@ -39,6 +42,7 @@ import {
   BottomSheetModal,
 } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import SleepTimerOptions from '../modals/SleepTimerOptions';
 import CountdownTimer from './CountdownTimer';
 import AnimatedZZZ from './animations/AnimatedZZZ';
@@ -58,10 +62,7 @@ import {
   useRemainingSleepTimeMs,
 } from '@/store/playerState';
 import { useBookById } from '@/store/library';
-import {
-  isSingleFileBook,
-  findChapterIndexByPosition,
-} from '@/helpers/singleFileBook';
+import { findChapterIndexByPosition } from '@/helpers/singleFileBook';
 
 type PlayerControlsProps = {
   style?: ViewStyle;
@@ -371,7 +372,7 @@ export function SkipToPreviousButton({ iconSize = 30 }: PlayerButtonProps) {
       const { position } = await TrackPlayer.getProgress();
       const currentChapterIndex = findChapterIndexByPosition(
         book.chapters,
-        position
+        position,
       );
 
       if (currentChapterIndex > 0) {
@@ -414,7 +415,7 @@ export function SkipToNextButton({ iconSize = 30 }: PlayerButtonProps) {
       const { position } = await TrackPlayer.getProgress();
       const currentChapterIndex = findChapterIndexByPosition(
         book.chapters,
-        position
+        position,
       );
 
       if (currentChapterIndex < book.chapters.length - 1) {
@@ -565,6 +566,7 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
   );
 
   const handlePresentModalPress = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (!mountSheet) setMountSheet(true);
     requestAnimationFrame(() => bottomSheetModalRef.current?.present());
   }, [mountSheet]);
@@ -634,6 +636,7 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
       hitSlop={20}
       onPress={handlePress}
       onLongPress={handlePresentModalPress}
+      delayLongPress={400}
     >
       {mountSheet && (
         <BottomSheetModal

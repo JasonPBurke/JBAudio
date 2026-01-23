@@ -6,6 +6,7 @@ import { TimerPickerModal } from 'react-native-timer-picker';
 import { Settings, CirclePlus, CircleMinus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/hooks/useTheme';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { RefObject } from 'react';
@@ -107,7 +108,7 @@ const SleepTimerOptions = ({
             const { position } = await TrackPlayer.getProgress();
             const currentChapterIndex = findChapterIndexByPosition(
               book.chapters,
-              position
+              position,
             );
             setMaxChapters(book.chapters.length - 1 - currentChapterIndex);
             return;
@@ -487,12 +488,14 @@ const SleepTimerOptions = ({
               }
             }}
             onLongPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               const totalCustomMinutes =
                 customTimer.hours * 60 + customTimer.minutes;
               if (totalCustomMinutes !== 0) {
                 setShowSlider(true);
               }
             }}
+            delayLongPress={400}
           >
             <Text
               style={[
