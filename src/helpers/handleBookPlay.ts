@@ -3,11 +3,7 @@ import { getChapterProgressInDB } from '@/db/chapterQueries';
 import { Book } from '@/types/Book';
 import { getBookById } from '@/db/bookQueries';
 import TrackPlayer, { Track } from 'react-native-track-player';
-import {
-  getLastActiveBook,
-  updateLastActiveBook,
-} from '@/db/settingsQueries';
-import { recordFootprint } from '@/db/footprintQueries';
+import { updateLastActiveBook } from '@/db/settingsQueries';
 import {
   isSingleFileBook,
   calculateAbsolutePosition,
@@ -76,7 +72,7 @@ export const handleBookPlay = async (
       const absolutePosition = calculateAbsolutePosition(
         book.chapters,
         chapterIndex,
-        chapterProgress
+        chapterProgress,
       );
       await TrackPlayer.seekTo(absolutePosition);
     } else {
@@ -109,7 +105,7 @@ export const handleBookPlay = async (
       const absolutePosition = calculateAbsolutePosition(
         book.chapters,
         chapterIndex,
-        chapterProgress
+        chapterProgress,
       );
       await TrackPlayer.seekTo(absolutePosition);
     } else {

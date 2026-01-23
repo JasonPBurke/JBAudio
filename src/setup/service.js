@@ -178,6 +178,8 @@ export default module.exports = async function () {
 
             // Reset chapter tracking state
             singleFileChapterState.lastChapterIndex = 0;
+
+            return;
           }
         } else {
           // Single chapter book - just update progress normally
