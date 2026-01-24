@@ -1,4 +1,6 @@
-import { Text, View } from 'react-native';
+'use no memo'; // Receives Reanimated scroll handler
+
+import { Text, View, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { BookListItem } from './BookListItem';
 import { utilsStyles } from '@/styles';
 import { Author } from '@/types/Book';
@@ -6,12 +8,15 @@ import { screenPadding } from '@/constants/tokens';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
 import { memo, useCallback, useMemo } from 'react';
 import { useTheme } from '@/hooks/useTheme';
+import React from 'react';
 
 export type BookListProps = Partial<FlashListProps<string>> & {
   authors: Author[];
+  onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  ListHeaderComponent?: React.ReactElement;
 };
 
-const BooksList = ({ authors }: BookListProps) => {
+const BooksList = ({ authors, onScroll, ListHeaderComponent }: BookListProps) => {
   const { colors: themeColors } = useTheme();
   const bookIds = useMemo(() => {
     return authors
@@ -37,6 +42,9 @@ const BooksList = ({ authors }: BookListProps) => {
             keyExtractor={(item) => item}
             showsVerticalScrollIndicator={false}
             showsHorizontalScrollIndicator={false}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
+            ListHeaderComponent={ListHeaderComponent}
             contentContainerStyle={{ paddingTop: 12, paddingBottom: 82 }}
             ListFooterComponent={
               bookIds.length > 0 ? (

@@ -225,11 +225,11 @@ export default Header;
 const styles = StyleSheet.create({
   container: {
     gap: 16,
+    paddingBottom: 4,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingTop: 6,
     paddingHorizontal: 16,
   },
   headerGroup: {

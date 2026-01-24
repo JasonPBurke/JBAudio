@@ -1,18 +1,23 @@
+'use no memo'; // Receives Reanimated scroll handler
+
 import { FlashList, FlashListProps } from '@shopify/flash-list';
 import { useCallback, memo, useMemo } from 'react';
-import { View, Text, Dimensions } from 'react-native';
+import { View, Text, Dimensions, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 
 import { utilsStyles } from '@/styles';
 import { Author, Book } from '@/types/Book';
 import { BookGridItem } from './BookGridItem';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useTheme } from '@/hooks/useTheme';
+import React from 'react';
 
 export type BookGridProps = Partial<FlashListProps<string>> & {
   authors?: Author[];
   books?: Book[];
   standAlone?: boolean;
   flowDirection: 'row' | 'column';
+  onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  ListHeaderComponent?: React.ReactElement;
 };
 
 const BooksGrid = ({
@@ -20,6 +25,8 @@ const BooksGrid = ({
   books,
   standAlone,
   flowDirection,
+  onScroll,
+  ListHeaderComponent,
 }: BookGridProps) => {
   const { colors: themeColors } = useTheme();
   const numColumns = useSettingsStore((state) => state.numColumns);
@@ -67,6 +74,9 @@ const BooksGrid = ({
       numColumns={numColumns}
       keyExtractor={(item) => item}
       showsVerticalScrollIndicator={false}
+      onScroll={onScroll}
+      scrollEventThrottle={16}
+      ListHeaderComponent={ListHeaderComponent}
       ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
       ListFooterComponent={
         standAlone ? <View style={{ height: 82 }} /> : null

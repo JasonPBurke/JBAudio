@@ -1,3 +1,5 @@
+'use no memo'; // Receives Reanimated scroll handler
+
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Book, Author } from '@/types/Book';
 import { fontSize } from '@/constants/tokens';
@@ -6,11 +8,12 @@ import { FlashList, FlashListProps } from '@shopify/flash-list';
 import { useTheme } from '@/hooks/useTheme';
 
 import { ChevronRight } from 'lucide-react-native';
-import { memo, useCallback, useRef } from 'react';
+import { memo, useCallback, useMemo, useRef } from 'react';
 import BooksGrid from './BooksGrid';
 import BooksHorizontal from './BooksHorizontal';
 import { utilsStyles } from '@/styles';
 import React from 'react';
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 
 type PendingScroll = {
   index: number;
@@ -22,6 +25,8 @@ export type BookListProps = Partial<FlashListProps<Book>> & {
   books?: Book[];
   setActiveGridSection: React.Dispatch<React.SetStateAction<string | null>>;
   activeGridSection: string | null;
+  onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  ListHeaderComponent?: React.ReactElement;
 };
 
 type ListDataItem =
@@ -32,6 +37,8 @@ const BooksHome = ({
   authors = [],
   setActiveGridSection,
   activeGridSection,
+  onScroll,
+  ListHeaderComponent,
 }: BookListProps) => {
   const { colors: themeColors } = useTheme();
   const listRef =
@@ -39,30 +46,35 @@ const BooksHome = ({
   const listContainerRef = useRef<View>(null);
   const pendingScrollRef = useRef<PendingScroll>(null);
 
-  authors.sort((a, b) => {
-    const nameA = a.name.toUpperCase();
-    const nameB = b.name.toUpperCase();
-    if (nameA < nameB) return -1;
-    if (nameA > nameB) return 1;
-    return 0;
-  });
+  // Memoize sorted authors to avoid sorting on every render
+  const sortedAuthors = useMemo(() => {
+    return [...authors].sort((a, b) => {
+      const nameA = a.name.toUpperCase();
+      const nameB = b.name.toUpperCase();
+      if (nameA < nameB) return -1;
+      if (nameA > nameB) return 1;
+      return 0;
+    });
+  }, [authors]);
 
-  const allBooks = authors.flatMap((author) => author.books);
-  allBooks.sort(
-    (a, b) =>
-      new Date(b.metadata.ctime).getTime() -
-      new Date(a.metadata.ctime).getTime(),
-  );
-  const recentlyAddedBooks = allBooks.slice(0, 25);
+  const recentlyAddedBooks = useMemo(() => {
+    const allBooks = sortedAuthors.flatMap((author) => author.books);
+    allBooks.sort(
+      (a, b) =>
+        new Date(b.metadata.ctime).getTime() -
+        new Date(a.metadata.ctime).getTime(),
+    );
+    return allBooks.slice(0, 25);
+  }, [sortedAuthors]);
 
   // Create a data structure for the main FlashList
-  const listData: ListDataItem[] =
-    allBooks.length > 0
-      ? [
-          { type: 'recentlyAdded', books: recentlyAddedBooks },
-          ...authors.map((author) => ({ type: 'author', author }) as const),
-        ]
-      : [];
+  const listData: ListDataItem[] = useMemo(() => {
+    if (recentlyAddedBooks.length === 0) return [];
+    return [
+      { type: 'recentlyAdded', books: recentlyAddedBooks },
+      ...sortedAuthors.map((author) => ({ type: 'author', author }) as const),
+    ];
+  }, [recentlyAddedBooks, sortedAuthors]);
 
   const handleSectionPress = useCallback(
     (sectionId: string, index: number, pageY: number) => {
@@ -132,6 +144,9 @@ const BooksHome = ({
           item.type === 'author' ? item.author.name : item.type
         }
         getItemType={(item) => item.type}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        ListHeaderComponent={ListHeaderComponent}
         ListEmptyComponent={
           <Text
             style={[
