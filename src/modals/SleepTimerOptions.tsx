@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
-import { colors, screenPadding } from '@/constants/tokens';
+import { colors, screenPadding, colorTokens } from '@/constants/tokens';
 import { withOpacity } from '@/helpers/colorUtils';
 import { useState } from 'react';
 import { TimerPickerModal } from 'react-native-timer-picker';
@@ -50,6 +50,20 @@ const SleepTimerOptions = ({
   const { colors: themeColors, activeColorScheme } = useTheme();
 
   const db = useDatabase();
+
+  // Helper functions to get inverted colors for active buttons
+  const getActiveButtonBackground = () => {
+    return activeColorScheme === 'dark'
+      ? colorTokens.light.background
+      : colorTokens.dark.background;
+  };
+
+  const getActiveButtonTextColor = () => {
+    return activeColorScheme === 'dark'
+      ? colorTokens.light.text
+      : colorTokens.dark.text;
+  };
+
   useEffect(() => {
     const fetchSettings = async () => {
       const settingsCollection =
@@ -293,14 +307,28 @@ const SleepTimerOptions = ({
               //! check in milliseconds
               activeTimerDuration === 15 * 60 * 1000 && styles.activeButton,
               {
-                backgroundColor: themeColors.background,
-                borderColor: themeColors.textMuted,
+                backgroundColor:
+                  activeTimerDuration === 15 * 60 * 1000
+                    ? getActiveButtonBackground()
+                    : themeColors.background,
+                borderColor:
+                  activeTimerDuration === 15 * 60 * 1000
+                    ? themeColors.primary
+                    : themeColors.textMuted,
               },
             ]}
             onPress={() => handlePresetPress(15)}
           >
             <Text
-              style={[styles.buttonText, { color: themeColors.textMuted }]}
+              style={[
+                styles.buttonText,
+                {
+                  color:
+                    activeTimerDuration === 15 * 60 * 1000
+                      ? getActiveButtonTextColor()
+                      : themeColors.textMuted,
+                },
+              ]}
             >
               15 mins
             </Text>
@@ -311,14 +339,28 @@ const SleepTimerOptions = ({
               //! check in milliseconds
               activeTimerDuration === 30 * 60 * 1000 && styles.activeButton,
               {
-                backgroundColor: themeColors.background,
-                borderColor: themeColors.textMuted,
+                backgroundColor:
+                  activeTimerDuration === 30 * 60 * 1000
+                    ? getActiveButtonBackground()
+                    : themeColors.background,
+                borderColor:
+                  activeTimerDuration === 30 * 60 * 1000
+                    ? themeColors.primary
+                    : themeColors.textMuted,
               },
             ]}
             onPress={() => handlePresetPress(30)}
           >
             <Text
-              style={[styles.buttonText, { color: themeColors.textMuted }]}
+              style={[
+                styles.buttonText,
+                {
+                  color:
+                    activeTimerDuration === 30 * 60 * 1000
+                      ? getActiveButtonTextColor()
+                      : themeColors.textMuted,
+                },
+              ]}
             >
               30 mins
             </Text>
@@ -329,14 +371,28 @@ const SleepTimerOptions = ({
               //! check in milliseconds
               activeTimerDuration === 45 * 60 * 1000 && styles.activeButton,
               {
-                backgroundColor: themeColors.background,
-                borderColor: themeColors.textMuted,
+                backgroundColor:
+                  activeTimerDuration === 45 * 60 * 1000
+                    ? getActiveButtonBackground()
+                    : themeColors.background,
+                borderColor:
+                  activeTimerDuration === 45 * 60 * 1000
+                    ? themeColors.primary
+                    : themeColors.textMuted,
               },
             ]}
             onPress={() => handlePresetPress(45)}
           >
             <Text
-              style={[styles.buttonText, { color: themeColors.textMuted }]}
+              style={[
+                styles.buttonText,
+                {
+                  color:
+                    activeTimerDuration === 45 * 60 * 1000
+                      ? getActiveButtonTextColor()
+                      : themeColors.textMuted,
+                },
+              ]}
             >
               45 mins
             </Text>
@@ -350,14 +406,28 @@ const SleepTimerOptions = ({
               //! check in milliseconds
               activeTimerDuration === 60 * 60 * 1000 && styles.activeButton,
               {
-                backgroundColor: themeColors.background,
-                borderColor: themeColors.textMuted,
+                backgroundColor:
+                  activeTimerDuration === 60 * 60 * 1000
+                    ? getActiveButtonBackground()
+                    : themeColors.background,
+                borderColor:
+                  activeTimerDuration === 60 * 60 * 1000
+                    ? themeColors.primary
+                    : themeColors.textMuted,
               },
             ]}
             onPress={() => handlePresetPress(60)}
           >
             <Text
-              style={[styles.buttonText, { color: themeColors.textMuted }]}
+              style={[
+                styles.buttonText,
+                {
+                  color:
+                    activeTimerDuration === 60 * 60 * 1000
+                      ? getActiveButtonTextColor()
+                      : themeColors.textMuted,
+                },
+              ]}
             >
               1 hr
             </Text>
@@ -368,14 +438,28 @@ const SleepTimerOptions = ({
               //! check in milliseconds
               activeTimerDuration === 90 * 60 * 1000 && styles.activeButton,
               {
-                backgroundColor: themeColors.background,
-                borderColor: themeColors.textMuted,
+                backgroundColor:
+                  activeTimerDuration === 90 * 60 * 1000
+                    ? getActiveButtonBackground()
+                    : themeColors.background,
+                borderColor:
+                  activeTimerDuration === 90 * 60 * 1000
+                    ? themeColors.primary
+                    : themeColors.textMuted,
               },
             ]}
             onPress={() => handlePresetPress(90)}
           >
             <Text
-              style={[styles.buttonText, { color: themeColors.textMuted }]}
+              style={[
+                styles.buttonText,
+                {
+                  color:
+                    activeTimerDuration === 90 * 60 * 1000
+                      ? getActiveButtonTextColor()
+                      : themeColors.textMuted,
+                },
+              ]}
             >
               1.5 hrs
             </Text>
@@ -387,14 +471,28 @@ const SleepTimerOptions = ({
               activeTimerDuration === 120 * 60 * 1000 &&
                 styles.activeButton,
               {
-                backgroundColor: themeColors.background,
-                borderColor: themeColors.textMuted,
+                backgroundColor:
+                  activeTimerDuration === 120 * 60 * 1000
+                    ? getActiveButtonBackground()
+                    : themeColors.background,
+                borderColor:
+                  activeTimerDuration === 120 * 60 * 1000
+                    ? themeColors.primary
+                    : themeColors.textMuted,
               },
             ]}
             onPress={() => handlePresetPress(120)}
           >
             <Text
-              style={[styles.buttonText, { color: themeColors.textMuted }]}
+              style={[
+                styles.buttonText,
+                {
+                  color:
+                    activeTimerDuration === 120 * 60 * 1000
+                      ? getActiveButtonTextColor()
+                      : themeColors.textMuted,
+                },
+              ]}
             >
               2 hrs
             </Text>
@@ -409,8 +507,12 @@ const SleepTimerOptions = ({
               styles.chapterEndButton,
               chapterTimerActive && styles.activeButton,
               {
-                backgroundColor: themeColors.background,
-                borderColor: themeColors.textMuted,
+                backgroundColor: chapterTimerActive
+                  ? getActiveButtonBackground()
+                  : themeColors.background,
+                borderColor: chapterTimerActive
+                  ? themeColors.primary
+                  : themeColors.textMuted,
               },
             ]}
           >
@@ -427,15 +529,29 @@ const SleepTimerOptions = ({
                 size={28}
                 color={
                   chaptersToEnd === 0
-                    ? withOpacity(themeColors.textMuted, 0.43)
-                    : themeColors.textMuted
+                    ? withOpacity(
+                        chapterTimerActive
+                          ? getActiveButtonTextColor()
+                          : themeColors.textMuted,
+                        0.43,
+                      )
+                    : chapterTimerActive
+                      ? getActiveButtonTextColor()
+                      : themeColors.textMuted
                 }
                 strokeWidth={1.5}
                 absoluteStrokeWidth
               />
             </TouchableOpacity>
             <Text
-              style={[styles.buttonText, { color: themeColors.textMuted }]}
+              style={[
+                styles.buttonText,
+                {
+                  color: chapterTimerActive
+                    ? getActiveButtonTextColor()
+                    : themeColors.textMuted,
+                },
+              ]}
             >
               {chaptersToEnd === maxChapters && maxChapters > 0
                 ? 'End of Book'
@@ -456,8 +572,15 @@ const SleepTimerOptions = ({
                 size={28}
                 color={
                   chaptersToEnd >= maxChapters
-                    ? withOpacity(themeColors.textMuted, 0.43)
-                    : themeColors.textMuted
+                    ? withOpacity(
+                        chapterTimerActive
+                          ? getActiveButtonTextColor()
+                          : themeColors.textMuted,
+                        0.43,
+                      )
+                    : chapterTimerActive
+                      ? getActiveButtonTextColor()
+                      : themeColors.textMuted
                 }
                 strokeWidth={1.5}
                 absoluteStrokeWidth
@@ -474,8 +597,20 @@ const SleepTimerOptions = ({
                 ? styles.activeButton
                 : null,
               {
-                backgroundColor: themeColors.background,
-                borderColor: themeColors.textMuted,
+                backgroundColor:
+                  activeTimerDuration ===
+                    customTimer.hours * 60 * 60 * 1000 +
+                      customTimer.minutes * 60 * 1000 &&
+                  (customTimer.hours !== 0 || customTimer.minutes !== 0)
+                    ? getActiveButtonBackground()
+                    : themeColors.background,
+                borderColor:
+                  activeTimerDuration ===
+                    customTimer.hours * 60 * 60 * 1000 +
+                      customTimer.minutes * 60 * 1000 &&
+                  (customTimer.hours !== 0 || customTimer.minutes !== 0)
+                    ? themeColors.primary
+                    : themeColors.textMuted,
               },
             ]}
             onPress={() => {
@@ -500,10 +635,15 @@ const SleepTimerOptions = ({
             <Text
               style={[
                 styles.buttonText,
-                customTimer.hours === 0 && customTimer.minutes === 0
-                  ? { color: themeColors.textMuted }
-                  : { color: withOpacity(themeColors.textMuted, 0.43) },
-                { color: themeColors.textMuted },
+                {
+                  color:
+                    activeTimerDuration ===
+                      customTimer.hours * 60 * 60 * 1000 +
+                        customTimer.minutes * 60 * 1000 &&
+                    (customTimer.hours !== 0 || customTimer.minutes !== 0)
+                      ? getActiveButtonTextColor()
+                      : themeColors.textMuted,
+                },
               ]}
             >
               Custom
@@ -512,7 +652,15 @@ const SleepTimerOptions = ({
               <Text
                 style={[
                   styles.buttonText,
-                  { color: themeColors.textMuted },
+                  {
+                    color:
+                      activeTimerDuration ===
+                        customTimer.hours * 60 * 60 * 1000 +
+                          customTimer.minutes * 60 * 1000 &&
+                      (customTimer.hours !== 0 || customTimer.minutes !== 0)
+                        ? getActiveButtonTextColor()
+                        : themeColors.textMuted,
+                  },
                 ]}
               >
                 {customTimer.hours}:

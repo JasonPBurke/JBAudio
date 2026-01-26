@@ -653,6 +653,7 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
                     themeColors.background,
                     0.66,
                   ),
+                  borderColor: themeColors.textMuted,
                 },
               ]}
               onPress={() => bottomSheetModalRef.current?.dismiss()}
@@ -720,7 +721,6 @@ const styles = StyleSheet.create({
     width: 55,
     height: 7,
     borderRadius: 50,
-    borderColor: colors.textMuted,
     borderWidth: 1,
     justifyContent: 'center',
     alignSelf: 'center',

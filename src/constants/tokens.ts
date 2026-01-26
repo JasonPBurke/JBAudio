@@ -36,6 +36,9 @@ export const colorTokens = {
     lightIcon: '#E5E9F0',
     lightText: '#ECEFF4',
     lightTextMuted: '#d8dee9',
+    darkIcon: '#374151',
+    darkText: '#1C1C1C',
+    darkTextMuted: '#6B7280',
   },
 };
 
