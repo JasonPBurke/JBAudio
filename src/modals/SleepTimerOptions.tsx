@@ -678,7 +678,11 @@ const SleepTimerOptions = ({
         setIsVisible={setShowSlider}
         closeOnOverlayPress
         hideSeconds
-        maximumHours={24} //! SET TO HOURS REMAINING IN QUEUE
+        initialValue={{
+          hours: customTimer.hours,
+          minutes: customTimer.minutes,
+        }}
+        maximumHours={12} //! SET TO HOURS REMAINING IN QUEUE
         modalTitle='Custom Timer'
         modalTitleProps={{ style: { color: themeColors.text } }}
         confirmButtonText='   Set   '
@@ -686,8 +690,9 @@ const SleepTimerOptions = ({
         onCancel={() => setShowSlider(false)}
         onConfirm={handleCustomTimerConfirm}
         styles={{
-          // text: { fontFamily: 'Rubik' },
-          // pickerLabel: { fontFamily: 'Rubik' },
+          text: { fontFamily: 'Rubik' },
+          pickerLabel: { paddingBottom: 4, fontFamily: 'Rubik' },
+          // pickerAmPmLabel: { paddingBottom: 10 },
           theme: activeColorScheme,
           contentContainer: {
             backgroundColor: themeColors.modalBackground,

@@ -7,7 +7,7 @@ import Book from '@/db/models/Book';
 import * as RNFS from '@dr.pogodin/react-native-fs';
 
 async function updateSetting(
-  updater: (record: Settings) => void
+  updater: (record: Settings) => void,
 ): Promise<void> {
   await database.write(async () => {
     const settingsCollection =
@@ -39,7 +39,7 @@ export async function updateTimerDuration(duration: number | null) {
 
 export async function updateCustomTimer(
   hours: number | null,
-  minutes: number | null
+  minutes: number | null,
 ) {
   return updateSetting((record) => {
     record.customTimer =
@@ -139,11 +139,11 @@ export function getNumColumnsObservable() {
     .observe()
     .pipe(
       switchMap((settings) =>
-        settings.length > 0 ? settings[0].observe() : of(null)
+        settings.length > 0 ? settings[0].observe() : of(null),
       ),
       switchMap((settingsRecord) =>
-        of(settingsRecord ? settingsRecord.numColumns : null)
-      )
+        of(settingsRecord ? settingsRecord.numColumns : null),
+      ),
     );
 }
 
@@ -229,7 +229,7 @@ export async function getCurrentBookArtworkUri() {
     const settings = settingsRecord[0];
     console.log(
       'settings.currentBookArtworkUri',
-      settings.currentBookArtworkUri
+      settings.currentBookArtworkUri,
     );
     return settings.currentBookArtworkUri;
   }
@@ -260,7 +260,7 @@ export const removeLibraryFolder = async (folderPath: string) => {
     // 1. Remove the folder path from settings
     const currentFolders = settings.parsedLibraryPaths;
     const updatedFolders = currentFolders.filter(
-      (path: string) => path !== folderPath
+      (path: string) => path !== folderPath,
     );
     await settings.update((s) => {
       s.libraryPaths = JSON.stringify(updatedFolders);
@@ -328,7 +328,7 @@ export async function getCustomPrimaryColor(): Promise<string | null> {
 }
 
 export async function setCustomPrimaryColor(
-  color: string | null
+  color: string | null,
 ): Promise<void> {
   return updateSetting((record) => {
     record.customPrimaryColor = color;
@@ -347,7 +347,11 @@ export async function getBedtimeSettings() {
       bedtimeModeEnabled: settings.bedtimeModeEnabled === true,
     };
   }
-  return { bedtimeStart: null, bedtimeEnd: null, bedtimeModeEnabled: false };
+  return {
+    bedtimeStart: null,
+    bedtimeEnd: null,
+    bedtimeModeEnabled: false,
+  };
 }
 
 export async function getBedtimeModeEnabled(): Promise<boolean> {
@@ -360,7 +364,9 @@ export async function getBedtimeModeEnabled(): Promise<boolean> {
   return false;
 }
 
-export async function setBedtimeModeEnabled(enabled: boolean): Promise<void> {
+export async function setBedtimeModeEnabled(
+  enabled: boolean,
+): Promise<void> {
   return updateSetting((record) => {
     record.bedtimeModeEnabled = enabled;
   });
@@ -368,7 +374,7 @@ export async function setBedtimeModeEnabled(enabled: boolean): Promise<void> {
 
 export async function setBedtimeSettings(
   bedtimeStart: number | null,
-  bedtimeEnd: number | null
+  bedtimeEnd: number | null,
 ): Promise<void> {
   return updateSetting((record) => {
     record.bedtimeStart = bedtimeStart;
@@ -387,7 +393,7 @@ export async function getAutoChapterInterval(): Promise<number | null> {
 }
 
 export async function setAutoChapterInterval(
-  interval: number | null
+  interval: number | null,
 ): Promise<void> {
   return updateSetting((record) => {
     record.autoChapterInterval = interval;
