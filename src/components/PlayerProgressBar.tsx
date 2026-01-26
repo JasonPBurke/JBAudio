@@ -10,7 +10,7 @@ import { runOnJS } from 'react-native-worklets';
 import TrackPlayer from 'react-native-track-player';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { fontSize } from '@/constants/tokens';
-import { defaultStyles, utilsStyles } from '@/styles';
+import { utilsStyles } from '@/styles';
 import { useProgressReanimated } from '@/hooks/useProgressReanimated';
 import { useCurrentChapterStable } from '@/hooks/useCurrentChapterStable';
 import { useTheme } from '@/hooks/useTheme';

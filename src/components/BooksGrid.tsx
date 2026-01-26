@@ -2,7 +2,13 @@
 
 import { FlashList, FlashListProps } from '@shopify/flash-list';
 import { useCallback, memo, useMemo } from 'react';
-import { View, Text, Dimensions, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
+import {
+  View,
+  Text,
+  Dimensions,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+} from 'react-native';
 
 import { utilsStyles } from '@/styles';
 import { Author, Book } from '@/types/Book';
@@ -37,7 +43,7 @@ const BooksGrid = ({
     () =>
       (screenWidth - ITEM_MARGIN_HORIZONTAL * (numColumns + 1)) /
       numColumns,
-    [screenWidth, numColumns]
+    [screenWidth, numColumns],
   );
 
   // This is the core change. We now create a stable list of book IDs.
@@ -63,11 +69,12 @@ const BooksGrid = ({
         itemWidth={itemWidth}
       />
     ),
-    [flowDirection, numColumns, itemWidth]
+    [flowDirection, numColumns, itemWidth],
   );
 
   return (
     <FlashList
+      style={{ paddingTop: 6 }}
       data={bookIds}
       renderItem={renderBookItem}
       masonry
@@ -82,7 +89,12 @@ const BooksGrid = ({
         standAlone ? <View style={{ height: 82 }} /> : null
       }
       ListEmptyComponent={
-        <Text style={[utilsStyles.emptyComponent, { color: themeColors.textMuted }]}>
+        <Text
+          style={[
+            utilsStyles.emptyComponent,
+            { color: themeColors.textMuted },
+          ]}
+        >
           No books found
         </Text>
       }

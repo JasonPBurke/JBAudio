@@ -1,6 +1,5 @@
 'use no memo'; // Reanimated worklets are incompatible with React Compiler
 
-import React from 'react';
 import {
   TextInput,
   TouchableOpacity,
@@ -15,6 +14,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { X } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
+import { withOpacity } from '@/helpers/colorUtils';
 
 export const SEARCH_BAR_HEIGHT = 38;
 
@@ -63,11 +63,11 @@ function SearchBar({
         <TextInput
           style={[styles.input, { color: themeColors.text }]}
           placeholder='Search books, authors...'
-          placeholderTextColor={themeColors.textMuted}
+          placeholderTextColor={withOpacity(themeColors.textMuted, 0.56)}
           value={value}
           onChangeText={onChangeText}
           cursorColor={themeColors.primary}
-          selectionColor={themeColors.primary}
+          selectionColor={withOpacity(themeColors.primary, 0.56)}
           returnKeyType='search'
           autoCorrect={false}
           autoCapitalize='none'

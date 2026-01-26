@@ -72,7 +72,9 @@ const BooksHome = ({
     if (recentlyAddedBooks.length === 0) return [];
     return [
       { type: 'recentlyAdded', books: recentlyAddedBooks },
-      ...sortedAuthors.map((author) => ({ type: 'author', author }) as const),
+      ...sortedAuthors.map(
+        (author) => ({ type: 'author', author }) as const,
+      ),
     ];
   }, [recentlyAddedBooks, sortedAuthors]);
 
@@ -135,7 +137,7 @@ const BooksHome = ({
   );
 
   return (
-    <View ref={listContainerRef} style={{ flex: 1 }}>
+    <View ref={listContainerRef} style={{ flex: 1, paddingTop: 8 }}>
       <FlashList
         ref={listRef}
         data={listData}
