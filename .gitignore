@@ -52,5 +52,6 @@ app-example
 
 # md prompt files
 plans
+docs
 
 .env.local
