@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 22,
+  version: 23,
   tables: [
     tableSchema({
       name: 'authors',
@@ -81,6 +81,11 @@ export default appSchema({
         },
         {
           name: 'has_auto_generated_chapters',
+          type: 'boolean',
+          isOptional: true,
+        },
+        {
+          name: 'is_single_file',
           type: 'boolean',
           isOptional: true,
         },

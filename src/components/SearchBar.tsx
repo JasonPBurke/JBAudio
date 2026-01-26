@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 4,
-    height: SEARCH_BAR_HEIGHT,
+    height: SEARCH_BAR_HEIGHT, // - 10 etc.
   },
   input: {
     flex: 1,

@@ -7,7 +7,10 @@ import database from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import ImageResizer from '@bam.tech/react-native-image-resizer';
 import { populateSingleBook } from '@/hooks/usePopulateDatabase';
-import { getLibraryPaths, getAutoChapterInterval } from '@/db/settingsQueries';
+import {
+  getLibraryPaths,
+  getAutoChapterInterval,
+} from '@/db/settingsQueries';
 import {
   analyzeFileWithMediaInfo,
   analyzeFileWithMediaInfoNoCover,
@@ -98,25 +101,37 @@ function groupChaptersIntoBooks(
     entry.book.bookDuration += chapterData.chapterDuration;
   }
 
-  // Sort chapters within each book by chapter number
+  // Sort chapters within each book by chapter number and determine isSingleFile
   for (const entry of bookMap.values()) {
     if (entry.book.chapters.length > 1) {
       entry.book.chapters.sort((a, b) => a.chapterNumber - b.chapterNumber);
     }
+
+    // Determine if this is a single-file book (all chapters have the same URL)
+    const chapters = entry.book.chapters;
+    entry.book.isSingleFile =
+      chapters.length > 0 &&
+      chapters.every((c) => c.url === chapters[0].url);
   }
 
   // Apply auto-chapter generation for books without chapter data
   if (autoChapterInterval) {
     for (const entry of bookMap.values()) {
       const book = entry.book;
-      if (shouldGenerateAutoChapters(book.chapters.length, false, autoChapterInterval)) {
+      if (
+        shouldGenerateAutoChapters(
+          book.chapters.length,
+          false,
+          autoChapterInterval,
+        )
+      ) {
         // Preserve the original chapter's URL (for single-file audiobooks)
         const originalUrl = book.chapters[0]?.url || book.bookId;
 
         // Generate auto-chapters
         const generatedChapters = generateAutoChapters(
           book.bookDuration,
-          autoChapterInterval
+          autoChapterInterval,
         );
 
         // Replace chapters with auto-generated ones
@@ -229,7 +244,10 @@ async function handleReadDirectory(
 
     // Process discovered books immediately
     if (newChaptersInDir.length > 0) {
-      const booksInDir = groupChaptersIntoBooks(newChaptersInDir, autoChapterInterval);
+      const booksInDir = groupChaptersIntoBooks(
+        newChaptersInDir,
+        autoChapterInterval,
+      );
       const progressStore = useScanProgressStore.getState();
 
       progressStore.setTotalBooks(
@@ -328,9 +346,9 @@ async function parseCueFile(
 }
 
 /**
- * Builds a chapter metadata object with common properties from file metadata.
+ * Builds a book metadata object with common properties from file metadata.
  */
-function buildChapterMetadata(
+function buildBookMetadata(
   metadata: any,
   filePath: string,
   bookTitleBackup: string | undefined,
@@ -408,13 +426,19 @@ async function extractMetadata(
           : metadata.durationMs || 0;
         const chapterDuration = (chapterEndMs - chapter.startMs) / 1000;
 
-        return buildChapterMetadata(metadata, filePath, bookTitleBackup, authorBackup, {
-          title: chapter.title || `Chapter ${index + 1}`,
-          number: index + 1,
-          duration: chapterDuration,
-          startMs: chapter.startMs,
-          totalTracks: chapters.length,
-        });
+        return buildBookMetadata(
+          metadata,
+          filePath,
+          bookTitleBackup,
+          authorBackup,
+          {
+            title: chapter.title || `Chapter ${index + 1}`,
+            number: index + 1,
+            duration: chapterDuration,
+            startMs: chapter.startMs,
+            totalTracks: chapters.length,
+          },
+        );
       });
     }
 
@@ -427,7 +451,7 @@ async function extractMetadata(
       fileName.split('.')[0] || metadata.title || 'Unknown Chapter';
 
     return [
-      buildChapterMetadata(metadata, filePath, bookTitleBackup, authorBackup, {
+      buildBookMetadata(metadata, filePath, bookTitleBackup, authorBackup, {
         title: chapterTitle,
         number: metadata.trackPosition || 1,
         duration: chapterDuration,
