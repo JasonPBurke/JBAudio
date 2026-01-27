@@ -1,10 +1,10 @@
 import TabButtons, { TabButtonsType } from '@/components/TabButtons';
 
 export enum CustomTabs {
-  All,
   Unplayed,
   Started,
   Finished,
+  All,
 }
 
 interface TabScreenProps {
@@ -24,10 +24,10 @@ const TabScreen = ({
   bookCounts,
 }: TabScreenProps) => {
   const buttons: TabButtonsType[] = [
-    { title: `All (${bookCounts.all})` },
     { title: `Unplayed (${bookCounts.unplayed})` },
     { title: `Playing (${bookCounts.playing})` },
     { title: `Finished (${bookCounts.finished})` },
+    { title: `All (${bookCounts.all})` },
   ];
 
   return (
