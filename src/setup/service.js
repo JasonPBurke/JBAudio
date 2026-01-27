@@ -447,7 +447,6 @@ export default module.exports = async function () {
       const { sleepTime, timerActive } = await getTimerSettings();
       if (timerActive && sleepTime !== null) {
         const remaining = Math.max(0, sleepTime - Date.now());
-        console.log('setRemainingSleepTimeMs is firing on pause');
         setRemainingSleepTimeMs(remaining);
       }
     }

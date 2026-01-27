@@ -21,7 +21,8 @@ import { recordFootprint } from '@/db/footprintQueries';
 import UserSettings from '@/db/models/Settings';
 import { useDatabase } from '@nozbe/watermelondb/hooks';
 import { useEffect } from 'react';
-import TrackPlayer from 'react-native-track-player';
+import TrackPlayer, { State } from 'react-native-track-player';
+import { usePlayerStateStore } from '@/store/playerState';
 import { useRouter } from 'expo-router';
 import { useLibraryStore } from '@/store/library';
 import { findChapterIndexByPosition } from '@/helpers/singleFileBook';
@@ -184,14 +185,33 @@ const SleepTimerOptions = ({
       setActiveTimerDuration(null);
     } else {
       //! activate timer
-      onOptimisticUpdate?.({
-        active: true,
-        endTimeMs: Date.now() + totalMilliseconds,
-        chapters: null,
-      });
+      // Check if player is currently playing
+      const playbackState = await TrackPlayer.getPlaybackState();
+      const isCurrentlyPlaying = playbackState.state === State.Playing;
+      const { setRemainingSleepTimeMs } = usePlayerStateStore.getState();
+
+      if (isCurrentlyPlaying) {
+        // Player is playing - set sleepTime to start countdown
+        onOptimisticUpdate?.({
+          active: true,
+          endTimeMs: Date.now() + totalMilliseconds,
+          chapters: null,
+        });
+        await updateSleepTime(Date.now() + totalMilliseconds);
+      } else {
+        // Player is paused - freeze the timer by setting remainingSleepTimeMs
+        onOptimisticUpdate?.({
+          active: true,
+          endTimeMs: null, // Pass null so CountdownTimer uses frozenTimeMs
+          chapters: null,
+        });
+        setRemainingSleepTimeMs(totalMilliseconds);
+        await updateSleepTime(null);
+      }
+
+      // Common activation steps
       await updateTimerActive(true);
       await updateTimerDuration(totalMilliseconds);
-      await updateSleepTime(Date.now() + totalMilliseconds);
       await updateChapterTimer(null);
       setChapterTimerActive(false);
       setActiveTimerDuration(totalMilliseconds);
@@ -224,14 +244,33 @@ const SleepTimerOptions = ({
       setActiveTimerDuration(null);
     } else {
       //! activate timer
-      onOptimisticUpdate?.({
-        active: true,
-        endTimeMs: Date.now() + totalMilliseconds,
-        chapters: null,
-      });
+      // Check if player is currently playing
+      const playbackState = await TrackPlayer.getPlaybackState();
+      const isCurrentlyPlaying = playbackState.state === State.Playing;
+      const { setRemainingSleepTimeMs } = usePlayerStateStore.getState();
+
+      if (isCurrentlyPlaying) {
+        // Player is playing - set sleepTime to start countdown
+        onOptimisticUpdate?.({
+          active: true,
+          endTimeMs: Date.now() + totalMilliseconds,
+          chapters: null,
+        });
+        await updateSleepTime(Date.now() + totalMilliseconds);
+      } else {
+        // Player is paused - freeze the timer by setting remainingSleepTimeMs
+        onOptimisticUpdate?.({
+          active: true,
+          endTimeMs: null, // Pass null so CountdownTimer uses frozenTimeMs
+          chapters: null,
+        });
+        setRemainingSleepTimeMs(totalMilliseconds);
+        await updateSleepTime(null);
+      }
+
+      // Common activation steps
       await updateTimerActive(true);
       await updateTimerDuration(totalMilliseconds);
-      await updateSleepTime(Date.now() + totalMilliseconds);
       await updateCustomTimer(value.hours, value.minutes);
       setChapterTimerActive(false);
       setActiveTimerDuration(totalMilliseconds);

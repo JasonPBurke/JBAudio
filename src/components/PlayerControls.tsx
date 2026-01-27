@@ -60,6 +60,7 @@ import { useObserveSettings } from '@/hooks/useObserveSettings';
 import {
   useIsPlayerPlaying,
   useRemainingSleepTimeMs,
+  usePlayerStateStore,
 } from '@/store/playerState';
 import { useBookById } from '@/store/library';
 import { findChapterIndexByPosition } from '@/helpers/singleFileBook';
@@ -587,21 +588,36 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
       }
     };
 
-    //* I think I need a check for playerPlaying to have the timer actively counting down
-    //* when the player is playing, but not when it's paused.
+    // Get current playing state and setRemainingSleepTimeMs from store
+    const { isPlaying: currentlyPlaying, setRemainingSleepTimeMs } =
+      usePlayerStateStore.getState();
+
     if (timerDuration !== null && timerActive === false) {
-      // Optimistically activate duration timer
-      setOptimistic({
-        active: true,
-        chapters: null,
-        endTimeMs: Date.now() + timerDuration,
-      });
+      // Activating duration timer
+      if (currentlyPlaying) {
+        // Player is playing - set sleepTime to start countdown
+        setOptimistic({
+          active: true,
+          chapters: null,
+          endTimeMs: Date.now() + timerDuration,
+        });
+        await updateSleepTime(Date.now() + timerDuration);
+      } else {
+        // Player is paused - freeze the timer by setting remainingSleepTimeMs
+        setOptimistic({
+          active: true,
+          chapters: null,
+          endTimeMs: null, // Pass null so CountdownTimer uses frozenTimeMs
+        });
+        setRemainingSleepTimeMs(timerDuration);
+        await updateSleepTime(null);
+      }
+
       await recordTimerFootprintAsync();
       await updateTimerActive(true);
       if (fadeoutDuration && fadeoutDuration > timerDuration) {
         await updateTimerFadeoutDuration(timerDuration);
       }
-      await updateSleepTime(Date.now() + timerDuration);
     } else if (timerDuration !== null && timerActive === true) {
       // Optimistically deactivate duration timer
       setOptimistic({ active: false, chapters: null, endTimeMs: null });
