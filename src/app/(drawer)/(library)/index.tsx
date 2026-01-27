@@ -29,11 +29,11 @@ const LibraryScreen = ({ navigation }: any) => {
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
   const { onScroll, isVisible } = useScrollDirection();
   const [selectedTab, setSelectedTab] = useState<CustomTabs>(
-    CustomTabs.All
+    CustomTabs.Unplayed,
   );
 
   const [activeGridSection, setActiveGridSection] = useState<string | null>(
-    null // null for horizontal on load, 'recentlyAdded' for expanded on load
+    null, // null for horizontal on load, 'recentlyAdded' for expanded on load
   );
 
   useScanExternalFileSystem();
@@ -81,14 +81,14 @@ const LibraryScreen = ({ navigation }: any) => {
     return allAuthors.reduce(
       (acc, author) => {
         const matchingBooks = author.books.filter(
-          (book) => book.bookProgressValue === targetState
+          (book) => book.bookProgressValue === targetState,
         );
         if (matchingBooks.length > 0) {
           acc.push({ ...author, books: matchingBooks });
         }
         return acc;
       },
-      [] as typeof allAuthors
+      [] as typeof allAuthors,
     );
   }, [selectedTab, allAuthors]);
 
@@ -105,7 +105,7 @@ const LibraryScreen = ({ navigation }: any) => {
           return acc;
         }
         const matchingBooks = author.books.filter((book) =>
-          normalize(book.bookTitle).includes(qNorm)
+          normalize(book.bookTitle).includes(qNorm),
         );
         if (matchingBooks.length > 0) {
           // Include only titles that match for authors that don't match by name
@@ -113,7 +113,7 @@ const LibraryScreen = ({ navigation }: any) => {
         }
         return acc;
       },
-      [] as typeof allAuthors
+      [] as typeof allAuthors,
     );
   }, [debouncedSearchQuery, tabFilteredLibrary]);
 
@@ -124,11 +124,16 @@ const LibraryScreen = ({ navigation }: any) => {
   // Spacer to offset list content below the absolute-positioned search bar
   const ListSpacer = useMemo(
     () => <View style={{ height: SEARCH_BAR_HEIGHT }} />,
-    []
+    [],
   );
 
   return (
-    <View style={[defaultStyles.container, { backgroundColor: themeColors.background }]}>
+    <View
+      style={[
+        defaultStyles.container,
+        { backgroundColor: themeColors.background },
+      ]}
+    >
       <SafeAreaView style={{ flex: 1 }}>
         {/* MOVE HEADER ABOVE SCROLL VIEW TO DOCK IT AT TOP OF SCREEN */}
         <Header

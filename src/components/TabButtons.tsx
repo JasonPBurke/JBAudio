@@ -10,7 +10,6 @@ import { colors } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { useState } from 'react';
 import { withOpacity } from '@/helpers/colorUtils';
-import { scheduleOnRN } from 'react-native-worklets';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -42,22 +41,50 @@ const TabButtons = ({
   const tabPositionX = useSharedValue(0);
   const tabWidth = useSharedValue(0);
 
-  const handlePress = (index: number) => {
-    setSelectedTab(index);
-  };
+  //! HANDLE PRESS OPTION 1 - decent, but library ui loads after tab animation completes
+  // const handlePress = (index: number) => {
+  //   setSelectedTab(index);
+  // };
 
+  // const onTabPress = (index: number) => {
+  //   if (buttonMeasurements[index]) {
+  //     tabPositionX.value = withTiming(
+  //       buttonMeasurements[index].x,
+  //       {},
+  //       () => {
+  //         scheduleOnRN(handlePress, index);
+  //       },
+  //     );
+  //     tabWidth.value = withTiming(buttonMeasurements[index].width);
+  //   }
+  // };
+
+  //! HANDLE PRESS OPTION 2 - decent, but slight delay of visual tab change
   const onTabPress = (index: number) => {
     if (buttonMeasurements[index]) {
-      tabPositionX.value = withTiming(
-        buttonMeasurements[index].x,
-        {},
-        () => {
-          scheduleOnRN(handlePress, index);
-        },
-      );
+      // Update state immediately - don't wait for animation
+      setSelectedTab(index);
+
+      // Run animation independently (no callback needed)
+      tabPositionX.value = withTiming(buttonMeasurements[index].x);
       tabWidth.value = withTiming(buttonMeasurements[index].width);
     }
   };
+
+  //! HANDLE PRESS OPTION 3 - worst
+  // const onTabPress = (index: number) => {
+  //   if (buttonMeasurements[index]) {
+  //     // Start animation FIRST - these queue work on UI thread
+  //     tabPositionX.value = withTiming(buttonMeasurements[index].x);
+  //     tabWidth.value = withTiming(buttonMeasurements[index].width);
+
+  //     // Mark state update as non-urgent transition
+  //     // Allows animation to start while React schedules the heavy re-render
+  //     startTransition(() => {
+  //       setSelectedTab(index);
+  //     });
+  //   }
+  // };
 
   const onButtonLayout = (event: LayoutChangeEvent, index: number) => {
     const { width, x } = event.nativeEvent.layout;

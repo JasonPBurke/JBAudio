@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 10,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingBottom: 8,
   },
   container: {
