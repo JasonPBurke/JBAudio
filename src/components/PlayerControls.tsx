@@ -587,6 +587,8 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
       }
     };
 
+    //* I think I need a check for playerPlaying to have the timer actively counting down
+    //* when the player is playing, but not when it's paused.
     if (timerDuration !== null && timerActive === false) {
       // Optimistically activate duration timer
       setOptimistic({

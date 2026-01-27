@@ -186,7 +186,6 @@ export default module.exports = async function () {
             ) {
               await updateChapterTimer(timerChapters - 1);
             } else if (timerActive && timerChapters === 0) {
-              await TrackPlayer.setVolume(0);
               await TrackPlayer.pause();
               await TrackPlayer.setVolume(1);
               await updateTimerActive(false);
@@ -292,8 +291,8 @@ export default module.exports = async function () {
         fadeState.lastAppliedVolume = 1;
         fadeState.baselineVolume = 1;
 
-        updateTimerActive(false);
-        updateSleepTime(null);
+        await updateTimerActive(false);
+        await updateSleepTime(null);
         return; // nothing more to do on this tick
       }
 
@@ -448,6 +447,7 @@ export default module.exports = async function () {
       const { sleepTime, timerActive } = await getTimerSettings();
       if (timerActive && sleepTime !== null) {
         const remaining = Math.max(0, sleepTime - Date.now());
+        console.log('setRemainingSleepTimeMs is firing on pause');
         setRemainingSleepTimeMs(remaining);
       }
     }
@@ -533,7 +533,6 @@ export default module.exports = async function () {
       if (timerActive && timerChapters !== null && timerChapters > 0) {
         await updateChapterTimer(timerChapters - 1);
       } else if (timerActive && timerChapters === 0) {
-        await TrackPlayer.setVolume(0);
         await TrackPlayer.pause();
         await TrackPlayer.setVolume(1);
         await updateTimerActive(false);

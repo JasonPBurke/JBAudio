@@ -76,7 +76,7 @@ const CountdownTimer = ({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.timerText}>{remainingTime || '0m'}</Text>
+      <Text style={styles.timerText}>{remainingTime || ''}</Text>
     </View>
   );
 };
