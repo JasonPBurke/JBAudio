@@ -42,61 +42,14 @@ const LibraryScreen = ({ navigation }: any) => {
 
   const allAuthors = useLibraryStore((state) => state.authors);
 
-  const bookCounts = useMemo(() => {
-    const counts = { all: 0, unplayed: 0, playing: 0, finished: 0 };
+  // Step 1: Apply search filter to all authors (if search is active)
+  const searchFilteredAuthors = useMemo(() => {
+    if (!debouncedSearchQuery) return allAuthors;
 
-    for (const author of allAuthors) {
-      for (const book of author.books) {
-        counts.all++;
-        switch (book.bookProgressValue) {
-          case BookProgressState.NotStarted:
-            counts.unplayed++;
-            break;
-          case BookProgressState.Started:
-            counts.playing++;
-            break;
-          case BookProgressState.Finished:
-            counts.finished++;
-            break;
-        }
-      }
-    }
-
-    return counts;
-  }, [allAuthors]);
-
-  const tabFilteredLibrary = useMemo(() => {
-    if (selectedTab === CustomTabs.All) {
-      return allAuthors;
-    }
-
-    const progressStateMap = {
-      [CustomTabs.Unplayed]: BookProgressState.NotStarted,
-      [CustomTabs.Started]: BookProgressState.Started,
-      [CustomTabs.Finished]: BookProgressState.Finished,
-    };
-
-    const targetState = progressStateMap[selectedTab];
-
-    return allAuthors.reduce(
-      (acc, author) => {
-        const matchingBooks = author.books.filter(
-          (book) => book.bookProgressValue === targetState,
-        );
-        if (matchingBooks.length > 0) {
-          acc.push({ ...author, books: matchingBooks });
-        }
-        return acc;
-      },
-      [] as typeof allAuthors,
-    );
-  }, [selectedTab, allAuthors]);
-
-  const filteredLibrary = useMemo(() => {
-    if (!debouncedSearchQuery) return tabFilteredLibrary;
     const qRaw = debouncedSearchQuery.toLowerCase();
     const qNorm = normalize(debouncedSearchQuery);
-    return tabFilteredLibrary.reduce(
+
+    return allAuthors.reduce(
       (acc, author) => {
         const authorMatch = author.name.toLowerCase().includes(qRaw);
         if (authorMatch) {
@@ -115,7 +68,59 @@ const LibraryScreen = ({ navigation }: any) => {
       },
       [] as typeof allAuthors,
     );
-  }, [debouncedSearchQuery, tabFilteredLibrary]);
+  }, [debouncedSearchQuery, allAuthors]);
+
+  // Step 2: Calculate counts from search-filtered authors
+  const bookCounts = useMemo(() => {
+    const counts = { all: 0, unplayed: 0, playing: 0, finished: 0 };
+
+    for (const author of searchFilteredAuthors) {
+      for (const book of author.books) {
+        counts.all++;
+        switch (book.bookProgressValue) {
+          case BookProgressState.NotStarted:
+            counts.unplayed++;
+            break;
+          case BookProgressState.Started:
+            counts.playing++;
+            break;
+          case BookProgressState.Finished:
+            counts.finished++;
+            break;
+        }
+      }
+    }
+
+    return counts;
+  }, [searchFilteredAuthors]);
+
+  // Step 3: Apply tab filter to search-filtered authors
+  const tabFilteredLibrary = useMemo(() => {
+    if (selectedTab === CustomTabs.All) {
+      return searchFilteredAuthors;
+    }
+
+    const progressStateMap = {
+      [CustomTabs.Unplayed]: BookProgressState.NotStarted,
+      [CustomTabs.Started]: BookProgressState.Started,
+      [CustomTabs.Finished]: BookProgressState.Finished,
+    };
+
+    const targetState = progressStateMap[selectedTab];
+
+    return searchFilteredAuthors.reduce(
+      (acc, author) => {
+        const matchingBooks = author.books.filter(
+          (book) => book.bookProgressValue === targetState,
+        );
+        if (matchingBooks.length > 0) {
+          acc.push({ ...author, books: matchingBooks });
+        }
+        return acc;
+      },
+      [] as typeof allAuthors,
+    );
+  }, [selectedTab, searchFilteredAuthors]);
 
   const handleClearSearch = useCallback(() => {
     setSearchQuery('');
@@ -148,7 +153,7 @@ const LibraryScreen = ({ navigation }: any) => {
         <View style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
           {toggleView === 0 && (
             <BooksHome
-              authors={filteredLibrary}
+              authors={tabFilteredLibrary}
               setActiveGridSection={setActiveGridSection}
               activeGridSection={activeGridSection}
               onScroll={onScroll}
@@ -157,14 +162,14 @@ const LibraryScreen = ({ navigation }: any) => {
           )}
           {toggleView === 1 && (
             <BooksList
-              authors={filteredLibrary}
+              authors={tabFilteredLibrary}
               onScroll={onScroll}
               ListHeaderComponent={ListSpacer}
             />
           )}
           {toggleView === 2 && (
             <BooksGrid
-              authors={filteredLibrary}
+              authors={tabFilteredLibrary}
               standAlone={true}
               flowDirection='column'
               onScroll={onScroll}
