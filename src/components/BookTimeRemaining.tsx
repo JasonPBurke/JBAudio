@@ -143,6 +143,8 @@ const BookTimeRemainingInner = React.memo(
           fontSize: size ?? 12,
           color: color ?? colors.textMuted,
           fontFamily: 'Rubik',
+          letterSpacing: 0.7,
+          opacity: 0.75,
         }}
       >
         {remainingText} left

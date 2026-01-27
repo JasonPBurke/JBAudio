@@ -91,6 +91,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik',
     fontSize: 12,
     color: colors.textMuted,
+    letterSpacing: 0.7,
   },
 });
 
