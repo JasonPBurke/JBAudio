@@ -67,13 +67,25 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
   // Update shared values when chapter changes (on JS thread)
   useEffect(() => {
     if (currentChapter) {
-      chapterStart.value = (currentChapter.startMs ?? 0) / 1000;
-      chapterDuration.value = currentChapter.chapterDuration ?? 0;
+      const start = (currentChapter.startMs ?? 0) / 1000;
+      const dur = currentChapter.chapterDuration ?? 0;
+
+      chapterStart.value = start;
+      chapterDuration.value = dur;
+
+      // Immediately update time display when chapter data arrives
+      // This handles mount case where position is set but chapter wasn't loaded yet
+      if (dur > 0) {
+        const chapterPos = Math.max(0, position.value - start);
+        const remaining = Math.max(0, dur - chapterPos);
+        setTrackElapsedTime(formatSecondsToMinutes(chapterPos));
+        setTrackRemainingTime('-' + formatSecondsToMinutes(remaining));
+      }
     } else {
       chapterStart.value = 0;
       chapterDuration.value = 0;
     }
-  }, [currentChapter, chapterStart, chapterDuration]);
+  }, [currentChapter, chapterStart, chapterDuration, position]);
 
   // Fallback: when currentChapter is undefined, try to get chapter from track index
   useEffect(() => {
