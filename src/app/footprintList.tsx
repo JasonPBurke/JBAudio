@@ -198,7 +198,7 @@ const FootprintListScreen = () => {
       ]}
     >
       <Text style={[styles.headerText, { color: themeColors.text }]}>
-        Playback Footprints
+        Where Was I...
       </Text>
 
       {footprints.length > 0 ? (
