@@ -18,6 +18,7 @@ import { useQueueStore } from '@/store/queue';
 import { handleBookPlay } from '@/helpers/handleBookPlay';
 import { useBookById, useBookDisplayData } from '@/store/library';
 import TrackPlayer, { State } from 'react-native-track-player';
+import { recordFootprint } from '@/db/footprintQueries';
 
 export type BookListItemProps = {
   bookId: string;
@@ -57,6 +58,19 @@ export const BookListItem = memo(function BookListItem({
     if (!fullBook) return;
     const playbackState = await TrackPlayer.getPlaybackState();
     const isCurrentlyPlaying = playbackState.state === State.Playing;
+
+    // Record footprint before playing (only if this is the active book)
+    if (!isCurrentlyPlaying) {
+      try {
+        const activeTrack = await TrackPlayer.getActiveTrack();
+        if (activeTrack?.bookId === bookId) {
+          await recordFootprint(bookId, 'play');
+        }
+      } catch {
+        // Silently fail if footprint recording fails
+      }
+    }
+
     handleBookPlay(
       fullBook,
       isCurrentlyPlaying,
@@ -64,7 +78,7 @@ export const BookListItem = memo(function BookListItem({
       activeBookId,
       setActiveBookId,
     );
-  }, [fullBook, isActiveBook, activeBookId, setActiveBookId]);
+  }, [fullBook, isActiveBook, activeBookId, setActiveBookId, bookId]);
 
   return (
     <Pressable

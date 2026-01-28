@@ -66,7 +66,19 @@ const PROGRESS_SAVE_INTERVAL = 30000; // 30 seconds
 let lastProgressSaveTime = 0;
 
 export default module.exports = async function () {
-  TrackPlayer.addEventListener(Event.RemotePlay, () => TrackPlayer.play());
+  TrackPlayer.addEventListener(Event.RemotePlay, async () => {
+    // Record footprint for remote play (lock screen, headphones, etc.)
+    try {
+      const activeTrack = await TrackPlayer.getActiveTrack();
+      if (activeTrack?.bookId) {
+        await recordFootprint(activeTrack.bookId, 'play');
+      }
+    } catch {
+      // Silently fail if footprint recording fails
+    }
+    await TrackPlayer.play();
+  });
+  // TrackPlayer.addEventListener(Event.RemotePlay, () => TrackPlayer.play());
   TrackPlayer.addEventListener(Event.RemotePause, () =>
     TrackPlayer.pause(),
   );

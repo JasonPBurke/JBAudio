@@ -18,6 +18,7 @@ import {
   useIsBookActiveAndPlaying,
 } from '@/store/playerState';
 import TrackPlayer, { State } from 'react-native-track-player';
+import { recordFootprint } from '@/db/footprintQueries';
 
 export type BookGridItemProps = {
   bookId: string;
@@ -64,6 +65,19 @@ export const BookGridItem = memo(function BookGridItem({
     if (!fullBook) return;
     const playbackState = await TrackPlayer.getPlaybackState();
     const isCurrentlyPlaying = playbackState.state === State.Playing;
+
+    // Record footprint before playing (only if this is the active book)
+    if (!isCurrentlyPlaying) {
+      try {
+        const activeTrack = await TrackPlayer.getActiveTrack();
+        if (activeTrack?.bookId === bookId) {
+          await recordFootprint(bookId, 'play');
+        }
+      } catch {
+        // Silently fail if footprint recording fails
+      }
+    }
+
     handleBookPlay(
       fullBook,
       isCurrentlyPlaying,
@@ -71,7 +85,7 @@ export const BookGridItem = memo(function BookGridItem({
       activeBookId,
       setActiveBookId,
     );
-  }, [fullBook, isActiveBook, activeBookId, setActiveBookId]);
+  }, [fullBook, isActiveBook, activeBookId, setActiveBookId, bookId]);
 
   // Memoize style objects to avoid recalculating on every render
   const containerStyle = useMemo(() => {
