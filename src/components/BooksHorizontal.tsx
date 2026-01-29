@@ -43,6 +43,7 @@ const BooksHorizontal = ({
         contentContainerStyle={{
           paddingBottom: 6,
         }}
+        scrollEventThrottle={16}
         data={bookIds}
         renderItem={renderBookItem}
         keyExtractor={(item) => item}

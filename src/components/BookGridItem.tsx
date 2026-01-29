@@ -87,137 +87,113 @@ export const BookGridItem = memo(function BookGridItem({
     );
   }, [fullBook, isActiveBook, activeBookId, setActiveBookId, bookId]);
 
-  // Memoize style objects to avoid recalculating on every render
-  const containerStyle = useMemo(() => {
-    if (flowDirection === 'row') {
-      return {
-        height: 205,
-        width: (safeArtworkWidth / safeArtworkHeight) * 160,
-      };
-    }
+  // Consolidated memoized styles - single dependency comparison instead of five
+  const itemStyles = useMemo(() => {
+    const isRow = flowDirection === 'row';
+    const aspectRatio = safeArtworkWidth / safeArtworkHeight;
+
     return {
-      width: itemWidth,
-      height: (safeArtworkHeight / safeArtworkWidth) * itemWidth + 75,
-    };
-  }, [flowDirection, itemWidth, safeArtworkWidth, safeArtworkHeight]);
-
-  const imageContainerStyle = useMemo(() => {
-    if (flowDirection === 'row') {
-      return {
-        height: 140,
-        width: (safeArtworkWidth / safeArtworkHeight) * 140,
-      };
-    }
-    return {
-      paddingTop: 10,
-      width: itemWidth + 2,
-      height: (safeArtworkHeight / safeArtworkWidth) * itemWidth + 12,
-    };
-  }, [flowDirection, itemWidth, safeArtworkWidth, safeArtworkHeight]);
-
-  const bookInfoContainerStyle = useMemo(
-    () => ({
-      ...styles.bookInfoContainer,
-      width:
-        flowDirection === 'row'
-          ? (safeArtworkWidth / safeArtworkHeight) * 150 - 10
-          : itemWidth,
-    }),
-    [flowDirection, itemWidth, safeArtworkWidth, safeArtworkHeight],
-  );
-
-  const bookTitleStyle = useMemo(
-    () => ({
-      ...styles.bookTitleText,
-      color: isActiveBook
-        ? withOpacity(themeColors.primary, 0.75)
-        : themeColors.text,
-      fontSize:
-        flowDirection === 'row'
+      container: isRow
+        ? { height: 205, width: aspectRatio * 160 }
+        : { width: itemWidth, height: (1 / aspectRatio) * itemWidth + 75 },
+      imageContainer: isRow
+        ? { height: 140, width: aspectRatio * 140 }
+        : {
+            paddingTop: 10,
+            width: itemWidth + 2,
+            height: (1 / aspectRatio) * itemWidth + 12,
+          },
+      bookInfo: {
+        ...styles.bookInfoContainer,
+        width: isRow ? aspectRatio * 150 - 10 : itemWidth,
+      },
+      bookTitle: {
+        ...styles.bookTitleText,
+        color: isActiveBook
+          ? withOpacity(themeColors.primary, 0.75)
+          : themeColors.text,
+        fontSize: isRow
           ? fontSize.xs
           : numColumns === 1
             ? fontSize.lg
             : numColumns === 2
               ? fontSize.sm
               : 14,
-    }),
-    [isActiveBook, flowDirection, numColumns, themeColors],
-  );
-
-  const bookAuthorStyle = useMemo(
-    () => ({
-      ...styles.bookAuthorText,
-      color: themeColors.textMuted,
-      fontSize:
-        flowDirection === 'row'
+      },
+      bookAuthor: {
+        ...styles.bookAuthorText,
+        color: themeColors.textMuted,
+        fontSize: isRow
           ? 10
           : numColumns === 1
             ? fontSize.sm
-            : numColumns === 2
-              ? fontSize.xs
-              : fontSize.xs,
-    }),
-    [flowDirection, numColumns, themeColors],
+            : fontSize.xs,
+      },
+      // Pre-compute icon sizing to avoid inline object creation
+      iconPadding: isRow ? 16 : numColumns === 1 ? 24 : numColumns === 2 ? 20 : 17,
+      iconBottom: isRow ? 2 : 12,
+      iconSize: isRow ? 20 : numColumns === 1 ? 32 : numColumns === 2 ? 24 : 18,
+      playIconSize: isRow ? 20 : numColumns === 1 ? 36 : numColumns === 2 ? 28 : 22,
+    };
+  }, [
+    flowDirection,
+    itemWidth,
+    safeArtworkWidth,
+    safeArtworkHeight,
+    numColumns,
+    isActiveBook,
+    themeColors.primary,
+    themeColors.text,
+    themeColors.textMuted,
+  ]);
+
+  // Memoize dynamic icon styles that depend on theme colors
+  const playingIconStyle = useMemo(
+    () => [
+      styles.playingIconBase,
+      {
+        padding: itemStyles.iconPadding,
+        bottom: itemStyles.iconBottom,
+        backgroundColor: withOpacity(themeColors.background, 0.59),
+      },
+    ],
+    [itemStyles.iconPadding, itemStyles.iconBottom, themeColors.background],
+  );
+
+  const pausedIconStyle = useMemo(
+    () => [
+      styles.pausedIconBase,
+      {
+        bottom: itemStyles.iconBottom,
+        backgroundColor: withOpacity(themeColors.background, 0.59),
+      },
+    ],
+    [itemStyles.iconBottom, themeColors.background],
+  );
+
+  const loaderStyle = useMemo(
+    () => ({ width: itemStyles.iconSize, aspectRatio: 1 }),
+    [itemStyles.iconSize],
   );
 
   return (
     <PressableScale
       rippleRadius={0}
-      style={{
-        paddingTop: 4,
-        alignItems: 'center',
-        // elevation: 5,
-        marginBottom: 8,
-      }}
+      style={styles.pressableContainer}
       onPress={handlePress}
     >
-      <View style={[{ alignItems: 'center' }, containerStyle]}>
-        <View style={imageContainerStyle}>
+      <View style={[styles.containerBase, itemStyles.container]}>
+        <View style={itemStyles.imageContainer}>
           <FadeInImage
             source={{ uri: artwork ?? unknownBookImageUri }}
             style={styles.bookArtworkImage}
             resizeMode='contain'
           />
           {isActiveAndPlaying ? (
-            <View
-              style={[
-                styles.trackPlayingImageIcon,
-                {
-                  padding:
-                    flowDirection === 'row'
-                      ? 16
-                      : numColumns === 1
-                        ? 24
-                        : numColumns === 2
-                          ? 20
-                          : 17,
-                  bottom: flowDirection === 'row' ? 2 : 12,
-                  borderRadius: 4,
-                  backgroundColor: withOpacity(
-                    themeColors.background,
-                    0.59,
-                  ),
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                },
-              ]}
-            >
+            <View style={playingIconStyle}>
               <LoaderKitView
-                style={[
-                  {
-                    width:
-                      flowDirection === 'row'
-                        ? 20
-                        : numColumns === 1
-                          ? 32
-                          : numColumns === 2
-                            ? 24
-                            : 18,
-                    aspectRatio: 1,
-                  },
-                ]}
+                style={loaderStyle}
                 name={'LineScaleParty'}
-                // animationSpeedMultiplier={0.5}
                 color={themeColors.primary}
               />
             </View>
@@ -225,30 +201,11 @@ export const BookGridItem = memo(function BookGridItem({
             <PressableScale
               rippleRadius={0}
               onPress={handlePressPlay}
-              style={[
-                styles.trackPausedIcon,
-                {
-                  bottom: flowDirection === 'row' ? 2 : 12,
-                  padding: 6,
-                  borderRadius: 4,
-                  backgroundColor: withOpacity(
-                    themeColors.background,
-                    0.59,
-                  ),
-                },
-              ]}
+              style={pausedIconStyle}
               hitSlop={10}
             >
               <Play
-                size={
-                  flowDirection === 'row'
-                    ? 20
-                    : numColumns === 1
-                      ? 36
-                      : numColumns === 2
-                        ? 28
-                        : 22
-                } //* 24 is the 3 column size
+                size={itemStyles.playIconSize}
                 color={themeColors.icon}
                 strokeWidth={1}
                 absoluteStrokeWidth
@@ -256,16 +213,16 @@ export const BookGridItem = memo(function BookGridItem({
             </PressableScale>
           )}
         </View>
-        <View style={bookInfoContainerStyle}>
+        <View style={itemStyles.bookInfo}>
           <Text
             numberOfLines={numColumns === 1 ? 1 : 2}
-            style={bookTitleStyle}
+            style={itemStyles.bookTitle}
           >
             {bookTitle}
           </Text>
 
           {author && (
-            <Text numberOfLines={1} style={bookAuthorStyle}>
+            <Text numberOfLines={1} style={itemStyles.bookAuthor}>
               {author}
             </Text>
           )}
@@ -276,6 +233,14 @@ export const BookGridItem = memo(function BookGridItem({
 });
 
 const styles = StyleSheet.create({
+  pressableContainer: {
+    paddingTop: 4,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  containerBase: {
+    alignItems: 'center',
+  },
   bookArtworkImage: {
     height: '100%',
     width: '100%',
@@ -297,15 +262,17 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik',
     marginTop: 4,
   },
-  trackPlayingImageIcon: {
+  playingIconBase: {
     position: 'absolute',
     right: 2,
-    bottom: 2,
-    width: 2,
-    aspectRatio: 1,
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  trackPausedIcon: {
+  pausedIconBase: {
     position: 'absolute',
     right: 2,
+    padding: 6,
+    borderRadius: 4,
   },
 });

@@ -2,6 +2,7 @@ import React, {
   createContext,
   useContext,
   useState,
+  useMemo,
   ReactNode,
 } from 'react';
 
@@ -24,10 +25,14 @@ export const PermissionProvider = ({
   const [audioPermissionStatus, setAudioPermissionStatus] =
     useState<PermissionStatus>('undetermined');
 
+  // Memoize context value to prevent unnecessary re-renders of consumers
+  const value = useMemo(
+    () => ({ audioPermissionStatus, setAudioPermissionStatus }),
+    [audioPermissionStatus],
+  );
+
   return (
-    <PermissionContext.Provider
-      value={{ audioPermissionStatus, setAudioPermissionStatus }}
-    >
+    <PermissionContext.Provider value={value}>
       {children}
     </PermissionContext.Provider>
   );

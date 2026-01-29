@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo } from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { LayoutChangeEvent, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useActiveTrack } from 'react-native-track-player';
 import { Image } from 'expo-image';
 
@@ -58,6 +58,13 @@ export const FloatingPlayer = React.memo(() => {
     router.navigate('/player');
   }, [router]);
 
+  // Track title container width for MovingText
+  const [titleContainerWidth, setTitleContainerWidth] = useState(0);
+
+  const handleTitleContainerLayout = useCallback((event: LayoutChangeEvent) => {
+    setTitleContainerWidth(event.nativeEvent.layout.width);
+  }, []);
+
   if (!isPlayerReady || !displayedTrack || !displayedBook) {
     return null;
   }
@@ -77,11 +84,12 @@ export const FloatingPlayer = React.memo(() => {
           style={styles.bookArtworkImage}
         />
 
-        <View style={styles.bookTitleContainer}>
+        <View style={styles.bookTitleContainer} onLayout={handleTitleContainerLayout}>
           <MovingText
             style={[styles.bookTitle, { color: themeColors.text }]}
             text={displayedBook.bookTitle ?? ''}
             animationThreshold={25}
+            containerWidth={titleContainerWidth}
           />
           <BookTimeRemaining color={themeColors.textMuted} />
         </View>

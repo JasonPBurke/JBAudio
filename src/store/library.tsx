@@ -34,6 +34,7 @@ interface LibraryState {
     bookId: string,
     chapterIndex: number,
   ) => Promise<void>;
+  _cleanup?: () => void; // Internal: tracks active subscription cleanup
 }
 
 // Let TypeScript infer the store type from the create call.
@@ -159,6 +160,15 @@ export const useLibraryStore: UseBoundStore<StoreApi<LibraryState>> =
       set({ authors: finalAuthorsData, books: newBookMap });
     },
     init: () => {
+      // Guard against duplicate subscriptions (memory leak prevention)
+      const existingCleanup = get()._cleanup;
+      if (existingCleanup) {
+        if (__DEV__) {
+          console.warn('Library store init called while already initialized');
+        }
+        return existingCleanup;
+      }
+
       const booksCollection = database.collections.get<BookModel>('books');
 
       const subscriptions: Subscription[] = [];
@@ -176,9 +186,6 @@ export const useLibraryStore: UseBoundStore<StoreApi<LibraryState>> =
           'author_id',
         ])
         .subscribe(async (changedRecords) => {
-          console.log(
-            `Zustand observer fired with ${changedRecords.length} changed records.`,
-          );
           const { books: currentBooks } = get();
 
           // Create a mutable copy of the current books map
@@ -314,9 +321,13 @@ export const useLibraryStore: UseBoundStore<StoreApi<LibraryState>> =
 
       subscriptions.push(booksSubscription);
 
-      return () => {
+      const cleanup = () => {
         subscriptions.forEach((sub) => sub.unsubscribe());
+        set({ _cleanup: undefined });
       };
+
+      set({ _cleanup: cleanup });
+      return cleanup;
     },
     // The rest of your store logic is now inside the combine middleware
   }));

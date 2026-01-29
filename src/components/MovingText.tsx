@@ -1,5 +1,10 @@
-import { useEffect } from 'react';
-import { StyleProp, TextStyle } from 'react-native';
+import { useEffect, useState, useCallback } from 'react';
+import {
+  StyleProp,
+  TextStyle,
+  NativeSyntheticEvent,
+  TextLayoutEventData,
+} from 'react-native';
 import Animated, {
   cancelAnimation,
   Easing,
@@ -13,17 +18,33 @@ import Animated, {
 export type MovingTextProps = {
   text: string;
   animationThreshold: number;
+  containerWidth: number;
   style?: StyleProp<TextStyle>;
 };
 
 export const MovingText = ({
   text,
   animationThreshold,
+  containerWidth,
   style,
 }: MovingTextProps) => {
   const translateX = useSharedValue(0);
-  const shouldAnimate = text.length >= animationThreshold;
-  const textWidth = text.length * 4.75;
+  const [textWidth, setTextWidth] = useState(0);
+  const shouldAnimate =
+    text.length >= animationThreshold &&
+    containerWidth > 0 &&
+    textWidth > containerWidth;
+  const scrollDistance = shouldAnimate ? textWidth - containerWidth + 20 : 0;
+
+  const handleTextLayout = useCallback(
+    (event: NativeSyntheticEvent<TextLayoutEventData>) => {
+      const { lines } = event.nativeEvent;
+      if (lines.length > 0) {
+        setTextWidth(lines[0].width);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     if (!shouldAnimate) return;
@@ -31,8 +52,8 @@ export const MovingText = ({
     translateX.value = withDelay(
       1000,
       withRepeat(
-        withTiming(-textWidth, { duration: 15000, easing: Easing.linear }),
-        4,
+        withTiming(-scrollDistance, { duration: 5000, easing: Easing.linear }),
+        1,
         true
       )
     );
@@ -40,7 +61,7 @@ export const MovingText = ({
       cancelAnimation(translateX);
       translateX.value = 0;
     };
-  }, [translateX, text, animationThreshold, shouldAnimate, textWidth]);
+  }, [translateX, text, animationThreshold, shouldAnimate, scrollDistance]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -51,6 +72,7 @@ export const MovingText = ({
   return (
     <Animated.Text
       numberOfLines={1}
+      onTextLayout={handleTextLayout}
       style={[
         style,
         animatedStyle,

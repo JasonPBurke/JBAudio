@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   StyleSheet,
   Pressable,
   ActivityIndicator,
+  LayoutChangeEvent,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors } from '@/constants/tokens';
@@ -29,6 +30,11 @@ export const PlayerChaptersModal = React.memo(() => {
   const router = useRouter();
   const { colors: themeColors } = useTheme();
   const currentChapter = useCurrentChapterStable();
+  const [titleContainerWidth, setTitleContainerWidth] = useState(0);
+
+  const handleTitleContainerLayout = useCallback((event: LayoutChangeEvent) => {
+    setTitleContainerWidth(event.nativeEvent.layout.width);
+  }, []);
 
   const handlePress = () => {
     router.push('/chapterList');
@@ -52,11 +58,12 @@ export const PlayerChaptersModal = React.memo(() => {
         absoluteStrokeWidth
       />
 
-      <View style={styles.trackTitleContainer}>
+      <View style={styles.trackTitleContainer} onLayout={handleTitleContainerLayout}>
         <MovingText
           text={currentChapter.chapterTitle ?? ''}
           animationThreshold={34}
           style={{ ...styles.trackTitleText, color: themeColors.lightIcon }}
+          containerWidth={titleContainerWidth}
         />
       </View>
     </Pressable>

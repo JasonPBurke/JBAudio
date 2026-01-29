@@ -8,6 +8,7 @@ import {
   Dimensions,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  StyleSheet,
 } from 'react-native';
 
 import { utilsStyles } from '@/styles';
@@ -74,7 +75,7 @@ const BooksGrid = ({
 
   return (
     <FlashList
-      style={{ paddingTop: 6 }}
+      style={styles.container}
       data={bookIds}
       renderItem={renderBookItem}
       masonry
@@ -101,5 +102,11 @@ const BooksGrid = ({
     />
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    paddingTop: 6,
+  },
+});
 
 export default memo(BooksGrid);

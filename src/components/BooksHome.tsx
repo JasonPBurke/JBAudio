@@ -45,6 +45,7 @@ const BooksHome = ({
     useRef<React.ComponentRef<typeof FlashList<ListDataItem>>>(null);
   const listContainerRef = useRef<View>(null);
   const pendingScrollRef = useRef<PendingScroll>(null);
+  const CONTAINER_PADDING_TOP = 8;
 
   // Memoize sorted authors to avoid sorting on every render
   const sortedAuthors = useMemo(() => {
@@ -59,11 +60,18 @@ const BooksHome = ({
 
   const recentlyAddedBooks = useMemo(() => {
     const allBooks = sortedAuthors.flatMap((author) => author.books);
-    allBooks.sort(
-      (a, b) =>
-        new Date(b.metadata.ctime).getTime() -
-        new Date(a.metadata.ctime).getTime(),
-    );
+    // Optimized: avoid creating Date objects when ctime is already a number
+    allBooks.sort((a, b) => {
+      const timeA =
+        typeof a.metadata.ctime === 'number'
+          ? a.metadata.ctime
+          : new Date(a.metadata.ctime).getTime();
+      const timeB =
+        typeof b.metadata.ctime === 'number'
+          ? b.metadata.ctime
+          : new Date(b.metadata.ctime).getTime();
+      return timeB - timeA;
+    });
     return allBooks.slice(0, 25);
   }, [sortedAuthors]);
 
@@ -95,7 +103,9 @@ const BooksHome = ({
               listRef.current.scrollToIndex({
                 index: pendingScrollRef.current.index,
                 animated: false,
-                viewOffset: -pendingScrollRef.current.relativeY,
+                viewOffset:
+                  -pendingScrollRef.current.relativeY +
+                  CONTAINER_PADDING_TOP,
               });
               pendingScrollRef.current = null;
             }
@@ -137,7 +147,10 @@ const BooksHome = ({
   );
 
   return (
-    <View ref={listContainerRef} style={{ flex: 1, paddingTop: 8 }}>
+    <View
+      ref={listContainerRef}
+      style={{ flex: 1, paddingTop: CONTAINER_PADDING_TOP }}
+    >
       <FlashList
         ref={listRef}
         data={listData}
@@ -251,10 +264,16 @@ const SectionHeader = memo(
       });
     }, [sectionId, index, onSectionPress]);
 
+    // Memoize chevron style to avoid creating new object references on each render
+    const chevronStyle = useMemo(
+      () => [styles.chevronBase, isActive && styles.chevronRotated],
+      [isActive],
+    );
+
     return (
       <Pressable
         ref={headerRef}
-        style={{ paddingVertical: 4 }}
+        style={styles.sectionHeaderPressable}
         android_ripple={{ color: withOpacity(themeColors.divider, 0.16) }}
         onPress={handlePress}
       >
@@ -268,10 +287,7 @@ const SectionHeader = memo(
           <ChevronRight
             size={24}
             color={themeColors.icon}
-            style={{
-              marginRight: 12,
-              transform: isActive ? [{ rotate: '90deg' }] : [],
-            }}
+            style={chevronStyle}
           />
         </View>
       </Pressable>
@@ -282,6 +298,13 @@ const SectionHeader = memo(
 export default memo(BooksHome);
 
 const styles = StyleSheet.create({
+  sectionHeaderPressable: {
+    paddingVertical: 4,
+  },
+  // listContainer: {
+  //   flex: 1,
+  //   paddingTop: 8,
+  // },
   titleBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -292,6 +315,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik',
     fontSize: fontSize.base,
     maxWidth: '95%',
+  },
+  chevronBase: {
+    marginRight: 12,
+  },
+  chevronRotated: {
+    transform: [{ rotate: '90deg' }],
   },
   containerGap: {
     gap: 12,
