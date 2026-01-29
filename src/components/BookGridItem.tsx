@@ -2,7 +2,7 @@ import { memo, useCallback, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { PressableScale } from 'pressto';
 import { FadeInImage } from '@/components/FadeInImage';
-import { colors, fontSize } from '@/constants/tokens';
+import { fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import { withOpacity } from '@/helpers/colorUtils';
 import { useTheme } from '@/hooks/useTheme';
@@ -123,17 +123,25 @@ export const BookGridItem = memo(function BookGridItem({
       bookAuthor: {
         ...styles.bookAuthorText,
         color: themeColors.textMuted,
-        fontSize: isRow
-          ? 10
-          : numColumns === 1
-            ? fontSize.sm
-            : fontSize.xs,
+        fontSize: isRow ? 10 : numColumns === 1 ? fontSize.sm : fontSize.xs,
       },
       // Pre-compute icon sizing to avoid inline object creation
-      iconPadding: isRow ? 16 : numColumns === 1 ? 24 : numColumns === 2 ? 20 : 17,
+      iconPadding: isRow ? 6 : 8,
       iconBottom: isRow ? 2 : 12,
-      iconSize: isRow ? 20 : numColumns === 1 ? 32 : numColumns === 2 ? 24 : 18,
-      playIconSize: isRow ? 20 : numColumns === 1 ? 36 : numColumns === 2 ? 28 : 22,
+      iconSize: isRow
+        ? 20
+        : numColumns === 1
+          ? 32
+          : numColumns === 2
+            ? 24
+            : 18,
+      playIconSize: isRow
+        ? 20
+        : numColumns === 1
+          ? 36
+          : numColumns === 2
+            ? 28
+            : 22,
     };
   }, [
     flowDirection,

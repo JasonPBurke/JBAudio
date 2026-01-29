@@ -34,7 +34,9 @@ export const MovingText = ({
     text.length >= animationThreshold &&
     containerWidth > 0 &&
     textWidth > containerWidth;
-  const scrollDistance = shouldAnimate ? textWidth - containerWidth + 20 : 0;
+  const scrollDistance = shouldAnimate
+    ? textWidth - containerWidth + 20
+    : 0;
 
   const handleTextLayout = useCallback(
     (event: NativeSyntheticEvent<TextLayoutEventData>) => {
@@ -43,7 +45,7 @@ export const MovingText = ({
         setTextWidth(lines[0].width);
       }
     },
-    []
+    [],
   );
 
   useEffect(() => {
@@ -52,10 +54,13 @@ export const MovingText = ({
     translateX.value = withDelay(
       1000,
       withRepeat(
-        withTiming(-scrollDistance, { duration: 5000, easing: Easing.linear }),
+        withTiming(-scrollDistance, {
+          duration: 5000,
+          easing: Easing.linear,
+        }),
         1,
-        true
-      )
+        true,
+      ),
     );
     return () => {
       cancelAnimation(translateX);
