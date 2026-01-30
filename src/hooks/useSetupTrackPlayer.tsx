@@ -39,6 +39,7 @@ async function requestAudioPermission(): Promise<
 }
 
 const setupPlayer = async () => {
+  //! will come from the settings db
   const userJumpInterval = 30;
   await TrackPlayer.setupPlayer({
     autoHandleInterruptions: true,
@@ -68,10 +69,6 @@ const setupPlayer = async () => {
       // Capability.SeekTo,
       // Capability.Pause,
     ],
-    //! this is the default behavior already
-    // android: {
-    //   appKilledPlaybackBehavior: 'ContinuePlayback' as any,
-    // },
   });
 
   await TrackPlayer.setRepeatMode(RepeatMode.Off);
@@ -110,9 +107,12 @@ export const useSetupTrackPlayer = ({
         if (lastActiveBookId) {
           // Read directly from WatermelonDB to avoid race condition with Zustand store
           // The store may not be populated yet when this runs during app startup
-          const bookData = await getBookWithChaptersForRestoration(lastActiveBookId);
+          const bookData =
+            await getBookWithChaptersForRestoration(lastActiveBookId);
           if (!bookData) {
-            console.warn('Position restoration: Book not found in database');
+            console.warn(
+              'Position restoration: Book not found in database',
+            );
             setPlayerReady(true);
             onLoad?.();
             return;
@@ -126,15 +126,22 @@ export const useSetupTrackPlayer = ({
             await TrackPlayer.reset();
 
             const singleFile = isSingleFileBook(chapters);
-            const progressInfo = await getChapterProgressInDB(bookInfo.bookId);
+            const progressInfo = await getChapterProgressInDB(
+              bookInfo.bookId,
+            );
 
             if (singleFile) {
               // Single-file book: load only 1 track
               // Use chapter title/duration when valid chapter data exists
               const hasChapterData = hasValidChapterData(chapters);
               const chapterIndex = progressInfo?.chapterIndex || 0;
-              const validChapterIndex = Math.min(chapterIndex, chapters.length - 1);
-              const initialChapter = hasChapterData ? chapters[validChapterIndex] : null;
+              const validChapterIndex = Math.min(
+                chapterIndex,
+                chapters.length - 1,
+              );
+              const initialChapter = hasChapterData
+                ? chapters[validChapterIndex]
+                : null;
 
               const track: Track = {
                 url: chapters[0].url,
@@ -152,24 +159,33 @@ export const useSetupTrackPlayer = ({
                 const absolutePosition = calculateAbsolutePosition(
                   chapters,
                   progressInfo.chapterIndex || 0,
-                  progressInfo.progress || 0
+                  progressInfo.progress || 0,
                 );
 
                 // Validate position is within bounds
-                if (absolutePosition < 0 || absolutePosition > bookInfo.bookDuration) {
-                  Sentry.captureMessage('Position restoration: Out of bounds', {
-                    level: 'warning',
-                    extra: {
-                      bookId: lastActiveBookId,
-                      chapterIndex: progressInfo.chapterIndex,
-                      progress: progressInfo.progress,
-                      calculatedPosition: absolutePosition,
-                      bookDuration: bookInfo.bookDuration,
-                      chapterCount: chapters.length,
+                if (
+                  absolutePosition < 0 ||
+                  absolutePosition > bookInfo.bookDuration
+                ) {
+                  Sentry.captureMessage(
+                    'Position restoration: Out of bounds',
+                    {
+                      level: 'warning',
+                      extra: {
+                        bookId: lastActiveBookId,
+                        chapterIndex: progressInfo.chapterIndex,
+                        progress: progressInfo.progress,
+                        calculatedPosition: absolutePosition,
+                        bookDuration: bookInfo.bookDuration,
+                        chapterCount: chapters.length,
+                      },
                     },
-                  });
+                  );
                   // Clamp to valid range
-                  const clampedPosition = Math.max(0, Math.min(absolutePosition, bookInfo.bookDuration - 1));
+                  const clampedPosition = Math.max(
+                    0,
+                    Math.min(absolutePosition, bookInfo.bookDuration - 1),
+                  );
                   await TrackPlayer.seekTo(clampedPosition);
                 } else {
                   await TrackPlayer.seekTo(absolutePosition);
@@ -203,17 +219,23 @@ export const useSetupTrackPlayer = ({
 
               await TrackPlayer.add(tracks);
 
-              if (progressInfo?.chapterIndex !== undefined && progressInfo.chapterIndex !== null) {
+              if (
+                progressInfo?.chapterIndex !== undefined &&
+                progressInfo.chapterIndex !== null
+              ) {
                 // Validate chapter index is within bounds
                 if (progressInfo.chapterIndex >= chapters.length) {
-                  Sentry.captureMessage('Position restoration: Invalid chapter index', {
-                    level: 'warning',
-                    extra: {
-                      bookId: lastActiveBookId,
-                      chapterIndex: progressInfo.chapterIndex,
-                      chapterCount: chapters.length,
+                  Sentry.captureMessage(
+                    'Position restoration: Invalid chapter index',
+                    {
+                      level: 'warning',
+                      extra: {
+                        bookId: lastActiveBookId,
+                        chapterIndex: progressInfo.chapterIndex,
+                        chapterCount: chapters.length,
+                      },
                     },
-                  });
+                  );
                   // Fall back to last valid chapter
                   const safeChapterIndex = Math.max(0, chapters.length - 1);
                   await TrackPlayer.skip(safeChapterIndex);

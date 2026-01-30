@@ -268,18 +268,6 @@ export default module.exports = async function () {
 
       const { sleepTime, timerActive, fadeoutDuration } = cachedTimer;
 
-      // // Debug: trace timer logic
-      // console.log('[TIMER DEBUG]', {
-      //   sleepTime,
-      //   timerActive,
-      //   fadeoutDuration,
-      //   now: Date.now(),
-      //   shouldStop: sleepTime !== null && timerActive === true && sleepTime <= Date.now(),
-      //   sleepTimeCheck: sleepTime !== null,
-      //   timerActiveCheck: timerActive === true,
-      //   timeCheck: sleepTime ? sleepTime <= Date.now() : 'N/A',
-      // });
-
       // Single source of truth for stopping at or after sleep time for both fade and non-fade
       if (
         sleepTime !== null &&

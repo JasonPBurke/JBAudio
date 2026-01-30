@@ -22,7 +22,7 @@ export const colorTokens = {
     textMuted: '#6B7280', //#a0a9ba
     icon: '#374151',
     maximumTrackTintColor: 'rgba(107, 114, 128, 0.4)',
-    chapterActive: '#a0a9babf',
+    chapterActive: '#6d6d6dbf', //#a0a9babf
     chapterInactive: '#F3F4F6bf',
     divider: '#9CA3AF',
     overlay: '#FFFFFF',
