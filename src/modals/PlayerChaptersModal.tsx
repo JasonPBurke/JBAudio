@@ -1,10 +1,9 @@
-import React, { useState, useCallback } from 'react';
+import React from 'react';
 import {
   View,
   StyleSheet,
   Pressable,
   ActivityIndicator,
-  LayoutChangeEvent,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { defaultStyles } from '@/styles';
@@ -12,8 +11,7 @@ import { Logs } from 'lucide-react-native';
 import { MovingText } from '../components/MovingText';
 import { useCurrentChapterStable } from '@/hooks/useCurrentChapterStable';
 import { useTheme } from '@/hooks/useTheme';
-import { colorTokens } from '@/constants/tokens';
-import { LinearGradient } from 'expo-linear-gradient';
+// import { LinearGradient } from 'expo-linear-gradient';
 
 const logsIconStyle = { transform: [{ rotateY: '180deg' as const }] };
 const loadingContainerStyle = [
@@ -26,63 +24,62 @@ const loadingContainerStyle = [
  *
  * Uses native Stack.Screen modal presentation instead of BottomSheetModal for
  * more reliable scroll behavior.
+ *
+ * @param darkestColor - The darkest color from the book's artwork gradient (passed from parent)
  */
-export const PlayerChaptersModal = React.memo(() => {
-  const router = useRouter();
-  const { colors: themeColors } = useTheme();
-  const currentChapter = useCurrentChapterStable();
-  const [titleContainerWidth, setTitleContainerWidth] = useState(0);
+export const PlayerChaptersModal = React.memo(
+  ({ darkestColor }: { darkestColor: string }) => {
+    const router = useRouter();
+    const { colors: themeColors } = useTheme();
+    const currentChapter = useCurrentChapterStable();
 
-  const handleTitleContainerLayout = useCallback(
-    (event: LayoutChangeEvent) => {
-      setTitleContainerWidth(event.nativeEvent.layout.width);
-    },
-    [],
-  );
+    const handlePress = () => {
+      router.push('/chapterList');
+    };
 
-  const handlePress = () => {
-    router.push('/chapterList');
-  };
+    if (!currentChapter) {
+      return (
+        <View style={loadingContainerStyle}>
+          <ActivityIndicator color={themeColors.icon} />
+        </View>
+      );
+    }
 
-  if (!currentChapter) {
     return (
-      <View style={loadingContainerStyle}>
-        <ActivityIndicator color={themeColors.icon} />
-      </View>
+      <Pressable onPress={handlePress} style={styles.chapterTitleContainer}>
+        <Logs
+          size={24}
+          style={logsIconStyle}
+          color={themeColors.lightIcon}
+          strokeWidth={1.5}
+          absoluteStrokeWidth
+        />
+
+        <View
+          style={styles.trackTitleContainer}
+          // onLayout={handleTitleContainerLayout}
+        >
+          <MovingText
+            text={currentChapter.chapterTitle ?? ''}
+            animationThreshold={35}
+            style={{
+              ...styles.trackTitleText,
+              color: themeColors.lightIcon,
+            }}
+            // containerWidth={titleContainerWidth}
+          />
+          {/* <LinearGradient
+            colors={['transparent', darkestColor]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.fadeOverlay}
+            pointerEvents='none'
+          /> */}
+        </View>
+      </Pressable>
     );
-  }
-
-  return (
-    <Pressable onPress={handlePress} style={styles.chapterTitleContainer}>
-      <Logs
-        size={24}
-        style={logsIconStyle}
-        color={themeColors.lightIcon}
-        strokeWidth={1.5}
-        absoluteStrokeWidth
-      />
-
-      <View
-        style={styles.trackTitleContainer}
-        onLayout={handleTitleContainerLayout}
-      >
-        <MovingText
-          text={currentChapter.chapterTitle ?? ''}
-          animationThreshold={25}
-          style={{ ...styles.trackTitleText, color: themeColors.lightIcon }}
-          containerWidth={titleContainerWidth}
-        />
-        <LinearGradient
-          colors={['transparent', colorTokens.dark.background]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.fadeOverlay}
-          pointerEvents='none'
-        />
-      </View>
-    </Pressable>
-  );
-});
+  },
+);
 
 PlayerChaptersModal.displayName = 'PlayerChaptersModal';
 
@@ -91,26 +88,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    alignSelf: 'center',
     gap: 8,
     paddingVertical: 6,
+    // alignSelf: 'center',
     // width: '100%',
   },
   trackTitleContainer: {
     overflow: 'hidden',
     maxWidth: '80%',
-    flexShrink: 1,
-    flexGrow: 0,
+    // borderColor: 'red',
+    // borderWidth: 1,
   },
   trackTitleText: {
     fontSize: 18,
     fontFamily: 'Rubik-Medium',
   },
-  fadeOverlay: {
-    position: 'absolute',
-    right: -1,
-    top: 0,
-    bottom: 0,
-    width: 10,
-  },
+  // fadeOverlay: {
+  //   position: 'absolute',
+  //   right: 0,
+  //   top: 0,
+  //   bottom: 0,
+  //   width: 10,
+  // },
 });

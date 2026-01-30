@@ -95,13 +95,13 @@ export const FloatingPlayer = React.memo(() => {
 
         <View
           style={styles.bookTitleContainer}
-          onLayout={handleTitleContainerLayout}
+          // onLayout={handleTitleContainerLayout}
         >
           <MovingText
             style={[styles.bookTitle, { color: themeColors.text }]}
             text={displayedBook.bookTitle ?? ''}
             animationThreshold={25}
-            containerWidth={titleContainerWidth}
+            // containerWidth={titleContainerWidth}
           />
           <LinearGradient
             colors={['transparent', themeColors.modalBackground]}
@@ -158,9 +158,7 @@ const styles = StyleSheet.create({
   bookControlsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    // columnGap: 14,
     paddingVertical: 4,
-    // paddingHorizontal: 8,
   },
   fadeOverlay: {
     position: 'absolute',

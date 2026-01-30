@@ -157,7 +157,10 @@ const PlayerScreen = () => {
 
         <View style={chapterSectionStyle}>
           {/* Chapter trigger - navigates to chapter list screen */}
-          <PlayerChaptersModal />
+          <PlayerChaptersModal
+            // darkestColor={withOpacity(gradientColors[3], 0.25)}
+            darkestColor={gradientColors[3]}
+          />
 
           {/* Progress bar uses Reanimated shared values - no React re-renders */}
           <PlayerProgressBar style={progressBarStyle} />
@@ -181,6 +184,7 @@ const styles = StyleSheet.create({
   overlayContainer: {
     ...defaultStyles.container,
     paddingHorizontal: screenPadding.horizontal,
-    backgroundColor: withOpacity(colors.background, 0.5),
+    // backgroundColor: withOpacity(colors.background, 0.25),
+    // backgroundColor: 'transparent',
   },
 });
