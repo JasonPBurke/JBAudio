@@ -1,7 +1,13 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { LayoutChangeEvent, StyleSheet, TouchableOpacity, View } from 'react-native';
+import {
+  LayoutChangeEvent,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useActiveTrack } from 'react-native-track-player';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { unknownBookImageUri } from '@/constants/images';
 import {
@@ -61,9 +67,12 @@ export const FloatingPlayer = React.memo(() => {
   // Track title container width for MovingText
   const [titleContainerWidth, setTitleContainerWidth] = useState(0);
 
-  const handleTitleContainerLayout = useCallback((event: LayoutChangeEvent) => {
-    setTitleContainerWidth(event.nativeEvent.layout.width);
-  }, []);
+  const handleTitleContainerLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      setTitleContainerWidth(event.nativeEvent.layout.width);
+    },
+    [],
+  );
 
   if (!isPlayerReady || !displayedTrack || !displayedBook) {
     return null;
@@ -84,12 +93,22 @@ export const FloatingPlayer = React.memo(() => {
           style={styles.bookArtworkImage}
         />
 
-        <View style={styles.bookTitleContainer} onLayout={handleTitleContainerLayout}>
+        <View
+          style={styles.bookTitleContainer}
+          onLayout={handleTitleContainerLayout}
+        >
           <MovingText
             style={[styles.bookTitle, { color: themeColors.text }]}
             text={displayedBook.bookTitle ?? ''}
             animationThreshold={25}
             containerWidth={titleContainerWidth}
+          />
+          <LinearGradient
+            colors={['transparent', themeColors.modalBackground]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.fadeOverlay}
+            pointerEvents='none'
           />
           <BookTimeRemaining color={themeColors.textMuted} />
         </View>
@@ -142,5 +161,12 @@ const styles = StyleSheet.create({
     // columnGap: 14,
     paddingVertical: 4,
     // paddingHorizontal: 8,
+  },
+  fadeOverlay: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 10,
   },
 });

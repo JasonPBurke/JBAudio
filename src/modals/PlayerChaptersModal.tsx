@@ -7,12 +7,13 @@ import {
   LayoutChangeEvent,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { colors } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import { Logs } from 'lucide-react-native';
 import { MovingText } from '../components/MovingText';
 import { useCurrentChapterStable } from '@/hooks/useCurrentChapterStable';
 import { useTheme } from '@/hooks/useTheme';
+import { colorTokens } from '@/constants/tokens';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const logsIconStyle = { transform: [{ rotateY: '180deg' as const }] };
 const loadingContainerStyle = [
@@ -32,9 +33,12 @@ export const PlayerChaptersModal = React.memo(() => {
   const currentChapter = useCurrentChapterStable();
   const [titleContainerWidth, setTitleContainerWidth] = useState(0);
 
-  const handleTitleContainerLayout = useCallback((event: LayoutChangeEvent) => {
-    setTitleContainerWidth(event.nativeEvent.layout.width);
-  }, []);
+  const handleTitleContainerLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      setTitleContainerWidth(event.nativeEvent.layout.width);
+    },
+    [],
+  );
 
   const handlePress = () => {
     router.push('/chapterList');
@@ -58,12 +62,22 @@ export const PlayerChaptersModal = React.memo(() => {
         absoluteStrokeWidth
       />
 
-      <View style={styles.trackTitleContainer} onLayout={handleTitleContainerLayout}>
+      <View
+        style={styles.trackTitleContainer}
+        onLayout={handleTitleContainerLayout}
+      >
         <MovingText
           text={currentChapter.chapterTitle ?? ''}
-          animationThreshold={34}
+          animationThreshold={25}
           style={{ ...styles.trackTitleText, color: themeColors.lightIcon }}
           containerWidth={titleContainerWidth}
+        />
+        <LinearGradient
+          colors={['transparent', colorTokens.dark.background]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.fadeOverlay}
+          pointerEvents='none'
         />
       </View>
     </Pressable>
@@ -77,17 +91,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    alignSelf: 'center',
     gap: 8,
     paddingVertical: 6,
-    borderRadius: 6,
+    // width: '100%',
   },
   trackTitleContainer: {
     overflow: 'hidden',
     maxWidth: '80%',
+    flexShrink: 1,
+    flexGrow: 0,
   },
   trackTitleText: {
-    flex: 1,
     fontSize: 18,
     fontFamily: 'Rubik-Medium',
+  },
+  fadeOverlay: {
+    position: 'absolute',
+    right: -1,
+    top: 0,
+    bottom: 0,
+    width: 10,
   },
 });

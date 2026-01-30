@@ -30,6 +30,8 @@ export const MovingText = ({
 }: MovingTextProps) => {
   const translateX = useSharedValue(0);
   const [textWidth, setTextWidth] = useState(0);
+  // Note: No reset useEffect needed - key={text} remounts component with fresh state
+
   const shouldAnimate =
     text.length >= animationThreshold &&
     containerWidth > 0 &&
@@ -38,14 +40,40 @@ export const MovingText = ({
     ? textWidth - containerWidth + 20
     : 0;
 
+  // Diagnostic logging
+  useEffect(() => {
+    console.log('[MovingText] Debug:', {
+      text: text.substring(0, 30),
+      textLength: text.length,
+      animationThreshold,
+      containerWidth,
+      textWidth,
+      shouldAnimate,
+      scrollDistance,
+      appliedWidth: textWidth > 0 ? textWidth : 9999,
+    });
+  }, [
+    text,
+    animationThreshold,
+    containerWidth,
+    textWidth,
+    shouldAnimate,
+    scrollDistance,
+  ]);
+
   const handleTextLayout = useCallback(
     (event: NativeSyntheticEvent<TextLayoutEventData>) => {
       const { lines } = event.nativeEvent;
+      console.log('[MovingText] onTextLayout fired:', {
+        text: text.substring(0, 20),
+        linesLength: lines.length,
+        lineWidth: lines[0]?.width ?? 'no lines',
+      });
       if (lines.length > 0) {
         setTextWidth(lines[0].width);
       }
     },
-    [],
+    [text],
   );
 
   useEffect(() => {
@@ -55,10 +83,10 @@ export const MovingText = ({
       1000,
       withRepeat(
         withTiming(-scrollDistance, {
-          duration: 5000,
+          duration: 12000,
           easing: Easing.linear,
         }),
-        1,
+        2,
         true,
       ),
     );
@@ -76,13 +104,15 @@ export const MovingText = ({
 
   return (
     <Animated.Text
+      key={text} // Force new component on text change to ensure onTextLayout fires
       numberOfLines={1}
       onTextLayout={handleTextLayout}
       style={[
         style,
         animatedStyle,
-        shouldAnimate && {
-          width: 9999,
+        {
+          // Use 9999 for initial measurement, then actual textWidth for proper layout
+          width: textWidth > 0 ? textWidth + 8 : 9999,
         },
       ]}
     >
