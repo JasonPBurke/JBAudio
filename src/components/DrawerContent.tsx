@@ -15,6 +15,7 @@ import {
   PencilRuler,
   Timer,
   CassetteTape,
+  HelpCircle,
 } from 'lucide-react-native';
 import { colors } from '@/constants/tokens';
 import { scanLibrary } from '@/helpers/scanLibrary';
@@ -57,12 +58,16 @@ const DrawerContent = (props: Props) => {
     router.navigate('/library');
   };
 
-  const handleFaqPress = () => {
-    router.navigate('/faq');
-  };
+  // const handleFaqPress = () => {
+  //   router.navigate('/faq');
+  // };
 
   const handleBookStatsPress = () => {
     router.navigate('/bookStats');
+  };
+
+  const handleHelpPress = () => {
+    router.navigate('/help');
   };
 
   const handleTestScreenPress = () => {
@@ -138,7 +143,7 @@ const DrawerContent = (props: Props) => {
           { borderBottomColor: themeColors.divider },
         ]}
       />
-      <DrawerItem
+      {/* <DrawerItem
         label={'FAQ'}
         onPress={handleFaqPress}
         icon={() => (
@@ -153,7 +158,7 @@ const DrawerContent = (props: Props) => {
           styles.drawerItem,
           { borderBottomColor: themeColors.divider, opacity: 0.4 },
         ]}
-      />
+      /> */}
       <DrawerItem
         label={'Book Stats'}
         onPress={handleBookStatsPress}
@@ -168,6 +173,22 @@ const DrawerContent = (props: Props) => {
         style={[
           styles.drawerItem,
           { borderBottomColor: themeColors.divider, opacity: 0.4 },
+        ]}
+      />
+      <DrawerItem
+        label={'Help'}
+        onPress={handleHelpPress}
+        icon={() => (
+          <FileQuestionMark
+            size={24}
+            color={themeColors.text}
+            strokeWidth={1}
+          />
+        )}
+        labelStyle={[styles.labelStyle, { color: themeColors.text }]}
+        style={[
+          styles.drawerItem,
+          { borderBottomColor: themeColors.divider },
         ]}
       />
       <DrawerItem
