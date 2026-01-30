@@ -8,7 +8,7 @@ import {
 import { useRouter } from 'expo-router';
 import { defaultStyles } from '@/styles';
 import { Logs } from 'lucide-react-native';
-import { MovingText } from '../components/MovingText';
+import { TickerText } from '../components/TickerText';
 import { useCurrentChapterStable } from '@/hooks/useCurrentChapterStable';
 import { useTheme } from '@/hooks/useTheme';
 // import { LinearGradient } from 'expo-linear-gradient';
@@ -55,18 +55,14 @@ export const PlayerChaptersModal = React.memo(
           absoluteStrokeWidth
         />
 
-        <View
-          style={styles.trackTitleContainer}
-          // onLayout={handleTitleContainerLayout}
-        >
-          <MovingText
+        <View style={styles.trackTitleContainer}>
+          <TickerText
             text={currentChapter.chapterTitle ?? ''}
             animationThreshold={35}
             style={{
               ...styles.trackTitleText,
               color: themeColors.lightIcon,
             }}
-            // containerWidth={titleContainerWidth}
           />
           {/* <LinearGradient
             colors={['transparent', darkestColor]}
@@ -88,10 +84,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    gap: 4,
     paddingVertical: 6,
-    // alignSelf: 'center',
-    // width: '100%',
   },
   trackTitleContainer: {
     overflow: 'hidden',

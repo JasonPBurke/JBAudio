@@ -1,6 +1,7 @@
 import {
   getSegmentsPalette,
   getSegmentsAverageColor,
+  getPalette,
 } from '@somesoap/react-native-image-palette';
 import { colors as color } from '@/constants/tokens';
 
@@ -16,7 +17,7 @@ export type BookImageColors = {
 };
 
 export const extractImageColors = async (
-  uri: string
+  uri: string,
 ): Promise<BookImageColors> => {
   try {
     // Exclude the bottom 30% and top 15% of the image (which includes the bottom-right corner)
@@ -24,14 +25,20 @@ export const extractImageColors = async (
       { fromX: 0, toX: 100, fromY: 12, toY: 60 },
       // { fromX: 0, toX: 60, fromY: 15, toY: 85 },
     ];
-    const [palettes, averages] = await Promise.all([
-      getSegmentsPalette(uri, segments, {
+    // const [palettes, averages] = await Promise.all([
+    //   getSegmentsPalette(uri, segments, {
+    //     fallbackColor: color.background,
+    //   }),
+    //   getSegmentsAverageColor(uri, segments, {}),
+    // ]);
+    const [palettes] = await Promise.all([
+      getPalette(uri, {
         fallbackColor: color.background,
       }),
-      getSegmentsAverageColor(uri, segments, {}),
+      // getSegmentsAverageColor(uri, segments, {}),
     ]);
-    const palette = palettes[0];
-    const average = averages[0];
+    const palette = palettes;
+    // const average = averages[0];
     return {
       vibrant: palette.vibrant,
       darkVibrant: palette.darkVibrant,

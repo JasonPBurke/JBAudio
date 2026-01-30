@@ -1,6 +1,5 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
-  LayoutChangeEvent,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -15,7 +14,7 @@ import {
   SeekBackButton,
 } from '@/components/PlayerControls';
 import { useLastActiveTrack } from '@/hooks/useLastActiveTrack';
-import { MovingText } from '@/components/MovingText';
+import { TickerText } from '@/components/TickerText';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/useTheme';
@@ -64,16 +63,6 @@ export const FloatingPlayer = React.memo(() => {
     router.navigate('/player');
   }, [router]);
 
-  // Track title container width for MovingText
-  const [titleContainerWidth, setTitleContainerWidth] = useState(0);
-
-  const handleTitleContainerLayout = useCallback(
-    (event: LayoutChangeEvent) => {
-      setTitleContainerWidth(event.nativeEvent.layout.width);
-    },
-    [],
-  );
-
   if (!isPlayerReady || !displayedTrack || !displayedBook) {
     return null;
   }
@@ -93,15 +82,11 @@ export const FloatingPlayer = React.memo(() => {
           style={styles.bookArtworkImage}
         />
 
-        <View
-          style={styles.bookTitleContainer}
-          // onLayout={handleTitleContainerLayout}
-        >
-          <MovingText
+        <View style={styles.bookTitleContainer}>
+          <TickerText
             style={[styles.bookTitle, { color: themeColors.text }]}
             text={displayedBook.bookTitle ?? ''}
             animationThreshold={25}
-            // containerWidth={titleContainerWidth}
           />
           <LinearGradient
             colors={['transparent', themeColors.modalBackground]}

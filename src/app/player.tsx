@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
   overlayContainer: {
     ...defaultStyles.container,
     paddingHorizontal: screenPadding.horizontal,
-    // backgroundColor: withOpacity(colors.background, 0.25),
+    backgroundColor: withOpacity(colors.background, 0.3),
     // backgroundColor: 'transparent',
   },
 });
