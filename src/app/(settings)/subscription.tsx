@@ -4,7 +4,10 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Pressable,
+  Alert,
 } from 'react-native';
+import { presentCustomerCenter } from 'react-native-purchases-ui';
 import { useTheme } from '@/hooks/useTheme';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import SettingsHeader from '@/components/SettingsHeader';
@@ -105,6 +108,83 @@ const StatusCard = ({
   );
 };
 
+// Action Buttons Component
+const ActionButtons = ({
+  isProUser,
+  colors,
+}: {
+  isProUser: boolean;
+  colors: ReturnType<typeof useTheme>['colors'];
+}) => {
+  const { presentPaywall, restorePurchases, isLoading } = useSubscriptionStore();
+
+  const handleUpgrade = async () => {
+    await presentPaywall();
+  };
+
+  const handleManageSubscription = async () => {
+    try {
+      await presentCustomerCenter();
+    } catch (error) {
+      console.error('Failed to present customer center:', error);
+      Alert.alert('Error', 'Could not open subscription management');
+    }
+  };
+
+  const handleRestore = async () => {
+    try {
+      const customerInfo = await restorePurchases();
+      const hasProAccess = customerInfo.entitlements.active['pro'] !== undefined;
+
+      if (hasProAccess) {
+        Alert.alert('Success', 'Your purchases have been restored!');
+      } else {
+        Alert.alert(
+          'No Purchases Found',
+          'We could not find any purchases to restore.'
+        );
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to restore purchases. Please try again.');
+    }
+  };
+
+  return (
+    <View style={styles.actionsContainer}>
+      {!isProUser ? (
+        <Pressable
+          style={[styles.primaryButton, { backgroundColor: colors.primary }]}
+          onPress={handleUpgrade}
+          disabled={isLoading}
+        >
+          <Crown size={20} color='#FFFFFF' />
+          <Text style={styles.primaryButtonText}>Upgrade to Pro</Text>
+        </Pressable>
+      ) : (
+        <Pressable
+          style={[styles.secondaryButton, { borderColor: colors.divider }]}
+          onPress={handleManageSubscription}
+          disabled={isLoading}
+        >
+          <Text style={[styles.secondaryButtonText, { color: colors.text }]}>
+            Manage Subscription
+          </Text>
+        </Pressable>
+      )}
+
+      <Pressable
+        style={[styles.secondaryButton, { borderColor: colors.divider }]}
+        onPress={handleRestore}
+        disabled={isLoading}
+      >
+        <Text style={[styles.secondaryButtonText, { color: colors.text }]}>
+          Restore Purchases
+        </Text>
+      </Pressable>
+    </View>
+  );
+};
+
 const SubscriptionScreen = () => {
   const { colors } = useTheme();
   const { customerInfo, isProUser, isLoading } = useSubscriptionStore();
@@ -138,7 +218,7 @@ const SubscriptionScreen = () => {
           isProUser={isProUser}
           colors={colors}
         />
-        {/* Action Buttons - to be implemented */}
+        <ActionButtons isProUser={isProUser} colors={colors} />
         {/* Feature List - to be implemented */}
       </ScrollView>
     </View>
@@ -202,6 +282,32 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     borderRadius: 4,
+  },
+  actionsContainer: {
+    gap: 12,
+  },
+  primaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 16,
+    borderRadius: 12,
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontFamily: 'Rubik-SemiBold',
+  },
+  secondaryButton: {
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    fontSize: 16,
+    fontFamily: 'Rubik-Medium',
   },
 });
 
