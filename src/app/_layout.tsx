@@ -23,6 +23,8 @@ import { usePlayerScreenRestoration } from '@/hooks/usePlayerScreenRestoration';
 import { useTheme } from '@/hooks/useTheme';
 import * as Sentry from '@sentry/react-native';
 import { useFonts } from 'expo-font';
+import Purchases, { LOG_LEVEL } from 'react-native-purchases';
+import { Platform } from 'react-native';
 
 Sentry.init({
   dsn: 'https://f560ec15a66fbab84326dc1d343ea729@o4510664873541632.ingest.us.sentry.io/4510664874590208',
@@ -42,6 +44,20 @@ Sentry.init({
   // uncomment the line below to enable Spotlight (https://spotlightjs.com)
   // spotlight: __DEV__,
 });
+
+// Configure RevenueCat
+if (Platform.OS === 'ios') {
+  Purchases.configure({
+    apiKey: 'test_kGqwByiUqhKtkdznxrEMTYYpiqx',
+  });
+} else if (Platform.OS === 'android') {
+  Purchases.configure({
+    apiKey: 'test_kGqwByiUqhKtkdznxrEMTYYpiqx', // Same test key for both platforms
+  });
+}
+
+// Set log level based on environment
+Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.WARN);
 
 TrackPlayer.registerPlaybackService(() => playbackService);
 //! THIS IS TO TEMP SUPPRESS REANIMATED WARNINGS OF WRITING TO 'VALUE' DURING COMPONENT RERENDER
