@@ -42,9 +42,11 @@ import {
   dateToMinutesSinceMidnight,
   minutesSinceMidnightToDate,
 } from '@/helpers/bedtimeUtils';
+import { useRequiresPro } from '@/hooks/useRequiresPro';
 
 const TimerSettingsScreen = () => {
   const { colors: themeColors } = useTheme();
+  const { isProUser, presentPaywall } = useRequiresPro();
   const [fadeoutDuration, setFadeoutDuration] = useState('10');
   const [maxFadeMinutes, setMaxFadeMinutes] = useState<number>(30);
   const [modalVisible, setModalVisible] = useState(false);
@@ -141,6 +143,12 @@ const TimerSettingsScreen = () => {
   );
 
   const toggleSwitch = async () => {
+    // Check for Pro when trying to enable bedtime mode
+    if (!bedtimeModeEnabled && !isProUser) {
+      await presentPaywall();
+      return;
+    }
+
     if (!hasTimerConfigured && !bedtimeModeEnabled) {
       Alert.alert(
         'No Timer Configured',
