@@ -17,6 +17,7 @@ import SegmentedControl from '@react-native-segmented-control/segmented-control'
 import { useSettingsStore } from '@/store/settingsStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { useRequiresPro } from '@/hooks/useRequiresPro';
+import { ProBadge } from '@/components/ProBadge';
 
 const GeneralSettingsScreen = () => {
   const { colors: themeColors } = useTheme();
@@ -142,12 +143,15 @@ const GeneralSettingsScreen = () => {
               onPress={showColorPicker}
               style={styles.colorPickerButton}
             >
-              <View
-                style={[
-                  styles.colorPreview,
-                  { backgroundColor: themeColors.primary },
-                ]}
-              />
+              <View style={styles.colorPickerRow}>
+                <View
+                  style={[
+                    styles.colorPreview,
+                    { backgroundColor: themeColors.primary },
+                  ]}
+                />
+                {!hasProAccess && <ProBadge size='small' />}
+              </View>
             </Pressable>
           </View>
         </SettingsCard>
@@ -193,6 +197,11 @@ const styles = StyleSheet.create({
   colorPickerButton: {
     marginTop: 8,
     alignSelf: 'flex-start',
+  },
+  colorPickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   colorPreview: {
     height: 50,
