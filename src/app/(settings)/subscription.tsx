@@ -12,7 +12,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import SettingsHeader from '@/components/SettingsHeader';
 import { screenPadding } from '@/constants/tokens';
-import { Crown } from 'lucide-react-native';
+import { Crown, Check } from 'lucide-react-native';
 import type { CustomerInfo } from 'react-native-purchases';
 
 // Helper to get subscription status details
@@ -185,6 +185,62 @@ const ActionButtons = ({
   );
 };
 
+// Pro Features List
+const PRO_FEATURES = [
+  {
+    title: 'Custom Themes',
+    description: 'Personalize your app with custom colors',
+  },
+  {
+    title: 'Bedtime Mode',
+    description: 'Auto-shutoff timer for falling asleep',
+  },
+  {
+    title: 'Footprint Navigation',
+    description: 'Jump to any timestamp by tapping footprints',
+  },
+  {
+    title: 'Auto-Chapter Generation',
+    description: 'Automatically detect and create chapters',
+  },
+];
+
+// Feature List Component
+const FeatureList = ({
+  colors,
+}: {
+  colors: ReturnType<typeof useTheme>['colors'];
+}) => {
+  return (
+    <View style={styles.featureListContainer}>
+      <Text style={[styles.featureListTitle, { color: colors.text }]}>
+        What's Included in Pro
+      </Text>
+
+      {PRO_FEATURES.map((feature, index) => (
+        <View
+          key={index}
+          style={[styles.featureItem, { backgroundColor: colors.background }]}
+        >
+          <View style={[styles.checkCircle, { backgroundColor: colors.primary }]}>
+            <Check size={16} color='#FFFFFF' />
+          </View>
+          <View style={styles.featureText}>
+            <Text style={[styles.featureTitle, { color: colors.text }]}>
+              {feature.title}
+            </Text>
+            <Text
+              style={[styles.featureDescription, { color: colors.textMuted }]}
+            >
+              {feature.description}
+            </Text>
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+};
+
 const SubscriptionScreen = () => {
   const { colors } = useTheme();
   const { customerInfo, isProUser, isLoading } = useSubscriptionStore();
@@ -219,7 +275,7 @@ const SubscriptionScreen = () => {
           colors={colors}
         />
         <ActionButtons isProUser={isProUser} colors={colors} />
-        {/* Feature List - to be implemented */}
+        <FeatureList colors={colors} />
       </ScrollView>
     </View>
   );
@@ -308,6 +364,40 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     fontSize: 16,
     fontFamily: 'Rubik-Medium',
+  },
+  featureListContainer: {
+    gap: 12,
+  },
+  featureListTitle: {
+    fontSize: 20,
+    fontFamily: 'Rubik-SemiBold',
+    marginBottom: 8,
+  },
+  featureItem: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'flex-start',
+  },
+  checkCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  featureText: {
+    flex: 1,
+    gap: 4,
+  },
+  featureTitle: {
+    fontSize: 16,
+    fontFamily: 'Rubik-Medium',
+  },
+  featureDescription: {
+    fontSize: 14,
+    fontFamily: 'Rubik',
   },
 });
 
