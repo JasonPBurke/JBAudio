@@ -19,6 +19,7 @@ import { PermissionProvider } from '@/contexts/PermissionContext';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useThemeStore } from '@/store/themeStore';
 import { useLibraryStore } from '@/store/library';
+import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { usePlayerScreenRestoration } from '@/hooks/usePlayerScreenRestoration';
 import { useTheme } from '@/hooks/useTheme';
 import * as Sentry from '@sentry/react-native';
@@ -103,6 +104,13 @@ const App = () => {
   useEffect(() => {
     initializeTheme();
   }, [initializeTheme]);
+
+  // Initialize subscription store
+  const initSubscription = useSubscriptionStore((state) => state.initialize);
+
+  useEffect(() => {
+    initSubscription();
+  }, [initSubscription]);
 
   useSetupTrackPlayer({
     onLoad: handleTrackPlayerLoaded,
