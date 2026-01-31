@@ -16,14 +16,20 @@ import { useTheme } from '@/hooks/useTheme';
 import SegmentedControl from '@react-native-segmented-control/segmented-control';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
+import { useRequiresPro } from '@/hooks/useRequiresPro';
 
 const GeneralSettingsScreen = () => {
   const { colors: themeColors } = useTheme();
   const { numColumns, setNumColumns } = useSettingsStore();
   const { isProUser } = useSubscriptionStore();
+  const { isProUser: hasProAccess, presentPaywall } = useRequiresPro();
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
 
-  const showColorPicker = () => {
+  const showColorPicker = async () => {
+    if (!hasProAccess) {
+      await presentPaywall();
+      return;
+    }
     setColorPickerVisible(true);
   };
 
