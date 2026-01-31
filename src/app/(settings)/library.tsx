@@ -35,9 +35,11 @@ import {
 import { applyAutoChaptersToExistingBooks } from '@/helpers/autoChapterGenerator';
 import { directoryPicker } from '@/helpers/directoryPicker';
 import { router } from 'expo-router';
+import { useRequiresPro } from '@/hooks/useRequiresPro';
 
 const LibrarySettingsScreen = () => {
   const { colors: themeColors } = useTheme();
+  const { isProUser, presentPaywall } = useRequiresPro();
   const [libraryFolders, setLibraryFolders] = useState<string[]>([]);
   const [autoChapterEnabled, setAutoChapterEnabled] = useState(false);
   const [autoChapterInterval, setAutoChapterIntervalState] =
@@ -107,6 +109,12 @@ const LibrarySettingsScreen = () => {
   };
 
   const handleAutoChapterToggle = async () => {
+    // Check for Pro when trying to enable auto-chapters
+    if (!autoChapterEnabled && !isProUser) {
+      await presentPaywall();
+      return;
+    }
+
     const newEnabled = !autoChapterEnabled;
     setAutoChapterEnabled(newEnabled);
     autoChapterToggleValue.value = newEnabled ? 1 : 0;
@@ -127,7 +135,12 @@ const LibrarySettingsScreen = () => {
     }
   };
 
-  const handleApplyToExisting = () => {
+  const handleApplyToExisting = async () => {
+    if (!isProUser) {
+      await presentPaywall();
+      return;
+    }
+
     if (booksWithoutChaptersCount === 0) {
       Alert.alert(
         'No Books Found',
