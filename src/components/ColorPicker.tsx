@@ -59,6 +59,11 @@ export function ColorPickerModal({
     onClose();
   };
 
+  const handleDismiss = () => {
+    // Close without saving - discard any color changes
+    onClose();
+  };
+
   const handleReset = async () => {
     // Reset to default primary color
     const defaultPrimary = colorTokens.shared.primary;
@@ -74,9 +79,17 @@ export function ColorPickerModal({
       visible={isVisible}
       transparent
       animationType='fade'
-      onRequestClose={onClose}
+      onRequestClose={handleDismiss}
     >
       <View style={colorPickerStyle.modalOverlay}>
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={handleDismiss}
+          accessibilityLabel="Close color picker"
+          accessibilityRole="button"
+        >
+          {/* Backdrop hit area - tapping here dismisses without saving */}
+        </Pressable>
         <View
           style={[
             colorPickerStyle.colorPickerModalContent,
