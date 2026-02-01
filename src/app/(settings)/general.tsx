@@ -53,7 +53,7 @@ const GeneralSettingsScreen = () => {
         showsVerticalScrollIndicator={false}
       >
         <Pressable onPress={navigateToSubscription}>
-          <SettingsCard title='Subscription' icon={Crown}>
+          {/* <SettingsCard title='Subscription' icon={Crown}>
             <View style={styles.subscriptionContent}>
               <View style={styles.subscriptionInfo}>
                 <Text
@@ -81,7 +81,7 @@ const GeneralSettingsScreen = () => {
                 </Text>
               </View>
             </View>
-          </SettingsCard>
+          </SettingsCard> */}
         </Pressable>
 
         <SettingsCard title='Display Settings' icon={Settings}>

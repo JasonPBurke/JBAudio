@@ -16,6 +16,7 @@ import {
   Timer,
   CassetteTape,
   HelpCircle,
+  Crown,
 } from 'lucide-react-native';
 import { colors } from '@/constants/tokens';
 import { scanLibrary } from '@/helpers/scanLibrary';
@@ -64,6 +65,10 @@ const DrawerContent = (props: Props) => {
 
   const handleBookStatsPress = () => {
     router.navigate('/bookStats');
+  };
+
+  const handleProPress = () => {
+    router.navigate('/subscription');
   };
 
   const handleHelpPress = () => {
@@ -229,6 +234,18 @@ const DrawerContent = (props: Props) => {
         style={[
           styles.drawerItem,
           { borderBottomColor: themeColors.divider, opacity: 0.4 },
+        ]}
+      />
+      <DrawerItem
+        label={'Get Pro'}
+        onPress={handleProPress}
+        icon={() => (
+          <Crown size={24} color={themeColors.text} strokeWidth={1} />
+        )}
+        labelStyle={[styles.labelStyle, { color: themeColors.text }]}
+        style={[
+          styles.drawerItem,
+          { borderBottomColor: themeColors.divider },
         ]}
       />
     </DrawerContentScrollView>
