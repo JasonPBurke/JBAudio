@@ -12,7 +12,7 @@ import SettingsHeader from '@/components/SettingsHeader';
 import SettingsCard from '@/components/settings/SettingsCard';
 import { screenPadding } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
-import SegmentedControl from '@react-native-segmented-control/segmented-control';
+import SegmentedControl from '@/components/SegmentedControl';
 import { useSettingsStore } from '@/store/settingsStore';
 
 const GeneralSettingsScreen = () => {
@@ -56,22 +56,14 @@ const GeneralSettingsScreen = () => {
             >
               Choose how many columns to display in your library
             </Text>
-            <SegmentedControl
-              style={{ height: 40, marginTop: 8 }}
-              backgroundColor={themeColors.modalBackground}
-              activeFontStyle={{ color: themeColors.primary }}
-              fontStyle={{
-                color: themeColors.textMuted,
-                fontFamily: 'Rubik',
-              }}
-              values={['One', 'Two', 'Three']}
-              selectedIndex={numColumns - 1}
-              onChange={(event) => {
-                const numberOfColumns =
-                  event.nativeEvent.selectedSegmentIndex + 1;
-                setNumColumns(numberOfColumns);
-              }}
-            />
+            <View style={{ marginTop: 8 }}>
+              <SegmentedControl
+                values={['One', 'Two', 'Three']}
+                selectedIndex={numColumns - 1}
+                onChange={(index) => setNumColumns(index + 1)}
+                height={40}
+              />
+            </View>
           </View>
         </SettingsCard>
 
