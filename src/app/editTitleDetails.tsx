@@ -165,6 +165,7 @@ const editTitleDetails = () => {
               },
             ]}
             placeholder={'Narrator'}
+            placeholderTextColor={withOpacity(themeColors.textMuted, 0.5)}
             value={formState.narrator ?? ''}
             onChangeText={(text) => handleInputChange('narrator', text)}
             cursorColor={colors.primary}
@@ -184,6 +185,7 @@ const editTitleDetails = () => {
               },
             ]}
             placeholder={'Genre Tags (, / or & separated)'}
+            placeholderTextColor={withOpacity(themeColors.textMuted, 0.5)}
             value={formState.genre ?? ''}
             onChangeText={(text) => handleInputChange('genre', text)}
             cursorColor={colors.primary}
@@ -203,6 +205,7 @@ const editTitleDetails = () => {
               },
             ]}
             placeholder={'Release Year'}
+            placeholderTextColor={withOpacity(themeColors.textMuted, 0.5)}
             value={formState.year ?? ''}
             onChangeText={(text) => handleInputChange('year', text)}
             cursorColor={colors.primary}
@@ -223,6 +226,7 @@ const editTitleDetails = () => {
               },
             ]}
             placeholder={'Description'}
+            placeholderTextColor={withOpacity(themeColors.textMuted, 0.5)}
             value={formState.description ?? ''}
             onChangeText={(text) => handleInputChange('description', text)}
             cursorColor={colors.primary}
@@ -244,6 +248,7 @@ const editTitleDetails = () => {
               },
             ]}
             placeholder={'Copyright'}
+            placeholderTextColor={withOpacity(themeColors.textMuted, 0.5)}
             value={formState.copyright ?? ''}
             onChangeText={(text) => handleInputChange('copyright', text)}
             cursorColor={colors.primary}
@@ -259,7 +264,11 @@ const editTitleDetails = () => {
               ]}
               onPress={() => router.back()}
             >
-              <Text style={styles.buttonText}>Cancel</Text>
+              <Text
+                style={[styles.buttonText, { color: themeColors.text }]}
+              >
+                Cancel
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
@@ -295,7 +304,7 @@ const styles = StyleSheet.create({
   header: {
     fontFamily: 'Rubik-SemiBold',
     fontSize: 24,
-    paddingBottom: 10,
+    paddingBottom: 5,
   },
   image: {
     width: '100%',
@@ -316,8 +325,10 @@ const styles = StyleSheet.create({
   searchInput: {
     width: '100%',
     borderRadius: 8,
-    padding: 14,
+    padding: 12,
+    paddingTop: 16,
     marginVertical: 10,
+
     fontFamily: 'Rubik',
     fontSize: 18,
     lineHeight: 24,
