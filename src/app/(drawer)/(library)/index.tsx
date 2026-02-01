@@ -46,8 +46,9 @@ const LibraryScreen = ({ navigation }: any) => {
   const searchFilteredAuthors = useMemo(() => {
     if (!debouncedSearchQuery) return allAuthors;
 
-    const qRaw = debouncedSearchQuery.toLowerCase();
-    const qNorm = normalize(debouncedSearchQuery);
+    const trimmed = debouncedSearchQuery.trim();
+    const qRaw = trimmed.toLowerCase();
+    const qNorm = normalize(trimmed);
 
     return allAuthors.reduce(
       (acc, author) => {
