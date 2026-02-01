@@ -47,7 +47,7 @@ function parseTimestamp(timestamp: string): number | undefined {
 }
 
 export async function analyzeFileWithMediaInfo(
-  uri: string
+  uri: string,
 ): Promise<ExtractedMetadata> {
   const res = await getMediaInfo(uri);
   return extractMetadataFromResult(res);
@@ -58,7 +58,7 @@ export async function analyzeFileWithMediaInfo(
  * Faster than analyzeFileWithMediaInfo() for multi-file books where only the first file needs cover extraction.
  */
 export async function analyzeFileWithMediaInfoNoCover(
-  uri: string
+  uri: string,
 ): Promise<ExtractedMetadata> {
   const res = await getMediaInfoNoCover(uri);
   return extractMetadataFromResult(res);
@@ -67,7 +67,9 @@ export async function analyzeFileWithMediaInfoNoCover(
 /**
  * Shared logic for extracting metadata from MediaInfo result.
  */
-function extractMetadataFromResult(res: MediaInfoResult): ExtractedMetadata {
+function extractMetadataFromResult(
+  res: MediaInfoResult,
+): ExtractedMetadata {
   const json = (res.json || {}) as any;
   const media = json.media || {};
   const tracks: any[] = media.track || [];

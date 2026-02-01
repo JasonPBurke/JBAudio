@@ -447,8 +447,9 @@ async function extractMetadata(
       ? metadata.durationMs / 1000
       : 0;
     const fileName = filePath.split('/').pop() ?? '';
+    //! could make chapterTitle an array and store the fileName.split as a backup chapter name that the user could switch to for specific titles (see Aracanum Unbounded)
     const chapterTitle =
-      fileName.split('.')[0] || metadata.title || 'Unknown Chapter';
+      metadata.title || fileName.split('.')[0] || 'Unknown Chapter';
 
     return [
       buildBookMetadata(metadata, filePath, bookTitleBackup, authorBackup, {
