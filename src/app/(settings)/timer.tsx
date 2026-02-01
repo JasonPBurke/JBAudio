@@ -46,7 +46,6 @@ import {
 const TimerSettingsScreen = () => {
   const { colors: themeColors } = useTheme();
   const [fadeoutDuration, setFadeoutDuration] = useState('10');
-  const [maxFadeMinutes, setMaxFadeMinutes] = useState<number>(30);
   const [modalVisible, setModalVisible] = useState(false);
   const [bedtimeStartValue, setBedtimeStartValue] = useState<Date>(
     new Date(),
@@ -61,10 +60,8 @@ const TimerSettingsScreen = () => {
   const fadeOutDurationInfo =
     'When the sleep timer is activated, the audio will begin to fade out when the sleep time remaining is the same as the fade-out duration you have set.  If the fade-out duration exceeds the timer duration, fade-out will begin when the timer begins.';
 
-  const numbers = Array.from(
-    { length: Math.max(0, maxFadeMinutes) },
-    (_, index) => index + 1,
-  );
+  // Hard cap at 30 minutes for fade duration picker options
+  const numbers = Array.from({ length: 30 }, (_, index) => index + 1);
 
   useFocusEffect(
     useCallback(() => {
@@ -79,18 +76,6 @@ const TimerSettingsScreen = () => {
               : null;
 
           const timerSettings = await getTimerSettings();
-          const timerDurationMinutes =
-            timerSettings.timerDuration !== null
-              ? Math.floor(timerSettings.timerDuration / 60000)
-              : null;
-
-          const cap = Math.min(30, timerDurationMinutes ?? 30);
-          if (isActive) setMaxFadeMinutes(cap);
-
-          if (fadeoutValueMinutes !== null && fadeoutValueMinutes > cap) {
-            await updateTimerFadeoutDuration(cap > 0 ? cap * 60000 : null);
-            fadeoutValueMinutes = cap > 0 ? cap : null;
-          }
 
           if (
             isActive &&

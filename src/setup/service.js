@@ -266,7 +266,8 @@ export default module.exports = async function () {
         cachedTimer.lastRefreshedAt = nowTs;
       }
 
-      const { sleepTime, timerActive, fadeoutDuration } = cachedTimer;
+      const { sleepTime, timerActive, fadeoutDuration, timerDuration } =
+        cachedTimer;
 
       // Single source of truth for stopping at or after sleep time for both fade and non-fade
       if (
@@ -304,7 +305,13 @@ export default module.exports = async function () {
         fadeoutDuration > 0
       ) {
         const now = Date.now();
-        const beginFadeout = sleepTime - fadeoutDuration;
+        // Calculate effective fade: user's preference capped by timer duration
+        // This preserves the stored setting while applying shorter fade when timer < fade
+        const effectiveFadeout =
+          timerDuration !== null && timerDuration > 0
+            ? Math.min(fadeoutDuration, timerDuration)
+            : fadeoutDuration;
+        const beginFadeout = sleepTime - effectiveFadeout;
 
         if (now < beginFadeout && fadeState.isFading) {
           // If the timer is reset to be longer than the fadeout,
@@ -332,7 +339,7 @@ export default module.exports = async function () {
           // Compute linear fade from baseline -> 0
           const t = Math.min(
             1,
-            Math.max(0, (now - beginFadeout) / fadeoutDuration),
+            Math.max(0, (now - beginFadeout) / effectiveFadeout),
           );
           const volume = Math.max(0, fadeState.baselineVolume * (1 - t));
 

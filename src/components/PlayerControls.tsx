@@ -50,7 +50,6 @@ import {
   getTimerSettings,
   updateSleepTime,
   updateTimerActive,
-  updateTimerFadeoutDuration,
 } from '@/db/settingsQueries';
 import { recordFootprint } from '@/db/footprintQueries';
 import { getBookById } from '@/db/bookQueries';
@@ -588,6 +587,14 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
       }
     };
 
+    // Helper to reset volume with retries to outlast service.js cache (1 second refresh)
+    // This ensures fade logic doesn't override our volume reset during the stale cache window
+    const resetVolumeWithRetry = () => {
+      TrackPlayer.setVolume(1);
+      setTimeout(() => TrackPlayer.setVolume(1), 600);
+      setTimeout(() => TrackPlayer.setVolume(1), 1200);
+    };
+
     // Get current playing state and setRemainingSleepTimeMs from store
     const { isPlaying: currentlyPlaying, setRemainingSleepTimeMs } =
       usePlayerStateStore.getState();
@@ -615,15 +622,14 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
 
       await recordTimerFootprintAsync();
       await updateTimerActive(true);
-      if (fadeoutDuration && fadeoutDuration > timerDuration) {
-        await updateTimerFadeoutDuration(timerDuration);
-      }
+      // Note: Don't restrict fadeoutDuration here - service.js calculates
+      // effectiveFadeout = min(userFade, timerDuration) at runtime
     } else if (timerDuration !== null && timerActive === true) {
       // Optimistically deactivate duration timer
       setOptimistic({ active: false, chapters: null, endTimeMs: null });
       await updateTimerActive(false);
       await updateSleepTime(null);
-      await TrackPlayer.setVolume(1);
+      resetVolumeWithRetry();
     } else if (timerChapters !== null && timerActive === false) {
       // Optimistically activate chapter timer
       setOptimistic({
@@ -636,7 +642,7 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
     } else if (timerChapters !== null && timerActive === true) {
       // Optimistically deactivate chapter timer
       setOptimistic({ active: false, chapters: null, endTimeMs: null });
-      await TrackPlayer.setVolume(1);
+      resetVolumeWithRetry();
       await updateTimerActive(false);
     } else if (timerDuration === null && timerActive === false) {
       handlePresentModalPress();
