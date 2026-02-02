@@ -20,7 +20,8 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "ANDROID_SDK_ROOT": "/home/jason/Android/Sdk"
+        "ANDROID_SDK_ROOT": "/home/jason/Android/Sdk",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     },
     "staging": {
