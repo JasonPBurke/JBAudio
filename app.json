@@ -4,7 +4,7 @@
     "slug": "JBAudio",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/music-ring-icon.svg",
+    "icon": "./assets/icons/turntable-dark-mode.png",
     "scheme": "sonicbooks",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
@@ -19,8 +19,8 @@
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/music-ring-icon.svg",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/icons/turntable-dark-mode.png",
+        "backgroundColor": "#1C1C1C"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.fuzzylogic42.JBAudio"
@@ -63,10 +63,14 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/icons/turntable-light-mode.svg",
+          "backgroundColor": "#ECEFF4",
+          "dark": {
+            "image": "./assets/icons/turntable-dark-mode.png",
+            "backgroundColor": "#1C1C1C"
+          },
           "imageWidth": 200,
-          "contentFit": "contain",
-          "backgroundColor": "#1C1C1C"
+          "contentFit": "contain"
         }
       ],
       "expo-asset",
