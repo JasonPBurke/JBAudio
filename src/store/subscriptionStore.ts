@@ -5,6 +5,9 @@ import Purchases, {
 } from 'react-native-purchases';
 import { presentPaywall } from 'react-native-purchases-ui';
 import * as Sentry from '@sentry/react-native';
+import { trialManager } from '@/utils/trialManager';
+
+type SubscriptionTier = 'pro' | 'trial' | 'free';
 
 interface SubscriptionState {
   // State
@@ -13,12 +16,38 @@ interface SubscriptionState {
   isLoading: boolean;
   offerings: PurchasesOfferings | null;
 
+  // Local trial state
+  isInLocalTrial: boolean;
+  trialDaysRemaining: number;
+  trialEndDate: Date | null;
+
   // Actions
   initialize: () => Promise<void>;
   checkProStatus: () => boolean;
   restorePurchases: () => Promise<CustomerInfo>;
   presentPaywall: () => Promise<void>;
+  getSubscriptionTier: () => SubscriptionTier;
 }
+
+/**
+ * Helper to calculate trial and pro status from CustomerInfo.
+ * Uses RevenueCat's firstSeen date for trial calculation.
+ */
+const getStatusFromCustomerInfo = (customerInfo: CustomerInfo) => {
+  const hasActiveSubscription =
+    customerInfo.entitlements.active['pro'] !== undefined;
+
+  // Calculate trial status from RevenueCat's firstSeen date
+  const trialStatus = trialManager.getTrialStatus(customerInfo.firstSeen);
+
+  return {
+    hasActiveSubscription,
+    isInLocalTrial: trialStatus.isInTrial,
+    trialDaysRemaining: trialStatus.daysRemaining,
+    trialEndDate: trialStatus.endDate,
+    isProUser: hasActiveSubscription || trialStatus.isInTrial,
+  };
+};
 
 export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   // Initial state
@@ -27,43 +56,60 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   isLoading: true,
   offerings: null,
 
+  // Local trial state
+  isInLocalTrial: false,
+  trialDaysRemaining: 0,
+  trialEndDate: null,
+
   // Initialize subscription system
   initialize: async () => {
     set({ isLoading: true });
 
     try {
       // Fetch customer info (uses cached data if offline)
+      // RevenueCat's firstSeen date is used for trial calculation
       const customerInfo = await Purchases.getCustomerInfo();
 
       // Fetch available offerings
       const offerings = await Purchases.getOfferings();
 
-      // Check if user has active Pro entitlement
-      const isProUser = customerInfo.entitlements.active['pro'] !== undefined;
+      // Calculate subscription and trial status
+      const status = getStatusFromCustomerInfo(customerInfo);
 
       set({
         customerInfo,
         offerings,
-        isProUser,
+        isProUser: status.isProUser,
+        isInLocalTrial: status.isInLocalTrial,
+        trialDaysRemaining: status.trialDaysRemaining,
+        trialEndDate: status.trialEndDate,
         isLoading: false,
       });
 
       // Set up listener for customer info updates
       Purchases.addCustomerInfoUpdateListener((info) => {
-        const isPro = info.entitlements.active['pro'] !== undefined;
+        const updatedStatus = getStatusFromCustomerInfo(info);
+
         set({
           customerInfo: info,
-          isProUser: isPro,
+          isProUser: updatedStatus.isProUser,
+          isInLocalTrial: updatedStatus.isInLocalTrial,
+          trialDaysRemaining: updatedStatus.trialDaysRemaining,
+          trialEndDate: updatedStatus.trialEndDate,
         });
       });
     } catch (error) {
       console.error('Failed to initialize RevenueCat:', error);
       Sentry.captureException(error);
 
-      // Graceful fallback - user treated as free tier
+      // Graceful fallback - no trial available if RevenueCat fails
+      // (we need firstSeen from RevenueCat to calculate trial)
       set({
         isLoading: false,
         isProUser: false,
+        isInLocalTrial: false,
+        trialDaysRemaining: 0,
+        trialEndDate: null,
       });
     }
   },
@@ -79,11 +125,14 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
 
     try {
       const customerInfo = await Purchases.restorePurchases();
-      const isProUser = customerInfo.entitlements.active['pro'] !== undefined;
+      const status = getStatusFromCustomerInfo(customerInfo);
 
       set({
         customerInfo,
-        isProUser,
+        isProUser: status.isProUser,
+        isInLocalTrial: status.isInLocalTrial,
+        trialDaysRemaining: status.trialDaysRemaining,
+        trialEndDate: status.trialEndDate,
         isLoading: false,
       });
 
@@ -105,16 +154,31 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
 
       // If user made a purchase, paywallResult contains updated customerInfo
       if (paywallResult.customerInfo) {
-        const isProUser =
-          paywallResult.customerInfo.entitlements.active['pro'] !== undefined;
+        const status = getStatusFromCustomerInfo(paywallResult.customerInfo);
+
         set({
           customerInfo: paywallResult.customerInfo,
-          isProUser,
+          isProUser: status.isProUser,
+          isInLocalTrial: status.isInLocalTrial,
+          trialDaysRemaining: status.trialDaysRemaining,
+          trialEndDate: status.trialEndDate,
         });
       }
     } catch (error) {
       // User dismissed paywall or error occurred
       console.log('Paywall dismissed or error:', error);
     }
+  },
+
+  // Determine which subscription tier the user is in
+  getSubscriptionTier: (): SubscriptionTier => {
+    const state = get();
+    if (state.customerInfo?.entitlements.active['pro']) {
+      return 'pro'; // Paid subscriber
+    }
+    if (state.isInLocalTrial) {
+      return 'trial'; // In local trial
+    }
+    return 'free'; // Trial expired, not subscribed
   },
 }));

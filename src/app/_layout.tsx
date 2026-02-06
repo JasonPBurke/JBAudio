@@ -2,7 +2,7 @@ import { useSetupTrackPlayer } from '@/hooks/useSetupTrackPlayer';
 import { Stack, SplashScreen } from 'expo-router';
 import { SystemBars } from 'react-native-edge-to-edge';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import TrackPlayer from 'react-native-track-player';
 import { useLogTrackPlayerState } from '@/hooks/useLogTrackPlayerState';
 import { PlayerStateSync } from '@/components/PlayerStateSync';
@@ -25,7 +25,7 @@ import { useTheme } from '@/hooks/useTheme';
 import * as Sentry from '@sentry/react-native';
 import { useFonts } from 'expo-font';
 import Purchases, { LOG_LEVEL } from 'react-native-purchases';
-import { Platform } from 'react-native';
+import { AppState, AppStateStatus, Platform } from 'react-native';
 
 Sentry.init({
   dsn: 'https://f560ec15a66fbab84326dc1d343ea729@o4510664873541632.ingest.us.sentry.io/4510664874590208',
@@ -110,6 +110,27 @@ const App = () => {
 
   useEffect(() => {
     initSubscription();
+  }, [initSubscription]);
+
+  // Refresh trial/subscription status when app returns from background
+  const appState = useRef(AppState.currentState);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener(
+      'change',
+      (nextAppState: AppStateStatus) => {
+        // Only refresh when coming back to active state from background
+        if (
+          appState.current.match(/inactive|background/) &&
+          nextAppState === 'active'
+        ) {
+          initSubscription();
+        }
+        appState.current = nextAppState;
+      }
+    );
+
+    return () => subscription.remove();
   }, [initSubscription]);
 
   useSetupTrackPlayer({

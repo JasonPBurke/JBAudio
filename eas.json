@@ -6,10 +6,7 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal",
-      "env": {
-        "ANDROID_SDK_ROOT": "/home/jason/Android/Sdk"
-      }
+      "distribution": "internal"
     },
     "preview": {
       "distribution": "internal",
@@ -20,7 +17,7 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "ANDROID_SDK_ROOT": "/home/jason/Android/Sdk"
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     },
     "staging": {

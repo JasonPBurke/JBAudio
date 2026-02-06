@@ -18,60 +18,57 @@ import type { CustomerInfo } from 'react-native-purchases';
 // Helper to get subscription status details
 const getSubscriptionStatus = (
   customerInfo: CustomerInfo | null,
-  isProUser: boolean
+  isInLocalTrial: boolean,
+  trialDaysRemaining: number
 ) => {
-  if (!isProUser) {
+  // Check for paid subscription first
+  if (customerInfo?.entitlements.active['pro']) {
     return {
-      title: 'Free Plan',
-      subtitle: 'Upgrade to unlock all features',
-      badgeColor: '#6B7280',
-      badgeText: 'FREE',
+      title: 'Pro Member',
+      subtitle: 'All features unlocked',
+      badgeColor: '#10B981',
+      badgeText: 'PRO',
     };
   }
 
-  const proEntitlement = customerInfo?.entitlements.active['pro'];
-
-  if (
-    proEntitlement?.willRenew === false &&
-    proEntitlement?.periodType === 'trial'
-  ) {
-    // Trial period
-    const expirationDate = new Date(proEntitlement.expirationDate ?? Date.now());
-    const now = new Date();
-    const daysRemaining = Math.ceil(
-      (expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-    );
-
+  // Check for local trial
+  if (isInLocalTrial && trialDaysRemaining > 0) {
     return {
-      title: 'Pro Trial',
-      subtitle: `${daysRemaining} days remaining`,
+      title: 'Free Trial',
+      subtitle: `${trialDaysRemaining} day${trialDaysRemaining !== 1 ? 's' : ''} remaining`,
       badgeColor: '#F59E0B',
       badgeText: 'TRIAL',
       showProgress: true,
-      progress: daysRemaining / 30, // Assuming 30-day trial
+      progress: trialDaysRemaining / 10, // 10-day trial
     };
   }
 
-  // Paid Pro user
+  // Trial expired, no subscription
   return {
-    title: 'Pro Member',
-    subtitle: 'All features unlocked',
-    badgeColor: '#10B981',
-    badgeText: 'PRO',
+    title: 'Free Plan',
+    subtitle: 'Upgrade to unlock all features',
+    badgeColor: '#6B7280',
+    badgeText: 'FREE',
   };
 };
 
 // Status Card Component
 const StatusCard = ({
   customerInfo,
-  isProUser,
+  isInLocalTrial,
+  trialDaysRemaining,
   colors,
 }: {
   customerInfo: CustomerInfo | null;
-  isProUser: boolean;
+  isInLocalTrial: boolean;
+  trialDaysRemaining: number;
   colors: ReturnType<typeof useTheme>['colors'];
 }) => {
-  const status = getSubscriptionStatus(customerInfo, isProUser);
+  const status = getSubscriptionStatus(
+    customerInfo,
+    isInLocalTrial,
+    trialDaysRemaining
+  );
 
   return (
     <View style={[styles.statusCard, { backgroundColor: colors.background }]}>
@@ -243,7 +240,8 @@ const FeatureList = ({
 
 const SubscriptionScreen = () => {
   const { colors } = useTheme();
-  const { customerInfo, isProUser, isLoading } = useSubscriptionStore();
+  const { customerInfo, isProUser, isLoading, isInLocalTrial, trialDaysRemaining } =
+    useSubscriptionStore();
 
   if (isLoading) {
     return (
@@ -271,7 +269,8 @@ const SubscriptionScreen = () => {
       >
         <StatusCard
           customerInfo={customerInfo}
-          isProUser={isProUser}
+          isInLocalTrial={isInLocalTrial}
+          trialDaysRemaining={trialDaysRemaining}
           colors={colors}
         />
         <ActionButtons isProUser={isProUser} colors={colors} />
