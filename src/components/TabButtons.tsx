@@ -144,8 +144,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.background,
     borderRadius: 4,
-    // justifyContent: 'center',
-    marginHorizontal: screenPadding.horizontal,
+    marginHorizontal: screenPadding.horizontal - 4,
   },
   buttonContainer: {
     paddingVertical: 12,
