@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Grip, Library, List, Settings2 } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
+import { screenPadding } from '@/constants/tokens';
 import TabScreen, { CustomTabs } from '@/components/TabScreen';
 import { useNavigation } from 'expo-router';
 import { DrawerActions } from '@react-navigation/native';
@@ -97,7 +98,7 @@ const Header = (props: headerProps) => {
       ]}
     >
       <View style={styles.header}>
-        <View style={styles.headerGroup}>
+        <View style={[styles.headerGroup, { flex: 1 }]}>
           <Pressable hitSlop={15} onPress={openSettingsDrawer}>
             <Settings2
               size={20}
@@ -230,7 +231,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: screenPadding.horizontal,
   },
   headerGroup: {
     flexDirection: 'row',
@@ -241,6 +242,7 @@ const styles = StyleSheet.create({
   titleWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   titleStaticS: {
     fontFamily: 'Rubik-Medium',
@@ -253,7 +255,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     overflow: 'hidden',
-    width: 300,
+    flex: 1,
   },
   scanningContainer: {
     minWidth: 200, // Set a minimum width to prevent clipping

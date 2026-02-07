@@ -15,6 +15,7 @@ import Animated, {
 import { X } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { withOpacity } from '@/helpers/colorUtils';
+import { screenPadding } from '@/constants/tokens';
 
 export const SEARCH_BAR_HEIGHT = 38;
 
@@ -94,7 +95,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 10,
-    paddingHorizontal: 10,
+    paddingHorizontal: screenPadding.horizontal,
     paddingBottom: 8,
   },
   container: {

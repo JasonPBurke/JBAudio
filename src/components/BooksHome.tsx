@@ -2,7 +2,7 @@
 
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Book, Author } from '@/types/Book';
-import { fontSize } from '@/constants/tokens';
+import { fontSize, screenPadding } from '@/constants/tokens';
 import { withOpacity } from '@/helpers/colorUtils';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
 import { useTheme } from '@/hooks/useTheme';
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingLeft: 14,
+    paddingLeft: screenPadding.horizontal,
   },
   titleText: {
     fontFamily: 'Rubik',
