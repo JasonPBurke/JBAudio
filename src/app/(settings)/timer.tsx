@@ -43,6 +43,7 @@ import {
   minutesSinceMidnightToDate,
 } from '@/helpers/bedtimeUtils';
 import { useRequiresPro } from '@/hooks/useRequiresPro';
+import { useSubscriptionStore } from '@/store/subscriptionStore';
 
 const TimerSettingsScreen = () => {
   const { colors: themeColors } = useTheme();
@@ -92,6 +93,12 @@ const TimerSettingsScreen = () => {
           if (fadeoutValueMinutes !== null && fadeoutValueMinutes > cap) {
             await updateTimerFadeoutDuration(cap > 0 ? cap * 60000 : null);
             fadeoutValueMinutes = cap > 0 ? cap : null;
+          }
+
+          // Auto-clamp: non-Pro user with fadeout > 1 min (e.g. trial expired) → clamp to 1 min
+          if (!isProUser && fadeoutValueMinutes !== null && fadeoutValueMinutes > 1) {
+            await updateTimerFadeoutDuration(60000);
+            fadeoutValueMinutes = 1;
           }
 
           if (
@@ -232,7 +239,14 @@ const TimerSettingsScreen = () => {
               }}
               dropdownIconColor={themeColors.primary}
               selectedValue={fadeoutDuration}
-              onValueChange={(itemValue, itemIndex) => {
+              onValueChange={async (itemValue, itemIndex) => {
+                // Gate: non-Pro users cannot select durations above 1 minute
+                if (itemIndex > 1 && !isProUser) {
+                  await presentPaywall();
+                  const nowPro = useSubscriptionStore.getState().isProUser;
+                  if (!nowPro) return;
+                }
+
                 setFadeoutDuration(itemValue);
                 if (itemIndex > 0) {
                   updateTimerFadeoutDuration(itemIndex * 60000);

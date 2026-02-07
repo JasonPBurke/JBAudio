@@ -47,18 +47,11 @@ Sentry.init({
 });
 
 // Configure RevenueCat
-if (Platform.OS === 'ios') {
-  Purchases.configure({
-    apiKey: 'test_kGqwByiUqhKtkdznxrEMTYYpiqx',
-  });
-} else if (Platform.OS === 'android') {
-  Purchases.configure({
-    apiKey: 'test_kGqwByiUqhKtkdznxrEMTYYpiqx', // Same test key for both platforms
-  });
-}
-
-// Set log level based on environment
 Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.WARN);
+const revenueCatApiKey = process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY;
+if (revenueCatApiKey) {
+  Purchases.configure({ apiKey: revenueCatApiKey });
+}
 
 TrackPlayer.registerPlaybackService(() => playbackService);
 //! THIS IS TO TEMP SUPPRESS REANIMATED WARNINGS OF WRITING TO 'VALUE' DURING COMPONENT RERENDER

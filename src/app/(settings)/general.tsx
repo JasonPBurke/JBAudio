@@ -129,7 +129,7 @@ const GeneralSettingsScreen = () => {
                 { color: themeColors.textMuted },
               ]}
             >
-              Primary Color
+              Accent Color
             </Text>
             <Text
               style={[

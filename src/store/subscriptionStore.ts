@@ -3,7 +3,7 @@ import Purchases, {
   CustomerInfo,
   PurchasesOfferings,
 } from 'react-native-purchases';
-import { presentPaywall } from 'react-native-purchases-ui';
+import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 import * as Sentry from '@sentry/react-native';
 import { trialManager } from '@/utils/trialManager';
 
@@ -49,6 +49,9 @@ const getStatusFromCustomerInfo = (customerInfo: CustomerInfo) => {
   };
 };
 
+// Track listener reference to prevent duplicates on re-initialization
+let customerInfoListener: ((info: CustomerInfo) => void) | null = null;
+
 export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   // Initial state
   customerInfo: null,
@@ -65,29 +68,27 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   initialize: async () => {
     set({ isLoading: true });
 
+    // Remove previous listener if re-initializing (e.g. app foreground resume)
+    if (customerInfoListener) {
+      Purchases.removeCustomerInfoUpdateListener(customerInfoListener);
+      customerInfoListener = null;
+    }
+
+    // 1. Fetch customer info — critical for trial calculation
     try {
-      // Fetch customer info (uses cached data if offline)
-      // RevenueCat's firstSeen date is used for trial calculation
       const customerInfo = await Purchases.getCustomerInfo();
-
-      // Fetch available offerings
-      const offerings = await Purchases.getOfferings();
-
-      // Calculate subscription and trial status
       const status = getStatusFromCustomerInfo(customerInfo);
 
       set({
         customerInfo,
-        offerings,
         isProUser: status.isProUser,
         isInLocalTrial: status.isInLocalTrial,
         trialDaysRemaining: status.trialDaysRemaining,
         trialEndDate: status.trialEndDate,
-        isLoading: false,
       });
 
       // Set up listener for customer info updates
-      Purchases.addCustomerInfoUpdateListener((info) => {
+      customerInfoListener = (info: CustomerInfo) => {
         const updatedStatus = getStatusFromCustomerInfo(info);
 
         set({
@@ -97,21 +98,31 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
           trialDaysRemaining: updatedStatus.trialDaysRemaining,
           trialEndDate: updatedStatus.trialEndDate,
         });
-      });
+      };
+      Purchases.addCustomerInfoUpdateListener(customerInfoListener);
     } catch (error) {
-      console.error('Failed to initialize RevenueCat:', error);
+      console.error('Failed to fetch customer info:', error);
       Sentry.captureException(error);
 
-      // Graceful fallback - no trial available if RevenueCat fails
+      // Graceful fallback — no trial available if RevenueCat fails
       // (we need firstSeen from RevenueCat to calculate trial)
       set({
-        isLoading: false,
         isProUser: false,
         isInLocalTrial: false,
         trialDaysRemaining: 0,
         trialEndDate: null,
       });
     }
+
+    // 2. Fetch offerings independently — failure here shouldn't break trial
+    try {
+      const offerings = await Purchases.getOfferings();
+      set({ offerings });
+    } catch (error) {
+      console.warn('Failed to fetch offerings (products may not be configured yet):', error);
+    }
+
+    set({ isLoading: false });
   },
 
   // Check Pro status
@@ -148,16 +159,21 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   // Present paywall modal
   presentPaywall: async () => {
     try {
-      const paywallResult = await presentPaywall({
+      const result = await RevenueCatUI.presentPaywall({
         offering: get().offerings?.current ?? undefined,
       });
 
-      // If user made a purchase, paywallResult contains updated customerInfo
-      if (paywallResult.customerInfo) {
-        const status = getStatusFromCustomerInfo(paywallResult.customerInfo);
+      // Re-fetch customer info after a purchase or restore for immediate UI update
+      // (the customerInfoUpdateListener also fires, but this ensures synchronous resolution)
+      if (
+        result === PAYWALL_RESULT.PURCHASED ||
+        result === PAYWALL_RESULT.RESTORED
+      ) {
+        const customerInfo = await Purchases.getCustomerInfo();
+        const status = getStatusFromCustomerInfo(customerInfo);
 
         set({
-          customerInfo: paywallResult.customerInfo,
+          customerInfo,
           isProUser: status.isProUser,
           isInLocalTrial: status.isInLocalTrial,
           trialDaysRemaining: status.trialDaysRemaining,

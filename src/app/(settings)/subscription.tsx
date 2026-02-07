@@ -7,7 +7,7 @@ import {
   Pressable,
   Alert,
 } from 'react-native';
-import { presentCustomerCenter } from 'react-native-purchases-ui';
+import RevenueCatUI from 'react-native-purchases-ui';
 import { useTheme } from '@/hooks/useTheme';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import SettingsHeader from '@/components/SettingsHeader';
@@ -19,7 +19,7 @@ import type { CustomerInfo } from 'react-native-purchases';
 const getSubscriptionStatus = (
   customerInfo: CustomerInfo | null,
   isInLocalTrial: boolean,
-  trialDaysRemaining: number
+  trialDaysRemaining: number,
 ) => {
   // Check for paid subscription first
   if (customerInfo?.entitlements.active['pro']) {
@@ -67,14 +67,18 @@ const StatusCard = ({
   const status = getSubscriptionStatus(
     customerInfo,
     isInLocalTrial,
-    trialDaysRemaining
+    trialDaysRemaining,
   );
 
   return (
-    <View style={[styles.statusCard, { backgroundColor: colors.background }]}>
+    <View
+      style={[styles.statusCard, { backgroundColor: colors.background }]}
+    >
       <View style={styles.statusHeader}>
         <Crown size={32} color={status.badgeColor} />
-        <View style={[styles.badge, { backgroundColor: status.badgeColor }]}>
+        <View
+          style={[styles.badge, { backgroundColor: status.badgeColor }]}
+        >
           <Text style={styles.badgeText}>{status.badgeText}</Text>
         </View>
       </View>
@@ -88,7 +92,12 @@ const StatusCard = ({
 
       {status.showProgress && (
         <View style={styles.progressContainer}>
-          <View style={[styles.progressBar, { backgroundColor: colors.divider }]}>
+          <View
+            style={[
+              styles.progressBar,
+              { backgroundColor: colors.divider },
+            ]}
+          >
             <View
               style={[
                 styles.progressFill,
@@ -107,13 +116,15 @@ const StatusCard = ({
 
 // Action Buttons Component
 const ActionButtons = ({
-  isProUser,
+  customerInfo,
   colors,
 }: {
-  isProUser: boolean;
+  customerInfo: CustomerInfo | null;
   colors: ReturnType<typeof useTheme>['colors'];
 }) => {
-  const { presentPaywall, restorePurchases, isLoading } = useSubscriptionStore();
+  const hasPaidPro = customerInfo?.entitlements.active['pro'] !== undefined;
+  const { presentPaywall, restorePurchases, isLoading } =
+    useSubscriptionStore();
 
   const handleUpgrade = async () => {
     await presentPaywall();
@@ -121,7 +132,7 @@ const ActionButtons = ({
 
   const handleManageSubscription = async () => {
     try {
-      await presentCustomerCenter();
+      await RevenueCatUI.presentCustomerCenter();
     } catch (error) {
       console.error('Failed to present customer center:', error);
       Alert.alert('Error', 'Could not open subscription management');
@@ -131,26 +142,33 @@ const ActionButtons = ({
   const handleRestore = async () => {
     try {
       const customerInfo = await restorePurchases();
-      const hasProAccess = customerInfo.entitlements.active['pro'] !== undefined;
+      const hasProAccess =
+        customerInfo.entitlements.active['pro'] !== undefined;
 
       if (hasProAccess) {
         Alert.alert('Success', 'Your purchases have been restored!');
       } else {
         Alert.alert(
           'No Purchases Found',
-          'We could not find any purchases to restore.'
+          'We could not find any purchases to restore.',
         );
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to restore purchases. Please try again.');
+      Alert.alert(
+        'Error',
+        'Failed to restore purchases. Please try again.',
+      );
     }
   };
 
   return (
     <View style={styles.actionsContainer}>
-      {!isProUser ? (
+      {!hasPaidPro ? (
         <Pressable
-          style={[styles.primaryButton, { backgroundColor: colors.primary }]}
+          style={[
+            styles.primaryButton,
+            { backgroundColor: colors.primary },
+          ]}
           onPress={handleUpgrade}
           disabled={isLoading}
         >
@@ -163,7 +181,9 @@ const ActionButtons = ({
           onPress={handleManageSubscription}
           disabled={isLoading}
         >
-          <Text style={[styles.secondaryButtonText, { color: colors.text }]}>
+          <Text
+            style={[styles.secondaryButtonText, { color: colors.text }]}
+          >
             Manage Subscription
           </Text>
         </Pressable>
@@ -185,20 +205,24 @@ const ActionButtons = ({
 // Pro Features List
 const PRO_FEATURES = [
   {
-    title: 'Custom Themes',
-    description: 'Personalize your app with custom colors',
+    title: 'Bedtime Mode',
+    description: "Auto-timer sets itself so you don't have to",
   },
   {
-    title: 'Bedtime Mode',
-    description: 'Auto-shutoff timer for falling asleep',
+    title: 'Extended Fade Timer',
+    description: 'Fade-out durations beyond 1 minute',
+  },
+  {
+    title: 'Auto-Chapter Generation',
+    description: 'Detect no chapters and auto-generate them',
   },
   {
     title: 'Footprint Navigation',
     description: 'Jump to any timestamp by tapping footprints',
   },
   {
-    title: 'Auto-Chapter Generation',
-    description: 'Automatically detect and create chapters',
+    title: 'Custom Themes',
+    description: 'Personalize your app with custom colors',
   },
 ];
 
@@ -217,9 +241,17 @@ const FeatureList = ({
       {PRO_FEATURES.map((feature, index) => (
         <View
           key={index}
-          style={[styles.featureItem, { backgroundColor: colors.background }]}
+          style={[
+            styles.featureItem,
+            { backgroundColor: colors.background },
+          ]}
         >
-          <View style={[styles.checkCircle, { backgroundColor: colors.primary }]}>
+          <View
+            style={[
+              styles.checkCircle,
+              { backgroundColor: colors.primary },
+            ]}
+          >
             <Check size={16} color='#FFFFFF' />
           </View>
           <View style={styles.featureText}>
@@ -227,7 +259,10 @@ const FeatureList = ({
               {feature.title}
             </Text>
             <Text
-              style={[styles.featureDescription, { color: colors.textMuted }]}
+              style={[
+                styles.featureDescription,
+                { color: colors.textMuted },
+              ]}
             >
               {feature.description}
             </Text>
@@ -240,13 +275,16 @@ const FeatureList = ({
 
 const SubscriptionScreen = () => {
   const { colors } = useTheme();
-  const { customerInfo, isProUser, isLoading, isInLocalTrial, trialDaysRemaining } =
+  const { customerInfo, isLoading, isInLocalTrial, trialDaysRemaining } =
     useSubscriptionStore();
 
   if (isLoading) {
     return (
       <View
-        style={[styles.container, { backgroundColor: colors.modalBackground }]}
+        style={[
+          styles.container,
+          { backgroundColor: colors.modalBackground },
+        ]}
       >
         <SettingsHeader title='Subscription' />
         <View style={styles.loadingContainer}>
@@ -258,7 +296,10 @@ const SubscriptionScreen = () => {
 
   return (
     <View
-      style={[styles.container, { backgroundColor: colors.modalBackground }]}
+      style={[
+        styles.container,
+        { backgroundColor: colors.modalBackground },
+      ]}
     >
       <SettingsHeader title='Subscription' />
 
@@ -273,7 +314,7 @@ const SubscriptionScreen = () => {
           trialDaysRemaining={trialDaysRemaining}
           colors={colors}
         />
-        <ActionButtons isProUser={isProUser} colors={colors} />
+        <ActionButtons customerInfo={customerInfo} colors={colors} />
         <FeatureList colors={colors} />
       </ScrollView>
     </View>
