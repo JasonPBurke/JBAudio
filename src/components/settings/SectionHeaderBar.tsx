@@ -84,6 +84,5 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: 'Rubik-SemiBold',
     fontSize: 17,
-    // fontWeight: '600',
   },
 });

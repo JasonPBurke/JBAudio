@@ -27,14 +27,6 @@ import SettingsCard from '@/components/settings/SettingsCard';
 import { screenPadding } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 
-// Enable LayoutAnimation on Android
-// if (
-//   Platform.OS === 'android' &&
-//   UIManager.setLayoutAnimationEnabledExperimental
-// ) {
-//   UIManager.setLayoutAnimationEnabledExperimental(true);
-// }
-
 interface FAQItem {
   question: string;
   answer: string;
@@ -263,7 +255,9 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     flex: 1,
   },
-  scrollView: {},
+  scrollView: {
+    paddingTop: 20,
+  },
   scrollContent: {
     paddingHorizontal: screenPadding.horizontal,
     paddingBottom: 40,

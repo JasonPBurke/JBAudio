@@ -92,7 +92,11 @@ const TimerSettingsScreen = () => {
           const timerSettings = await getTimerSettings();
 
           // Auto-clamp: non-Pro user with fadeout > 1 min (e.g. trial expired) → clamp to 1 min
-          if (!isProUser && fadeoutValueMinutes !== null && fadeoutValueMinutes > 1) {
+          if (
+            !isProUser &&
+            fadeoutValueMinutes !== null &&
+            fadeoutValueMinutes > 1
+          ) {
             await updateTimerFadeoutDuration(60000);
             fadeoutValueMinutes = 1;
           }
@@ -130,14 +134,17 @@ const TimerSettingsScreen = () => {
         try {
           const activeTrack = await TrackPlayer.getActiveTrack();
           if (isActive) {
-            setHasActiveTrack(activeTrack !== null && activeTrack !== undefined);
+            setHasActiveTrack(
+              activeTrack !== null && activeTrack !== undefined,
+            );
           }
           const queue = await TrackPlayer.getQueue();
           const isSingleFile = queue.length === 1;
 
           if (isSingleFile) {
             if (activeTrack?.bookId) {
-              const book = useLibraryStore.getState().books[activeTrack.bookId];
+              const book =
+                useLibraryStore.getState().books[activeTrack.bookId];
               if (book?.chapters && book.chapters.length > 1) {
                 const { position } = await TrackPlayer.getProgress();
                 const currentChapterIndex = findChapterIndexByPosition(
@@ -145,7 +152,9 @@ const TimerSettingsScreen = () => {
                   position,
                 );
                 if (isActive) {
-                  setMaxChapters(book.chapters.length - 1 - currentChapterIndex);
+                  setMaxChapters(
+                    book.chapters.length - 1 - currentChapterIndex,
+                  );
                 }
               } else if (isActive) {
                 setMaxChapters(0);
@@ -154,7 +163,8 @@ const TimerSettingsScreen = () => {
               setMaxChapters(0);
             }
           } else if (queue.length > 1) {
-            const currentTrackIndex = await TrackPlayer.getActiveTrackIndex();
+            const currentTrackIndex =
+              await TrackPlayer.getActiveTrackIndex();
             if (isActive) {
               if (currentTrackIndex !== undefined) {
                 setMaxChapters(queue.length - 1 - currentTrackIndex);
@@ -532,7 +542,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollView: {
-    // flex: 1,
+    paddingTop: 20,
   },
   scrollContent: {
     paddingHorizontal: screenPadding.horizontal,

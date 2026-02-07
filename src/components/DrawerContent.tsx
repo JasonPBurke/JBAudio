@@ -82,10 +82,7 @@ const DrawerContent = (props: Props) => {
   return (
     <DrawerContentScrollView
       {...props}
-      style={[
-        styles.drawerContainer,
-        { backgroundColor: themeColors.modalBackground },
-      ]}
+      style={{ backgroundColor: themeColors.modalBackground }}
     >
       <View style={styles.drawerHeader}>
         <X
@@ -103,7 +100,6 @@ const DrawerContent = (props: Props) => {
           ) : (
             <Moon size={30} color={themeColors.text} strokeWidth={1} />
           )}
-          {/* Badge indicator: shows only when in system mode */}
           {mode === 'system' && (
             <View
               style={[
@@ -148,22 +144,6 @@ const DrawerContent = (props: Props) => {
           { borderBottomColor: themeColors.divider },
         ]}
       />
-      {/* <DrawerItem
-        label={'FAQ'}
-        onPress={handleFaqPress}
-        icon={() => (
-          <FileQuestionMark
-            size={24}
-            color={themeColors.text}
-            strokeWidth={1}
-          />
-        )}
-        labelStyle={[styles.labelStyle, { color: themeColors.text }]}
-        style={[
-          styles.drawerItem,
-          { borderBottomColor: themeColors.divider, opacity: 0.4 },
-        ]}
-      /> */}
       <DrawerItem
         label={'Book Stats'}
         onPress={handleBookStatsPress}
@@ -253,9 +233,6 @@ const DrawerContent = (props: Props) => {
 };
 
 const styles = StyleSheet.create({
-  drawerContainer: {
-    // backgroundColor moved to inline for theme support
-  },
   drawerHeader: {
     padding: 10,
     marginBottom: 30,
@@ -276,7 +253,7 @@ const styles = StyleSheet.create({
     borderColor: colors.modalBackground,
   },
   drawerItem: {
-    paddingStart: 4,
+    // paddingStart: 4,
     gap: 20,
     marginHorizontal: 10,
     marginBottom: 10,

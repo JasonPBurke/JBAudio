@@ -52,38 +52,6 @@ const GeneralSettingsScreen = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Pressable onPress={navigateToSubscription}>
-          {/* <SettingsCard title='Subscription' icon={Crown}>
-            <View style={styles.subscriptionContent}>
-              <View style={styles.subscriptionInfo}>
-                <Text
-                  style={[styles.subscriptionTitle, { color: themeColors.text }]}
-                >
-                  {isProUser ? 'Sonicbooks Pro' : 'Free Plan'}
-                </Text>
-                <Text
-                  style={[
-                    styles.subscriptionSubtitle,
-                    { color: themeColors.textMuted },
-                  ]}
-                >
-                  {isProUser ? 'All features unlocked' : 'Tap to upgrade'}
-                </Text>
-              </View>
-              <View
-                style={[
-                  styles.statusBadge,
-                  { backgroundColor: isProUser ? '#10B981' : '#6B7280' },
-                ]}
-              >
-                <Text style={styles.statusBadgeText}>
-                  {isProUser ? 'PRO' : 'FREE'}
-                </Text>
-              </View>
-            </View>
-          </SettingsCard> */}
-        </Pressable>
-
         <SettingsCard title='Display Settings' icon={Settings}>
           <View style={styles.sectionContent}>
             <Text
@@ -165,7 +133,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollView: {
-    // flex: 1,
+    paddingTop: 20,
   },
   scrollContent: {
     paddingHorizontal: screenPadding.horizontal,
