@@ -2,7 +2,7 @@ import { useSetupTrackPlayer } from '@/hooks/useSetupTrackPlayer';
 import { Stack, SplashScreen } from 'expo-router';
 import { SystemBars } from 'react-native-edge-to-edge';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import TrackPlayer from 'react-native-track-player';
 import { useLogTrackPlayerState } from '@/hooks/useLogTrackPlayerState';
 import { PlayerStateSync } from '@/components/PlayerStateSync';
@@ -19,10 +19,13 @@ import { PermissionProvider } from '@/contexts/PermissionContext';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useThemeStore } from '@/store/themeStore';
 import { useLibraryStore } from '@/store/library';
+import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { usePlayerScreenRestoration } from '@/hooks/usePlayerScreenRestoration';
 import { useTheme } from '@/hooks/useTheme';
 import * as Sentry from '@sentry/react-native';
 import { useFonts } from 'expo-font';
+import Purchases, { LOG_LEVEL } from 'react-native-purchases';
+import { AppState, AppStateStatus, Platform } from 'react-native';
 
 Sentry.init({
   dsn: 'https://f560ec15a66fbab84326dc1d343ea729@o4510664873541632.ingest.us.sentry.io/4510664874590208',
@@ -42,6 +45,13 @@ Sentry.init({
   // uncomment the line below to enable Spotlight (https://spotlightjs.com)
   // spotlight: __DEV__,
 });
+
+// Configure RevenueCat
+Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.WARN);
+const revenueCatApiKey = process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY;
+if (revenueCatApiKey) {
+  Purchases.configure({ apiKey: revenueCatApiKey });
+}
 
 TrackPlayer.registerPlaybackService(() => playbackService);
 //! THIS IS TO TEMP SUPPRESS REANIMATED WARNINGS OF WRITING TO 'VALUE' DURING COMPONENT RERENDER
@@ -87,6 +97,34 @@ const App = () => {
   useEffect(() => {
     initializeTheme();
   }, [initializeTheme]);
+
+  // Initialize subscription store
+  const initSubscription = useSubscriptionStore((state) => state.initialize);
+
+  useEffect(() => {
+    initSubscription();
+  }, [initSubscription]);
+
+  // Refresh trial/subscription status when app returns from background
+  const appState = useRef(AppState.currentState);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener(
+      'change',
+      (nextAppState: AppStateStatus) => {
+        // Only refresh when coming back to active state from background
+        if (
+          appState.current.match(/inactive|background/) &&
+          nextAppState === 'active'
+        ) {
+          initSubscription();
+        }
+        appState.current = nextAppState;
+      }
+    );
+
+    return () => subscription.remove();
+  }, [initSubscription]);
 
   useSetupTrackPlayer({
     onLoad: handleTrackPlayerLoaded,

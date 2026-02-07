@@ -16,7 +16,8 @@
       "softwareKeyboardLayoutMode": "pan",
       "permissions": [
         "android.permission.READ_MEDIA_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "com.android.vending.BILLING"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/icons/turntable-dark-mode.png",

@@ -22,6 +22,7 @@ import {
   formatRelativeTime,
   TRIGGER_LABELS,
 } from '@/db/footprintQueries';
+import { useRequiresPro } from '@/hooks/useRequiresPro';
 
 type FootprintItem = {
   id: string;
@@ -35,6 +36,7 @@ const FootprintListScreen = () => {
   const router = useRouter();
   const { bottom } = useSafeAreaInsets();
   const { colors: themeColors } = useTheme();
+  const { isProUser, presentPaywall } = useRequiresPro();
 
   const activeTrack = useActiveTrack();
   const book = useBookById(activeTrack?.bookId ?? '');
@@ -73,6 +75,11 @@ const FootprintListScreen = () => {
 
   const handleFootprintSelect = useCallback(
     async (footprint: FootprintItem) => {
+      if (!isProUser) {
+        await presentPaywall();
+        return;
+      }
+
       if (!book?.chapters) return;
 
       const targetChapter = book.chapters[footprint.chapterIndex];
@@ -96,7 +103,7 @@ const FootprintListScreen = () => {
       await TrackPlayer.play();
       router.back();
     },
-    [book, router],
+    [book, router, isProUser, presentPaywall],
   );
 
   const renderItem = useCallback(
