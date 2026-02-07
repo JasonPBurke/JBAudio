@@ -23,6 +23,7 @@ export type BookGridProps = Partial<FlashListProps<string>> & {
   books?: Book[];
   standAlone?: boolean;
   flowDirection: 'row' | 'column';
+  preserveOrder?: boolean;
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   ListHeaderComponent?: React.ReactElement;
 };
@@ -32,6 +33,7 @@ const BooksGrid = ({
   books,
   standAlone,
   flowDirection,
+  preserveOrder,
   onScroll,
   ListHeaderComponent,
 }: BookGridProps) => {
@@ -52,8 +54,10 @@ const BooksGrid = ({
   // Books are sorted by title within each author's collection.
   const bookIds = useMemo(() => {
     if (books) {
-      return [...books]
-        .sort((a, b) => a.bookTitle.localeCompare(b.bookTitle))
+      const sorted = preserveOrder
+        ? books
+        : [...books].sort((a, b) => a.bookTitle.localeCompare(b.bookTitle));
+      return sorted
         .map((book) => book.bookId)
         .filter((bookId) => !!bookId);
     }
@@ -67,7 +71,7 @@ const BooksGrid = ({
         .filter((bookId): bookId is string => !!bookId); // Filter out null/undefined and assert type
     }
     return [];
-  }, [authors, books]);
+  }, [authors, books, preserveOrder]);
 
   const renderBookItem = useCallback(
     ({ item: bookId }: { item: string }) => (

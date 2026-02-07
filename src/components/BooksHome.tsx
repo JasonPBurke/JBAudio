@@ -198,9 +198,9 @@ const RecentlyAddedSection = memo(
         onSectionPress={onSectionPress}
       />
       {activeGridSection === 'recentlyAdded' ? (
-        <BooksGrid books={books} flowDirection='column' />
+        <BooksGrid books={books} flowDirection='column' preserveOrder />
       ) : (
-        <BooksHorizontal books={books} flowDirection='row' />
+        <BooksHorizontal books={books} flowDirection='row' preserveOrder />
       )}
     </View>
   ),

@@ -9,20 +9,24 @@ export type BookHorizontalProps = Partial<FlashListProps<string>> & {
   authors?: Author[];
   books?: Book[];
   flowDirection: 'row' | 'column';
+  preserveOrder?: boolean;
 };
 
 const BooksHorizontal = ({
   authors,
   books,
   flowDirection,
+  preserveOrder,
 }: BookHorizontalProps) => {
   // This is the core change. We now create a stable list of book IDs.
   // useMemo ensures this list is only recalculated when the `authors` array changes.
   // Books are sorted by title within each author's collection.
   const bookIds = useMemo(() => {
     if (books) {
-      return [...books]
-        .sort((a, b) => a.bookTitle.localeCompare(b.bookTitle))
+      const sorted = preserveOrder
+        ? books
+        : [...books].sort((a, b) => a.bookTitle.localeCompare(b.bookTitle));
+      return sorted
         .map((book) => book.bookId)
         .filter((bookId) => !!bookId);
     }
@@ -36,7 +40,7 @@ const BooksHorizontal = ({
         .filter((bookId): bookId is string => !!bookId); // Filter out null/undefined and assert type
     }
     return [];
-  }, [authors, books]);
+  }, [authors, books, preserveOrder]);
 
   const renderBookItem = useCallback(
     ({ item: bookId }: { item: string }) => (
