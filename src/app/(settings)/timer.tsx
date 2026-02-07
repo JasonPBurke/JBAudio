@@ -34,6 +34,9 @@ import {
   setBedtimeModeEnabled,
   updateTimerActive,
   updateSleepTime,
+  updateTimerDuration,
+  updateCustomTimer,
+  updateChapterTimer,
 } from '@/db/settingsQueries';
 import RNDateTimePicker from '@react-native-community/datetimepicker';
 import TrackPlayer, { State } from 'react-native-track-player';
@@ -44,6 +47,9 @@ import {
 } from '@/helpers/bedtimeUtils';
 import { useRequiresPro } from '@/hooks/useRequiresPro';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
+import SleepTimerDurationCard from '@/components/settings/SleepTimerDurationCard';
+import { useLibraryStore } from '@/store/library';
+import { findChapterIndexByPosition } from '@/helpers/singleFileBook';
 
 const TimerSettingsScreen = () => {
   const { colors: themeColors } = useTheme();
@@ -58,6 +64,11 @@ const TimerSettingsScreen = () => {
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [bedtimeModeEnabled, setBedtimeModeEnabledLocal] = useState(false);
   const [hasTimerConfigured, setHasTimerConfigured] = useState(false);
+  const [timerDuration, setTimerDuration] = useState<number | null>(null);
+  const [timerChapters, setTimerChapters] = useState<number | null>(null);
+  const [customTimer, setCustomTimer] = useState({ hours: 0, minutes: 0 });
+  const [maxChapters, setMaxChapters] = useState(20);
+  const [hasActiveTrack, setHasActiveTrack] = useState(false);
   const enabledValue = useSharedValue(0);
 
   const fadeOutDurationInfo =
@@ -101,9 +112,65 @@ const TimerSettingsScreen = () => {
               timerSettings.timerDuration !== null ||
               timerSettings.timerChapters !== null;
             setHasTimerConfigured(hasTimer);
+            setTimerDuration(timerSettings.timerDuration);
+            setTimerChapters(timerSettings.timerChapters);
+            if (timerSettings.customTimer !== null) {
+              const hours = Math.floor(timerSettings.customTimer / 60);
+              const minutes = timerSettings.customTimer % 60;
+              setCustomTimer({ hours, minutes });
+            } else {
+              setCustomTimer({ hours: 0, minutes: 0 });
+            }
           }
         } catch (error) {
           console.error('Failed to fetch fadeout/timer settings:', error);
+        }
+
+        // Compute maxChapters from TrackPlayer state
+        try {
+          const activeTrack = await TrackPlayer.getActiveTrack();
+          if (isActive) {
+            setHasActiveTrack(activeTrack !== null && activeTrack !== undefined);
+          }
+          const queue = await TrackPlayer.getQueue();
+          const isSingleFile = queue.length === 1;
+
+          if (isSingleFile) {
+            if (activeTrack?.bookId) {
+              const book = useLibraryStore.getState().books[activeTrack.bookId];
+              if (book?.chapters && book.chapters.length > 1) {
+                const { position } = await TrackPlayer.getProgress();
+                const currentChapterIndex = findChapterIndexByPosition(
+                  book.chapters,
+                  position,
+                );
+                if (isActive) {
+                  setMaxChapters(book.chapters.length - 1 - currentChapterIndex);
+                }
+              } else if (isActive) {
+                setMaxChapters(0);
+              }
+            } else if (isActive) {
+              setMaxChapters(0);
+            }
+          } else if (queue.length > 1) {
+            const currentTrackIndex = await TrackPlayer.getActiveTrackIndex();
+            if (isActive) {
+              if (currentTrackIndex !== undefined) {
+                setMaxChapters(queue.length - 1 - currentTrackIndex);
+              } else {
+                setMaxChapters(0);
+              }
+            }
+          } else if (isActive) {
+            setMaxChapters(20);
+          }
+        } catch {
+          // No track playing — use fallback
+          if (isActive) {
+            setMaxChapters(20);
+            setHasActiveTrack(false);
+          }
         }
 
         try {
@@ -133,6 +200,61 @@ const TimerSettingsScreen = () => {
       };
     }, []),
   );
+
+  const handlePresetSelect = async (durationMinutes: number) => {
+    const totalMs = durationMinutes * 60000;
+    if (timerDuration === totalMs) {
+      // Deselect
+      await updateTimerDuration(null);
+      setTimerDuration(null);
+      setHasTimerConfigured(false);
+    } else {
+      // Select preset, clear chapters
+      await updateTimerDuration(totalMs);
+      await updateChapterTimer(null);
+      setTimerDuration(totalMs);
+      setTimerChapters(null);
+      setHasTimerConfigured(true);
+    }
+  };
+
+  const handleChapterChange = async (chapters: number | null) => {
+    if (chapters === null) {
+      // Deactivate chapter timer
+      await updateChapterTimer(null);
+      setTimerChapters(null);
+      setHasTimerConfigured(timerDuration !== null);
+    } else {
+      // Activate/update chapter timer, clear duration
+      await updateChapterTimer(chapters);
+      await updateTimerDuration(null);
+      setTimerChapters(chapters);
+      setTimerDuration(null);
+      setHasTimerConfigured(true);
+    }
+  };
+
+  const handleCustomTimerConfirm = async (value: {
+    hours: number;
+    minutes: number;
+  }) => {
+    const totalMs = value.hours * 3600000 + value.minutes * 60000;
+    if (totalMs === 0) {
+      await updateTimerDuration(null);
+      await updateCustomTimer(null, null);
+      setTimerDuration(null);
+      setCustomTimer({ hours: 0, minutes: 0 });
+      setHasTimerConfigured(timerChapters !== null);
+    } else {
+      await updateTimerDuration(totalMs);
+      await updateCustomTimer(value.hours, value.minutes);
+      await updateChapterTimer(null);
+      setTimerDuration(totalMs);
+      setCustomTimer(value);
+      setTimerChapters(null);
+      setHasTimerConfigured(true);
+    }
+  };
 
   const toggleSwitch = async () => {
     // Check for Pro when trying to enable bedtime mode
@@ -252,11 +374,16 @@ const TimerSettingsScreen = () => {
             </Picker>
           </View>
         </SettingsCard>
-        {/* <SettingsCard title='Set Timer' icon={Clock}>
-          <CompactSettingsRow
-            label='Set Timer'
-          />
-        </SettingsCard> */}
+        <SleepTimerDurationCard
+          timerDuration={timerDuration}
+          timerChapters={timerChapters}
+          customTimer={customTimer}
+          onPresetSelect={handlePresetSelect}
+          onChapterChange={handleChapterChange}
+          onCustomTimerConfirm={handleCustomTimerConfirm}
+          maxChapters={maxChapters}
+          hasActiveTrack={hasActiveTrack}
+        />
 
         <SettingsCard title='Bedtime Mode' icon={Moon}>
           <CompactSettingsRow

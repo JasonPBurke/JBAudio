@@ -201,6 +201,7 @@ export async function getTimerSettings() {
       bedtimeModeEnabled: settings.bedtimeModeEnabled === true,
       bedtimeStart: settings.bedtimeStart,
       bedtimeEnd: settings.bedtimeEnd,
+      customTimer: settings.customTimer,
     };
   }
   return {
@@ -212,6 +213,7 @@ export async function getTimerSettings() {
     bedtimeModeEnabled: false,
     bedtimeStart: null,
     bedtimeEnd: null,
+    customTimer: null,
   };
 }
 
