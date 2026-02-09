@@ -1,4 +1,5 @@
 import TrackPlayer, { Event, State } from 'react-native-track-player';
+import { AppState } from 'react-native';
 import { useLibraryStore } from '@/store/library';
 import { usePlayerStateStore } from '@/store/playerState';
 import {
@@ -33,6 +34,9 @@ let fadeState = {
   lastSetVolumeAt: 0,
 };
 
+// Flag to prevent Paused handler from freezing timer during timer-initiated pause
+let isTimerInitiatedPause = false;
+
 // Single-file book chapter tracking state (module-scope)
 let singleFileChapterState = {
   lastChapterIndex: -1,
@@ -64,6 +68,54 @@ const skip_forward_duration = 30;
 // Periodic progress save interval (defense in depth for force-close scenarios)
 const PROGRESS_SAVE_INTERVAL = 30000; // 30 seconds
 let lastProgressSaveTime = 0;
+
+// Backup timer state (setTimeout fallback for when progress events are throttled by Doze)
+let backupTimerId = null;
+const BACKUP_TIMER_BUFFER_MS = 2000; // Fire 2s after sleepTime so primary path gets first chance
+
+// Idempotent sleep timer fire — re-reads DB to confirm timer is still active before acting.
+// Used by both the primary (progress event) and backup (setTimeout) paths.
+async function fireSleepTimer() {
+  const settings = await getTimerSettings();
+  if (!settings.timerActive || settings.sleepTime === null) return;
+  if (settings.sleepTime > Date.now()) return; // Not yet expired
+
+  isTimerInitiatedPause = true;
+  try {
+    // Drop volume instantly (backup path skips gradual fade since events were throttled)
+    await TrackPlayer.setVolume(0);
+    await TrackPlayer.pause();
+    await TrackPlayer.setVolume(1);
+
+    fadeState.isFading = false;
+    fadeState.lastAppliedVolume = 1;
+    fadeState.baselineVolume = 1;
+
+    await updateTimerActive(false);
+    await updateSleepTime(null);
+    setRemainingSleepTimeMs(null);
+    cachedTimer.lastRefreshedAt = 0;
+  } finally {
+    isTimerInitiatedPause = false;
+  }
+  cancelBackupTimer();
+}
+
+function scheduleBackupTimer(sleepTimeMs) {
+  cancelBackupTimer();
+  const delay = Math.max(0, sleepTimeMs - Date.now()) + BACKUP_TIMER_BUFFER_MS;
+  backupTimerId = setTimeout(() => {
+    backupTimerId = null;
+    fireSleepTimer();
+  }, delay);
+}
+
+function cancelBackupTimer() {
+  if (backupTimerId !== null) {
+    clearTimeout(backupTimerId);
+    backupTimerId = null;
+  }
+}
 
 export default module.exports = async function () {
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {
@@ -275,26 +327,13 @@ export default module.exports = async function () {
         timerActive === true &&
         sleepTime <= Date.now()
       ) {
-        // End of timer reached: ensure pause and cleanup
-        const usedFade =
-          typeof fadeoutDuration === 'number' && fadeoutDuration > 0;
-
-        // If fading was enabled, ensure we end at silence at exactly sleep time
-        if (usedFade) {
-          await TrackPlayer.setVolume(0);
-        }
-
-        await TrackPlayer.pause();
-        await TrackPlayer.setVolume(1);
-
-        // Cleanup state (reflect restored volume = 1)
-        fadeState.isFading = false;
-        fadeState.lastAppliedVolume = 1;
-        fadeState.baselineVolume = 1;
-
-        await updateTimerActive(false);
-        await updateSleepTime(null);
+        await fireSleepTimer();
         return; // nothing more to do on this tick
+      }
+
+      // Schedule backup timer for when progress events may be throttled by Doze
+      if (sleepTime !== null && timerActive === true && sleepTime > Date.now()) {
+        scheduleBackupTimer(sleepTime);
       }
 
       //* fadeout timer logic
@@ -450,7 +489,8 @@ export default module.exports = async function () {
     }
 
     // On pause: freeze the timer by saving remaining time
-    if (event.state === State.Paused) {
+    // Skip if this pause was initiated by the sleep timer itself (cleanup handles state)
+    if (event.state === State.Paused && !isTimerInitiatedPause) {
       const { sleepTime, timerActive } = await getTimerSettings();
       if (timerActive && sleepTime !== null) {
         const remaining = Math.max(0, sleepTime - Date.now());
@@ -459,6 +499,7 @@ export default module.exports = async function () {
     }
 
     if (event.state === State.Stopped) {
+      cancelBackupTimer();
       await updateChapterTimer(null);
       await updateTimerActive(false);
       setRemainingSleepTimeMs(null);
@@ -466,13 +507,37 @@ export default module.exports = async function () {
 
     // On play: resume timer from saved remaining time (if any)
     if (event.state === State.Playing) {
+      // Clean up expired timers BEFORE anything else.
+      // If the timer expired while in background (progress events throttled),
+      // the user just pressed play — honor that intent, don't auto-pause.
+      const expiredCheck = await getTimerSettings();
+      if (
+        expiredCheck.timerActive &&
+        expiredCheck.sleepTime !== null &&
+        expiredCheck.sleepTime <= Date.now()
+      ) {
+        cancelBackupTimer();
+        await updateTimerActive(false);
+        await updateSleepTime(null);
+        await TrackPlayer.setVolume(1);
+        fadeState.isFading = false;
+        fadeState.lastAppliedVolume = 1;
+        fadeState.baselineVolume = 1;
+        setRemainingSleepTimeMs(null);
+        // Invalidate cached timer so progress handler reads fresh state
+        cachedTimer.lastRefreshedAt = 0;
+        return;
+      }
+
       const playerState = usePlayerStateStore.getState();
       const remainingMs = playerState.remainingSleepTimeMs;
 
       if (remainingMs !== null && remainingMs > 0) {
         // Resume timer: recalculate sleepTime from remaining duration
-        await updateSleepTime(Date.now() + remainingMs);
+        const newSleepTime = Date.now() + remainingMs;
+        await updateSleepTime(newSleepTime);
         setRemainingSleepTimeMs(null);
+        scheduleBackupTimer(newSleepTime);
       }
 
       const timerSettings = await getTimerSettings();
@@ -502,8 +567,10 @@ export default module.exports = async function () {
 
         // Activate the timer based on what's configured
         if (timerSettings.timerDuration !== null) {
+          const bedtimeSleepTime = Date.now() + timerSettings.timerDuration;
           await updateTimerActive(true);
-          await updateSleepTime(Date.now() + timerSettings.timerDuration);
+          await updateSleepTime(bedtimeSleepTime);
+          scheduleBackupTimer(bedtimeSleepTime);
         } else if (timerSettings.timerChapters !== null) {
           await updateTimerActive(true);
           // Chapter timer doesn't need sleepTime
@@ -545,4 +612,12 @@ export default module.exports = async function () {
       }
     },
   );
+
+  // Invalidate cached timer when app returns to foreground after background.
+  // After extended background (Doze), cached values may be arbitrarily stale.
+  AppState.addEventListener('change', (nextAppState) => {
+    if (nextAppState === 'active') {
+      cachedTimer.lastRefreshedAt = 0;
+    }
+  });
 };

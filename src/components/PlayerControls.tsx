@@ -15,6 +15,7 @@ import {
   Pressable,
 } from 'react-native';
 import TrackPlayer, {
+  State,
   useIsPlaying,
   useActiveTrack,
 } from 'react-native-track-player';
@@ -131,7 +132,11 @@ export function PlayPauseButton({
 
       playButtonScale.value = withTiming(0, { duration: 200 });
       pauseButtonScale.value = withTiming(1, { duration: 200 });
-      await TrackPlayer.seekBy(-1);
+      // QoL: seekBy(-1) rewinds 1s on resume so you re-hear the last bit.
+      // Disabled: causes play-then-pause after extended background because the seek
+      // triggers state transitions that race with play(). Re-enable once TrackPlayer
+      // alpha stabilizes. See: Fix 4 in sleep timer / play-pause bug plan.
+      // await TrackPlayer.seekBy(-1);
       await TrackPlayer.play();
     }
   };
@@ -205,6 +210,7 @@ export function SeekBackButton({
   const seekDuration = 30;
   const rotation = useSharedValue(0);
   const iconColor = color ?? colors.icon;
+  const { playing } = useIsPlaying();
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -218,6 +224,8 @@ export function SeekBackButton({
       withTiming(-2, { duration: 100 }),
       withTiming(0, { duration: 100 }),
     );
+
+    const wasPlaying = playing;
 
     const currentTrackIndex = await TrackPlayer.getActiveTrackIndex();
     const currentPosition = await TrackPlayer.getProgress().then(
@@ -241,6 +249,14 @@ export function SeekBackButton({
       }
     } else {
       await TrackPlayer.seekTo(newPosition);
+    }
+
+    // Guard: restore play state if seek caused an unexpected pause
+    if (wasPlaying) {
+      const { state } = await TrackPlayer.getPlaybackState();
+      if (state !== State.Playing && state !== State.Buffering) {
+        await TrackPlayer.play();
+      }
     }
   };
 
@@ -279,6 +295,7 @@ export function SeekForwardButton({
 }: PlayerButtonProps) {
   const seekDuration = 30;
   const rotation = useSharedValue(0);
+  const { playing } = useIsPlaying();
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -292,6 +309,8 @@ export function SeekForwardButton({
       withTiming(2, { duration: 100 }),
       withTiming(0, { duration: 100 }),
     );
+
+    const wasPlaying = playing;
 
     const currentTrackIndex = await TrackPlayer.getActiveTrackIndex();
     const queue = await TrackPlayer.getQueue();
@@ -330,6 +349,15 @@ export function SeekForwardButton({
       }
     } else {
       await TrackPlayer.seekTo(position + seekDuration);
+    }
+
+    // Guard: restore play state if seek caused an unexpected pause
+    // Skip if we just intentionally paused (book finished)
+    if (wasPlaying && !(newPosition > duration)) {
+      const { state } = await TrackPlayer.getPlaybackState();
+      if (state !== State.Playing && state !== State.Buffering) {
+        await TrackPlayer.play();
+      }
     }
   };
 
