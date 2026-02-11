@@ -136,7 +136,7 @@ export function PlayPauseButton({
       // Disabled: causes play-then-pause after extended background because the seek
       // triggers state transitions that race with play(). Re-enable once TrackPlayer
       // alpha stabilizes. See: Fix 4 in sleep timer / play-pause bug plan.
-      // await TrackPlayer.seekBy(-1);
+      await TrackPlayer.seekBy(-1);
       await TrackPlayer.play();
     }
   };
