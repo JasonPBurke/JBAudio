@@ -11,6 +11,7 @@ import { Play } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
 import { handleBookPlay } from '@/helpers/handleBookPlay';
+import { BookDurationRow } from '@/components/BookDurationRow';
 import { useBookById, useBookDisplayData } from '@/store/library';
 import { unknownBookImageUri } from '@/constants/images';
 import {
@@ -94,8 +95,8 @@ export const BookGridItem = memo(function BookGridItem({
 
     return {
       container: isRow
-        ? { height: 205, width: aspectRatio * 160 }
-        : { width: itemWidth, height: (1 / aspectRatio) * itemWidth + 75 },
+        ? { height: 220, width: aspectRatio * 160 }
+        : { width: itemWidth, height: (1 / aspectRatio) * itemWidth + 90 },
       imageContainer: isRow
         ? { height: 140, width: aspectRatio * 140 }
         : {
@@ -234,6 +235,25 @@ export const BookGridItem = memo(function BookGridItem({
               {author}
             </Text>
           )}
+          <BookDurationRow
+            book={fullBook}
+            fontSize={
+              flowDirection === 'row'
+                ? 9
+                : numColumns === 1
+                  ? 13
+                  : numColumns === 2
+                    ? 11
+                    : 9
+            }
+            barHeight={
+              flowDirection === 'row' ? 3 : numColumns === 1 ? 4 : 3
+            }
+            style={{
+              marginTop: 3,
+              maxWidth: numColumns === 1 ? '40%' : undefined,
+            }}
+          />
         </View>
       </View>
     </PressableScale>
@@ -255,7 +275,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   bookInfoContainer: {
-    height: 50,
+    height: 68,
     justifyContent: 'flex-start',
     alignItems: 'flex-start',
     paddingHorizontal: 4,

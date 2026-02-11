@@ -40,6 +40,7 @@ import { ensureReadable, withOpacity } from '@/helpers/colorUtils';
 import { useTheme } from '@/hooks/useTheme';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import TruncatedParagraph from '@/components/TruncatedParagraph';
+import { BookDurationRow } from '@/components/BookDurationRow';
 import {
   handleBookPlay,
   BookProgressState,
@@ -640,6 +641,15 @@ const TitleDetails = () => {
                 </View>
               </TouchableOpacity>
             </ShadowedView>
+            {book.bookProgressValue !== BookProgressState.NotStarted && (
+              <BookDurationRow
+                book={book}
+                fontSize={14}
+                barHeight={5}
+                textColor={themeColors.lightTextMuted}
+                style={{ width: '100%', paddingHorizontal: 6 }}
+              />
+            )}
             <View style={styles.inlineInfoContainer}>
               <TruncatedParagraph
                 content={book.metadata.description}

@@ -16,6 +16,7 @@ import LoaderKitView from 'react-native-loader-kit';
 import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
 import { handleBookPlay } from '@/helpers/handleBookPlay';
+import { BookDurationRow } from '@/components/BookDurationRow';
 import { useBookById, useBookDisplayData } from '@/store/library';
 import TrackPlayer, { State } from 'react-native-track-player';
 import { recordFootprint } from '@/db/footprintQueries';
@@ -118,6 +119,12 @@ export const BookListItem = memo(function BookListItem({
                 {author}
               </Text>
             )}
+            <BookDurationRow
+              book={fullBook}
+              fontSize={11}
+              barHeight={3}
+              style={{ marginTop: 4, maxWidth: '50%' }}
+            />
           </View>
           <View style={{ gap: 8 }}>
             <Pressable style={{ padding: 8 }} hitSlop={10}>
