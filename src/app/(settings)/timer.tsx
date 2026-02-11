@@ -546,7 +546,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: screenPadding.horizontal,
-    paddingBottom: 20,
+    paddingBottom: 300,
     flexGrow: 1,
   },
   fadeoutSection: {

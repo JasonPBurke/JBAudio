@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: screenPadding.horizontal,
-    paddingBottom: 20,
+    paddingBottom: 100,
     gap: 20,
   },
   statusCard: {

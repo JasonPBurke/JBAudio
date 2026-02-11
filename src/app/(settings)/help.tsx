@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: screenPadding.horizontal,
-    paddingBottom: 40,
+    paddingBottom: 100,
     flexGrow: 1,
   },
   sectionDescription: {
