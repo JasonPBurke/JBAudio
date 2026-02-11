@@ -7,6 +7,21 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      toVersion: 24,
+      steps: [
+        addColumns({
+          table: 'settings',
+          columns: [
+            {
+              name: 'mesh_gradient_enabled',
+              type: 'boolean',
+              isOptional: true,
+            },
+          ],
+        }),
+      ],
+    },
+    {
       toVersion: 23,
       steps: [
         addColumns({

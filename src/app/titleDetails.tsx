@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Text,
   View,
@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import {
   Play,
@@ -48,6 +47,8 @@ import {
 import { removeAutoChapters } from '@/helpers/autoChapterGenerator';
 import { recordFootprint } from '@/db/footprintQueries';
 import { getBookById } from '@/db/bookQueries';
+import { useSettingsStore } from '@/store/settingsStore';
+import BookScreenBackground from '@/components/BookScreenBackground';
 
 const TitleDetails = () => {
   const { top, bottom } = useSafeAreaInsets();
@@ -65,6 +66,10 @@ const TitleDetails = () => {
   const [showProgressOptions, setShowProgressOptions] = useState(false);
 
   const { colors: themeColors } = useTheme();
+
+  const meshGradientEnabled = useSettingsStore(
+    useCallback((state) => state.meshGradientEnabled, []),
+  );
 
   const { playing } = useIsPlaying();
   const activeTrack = useActiveTrack();
@@ -215,13 +220,10 @@ const TitleDetails = () => {
   }
 
   return (
-    <LinearGradient
-      start={{ x: 0, y: 0 }}
-      end={{ x: 0.5, y: 1 }}
-      // locations={[0.15, 0.2, 0.65, 0.8]}
-      locations={[0.15, 0.35, 0.45, 0.6]}
-      style={{ flex: 1 }}
-      colors={gradientColors}
+    <BookScreenBackground
+      useMeshGradient={meshGradientEnabled}
+      gradientColors={gradientColors}
+      artworkColors={book.artworkColors}
     >
       <View style={styles.bookContainer}>
         <View style={styles.dismissContainer}>
@@ -685,7 +687,7 @@ const TitleDetails = () => {
           </Pressable>
         </ScrollView>
       </View>
-    </LinearGradient>
+    </BookScreenBackground>
   );
 };
 

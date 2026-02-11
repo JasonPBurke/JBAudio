@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 23,
+  version: 24,
   tables: [
     tableSchema({
       name: 'authors',
@@ -190,6 +190,11 @@ export default appSchema({
         {
           name: 'auto_chapter_interval',
           type: 'number',
+          isOptional: true,
+        },
+        {
+          name: 'mesh_gradient_enabled',
+          type: 'boolean',
           isOptional: true,
         },
       ],

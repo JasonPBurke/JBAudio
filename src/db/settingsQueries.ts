@@ -402,6 +402,24 @@ export async function setAutoChapterInterval(
   });
 }
 
+export async function getMeshGradientEnabled(): Promise<boolean> {
+  const settingsCollection = database.collections.get<Settings>('settings');
+  const settingsRecord = await settingsCollection.query().fetch();
+
+  if (settingsRecord.length > 0) {
+    return settingsRecord[0].meshGradientEnabled === true;
+  }
+  return false;
+}
+
+export async function setMeshGradientEnabled(
+  enabled: boolean,
+): Promise<void> {
+  return updateSetting((record) => {
+    record.meshGradientEnabled = enabled;
+  });
+}
+
 export async function getBooksWithoutChapterData(): Promise<Book[]> {
   const booksCollection = database.collections.get<Book>('books');
   const allBooks = await booksCollection.query().fetch();

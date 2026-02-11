@@ -6,7 +6,6 @@ import {
   AppState,
 } from 'react-native';
 import { useActiveTrack } from 'react-native-track-player';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -17,6 +16,8 @@ import { usePlayerStateStore } from '@/store/playerState';
 import { selectGradientColors } from '@/helpers/gradientColorSorter';
 import { withOpacity } from '@/helpers/colorUtils';
 import { useTheme } from '@/hooks/useTheme';
+import { useSettingsStore } from '@/store/settingsStore';
+import BookScreenBackground from '@/components/BookScreenBackground';
 
 // Memoized components - extracted to prevent re-renders
 import { PlayerArtwork } from '@/components/player/PlayerArtwork';
@@ -35,9 +36,6 @@ const controlsStyle = { marginTop: 50 };
 const chapterSectionStyle = { marginTop: 50 };
 const loadingContainerStyle = { justifyContent: 'center' as const };
 const gradientStyle = { flex: 1 };
-const gradientStart = { x: 0, y: 0 };
-const gradientEnd = { x: 0.5, y: 1 };
-const gradientLocations = [0.15, 0.35, 0.45, 0.6] as const;
 
 // Note: defaultGradientColors is now defined inside the component to use theme colors
 
@@ -80,6 +78,10 @@ const PlayerScreen = () => {
       (state) => state.setWasPlayerScreenDismissedToBackground,
       [],
     ),
+  );
+
+  const meshGradientEnabled = useSettingsStore(
+    useCallback((state) => state.meshGradientEnabled, []),
   );
 
   // App state subscription for dismissing player when app goes to background
@@ -138,12 +140,11 @@ const PlayerScreen = () => {
   }
 
   return (
-    <LinearGradient
-      start={gradientStart}
-      end={gradientEnd}
-      locations={gradientLocations}
+    <BookScreenBackground
+      useMeshGradient={meshGradientEnabled}
+      gradientColors={gradientColors}
+      artworkColors={book?.artworkColors ?? null}
       style={gradientStyle}
-      colors={gradientColors}
     >
       <View style={styles.overlayContainer}>
         <DismissIndicator />
@@ -174,7 +175,7 @@ const PlayerScreen = () => {
           <PlayerControls style={controlsStyle} />
         </View>
       </View>
-    </LinearGradient>
+    </BookScreenBackground>
   );
 };
 

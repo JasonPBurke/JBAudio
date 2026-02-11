@@ -24,6 +24,7 @@ export default class Settings extends Model {
   @field('bedtime_end') bedtimeEnd!: number | null;
   @field('bedtime_mode_enabled') bedtimeModeEnabled!: boolean | null;
   @field('auto_chapter_interval') autoChapterInterval!: number | null;
+  @field('mesh_gradient_enabled') meshGradientEnabled!: boolean | null;
 
   // Getter to automatically parse the libraryPaths JSON string
   get parsedLibraryPaths(): string[] {
