@@ -46,7 +46,6 @@ import {
   minutesSinceMidnightToDate,
 } from '@/helpers/bedtimeUtils';
 import { useRequiresPro } from '@/hooks/useRequiresPro';
-import { useSubscriptionStore } from '@/store/subscriptionStore';
 import SleepTimerDurationCard from '@/components/settings/SleepTimerDurationCard';
 import { useLibraryStore } from '@/store/library';
 import { findChapterIndexByPosition } from '@/helpers/singleFileBook';
@@ -74,8 +73,10 @@ const TimerSettingsScreen = () => {
   const fadeOutDurationInfo =
     'When the sleep timer is activated, the audio will begin to fade out when the sleep time remaining is the same as the fade-out duration you have set.  If the fade-out duration exceeds the timer duration, fade-out will begin when the timer begins.';
 
-  // Hard cap at 30 minutes for fade duration picker options
-  const numbers = Array.from({ length: 30 }, (_, index) => index + 1);
+  // Non-pro users are limited to 1 minute; pro users get up to 30 minutes
+  const numbers = isProUser
+    ? Array.from({ length: 30 }, (_, index) => index + 1)
+    : [1];
 
   useFocusEffect(
     useCallback(() => {
@@ -357,13 +358,6 @@ const TimerSettingsScreen = () => {
               dropdownIconColor={themeColors.primary}
               selectedValue={fadeoutDuration}
               onValueChange={async (itemValue, itemIndex) => {
-                // Gate: non-Pro users cannot select durations above 1 minute
-                if (itemIndex > 1 && !isProUser) {
-                  await presentPaywall();
-                  const nowPro = useSubscriptionStore.getState().isProUser;
-                  if (!nowPro) return;
-                }
-
                 setFadeoutDuration(itemValue);
                 if (itemIndex > 0) {
                   updateTimerFadeoutDuration(itemIndex * 60000);
