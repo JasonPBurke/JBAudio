@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Text,
   View,
@@ -47,8 +47,7 @@ import {
 import { removeAutoChapters } from '@/helpers/autoChapterGenerator';
 import { recordFootprint } from '@/db/footprintQueries';
 import { getBookById } from '@/db/bookQueries';
-import { useSettingsStore } from '@/store/settingsStore';
-import BookScreenBackground from '@/components/BookScreenBackground';
+import MeshGradientBackground from '@/components/MeshGradientBackground';
 
 const TitleDetails = () => {
   const { top, bottom } = useSafeAreaInsets();
@@ -66,10 +65,6 @@ const TitleDetails = () => {
   const [showProgressOptions, setShowProgressOptions] = useState(false);
 
   const { colors: themeColors } = useTheme();
-
-  const meshGradientEnabled = useSettingsStore(
-    useCallback((state) => state.meshGradientEnabled, []),
-  );
 
   const { playing } = useIsPlaying();
   const activeTrack = useActiveTrack();
@@ -220,11 +215,11 @@ const TitleDetails = () => {
   }
 
   return (
-    <BookScreenBackground
-      useMeshGradient={meshGradientEnabled}
-      gradientColors={gradientColors}
-      artworkColors={book.artworkColors}
-    >
+    <View style={styles.screenContainer}>
+      <MeshGradientBackground
+        gradientColors={gradientColors}
+        artworkColors={book.artworkColors}
+      />
       <View style={styles.bookContainer}>
         <View style={styles.dismissContainer}>
           <Pressable
@@ -687,7 +682,7 @@ const TitleDetails = () => {
           </Pressable>
         </ScrollView>
       </View>
-    </BookScreenBackground>
+    </View>
   );
 };
 
@@ -696,6 +691,9 @@ export default TitleDetails;
 const FIXED_ARTWORK_HEIGHT = 350;
 
 const styles = StyleSheet.create({
+  screenContainer: {
+    flex: 1,
+  },
   bookContainer: {
     flex: 1,
     flexDirection: 'column',

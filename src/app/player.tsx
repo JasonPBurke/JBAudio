@@ -16,8 +16,7 @@ import { usePlayerStateStore } from '@/store/playerState';
 import { selectGradientColors } from '@/helpers/gradientColorSorter';
 import { withOpacity } from '@/helpers/colorUtils';
 import { useTheme } from '@/hooks/useTheme';
-import { useSettingsStore } from '@/store/settingsStore';
-import BookScreenBackground from '@/components/BookScreenBackground';
+import MeshGradientBackground from '@/components/MeshGradientBackground';
 import { jbaLog } from '@/helpers/debugLog';
 
 // Memoized components - extracted to prevent re-renders
@@ -36,7 +35,7 @@ const timeRemainingContainerStyle = { alignItems: 'center' as const };
 const controlsStyle = { marginTop: 50 };
 const chapterSectionStyle = { marginTop: 50 };
 const loadingContainerStyle = { justifyContent: 'center' as const };
-const gradientStyle = { flex: 1 };
+
 
 // Note: defaultGradientColors is now defined inside the component to use theme colors
 
@@ -79,10 +78,6 @@ const PlayerScreen = () => {
       (state) => state.setWasPlayerScreenDismissedToBackground,
       [],
     ),
-  );
-
-  const meshGradientEnabled = useSettingsStore(
-    useCallback((state) => state.meshGradientEnabled, []),
   );
 
   // App state subscription for dismissing player when app goes to background
@@ -146,12 +141,11 @@ const PlayerScreen = () => {
   }
 
   return (
-    <BookScreenBackground
-      useMeshGradient={meshGradientEnabled}
-      gradientColors={gradientColors}
-      artworkColors={book?.artworkColors ?? null}
-      style={gradientStyle}
-    >
+    <View style={styles.container}>
+      <MeshGradientBackground
+        gradientColors={gradientColors}
+        artworkColors={book?.artworkColors ?? null}
+      />
       <View style={styles.overlayContainer}>
         <DismissIndicator />
 
@@ -181,13 +175,16 @@ const PlayerScreen = () => {
           <PlayerControls style={controlsStyle} />
         </View>
       </View>
-    </BookScreenBackground>
+    </View>
   );
 };
 
 export default PlayerScreen;
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   overlayContainer: {
     ...defaultStyles.container,
     paddingHorizontal: screenPadding.horizontal,

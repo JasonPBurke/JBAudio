@@ -5,45 +5,23 @@ import {
   View,
   ScrollView,
 } from 'react-native';
-import { useEffect, useState } from 'react';
-import { router } from 'expo-router';
-import { useSharedValue } from 'react-native-reanimated';
-import { Settings, Palette, Crown } from 'lucide-react-native';
+import { useState } from 'react';
+import { Settings, Palette } from 'lucide-react-native';
 import { ColorPickerModal } from '@/components/ColorPicker';
 import SettingsHeader from '@/components/SettingsHeader';
 import SettingsCard from '@/components/settings/SettingsCard';
-import CompactSettingsRow from '@/components/settings/CompactSettingsRow';
-import ToggleSwitch from '@/components/animations/ToggleSwitch';
 import { screenPadding } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import SegmentedControl from '@/components/SegmentedControl';
 import { useSettingsStore } from '@/store/settingsStore';
-import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { useRequiresPro } from '@/hooks/useRequiresPro';
 import { ProBadge } from '@/components/ProBadge';
 
 const GeneralSettingsScreen = () => {
   const { colors: themeColors } = useTheme();
-  const {
-    numColumns,
-    setNumColumns,
-    meshGradientEnabled,
-    setMeshGradientEnabled,
-  } = useSettingsStore();
-  const { isProUser } = useSubscriptionStore();
+  const { numColumns, setNumColumns } = useSettingsStore();
   const { isProUser: hasProAccess, presentPaywall } = useRequiresPro();
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
-  const meshGradientValue = useSharedValue(meshGradientEnabled ? 1 : 0);
-
-  useEffect(() => {
-    meshGradientValue.value = meshGradientEnabled ? 1 : 0;
-  }, [meshGradientEnabled]);
-
-  const toggleMeshGradient = () => {
-    const newValue = !meshGradientEnabled;
-    meshGradientValue.value = newValue ? 1 : 0;
-    setMeshGradientEnabled(newValue);
-  };
 
   const showColorPicker = async () => {
     if (!hasProAccess) {
@@ -51,10 +29,6 @@ const GeneralSettingsScreen = () => {
       return;
     }
     setColorPickerVisible(true);
-  };
-
-  const navigateToSubscription = () => {
-    router.push('/(settings)/subscription');
   };
 
   return (
@@ -133,39 +107,6 @@ const GeneralSettingsScreen = () => {
               </View>
             </Pressable>
           </View>
-          <View style={styles.sectionContent}>
-            <Text
-              style={[
-                styles.settingLabel,
-                { color: themeColors.textMuted },
-              ]}
-            >
-              Background Style
-            </Text>
-            <Text
-              style={[
-                styles.settingDescription,
-                { color: themeColors.textMuted },
-              ]}
-            >
-              Use a mesh gradient on the player and book details screens
-            </Text>
-          </View>
-          <CompactSettingsRow
-            label='Mesh Gradient'
-            showDivider={false}
-            control={
-              <ToggleSwitch
-                value={meshGradientValue}
-                onPress={toggleMeshGradient}
-                style={{ width: 72, height: 36, padding: 5 }}
-                trackColors={{
-                  on: themeColors.primary,
-                  off: themeColors.modalBackground,
-                }}
-              />
-            }
-          />
         </SettingsCard>
       </ScrollView>
 
