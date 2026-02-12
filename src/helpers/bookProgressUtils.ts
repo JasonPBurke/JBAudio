@@ -63,8 +63,10 @@ export function computeBookProgress(
   let totalPlayed: number;
 
   if (book.isSingleFile) {
-    // Single-file books: chapterProgress is the absolute position
-    totalPlayed = chapterProgress;
+    // Single-file books: chapterProgress is relative to the current chapter's start.
+    // Add the chapter's startMs offset to get the absolute position in the file.
+    const chapterStartSec = (chapters[idx]?.startMs ?? 0) / 1000;
+    totalPlayed = chapterStartSec + chapterProgress;
   } else {
     // Multi-file books: sum previous chapters + current chapter progress
     totalPlayed = chapterProgress;
