@@ -23,6 +23,7 @@ import {
   TRIGGER_LABELS,
 } from '@/db/footprintQueries';
 import { useRequiresPro } from '@/hooks/useRequiresPro';
+import { jbaLog } from '@/helpers/debugLog';
 
 type FootprintItem = {
   id: string;
@@ -100,6 +101,12 @@ const FootprintListScreen = () => {
         await TrackPlayer.seekTo(footprint.positionMs / 1000);
       }
 
+      // F1
+      jbaLog('FP', 'footprintSelect play()', {
+        chapterIndex: footprint.chapterIndex,
+        positionMs: footprint.positionMs,
+        isSingleFileBook,
+      });
       await TrackPlayer.play();
       router.back();
     },

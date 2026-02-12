@@ -16,6 +16,7 @@ import { useCurrentChapterStable } from '@/hooks/useCurrentChapterStable';
 import { useTheme } from '@/hooks/useTheme';
 import { useLibraryStore } from '@/store/library';
 import { recordSeekFootprint } from '@/db/footprintQueries';
+import { jbaLog } from '@/helpers/debugLog';
 
 // Pre-defined styles to avoid inline object creation
 const bubbleContainerStyle = {
@@ -211,6 +212,12 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
         chapterDuration.value > 0 ? chapterDuration.value : duration.value;
 
       const seekPosition = chapStart + value * chapDur;
+      // B1
+      jbaLog('PB', 'handleSeek before seekTo', {
+        seekPosition,
+        chapStart,
+        chapDur,
+      });
       await TrackPlayer.seekTo(seekPosition);
 
       // Update time display immediately after seek

@@ -16,6 +16,7 @@ import { getBookById } from '@/db/bookQueries';
 import { isWithinBedtimeWindow } from '@/helpers/bedtimeUtils';
 import { BookProgressState } from '@/helpers/handleBookPlay';
 import { recordFootprint } from '@/db/footprintQueries';
+import { jbaLog, formatFadeState } from '@/helpers/debugLog';
 import {
   findChapterIndexByPosition,
   calculateProgressWithinChapter,
@@ -76,12 +77,29 @@ const BACKUP_TIMER_BUFFER_MS = 2000; // Fire 2s after sleepTime so primary path 
 // Idempotent sleep timer fire — re-reads DB to confirm timer is still active before acting.
 // Used by both the primary (progress event) and backup (setTimeout) paths.
 async function fireSleepTimer() {
+  // S1: entry
+  jbaLog('SVC', 'fireSleepTimer entry', {
+    ...formatFadeState(fadeState),
+    isTimerInitiatedPause,
+    hasBackupTimer: backupTimerId !== null,
+  });
   const settings = await getTimerSettings();
+  // S2: after DB read
+  jbaLog('SVC', 'fireSleepTimer DB read', {
+    timerActive: settings.timerActive,
+    sleepTime: settings.sleepTime,
+    willShortCircuit:
+      !settings.timerActive ||
+      settings.sleepTime === null ||
+      settings.sleepTime > Date.now(),
+  });
   if (!settings.timerActive || settings.sleepTime === null) return;
   if (settings.sleepTime > Date.now()) return; // Not yet expired
 
   isTimerInitiatedPause = true;
   try {
+    // S3: before pause
+    jbaLog('SVC', 'fireSleepTimer PAUSING', { reason: 'sleep-timer-expired' });
     // Drop volume instantly (backup path skips gradual fade since events were throttled)
     await TrackPlayer.setVolume(0);
     await TrackPlayer.pause();
@@ -98,20 +116,33 @@ async function fireSleepTimer() {
   } finally {
     isTimerInitiatedPause = false;
   }
+  // S4: cleanup done
+  jbaLog('SVC', 'fireSleepTimer cleanup done', formatFadeState(fadeState));
   cancelBackupTimer();
 }
 
 function scheduleBackupTimer(sleepTimeMs) {
+  const hadPrevious = backupTimerId !== null;
   cancelBackupTimer();
   const delay = Math.max(0, sleepTimeMs - Date.now()) + BACKUP_TIMER_BUFFER_MS;
+  // S5
+  jbaLog('SVC', 'scheduleBackupTimer', {
+    sleepTimeMs,
+    delayMs: delay,
+    hadPreviousTimer: hadPrevious,
+  });
   backupTimerId = setTimeout(() => {
+    // S6
+    jbaLog('SVC', 'backupTimer FIRED');
     backupTimerId = null;
     fireSleepTimer();
   }, delay);
 }
 
 function cancelBackupTimer() {
+  // S7
   if (backupTimerId !== null) {
+    jbaLog('SVC', 'cancelBackupTimer', { hadTimer: true });
     clearTimeout(backupTimerId);
     backupTimerId = null;
   }
@@ -119,6 +150,8 @@ function cancelBackupTimer() {
 
 export default module.exports = async function () {
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {
+    // S8a
+    jbaLog('SVC', 'RemotePlay received');
     // Record footprint for remote play (lock screen, headphones, etc.)
     try {
       const activeTrack = await TrackPlayer.getActiveTrack();
@@ -129,12 +162,20 @@ export default module.exports = async function () {
       // Silently fail if footprint recording fails
     }
     await TrackPlayer.play();
+    // S8b
+    jbaLog('SVC', 'RemotePlay play() resolved');
   });
   // TrackPlayer.addEventListener(Event.RemotePlay, () => TrackPlayer.play());
-  TrackPlayer.addEventListener(Event.RemotePause, () =>
-    TrackPlayer.pause(),
-  );
-  TrackPlayer.addEventListener(Event.RemoteStop, () => TrackPlayer.stop());
+  TrackPlayer.addEventListener(Event.RemotePause, () => {
+    // S9
+    jbaLog('SVC', 'RemotePause received');
+    TrackPlayer.pause();
+  });
+  TrackPlayer.addEventListener(Event.RemoteStop, () => {
+    // S10
+    jbaLog('SVC', 'RemoteStop received');
+    TrackPlayer.stop();
+  });
   TrackPlayer.addEventListener(Event.RemoteSeek, ({ position }) => {
     TrackPlayer.seekTo(position);
   });
@@ -250,6 +291,11 @@ export default module.exports = async function () {
             ) {
               await updateChapterTimer(timerChapters - 1);
             } else if (timerActive && timerChapters === 0) {
+              // S12
+              jbaLog('SVC', 'chapter timer=0 PAUSE (single-file)', {
+                bookId: trackToUpdate.bookId,
+                chapterIndex: currentChapterIndex,
+              });
               await TrackPlayer.pause();
               await TrackPlayer.setVolume(1);
               await updateTimerActive(false);
@@ -272,6 +318,12 @@ export default module.exports = async function () {
         const { duration } = await TrackPlayer.getProgress();
         const END_THRESHOLD = 0.2; // .2 seconds before end to trigger
         if (duration > 0 && position >= duration - END_THRESHOLD) {
+          // S13
+          jbaLog('SVC', 'book-end PAUSE (single-file)', {
+            position,
+            duration,
+            threshold: END_THRESHOLD,
+          });
           // Mark book as finished
           const bookModel = await getBookById(trackToUpdate.bookId);
           if (bookModel) {
@@ -327,6 +379,11 @@ export default module.exports = async function () {
         timerActive === true &&
         sleepTime <= Date.now()
       ) {
+        // S11
+        jbaLog('SVC', 'progress tick: timer EXPIRED', {
+          sleepTime,
+          overdueMs: Date.now() - sleepTime,
+        });
         await fireSleepTimer();
         return; // nothing more to do on this tick
       }
@@ -449,6 +506,25 @@ export default module.exports = async function () {
   });
 
   TrackPlayer.addEventListener(Event.PlaybackState, async (event) => {
+    // S14 — MOST CRITICAL: captures every state transition
+    const stateNames = {
+      [State.None]: 'None',
+      [State.Ready]: 'Ready',
+      [State.Playing]: 'Playing',
+      [State.Paused]: 'Paused',
+      [State.Stopped]: 'Stopped',
+      [State.Buffering]: 'Buffering',
+      [State.Loading]: 'Loading',
+      [State.Error]: 'Error',
+      [State.Ended]: 'Ended',
+      [State.Connecting]: 'Connecting',
+    };
+    jbaLog('SVC', 'PlaybackState event', {
+      state: stateNames[event.state] ?? event.state,
+      isTimerInitiatedPause,
+      ...formatFadeState(fadeState),
+    });
+
     if (
       event.state === State.Paused ||
       event.state === State.Stopped ||
@@ -494,6 +570,12 @@ export default module.exports = async function () {
       const { sleepTime, timerActive } = await getTimerSettings();
       if (timerActive && sleepTime !== null) {
         const remaining = Math.max(0, sleepTime - Date.now());
+        // S15
+        jbaLog('SVC', 'Paused: freezing timer', {
+          timerActive,
+          sleepTime,
+          remainingMs: remaining,
+        });
         setRemainingSleepTimeMs(remaining);
       }
     }
@@ -511,11 +593,17 @@ export default module.exports = async function () {
       // If the timer expired while in background (progress events throttled),
       // the user just pressed play — honor that intent, don't auto-pause.
       const expiredCheck = await getTimerSettings();
-      if (
+      const isExpired =
         expiredCheck.timerActive &&
         expiredCheck.sleepTime !== null &&
-        expiredCheck.sleepTime <= Date.now()
-      ) {
+        expiredCheck.sleepTime <= Date.now();
+      // S16
+      jbaLog('SVC', 'Playing: expired-timer check', {
+        timerActive: expiredCheck.timerActive,
+        sleepTime: expiredCheck.sleepTime,
+        isExpired,
+      });
+      if (isExpired) {
         cancelBackupTimer();
         await updateTimerActive(false);
         await updateSleepTime(null);
@@ -531,8 +619,15 @@ export default module.exports = async function () {
 
       const playerState = usePlayerStateStore.getState();
       const remainingMs = playerState.remainingSleepTimeMs;
+      const willResume = remainingMs !== null && remainingMs > 0;
+      // S17
+      jbaLog('SVC', 'Playing: timer resume check', {
+        remainingMs,
+        willResume,
+        newSleepTime: willResume ? Date.now() + remainingMs : null,
+      });
 
-      if (remainingMs !== null && remainingMs > 0) {
+      if (willResume) {
         // Resume timer: recalculate sleepTime from remaining duration
         const newSleepTime = Date.now() + remainingMs;
         await updateSleepTime(newSleepTime);
@@ -542,19 +637,28 @@ export default module.exports = async function () {
 
       const timerSettings = await getTimerSettings();
 
+      const inBedtimeWindow = isWithinBedtimeWindow(
+        timerSettings.bedtimeStart,
+        timerSettings.bedtimeEnd,
+      );
+      const willActivateBedtime =
+        timerSettings.bedtimeModeEnabled &&
+        !timerSettings.timerActive &&
+        inBedtimeWindow;
+      // S18
+      jbaLog('SVC', 'Playing: bedtime check', {
+        bedtimeModeEnabled: timerSettings.bedtimeModeEnabled,
+        timerAlreadyActive: timerSettings.timerActive,
+        inBedtimeWindow,
+        willActivate: willActivateBedtime,
+      });
+
       // Check all conditions for bedtime mode activation:
       // 1. Bedtime mode is enabled
       // 2. Timer is not already active
       // 3. Current time is within bedtime window
       // 4. A timer duration or chapter count is configured
-      if (
-        timerSettings.bedtimeModeEnabled &&
-        !timerSettings.timerActive &&
-        isWithinBedtimeWindow(
-          timerSettings.bedtimeStart,
-          timerSettings.bedtimeEnd,
-        )
-      ) {
+      if (willActivateBedtime) {
         // Record footprint for bedtime auto-activation
         try {
           const activeTrack = await TrackPlayer.getActiveTrack();
@@ -606,6 +710,10 @@ export default module.exports = async function () {
       if (timerActive && timerChapters !== null && timerChapters > 0) {
         await updateChapterTimer(timerChapters - 1);
       } else if (timerActive && timerChapters === 0) {
+        // S19
+        jbaLog('SVC', 'chapter timer=0 PAUSE (multi-file)', {
+          trackIndex: event.index,
+        });
         await TrackPlayer.pause();
         await TrackPlayer.setVolume(1);
         await updateTimerActive(false);
@@ -616,6 +724,13 @@ export default module.exports = async function () {
   // Invalidate cached timer when app returns to foreground after background.
   // After extended background (Doze), cached values may be arbitrarily stale.
   AppState.addEventListener('change', (nextAppState) => {
+    const cacheAge = Date.now() - cachedTimer.lastRefreshedAt;
+    // S20
+    jbaLog('SVC', 'AppState change', {
+      nextAppState,
+      cacheAgeMs: cacheAge,
+      willInvalidateCache: nextAppState === 'active',
+    });
     if (nextAppState === 'active') {
       cachedTimer.lastRefreshedAt = 0;
     }
