@@ -70,6 +70,12 @@ const skip_forward_duration = 30;
 const PROGRESS_SAVE_INTERVAL = 30000; // 30 seconds
 let lastProgressSaveTime = 0;
 
+// Guard against spurious RemoteStop from Android MediaSession after Doze.
+// After extended background, the OS can fire RemoteStop immediately after playback starts.
+// We ignore RemoteStop if Playing state was reached within this window.
+let lastPlayingStateAt = 0;
+const REMOTE_STOP_GUARD_MS = 500;
+
 // Backup timer state (setTimeout fallback for when progress events are throttled by Doze)
 let backupTimerId = null;
 const BACKUP_TIMER_BUFFER_MS = 2000; // Fire 2s after sleepTime so primary path gets first chance
@@ -172,8 +178,16 @@ export default module.exports = async function () {
     TrackPlayer.pause();
   });
   TrackPlayer.addEventListener(Event.RemoteStop, () => {
+    const msSincePlaying = Date.now() - lastPlayingStateAt;
+    if (msSincePlaying < REMOTE_STOP_GUARD_MS) {
+      jbaLog('SVC', 'RemoteStop IGNORED (spurious post-Doze)', {
+        msSincePlaying,
+        guardMs: REMOTE_STOP_GUARD_MS,
+      });
+      return;
+    }
     // S10
-    jbaLog('SVC', 'RemoteStop received');
+    jbaLog('SVC', 'RemoteStop received', { msSincePlaying });
     TrackPlayer.stop();
   });
   TrackPlayer.addEventListener(Event.RemoteSeek, ({ position }) => {
@@ -589,6 +603,7 @@ export default module.exports = async function () {
 
     // On play: resume timer from saved remaining time (if any)
     if (event.state === State.Playing) {
+      lastPlayingStateAt = Date.now();
       // Clean up expired timers BEFORE anything else.
       // If the timer expired while in background (progress events throttled),
       // the user just pressed play — honor that intent, don't auto-pause.
