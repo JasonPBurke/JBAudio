@@ -22,6 +22,7 @@ import { useLibraryStore } from '@/store/library';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { usePlayerScreenRestoration } from '@/hooks/usePlayerScreenRestoration';
 import { useTheme } from '@/hooks/useTheme';
+import { runTrialExpiredCleanup } from '@/helpers/trialCleanup';
 import * as Sentry from '@sentry/react-native';
 import { useFonts } from 'expo-font';
 import Purchases, { LOG_LEVEL } from 'react-native-purchases';
@@ -104,6 +105,20 @@ const App = () => {
   useEffect(() => {
     initSubscription();
   }, [initSubscription]);
+
+  // Run trial-expired cleanup when subscription finishes loading and user is not pro
+  useEffect(() => {
+    const unsubscribe = useSubscriptionStore.subscribe(
+      (state) => ({ isLoading: state.isLoading, isProUser: state.isProUser }),
+      ({ isLoading, isProUser }) => {
+        if (!isLoading && !isProUser) {
+          runTrialExpiredCleanup();
+        }
+      },
+      { fireImmediately: true },
+    );
+    return unsubscribe;
+  }, []);
 
   // Refresh trial/subscription status when app returns from background
   const appState = useRef(AppState.currentState);

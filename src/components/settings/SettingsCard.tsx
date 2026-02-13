@@ -8,6 +8,7 @@ type SettingsCardProps = {
   title: string;
   icon: LucideIcon;
   children: ReactNode;
+  rightAccessory?: ReactNode;
 };
 
 /**
@@ -18,6 +19,7 @@ const SettingsCard = ({
   title,
   icon: Icon,
   children,
+  rightAccessory,
 }: SettingsCardProps) => {
   const { colors: themeColors } = useTheme();
 
@@ -41,6 +43,7 @@ const SettingsCard = ({
               {title}
             </Text>
           </View>
+          {rightAccessory}
         </View>
         <View style={styles.content}>{children}</View>
       </View>

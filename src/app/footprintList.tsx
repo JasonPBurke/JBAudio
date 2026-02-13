@@ -23,6 +23,7 @@ import {
   TRIGGER_LABELS,
 } from '@/db/footprintQueries';
 import { useRequiresPro } from '@/hooks/useRequiresPro';
+import ProFeaturePopup from '@/modals/ProFeaturePopup';
 
 type FootprintItem = {
   id: string;
@@ -36,7 +37,8 @@ const FootprintListScreen = () => {
   const router = useRouter();
   const { bottom } = useSafeAreaInsets();
   const { colors: themeColors } = useTheme();
-  const { isProUser, presentPaywall } = useRequiresPro();
+  const { isProUser } = useRequiresPro();
+  const [showProPopup, setShowProPopup] = useState(false);
 
   const activeTrack = useActiveTrack();
   const book = useBookById(activeTrack?.bookId ?? '');
@@ -76,7 +78,7 @@ const FootprintListScreen = () => {
   const handleFootprintSelect = useCallback(
     async (footprint: FootprintItem) => {
       if (!isProUser) {
-        await presentPaywall();
+        setShowProPopup(true);
         return;
       }
 
@@ -103,7 +105,7 @@ const FootprintListScreen = () => {
       await TrackPlayer.play();
       router.back();
     },
-    [book, router, isProUser, presentPaywall],
+    [book, router, isProUser],
   );
 
   const renderItem = useCallback(
@@ -241,6 +243,11 @@ const FootprintListScreen = () => {
       >
         <CircleX color={themeColors.icon} size={42} strokeWidth={1} />
       </Pressable>
+
+      <ProFeaturePopup
+        isVisible={showProPopup}
+        onClose={() => setShowProPopup(false)}
+      />
     </View>
   );
 };

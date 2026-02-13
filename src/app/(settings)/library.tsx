@@ -36,10 +36,13 @@ import { applyAutoChaptersToExistingBooks } from '@/helpers/autoChapterGenerator
 import { directoryPicker } from '@/helpers/directoryPicker';
 import { router } from 'expo-router';
 import { useRequiresPro } from '@/hooks/useRequiresPro';
+import { ProBadge } from '@/components/ProBadge';
+import ProFeaturePopup from '@/modals/ProFeaturePopup';
 
 const LibrarySettingsScreen = () => {
   const { colors: themeColors } = useTheme();
-  const { isProUser, presentPaywall } = useRequiresPro();
+  const { isProUser, hasPurchasedPro } = useRequiresPro();
+  const [showProPopup, setShowProPopup] = useState(false);
   const [libraryFolders, setLibraryFolders] = useState<string[]>([]);
   const [autoChapterEnabled, setAutoChapterEnabled] = useState(false);
   const [autoChapterInterval, setAutoChapterIntervalState] =
@@ -111,7 +114,7 @@ const LibrarySettingsScreen = () => {
   const handleAutoChapterToggle = async () => {
     // Check for Pro when trying to enable auto-chapters
     if (!autoChapterEnabled && !isProUser) {
-      await presentPaywall();
+      setShowProPopup(true);
       return;
     }
 
@@ -137,7 +140,7 @@ const LibrarySettingsScreen = () => {
 
   const handleApplyToExisting = async () => {
     if (!isProUser) {
-      await presentPaywall();
+      setShowProPopup(true);
       return;
     }
 
@@ -232,7 +235,11 @@ const LibrarySettingsScreen = () => {
           </View>
         </SettingsCard>
 
-        <SettingsCard title='Auto-Generate Chapters' icon={Layers}>
+        <SettingsCard
+          title='Auto-Generate Chapters'
+          icon={Layers}
+          rightAccessory={!hasPurchasedPro ? <ProBadge /> : undefined}
+        >
           <View style={styles.autoChapterContent}>
             <Text
               style={[
@@ -357,6 +364,11 @@ const LibrarySettingsScreen = () => {
           </CollapsibleSettingsSection>
         )}
       </ScrollView>
+
+      <ProFeaturePopup
+        isVisible={showProPopup}
+        onClose={() => setShowProPopup(false)}
+      />
     </View>
   );
 };

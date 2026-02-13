@@ -20,10 +20,15 @@ export const useRequiresPro = () => {
   const isProUser = useSubscriptionStore((state) => state.isProUser);
   const isLoading = useSubscriptionStore((state) => state.isLoading);
   const presentPaywall = useSubscriptionStore((state) => state.presentPaywall);
+  const hasPurchasedPro = useSubscriptionStore(
+    (state) => state.customerInfo?.entitlements.active['pro'] !== undefined,
+  );
 
   return {
     isProUser,
     isLoading,
     presentPaywall,
+    /** True only for paid subscribers — false during trial and when free */
+    hasPurchasedPro,
   };
 };

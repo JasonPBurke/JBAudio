@@ -16,16 +16,18 @@ import SegmentedControl from '@/components/SegmentedControl';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useRequiresPro } from '@/hooks/useRequiresPro';
 import { ProBadge } from '@/components/ProBadge';
+import ProFeaturePopup from '@/modals/ProFeaturePopup';
 
 const GeneralSettingsScreen = () => {
   const { colors: themeColors } = useTheme();
   const { numColumns, setNumColumns } = useSettingsStore();
-  const { isProUser: hasProAccess, presentPaywall } = useRequiresPro();
+  const { isProUser: hasProAccess, hasPurchasedPro } = useRequiresPro();
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
+  const [showProPopup, setShowProPopup] = useState(false);
 
-  const showColorPicker = async () => {
+  const showColorPicker = () => {
     if (!hasProAccess) {
-      await presentPaywall();
+      setShowProPopup(true);
       return;
     }
     setColorPickerVisible(true);
@@ -74,7 +76,11 @@ const GeneralSettingsScreen = () => {
           </View>
         </SettingsCard>
 
-        <SettingsCard title='Theme Settings' icon={Palette}>
+        <SettingsCard
+          title='Theme Settings'
+          icon={Palette}
+          rightAccessory={!hasPurchasedPro ? <ProBadge /> : undefined}
+        >
           <View style={styles.sectionContent}>
             <Text
               style={[
@@ -103,7 +109,6 @@ const GeneralSettingsScreen = () => {
                     { backgroundColor: themeColors.primary },
                   ]}
                 />
-                {!hasProAccess && <ProBadge size='small' />}
               </View>
             </Pressable>
           </View>
@@ -113,6 +118,11 @@ const GeneralSettingsScreen = () => {
       <ColorPickerModal
         isVisible={colorPickerVisible}
         onClose={() => setColorPickerVisible(false)}
+      />
+
+      <ProFeaturePopup
+        isVisible={showProPopup}
+        onClose={() => setShowProPopup(false)}
       />
     </View>
   );

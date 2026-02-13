@@ -46,13 +46,16 @@ import {
   minutesSinceMidnightToDate,
 } from '@/helpers/bedtimeUtils';
 import { useRequiresPro } from '@/hooks/useRequiresPro';
+import { ProBadge } from '@/components/ProBadge';
+import ProFeaturePopup from '@/modals/ProFeaturePopup';
 import SleepTimerDurationCard from '@/components/settings/SleepTimerDurationCard';
 import { useLibraryStore } from '@/store/library';
 import { findChapterIndexByPosition } from '@/helpers/singleFileBook';
 
 const TimerSettingsScreen = () => {
   const { colors: themeColors } = useTheme();
-  const { isProUser, presentPaywall } = useRequiresPro();
+  const { isProUser, hasPurchasedPro } = useRequiresPro();
+  const [showProPopup, setShowProPopup] = useState(false);
   const [fadeoutDuration, setFadeoutDuration] = useState('10');
   const [modalVisible, setModalVisible] = useState(false);
   const [bedtimeStartValue, setBedtimeStartValue] = useState<Date>(
@@ -270,7 +273,7 @@ const TimerSettingsScreen = () => {
   const toggleSwitch = async () => {
     // Check for Pro when trying to enable bedtime mode
     if (!bedtimeModeEnabled && !isProUser) {
-      await presentPaywall();
+      setShowProPopup(true);
       return;
     }
 
@@ -389,23 +392,17 @@ const TimerSettingsScreen = () => {
           hasActiveTrack={hasActiveTrack}
         />
 
-        <SettingsCard title='Bedtime Mode' icon={Moon}>
+        <SettingsCard
+          title='Bedtime Mode'
+          icon={Moon}
+          rightAccessory={!hasPurchasedPro ? <ProBadge /> : undefined}
+        >
           <CompactSettingsRow
             label='Enable Bedtime Mode'
             control={
               <ToggleSwitch
                 value={enabledValue}
-                onPress={
-                  hasTimerConfigured
-                    ? toggleSwitch
-                    : () => {
-                        Alert.alert(
-                          'No Timer Configured',
-                          'Please configure a sleep timer before enabling Bedtime Mode.',
-                          [{ text: 'OK' }],
-                        );
-                      }
-                }
+                onPress={toggleSwitch}
                 style={{ width: 72, height: 36, padding: 5 }}
                 trackColors={{
                   on: themeColors.primary,
@@ -523,6 +520,11 @@ const TimerSettingsScreen = () => {
         onClose={() => setModalVisible(false)}
         title='Fadeout Duration'
         message={fadeOutDurationInfo}
+      />
+
+      <ProFeaturePopup
+        isVisible={showProPopup}
+        onClose={() => setShowProPopup(false)}
       />
     </View>
   );

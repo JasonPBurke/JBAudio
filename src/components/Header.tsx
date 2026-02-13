@@ -148,7 +148,7 @@ const Header = (props: headerProps) => {
                     <AnimatedText
                       entering={FadeIn}
                       style={[
-                        styles.titleText,
+                        styles.bookTotalText,
                         { color: themeColors.icon },
                       ]}
                     >
@@ -262,6 +262,10 @@ const styles = StyleSheet.create({
   },
   titleText: {
     fontFamily: 'Rubik-Medium',
+    fontSize: 20,
+  },
+  bookTotalText: {
+    fontFamily: 'Rubik',
     fontSize: 20,
   },
   scanningText: {
