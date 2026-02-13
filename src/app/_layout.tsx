@@ -134,7 +134,7 @@ const App = () => {
   usePlayerScreenRestoration();
 
   //* for debugging
-  useLogTrackPlayerState();
+  // useLogTrackPlayerState();
 
   if (!fontsLoaded && !fontError) {
     return null;

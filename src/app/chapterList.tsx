@@ -20,7 +20,6 @@ import { Chapter } from '@/types/Book';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { FlashList } from '@shopify/flash-list';
 import { recordFootprint } from '@/db/footprintQueries';
-import { jbaLog } from '@/helpers/debugLog';
 
 const ChapterListScreen = () => {
   const router = useRouter();
@@ -93,11 +92,6 @@ const ChapterListScreen = () => {
         await TrackPlayer.skip(chapterIndex);
       }
 
-      // CL1
-      jbaLog('CHL', 'chapterSelect play()', {
-        chapterIndex,
-        isSingleFileBook,
-      });
       await TrackPlayer.play();
       await TrackPlayer.setVolume(1);
       await updateBookChapterIndex(book.bookId, chapterIndex);

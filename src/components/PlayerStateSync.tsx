@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { useActiveTrack, useIsPlaying } from 'react-native-track-player';
 import { usePlayerStateStore } from '@/store/playerState';
-import { jbaLog } from '@/helpers/debugLog';
 
 /**
  * This component syncs TrackPlayer state to our Zustand store.
@@ -19,20 +18,10 @@ export const PlayerStateSync = () => {
   const setActiveBookId = usePlayerStateStore((s) => s.setActiveBookId);
 
   useEffect(() => {
-    // Y1
-    jbaLog('SYNC', 'playing state sync', {
-      playing: playing ?? false,
-      prevStoreValue: usePlayerStateStore.getState().isPlaying,
-    });
     setIsPlaying(playing ?? false);
   }, [playing, setIsPlaying]);
 
   useEffect(() => {
-    // Y2
-    jbaLog('SYNC', 'bookId sync', {
-      newBookId: activeTrack?.bookId ?? null,
-      prevBookId: usePlayerStateStore.getState().activeBookId,
-    });
     setActiveBookId(activeTrack?.bookId ?? null);
   }, [activeTrack?.bookId, setActiveBookId]);
 

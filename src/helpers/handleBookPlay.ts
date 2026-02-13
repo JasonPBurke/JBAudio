@@ -9,7 +9,6 @@ import {
   calculateAbsolutePosition,
   hasValidChapterData,
 } from '@/helpers/singleFileBook';
-import { jbaLog } from '@/helpers/debugLog';
 
 export enum BookProgressState {
   NotStarted = 0,
@@ -24,13 +23,6 @@ export const handleBookPlay = async (
   activeBookId: string | null,
   setActiveBookId: (bookId: string) => void,
 ) => {
-  // H1
-  jbaLog('HBP', 'handleBookPlay entry', {
-    bookId: book?.bookId,
-    playing,
-    isActiveBook,
-    isChangingBook: book?.bookId !== activeBookId,
-  });
   if (!book) return;
   if (isActiveBook && playing) return;
 
@@ -106,11 +98,6 @@ export const handleBookPlay = async (
       await TrackPlayer.seekTo(chapterProgress);
     }
 
-    // H2
-    jbaLog('HBP', 'play() on changing-book path', {
-      bookId: book.bookId,
-      singleFile,
-    });
     await TrackPlayer.play();
     await TrackPlayer.setVolume(1);
 
@@ -134,11 +121,6 @@ export const handleBookPlay = async (
       await TrackPlayer.seekTo(chapterProgress);
     }
 
-    // H3
-    jbaLog('HBP', 'play() on same-book path', {
-      bookId: book.bookId,
-      singleFile,
-    });
     await TrackPlayer.play();
     await TrackPlayer.setVolume(1);
   }

@@ -1,19 +1,17 @@
 'use no memo'; // Receives Reanimated scroll handler
-
+import React, { memo, useCallback, useMemo, useRef } from 'react';
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Book, Author } from '@/types/Book';
-import { fontSize, screenPadding } from '@/constants/tokens';
-import { withOpacity } from '@/helpers/colorUtils';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
-import { useTheme } from '@/hooks/useTheme';
-
 import { ChevronRight } from 'lucide-react-native';
-import { memo, useCallback, useMemo, useRef } from 'react';
+
 import BooksGrid from './BooksGrid';
 import BooksHorizontal from './BooksHorizontal';
+import { Book, Author } from '@/types/Book';
+import { useTheme } from '@/hooks/useTheme';
+import { withOpacity } from '@/helpers/colorUtils';
+import { fontSize, screenPadding } from '@/constants/tokens';
 import { utilsStyles } from '@/styles';
-import React from 'react';
-import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 
 type PendingScroll = {
   index: number;

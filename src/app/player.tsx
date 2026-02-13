@@ -17,7 +17,6 @@ import { selectGradientColors } from '@/helpers/gradientColorSorter';
 import { withOpacity } from '@/helpers/colorUtils';
 import { useTheme } from '@/hooks/useTheme';
 import MeshGradientBackground from '@/components/MeshGradientBackground';
-import { jbaLog } from '@/helpers/debugLog';
 
 // Memoized components - extracted to prevent re-renders
 import { PlayerArtwork } from '@/components/player/PlayerArtwork';
@@ -85,11 +84,6 @@ const PlayerScreen = () => {
     const subscription = AppState.addEventListener(
       'change',
       (nextAppState) => {
-        // P1
-        jbaLog('PLR', 'AppState change', {
-          prevState: appState.current,
-          nextState: nextAppState,
-        });
         if (
           appState.current.match(/active|inactive/) &&
           nextAppState === 'background'

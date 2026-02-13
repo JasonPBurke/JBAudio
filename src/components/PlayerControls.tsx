@@ -64,7 +64,6 @@ import {
 } from '@/store/playerState';
 import { useBookById } from '@/store/library';
 import { findChapterIndexByPosition } from '@/helpers/singleFileBook';
-import { jbaLog } from '@/helpers/debugLog';
 
 type PlayerControlsProps = {
   style?: ViewStyle;
@@ -117,14 +116,10 @@ export function PlayPauseButton({
 
   const onButtonPress = async () => {
     if (playing) {
-      // C1
-      jbaLog('CTL', 'PlayPauseButton: user PAUSE', { playing });
       playButtonScale.value = withTiming(1, { duration: 200 });
       pauseButtonScale.value = withTiming(0, { duration: 200 });
       await TrackPlayer.pause();
     } else {
-      // C2a
-      jbaLog('CTL', 'PlayPauseButton: user PLAY start', { playing });
       // Record footprint before playing
       try {
         const activeTrack = await TrackPlayer.getActiveTrack();
@@ -141,14 +136,8 @@ export function PlayPauseButton({
       // Disabled: causes play-then-pause after extended background because the seek
       // triggers state transitions that race with play(). Re-enable once TrackPlayer
       // alpha stabilizes. See: Fix 4 in sleep timer / play-pause bug plan.
-      jbaLog('CTL', 'PlayPauseButton: calling seekBy(-1)');
       await TrackPlayer.seekBy(-1);
-      // C2b
-      jbaLog('CTL', 'PlayPauseButton: seekBy(-1) resolved');
-      jbaLog('CTL', 'PlayPauseButton: calling play()');
       await TrackPlayer.play();
-      // C2c
-      jbaLog('CTL', 'PlayPauseButton: play() resolved');
     }
   };
 
@@ -265,12 +254,6 @@ export function SeekBackButton({
     // Guard: restore play state if seek caused an unexpected pause
     if (wasPlaying) {
       const { state } = await TrackPlayer.getPlaybackState();
-      // C3
-      jbaLog('CTL', 'SeekBack: play-state guard', {
-        wasPlaying,
-        currentState: state,
-        willReplay: state !== State.Playing && state !== State.Buffering,
-      });
       if (state !== State.Playing && state !== State.Buffering) {
         await TrackPlayer.play();
       }
@@ -357,10 +340,6 @@ export function SeekForwardButton({
           await TrackPlayer.skip(0);
           await TrackPlayer.seekTo(0);
         }
-        // C5
-        jbaLog('CTL', 'SeekForward: book-end PAUSE', {
-          isSingleFile,
-        });
         await TrackPlayer.pause();
       } else {
         // Multi-file book: skip to next track and seek to appropriate position
@@ -376,12 +355,6 @@ export function SeekForwardButton({
     // Skip if we just intentionally paused (book finished)
     if (wasPlaying && !(newPosition > duration)) {
       const { state } = await TrackPlayer.getPlaybackState();
-      // C4
-      jbaLog('CTL', 'SeekForward: play-state guard', {
-        wasPlaying,
-        currentState: state,
-        willReplay: state !== State.Playing && state !== State.Buffering,
-      });
       if (state !== State.Playing && state !== State.Buffering) {
         await TrackPlayer.play();
       }
@@ -629,13 +602,6 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
   const handlePress = useCallback(async () => {
     const { timerDuration, timerActive, timerChapters, fadeoutDuration } =
       await getTimerSettings();
-    // C6
-    jbaLog('CTL', 'SleepTimer.handlePress', {
-      timerDuration,
-      timerActive,
-      timerChapters,
-      isPlaying,
-    });
 
     // Helper to record timer activation footprint
     const recordTimerFootprintAsync = async () => {
