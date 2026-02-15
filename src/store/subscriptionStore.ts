@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { subscribeWithSelector } from 'zustand/middleware';
 import Purchases, {
   CustomerInfo,
   PurchasesOfferings,
@@ -52,7 +53,7 @@ const getStatusFromCustomerInfo = (customerInfo: CustomerInfo) => {
 // Track listener reference to prevent duplicates on re-initialization
 let customerInfoListener: ((info: CustomerInfo) => void) | null = null;
 
-export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
+export const useSubscriptionStore = create<SubscriptionState>()(subscribeWithSelector((set, get) => ({
   // Initial state
   customerInfo: null,
   isProUser: false,
@@ -197,4 +198,4 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
     }
     return 'free'; // Trial expired, not subscribed
   },
-}));
+})));

@@ -17,6 +17,7 @@ import { DatabaseProvider } from '@nozbe/watermelondb/DatabaseProvider';
 import database from '@/db';
 import { PermissionProvider } from '@/contexts/PermissionContext';
 import { useSettingsStore } from '@/store/settingsStore';
+import { ensureSettingsRecord } from '@/db/settingsQueries';
 import { useThemeStore } from '@/store/themeStore';
 import { useLibraryStore } from '@/store/library';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
@@ -80,6 +81,11 @@ const App = () => {
   const { activeColorScheme } = useTheme();
 
   useSettingsStore();
+
+  // Ensure the Settings singleton record exists before any settings reads/writes
+  useEffect(() => {
+    ensureSettingsRecord();
+  }, []);
 
   useEffect(() => {
     if (fontError) {

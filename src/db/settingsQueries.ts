@@ -6,6 +6,21 @@ import { Q } from '@nozbe/watermelondb';
 import Book from '@/db/models/Book';
 import * as RNFS from '@dr.pogodin/react-native-fs';
 
+export async function ensureSettingsRecord(): Promise<void> {
+  await database.write(async () => {
+    const settingsCollection =
+      database.collections.get<Settings>('settings');
+    const existing = await settingsCollection.query(Q.take(1)).fetch();
+    if (existing.length === 0) {
+      await settingsCollection.create((record) => {
+        record.bookFolder = '';
+        record.numColumns = 2;
+        record.timerActive = false;
+      });
+    }
+  });
+}
+
 async function updateSetting(
   updater: (record: Settings) => void,
 ): Promise<void> {
@@ -20,7 +35,14 @@ async function updateSetting(
     if (settingsRecord) {
       await settingsRecord.update(updater);
     } else {
-      console.warn('No settings record found to update.');
+      await settingsCollection.create((record) => {
+        // Required non-nullable defaults for the singleton
+        record.bookFolder = '';
+        record.numColumns = 2;
+        record.timerActive = false;
+        // Apply the caller's mutation
+        updater(record);
+      });
     }
   });
 }
@@ -111,24 +133,8 @@ export async function getNumColumns() {
 }
 
 export async function setNumColumns(numColumns: number) {
-  await database.write(async () => {
-    const settingsCollection =
-      database.collections.get<Settings>('settings');
-    const settingsRecords = await settingsCollection.query().fetch();
-
-    if (settingsRecords.length > 0) {
-      await settingsRecords[0].update((record) => {
-        record.numColumns = numColumns;
-      });
-    } else {
-      // If no settings record exists, create one.
-      await settingsCollection.create((setting) => {
-        setting.numColumns = numColumns;
-        // Set defaults for other non-nullable fields
-        setting.bookFolder = ''; // Not used, but non-nullable
-        setting.timerActive = false;
-      });
-    }
+  return updateSetting((record) => {
+    record.numColumns = numColumns;
   });
 }
 
@@ -148,27 +154,8 @@ export function getNumColumnsObservable() {
 }
 
 export async function updateLibraryPaths(paths: string[]) {
-  await database.write(async () => {
-    const settingsCollection =
-      database.collections.get<Settings>('settings');
-    const settingsRecords = await settingsCollection.query().fetch();
-
-    if (settingsRecords.length > 0) {
-      await settingsRecords[0].update((record) => {
-        record.libraryPaths =
-          paths.length > 0 ? JSON.stringify(paths) : null;
-      });
-    } else {
-      // If no settings record exists, create one.
-      await settingsCollection.create((setting) => {
-        setting.libraryPaths =
-          paths.length > 0 ? JSON.stringify(paths) : null;
-        // Set defaults for other non-nullable fields
-        setting.bookFolder = ''; // Not used, but non-nullable
-        setting.numColumns = 2;
-        setting.timerActive = false;
-      });
-    }
+  return updateSetting((record) => {
+    record.libraryPaths = paths.length > 0 ? JSON.stringify(paths) : null;
   });
 }
 
