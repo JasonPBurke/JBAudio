@@ -9,7 +9,7 @@ import Animated, {
   cancelAnimation,
 } from 'react-native-reanimated';
 import { View } from 'react-native';
-import { colors } from '@/constants/tokens';
+// import { colors } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 
 type AnimatedZZZProps = {
@@ -19,7 +19,7 @@ type AnimatedZZZProps = {
 const AnimatedZZZ = ({ timerActiveValue }: AnimatedZZZProps) => {
   const opacity1 = useSharedValue(0);
   const opacity2 = useSharedValue(0);
-  const opacity3 = useSharedValue(0);
+  // const opacity3 = useSharedValue(0);
   const { colors: themeColors } = useTheme();
 
   useEffect(() => {
@@ -43,32 +43,32 @@ const AnimatedZZZ = ({ timerActiveValue }: AnimatedZZZProps) => {
         -1,
         false,
       );
-      opacity3.value = withRepeat(
-        withSequence(
-          withTiming(0, { duration: 3000, easing: Easing.linear }),
-          withTiming(1, { duration: 1500, easing: Easing.linear }),
-          withTiming(0, { duration: 1500, easing: Easing.linear }),
-        ),
-        -1,
-        false,
-      );
+      // opacity3.value = withRepeat(
+      //   withSequence(
+      //     withTiming(0, { duration: 3000, easing: Easing.linear }),
+      //     withTiming(1, { duration: 1500, easing: Easing.linear }),
+      //     withTiming(0, { duration: 1500, easing: Easing.linear }),
+      //   ),
+      //   -1,
+      //   false,
+      // );
     } else {
       // PROPERLY CANCEL animations before resetting
       cancelAnimation(opacity1);
       cancelAnimation(opacity2);
-      cancelAnimation(opacity3);
+      // cancelAnimation(opacity3);
       opacity1.value = 0;
       opacity2.value = 0;
-      opacity3.value = 0;
+      // opacity3.value = 0;
     }
 
     // CRITICAL: Cleanup on unmount
     return () => {
       cancelAnimation(opacity1);
       cancelAnimation(opacity2);
-      cancelAnimation(opacity3);
+      // cancelAnimation(opacity3);
     };
-  }, [timerActiveValue, opacity1, opacity2, opacity3]);
+  }, [timerActiveValue, opacity1, opacity2]); //, opacity3
 
   const animatedStyle1 = useAnimatedStyle(() => {
     return { opacity: opacity1.value };
