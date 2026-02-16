@@ -24,6 +24,7 @@
         "backgroundColor": "#1C1C1C"
       },
       "edgeToEdgeEnabled": true,
+      "allowBackup": false,
       "package": "com.fuzzylogic42.JBAudio"
     },
     "web": {
