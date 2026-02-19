@@ -16,6 +16,7 @@ import { Author, Book } from '@/types/Book';
 import { BookGridItem } from './BookGridItem';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useTheme } from '@/hooks/useTheme';
+import { compareBookTitles } from '@/helpers/miscellaneous';
 import React from 'react';
 
 const styles = StyleSheet.create({
@@ -73,14 +74,14 @@ const BooksGrid = ({
     if (books) {
       const sorted = preserveOrder
         ? books
-        : [...books].sort((a, b) => a.bookTitle.localeCompare(b.bookTitle));
+        : [...books].sort((a, b) => compareBookTitles(a.bookTitle, b.bookTitle));
       return sorted.map((book) => book.bookId).filter((bookId) => !!bookId);
     }
     if (authors) {
       return authors
         .flatMap((author) =>
           [...author.books]
-            .sort((a, b) => a.bookTitle.localeCompare(b.bookTitle))
+            .sort((a, b) => compareBookTitles(a.bookTitle, b.bookTitle))
             .map((book) => book.bookId),
         )
         .filter((bookId): bookId is string => !!bookId); // Filter out null/undefined and assert type

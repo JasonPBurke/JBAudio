@@ -4,6 +4,7 @@ import { FlashList, FlashListProps } from '@shopify/flash-list';
 import { Author, Book } from '@/types/Book';
 import { BookGridItem } from './BookGridItem';
 import { utilsStyles } from '@/styles';
+import { compareBookTitles } from '@/helpers/miscellaneous';
 
 export type BookHorizontalProps = Partial<FlashListProps<string>> & {
   authors?: Author[];
@@ -25,14 +26,14 @@ const BooksHorizontal = ({
     if (books) {
       const sorted = preserveOrder
         ? books
-        : [...books].sort((a, b) => a.bookTitle.localeCompare(b.bookTitle));
+        : [...books].sort((a, b) => compareBookTitles(a.bookTitle, b.bookTitle));
       return sorted.map((book) => book.bookId).filter((bookId) => !!bookId);
     }
     if (authors) {
       return authors
         .flatMap((author) =>
           [...author.books]
-            .sort((a, b) => a.bookTitle.localeCompare(b.bookTitle))
+            .sort((a, b) => compareBookTitles(a.bookTitle, b.bookTitle))
             .map((book) => book.bookId),
         )
         .filter((bookId): bookId is string => !!bookId); // Filter out null/undefined and assert type
