@@ -1,6 +1,11 @@
 'use no memo'; // Receives Reanimated scroll handler
 
-import { Text, View, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
+import {
+  Text,
+  View,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+} from 'react-native';
 import { BookListItem } from './BookListItem';
 import { utilsStyles } from '@/styles';
 import { Author } from '@/types/Book';
@@ -9,6 +14,7 @@ import { FlashList, FlashListProps } from '@shopify/flash-list';
 import { memo, useCallback, useMemo } from 'react';
 import { useTheme } from '@/hooks/useTheme';
 import React from 'react';
+import { compareBookTitles } from '@/helpers/miscellaneous';
 
 export type BookListProps = Partial<FlashListProps<string>> & {
   authors: Author[];
@@ -16,11 +22,19 @@ export type BookListProps = Partial<FlashListProps<string>> & {
   ListHeaderComponent?: React.ReactElement;
 };
 
-const BooksList = ({ authors, onScroll, ListHeaderComponent }: BookListProps) => {
+const BooksList = ({
+  authors,
+  onScroll,
+  ListHeaderComponent,
+}: BookListProps) => {
   const { colors: themeColors } = useTheme();
   const bookIds = useMemo(() => {
     return authors
-      .flatMap((author) => author.books.map((book) => book.bookId))
+      .flatMap((author) =>
+        [...author.books]
+          .sort((a, b) => compareBookTitles(a.bookTitle, b.bookTitle))
+          .map((book) => book.bookId),
+      )
       .filter((bookId): bookId is string => !!bookId); // Filter out null/undefined and assert type
   }, [authors]);
 
@@ -28,7 +42,7 @@ const BooksList = ({ authors, onScroll, ListHeaderComponent }: BookListProps) =>
     ({ item: bookId }: { item: string }) => (
       <BookListItem bookId={bookId} />
     ),
-    []
+    [],
   );
 
   return (
@@ -51,7 +65,9 @@ const BooksList = ({ authors, onScroll, ListHeaderComponent }: BookListProps) =>
                 <ItemDivider themeColors={themeColors} />
               ) : null
             }
-            ItemSeparatorComponent={() => <ItemDivider themeColors={themeColors} />}
+            ItemSeparatorComponent={() => (
+              <ItemDivider themeColors={themeColors} />
+            )}
             ListEmptyComponent={
               <View>
                 <Text
