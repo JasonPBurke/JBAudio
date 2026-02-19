@@ -26,9 +26,7 @@ const BooksHorizontal = ({
       const sorted = preserveOrder
         ? books
         : [...books].sort((a, b) => a.bookTitle.localeCompare(b.bookTitle));
-      return sorted
-        .map((book) => book.bookId)
-        .filter((bookId) => !!bookId);
+      return sorted.map((book) => book.bookId).filter((bookId) => !!bookId);
     }
     if (authors) {
       return authors
@@ -46,7 +44,7 @@ const BooksHorizontal = ({
     ({ item: bookId }: { item: string }) => (
       <BookGridItem bookId={bookId} flowDirection={flowDirection} />
     ),
-    [flowDirection]
+    [flowDirection],
   );
 
   return (

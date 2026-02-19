@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useThemeStore } from '@/store/themeStore';
 import { colorTokens } from '@/constants/tokens';
+import { withOpacity } from '@/helpers/colorUtils';
 
 /**
  * Theme hook that provides colors based on the active color scheme
@@ -29,6 +30,11 @@ export const useTheme = () => {
       ...colorTokens.shared,
       primary: effectivePrimaryColor,
       minimumTrackTintColor: effectivePrimaryColor,
+      // Pre-computed opacity variants used in scroll-hot components
+      primaryAlpha75: withOpacity(effectivePrimaryColor, 0.75),
+      backgroundAlpha59: withOpacity(colorTokens[activeColorScheme].background, 0.59),
+      textMutedAlpha25: withOpacity(colorTokens.shared.textMuted, 0.25),
+      dividerAlpha16: withOpacity(colorTokens[activeColorScheme].divider, 0.16),
     };
   }, [activeColorScheme, customPrimaryColor]);
 

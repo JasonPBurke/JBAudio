@@ -4,7 +4,6 @@ import { PressableScale } from 'pressto';
 import { FadeInImage } from '@/components/FadeInImage';
 import { fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
-import { withOpacity } from '@/helpers/colorUtils';
 import { useTheme } from '@/hooks/useTheme';
 import LoaderKitView from 'react-native-loader-kit';
 import { Play } from 'lucide-react-native';
@@ -20,6 +19,7 @@ import {
 } from '@/store/playerState';
 import TrackPlayer, { State } from 'react-native-track-player';
 import { recordFootprint } from '@/db/footprintQueries';
+import { Book } from '@/types/Book';
 
 export type BookGridItemProps = {
   bookId: string;
@@ -28,8 +28,110 @@ export type BookGridItemProps = {
   itemWidth?: number;
 };
 
-// This is the memoized component. It only re-renders if its props change,
-// or if the data from the `useBookDisplayData` hook changes (checked by `shallow`).
+type BookPlayButtonProps = {
+  bookId: string;
+  fullBook: Book;
+  iconPadding: number;
+  iconBottom: number;
+  iconSize: number;
+  playIconSize: number;
+};
+
+const BookPlayButton = memo(function BookPlayButton({
+  bookId,
+  fullBook,
+  iconPadding,
+  iconBottom,
+  iconSize,
+  playIconSize,
+}: BookPlayButtonProps) {
+  const { colors: themeColors } = useTheme();
+  const activeBookId = useQueueStore((state) => state.activeBookId);
+  const setActiveBookId = useQueueStore((state) => state.setActiveBookId);
+  const isActiveBook = useIsBookActive(bookId);
+  const isActiveAndPlaying = useIsBookActiveAndPlaying(bookId);
+
+  const handlePressPlay = useCallback(async () => {
+    const playbackState = await TrackPlayer.getPlaybackState();
+    const isCurrentlyPlaying = playbackState.state === State.Playing;
+
+    if (!isCurrentlyPlaying) {
+      try {
+        const activeTrack = await TrackPlayer.getActiveTrack();
+        if (activeTrack?.bookId === bookId) {
+          await recordFootprint(bookId, 'play');
+        }
+      } catch {
+        // Silently fail if footprint recording fails
+      }
+    }
+
+    handleBookPlay(
+      fullBook,
+      isCurrentlyPlaying,
+      isActiveBook,
+      activeBookId,
+      setActiveBookId,
+    );
+  }, [fullBook, isActiveBook, activeBookId, setActiveBookId, bookId]);
+
+  const playingIconStyle = useMemo(
+    () => [
+      styles.playingIconBase,
+      {
+        padding: iconPadding,
+        bottom: iconBottom,
+        backgroundColor: themeColors.backgroundAlpha59,
+      },
+    ],
+    [iconPadding, iconBottom, themeColors.backgroundAlpha59],
+  );
+
+  const pausedIconStyle = useMemo(
+    () => [
+      styles.pausedIconBase,
+      {
+        bottom: iconBottom,
+        backgroundColor: themeColors.backgroundAlpha59,
+      },
+    ],
+    [iconBottom, themeColors.backgroundAlpha59],
+  );
+
+  const loaderStyle = useMemo(
+    () => ({ width: iconSize, aspectRatio: 1 }),
+    [iconSize],
+  );
+
+  if (isActiveAndPlaying) {
+    return (
+      <View style={playingIconStyle}>
+        <LoaderKitView
+          style={loaderStyle}
+          name={'LineScaleParty'}
+          color={themeColors.primary}
+        />
+      </View>
+    );
+  }
+
+  return (
+    <PressableScale
+      rippleRadius={0}
+      onPress={handlePressPlay}
+      style={pausedIconStyle}
+      hitSlop={10}
+    >
+      <Play
+        size={playIconSize}
+        color={themeColors.icon}
+        strokeWidth={1}
+        absoluteStrokeWidth
+      />
+    </PressableScale>
+  );
+});
+
 export const BookGridItem = memo(function BookGridItem({
   bookId,
   flowDirection,
@@ -51,10 +153,8 @@ export const BookGridItem = memo(function BookGridItem({
   const safeArtworkWidth = artworkWidth ?? 500;
   const safeArtworkHeight = artworkHeight ?? 500;
 
-  const { setActiveBookId, activeBookId } = useQueueStore();
-  // const isActiveBook = useActiveTrack()?.bookId === bookId;
   const isActiveBook = useIsBookActive(bookId);
-  const isActiveAndPlaying = useIsBookActiveAndPlaying(bookId);
+
   const handlePress = useCallback(() => {
     router.navigate({
       pathname: '/titleDetails',
@@ -62,57 +162,14 @@ export const BookGridItem = memo(function BookGridItem({
     });
   }, [router, bookId, author, bookTitle]);
 
-  const handlePressPlay = useCallback(async () => {
-    if (!fullBook) return;
-    const playbackState = await TrackPlayer.getPlaybackState();
-    const isCurrentlyPlaying = playbackState.state === State.Playing;
+  const isRow = flowDirection === 'row';
 
-    // Record footprint before playing (only if this is the active book)
-    if (!isCurrentlyPlaying) {
-      try {
-        const activeTrack = await TrackPlayer.getActiveTrack();
-        if (activeTrack?.bookId === bookId) {
-          await recordFootprint(bookId, 'play');
-        }
-      } catch {
-        // Silently fail if footprint recording fails
-      }
-    }
-
-    handleBookPlay(
-      fullBook,
-      isCurrentlyPlaying,
-      isActiveBook,
-      activeBookId,
-      setActiveBookId,
-    );
-  }, [fullBook, isActiveBook, activeBookId, setActiveBookId, bookId]);
-
-  // Consolidated memoized styles - single dependency comparison instead of five
-  const itemStyles = useMemo(() => {
-    const isRow = flowDirection === 'row';
-    const aspectRatio = safeArtworkWidth / safeArtworkHeight;
-
-    return {
-      container: isRow
-        ? { height: 220, width: aspectRatio * 160 }
-        : { width: itemWidth, height: (1 / aspectRatio) * itemWidth + 90 },
-      imageContainer: isRow
-        ? { height: 140, width: aspectRatio * 140 }
-        : {
-            paddingTop: 10,
-            width: itemWidth + 2,
-            height: (1 / aspectRatio) * itemWidth + 12,
-          },
-      bookInfo: {
-        ...styles.bookInfoContainer,
-        width: isRow ? aspectRatio * 150 - 10 : itemWidth,
-      },
+  // Stable across recycling — only recomputes when layout config or theme changes
+  const layoutStyles = useMemo(
+    () => ({
       bookTitle: {
         ...styles.bookTitleText,
-        color: isActiveBook
-          ? withOpacity(themeColors.primary, 0.75)
-          : themeColors.text,
+        color: isActiveBook ? themeColors.primaryAlpha75 : themeColors.text,
         fontSize: isRow
           ? fontSize.xs
           : numColumns === 1
@@ -126,7 +183,6 @@ export const BookGridItem = memo(function BookGridItem({
         color: themeColors.textMuted,
         fontSize: isRow ? 10 : numColumns === 1 ? fontSize.sm : fontSize.xs,
       },
-      // Pre-compute icon sizing to avoid inline object creation
       iconPadding: isRow ? 6 : 8,
       iconBottom: isRow ? 2 : 12,
       iconSize: isRow
@@ -143,47 +199,34 @@ export const BookGridItem = memo(function BookGridItem({
           : numColumns === 2
             ? 28
             : 22,
+    }),
+    [
+      isRow,
+      numColumns,
+      isActiveBook,
+      themeColors.primaryAlpha75,
+      themeColors.text,
+      themeColors.textMuted,
+    ],
+  );
+
+  // Per-item — only recomputes when artwork aspect ratio changes during recycling
+  const itemDimensions = useMemo(() => {
+    const aspectRatio = safeArtworkWidth / safeArtworkHeight;
+    return {
+      container: isRow
+        ? { height: 220, width: aspectRatio * 160 }
+        : { width: itemWidth, height: (1 / aspectRatio) * itemWidth + 90 },
+      imageContainer: isRow
+        ? { height: 140, width: aspectRatio * 140 }
+        : {
+            paddingTop: 10,
+            width: itemWidth + 2,
+            height: (1 / aspectRatio) * itemWidth + 12,
+          },
+      bookInfoWidth: isRow ? aspectRatio * 150 - 10 : itemWidth,
     };
-  }, [
-    flowDirection,
-    itemWidth,
-    safeArtworkWidth,
-    safeArtworkHeight,
-    numColumns,
-    isActiveBook,
-    themeColors.primary,
-    themeColors.text,
-    themeColors.textMuted,
-  ]);
-
-  // Memoize dynamic icon styles that depend on theme colors
-  const playingIconStyle = useMemo(
-    () => [
-      styles.playingIconBase,
-      {
-        padding: itemStyles.iconPadding,
-        bottom: itemStyles.iconBottom,
-        backgroundColor: withOpacity(themeColors.background, 0.59),
-      },
-    ],
-    [itemStyles.iconPadding, itemStyles.iconBottom, themeColors.background],
-  );
-
-  const pausedIconStyle = useMemo(
-    () => [
-      styles.pausedIconBase,
-      {
-        bottom: itemStyles.iconBottom,
-        backgroundColor: withOpacity(themeColors.background, 0.59),
-      },
-    ],
-    [itemStyles.iconBottom, themeColors.background],
-  );
-
-  const loaderStyle = useMemo(
-    () => ({ width: itemStyles.iconSize, aspectRatio: 1 }),
-    [itemStyles.iconSize],
-  );
+  }, [isRow, itemWidth, safeArtworkWidth, safeArtworkHeight]);
 
   return (
     <PressableScale
@@ -191,47 +234,37 @@ export const BookGridItem = memo(function BookGridItem({
       style={styles.pressableContainer}
       onPress={handlePress}
     >
-      <View style={[styles.containerBase, itemStyles.container]}>
-        <View style={itemStyles.imageContainer}>
+      <View style={[styles.containerBase, itemDimensions.container]}>
+        <View style={itemDimensions.imageContainer}>
           <FadeInImage
             source={{ uri: artwork ?? unknownBookImageUri }}
             style={styles.bookArtworkImage}
             resizeMode='contain'
           />
-          {isActiveAndPlaying ? (
-            <View style={playingIconStyle}>
-              <LoaderKitView
-                style={loaderStyle}
-                name={'LineScaleParty'}
-                color={themeColors.primary}
-              />
-            </View>
-          ) : (
-            <PressableScale
-              rippleRadius={0}
-              onPress={handlePressPlay}
-              style={pausedIconStyle}
-              hitSlop={10}
-            >
-              <Play
-                size={itemStyles.playIconSize}
-                color={themeColors.icon}
-                strokeWidth={1}
-                absoluteStrokeWidth
-              />
-            </PressableScale>
-          )}
+          <BookPlayButton
+            bookId={bookId}
+            fullBook={fullBook}
+            iconPadding={layoutStyles.iconPadding}
+            iconBottom={layoutStyles.iconBottom}
+            iconSize={layoutStyles.iconSize}
+            playIconSize={layoutStyles.playIconSize}
+          />
         </View>
-        <View style={itemStyles.bookInfo}>
+        <View
+          style={[
+            styles.bookInfoContainer,
+            { width: itemDimensions.bookInfoWidth },
+          ]}
+        >
           <Text
             numberOfLines={numColumns === 1 ? 1 : 2}
-            style={itemStyles.bookTitle}
+            style={layoutStyles.bookTitle}
           >
             {bookTitle}
           </Text>
 
           {author && (
-            <Text numberOfLines={1} style={itemStyles.bookAuthor}>
+            <Text numberOfLines={1} style={layoutStyles.bookAuthor}>
               {author}
             </Text>
           )}

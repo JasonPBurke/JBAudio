@@ -9,7 +9,6 @@ import BooksGrid from './BooksGrid';
 import BooksHorizontal from './BooksHorizontal';
 import { Book, Author } from '@/types/Book';
 import { useTheme } from '@/hooks/useTheme';
-import { withOpacity } from '@/helpers/colorUtils';
 import { fontSize, screenPadding } from '@/constants/tokens';
 import { utilsStyles } from '@/styles';
 
@@ -272,7 +271,7 @@ const SectionHeader = memo(
       <Pressable
         ref={headerRef}
         style={styles.sectionHeaderPressable}
-        android_ripple={{ color: withOpacity(themeColors.divider, 0.16) }}
+        android_ripple={{ color: themeColors.dividerAlpha16 }}
         onPress={handlePress}
       >
         <View style={styles.titleBar}>

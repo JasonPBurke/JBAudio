@@ -18,6 +18,23 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useTheme } from '@/hooks/useTheme';
 import React from 'react';
 
+const styles = StyleSheet.create({
+  container: {
+    paddingTop: 6,
+  },
+  separator: {
+    height: 12,
+  },
+  footer: {
+    height: 82,
+  },
+});
+
+// Module-level constants — stable references across all renders
+const ItemSeparator = () => <View style={styles.separator} />;
+const StandaloneFooter = <View style={styles.footer} />;
+const keyExtractor = (item: string) => item;
+
 export type BookGridProps = Partial<FlashListProps<string>> & {
   authors?: Author[];
   books?: Book[];
@@ -57,9 +74,7 @@ const BooksGrid = ({
       const sorted = preserveOrder
         ? books
         : [...books].sort((a, b) => a.bookTitle.localeCompare(b.bookTitle));
-      return sorted
-        .map((book) => book.bookId)
-        .filter((bookId) => !!bookId);
+      return sorted.map((book) => book.bookId).filter((bookId) => !!bookId);
     }
     if (authors) {
       return authors
@@ -80,9 +95,23 @@ const BooksGrid = ({
         flowDirection={flowDirection}
         numColumns={numColumns}
         itemWidth={itemWidth}
-      />
+      /> // DIAGNOSTIC D
     ),
     [flowDirection, numColumns, itemWidth],
+  );
+
+  const emptyComponent = useMemo(
+    () => (
+      <Text
+        style={[
+          utilsStyles.emptyComponent,
+          { color: themeColors.textMuted },
+        ]}
+      >
+        No books found
+      </Text>
+    ),
+    [themeColors.textMuted],
   );
 
   return (
@@ -92,33 +121,16 @@ const BooksGrid = ({
       renderItem={renderBookItem}
       masonry
       numColumns={numColumns}
-      keyExtractor={(item) => item}
+      keyExtractor={keyExtractor}
       showsVerticalScrollIndicator={false}
       onScroll={onScroll}
       scrollEventThrottle={16}
       ListHeaderComponent={ListHeaderComponent}
-      ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-      ListFooterComponent={
-        standAlone ? <View style={{ height: 82 }} /> : null
-      }
-      ListEmptyComponent={
-        <Text
-          style={[
-            utilsStyles.emptyComponent,
-            { color: themeColors.textMuted },
-          ]}
-        >
-          No books found
-        </Text>
-      }
+      ItemSeparatorComponent={ItemSeparator}
+      ListFooterComponent={standAlone ? StandaloneFooter : null}
+      ListEmptyComponent={emptyComponent}
     />
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    paddingTop: 6,
-  },
-});
 
 export default memo(BooksGrid);
