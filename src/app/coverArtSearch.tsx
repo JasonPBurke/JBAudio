@@ -22,6 +22,7 @@ import {
   DuckDuckGoImageResult,
 } from '@/helpers/duckDuckGoImageSearch';
 import { replaceBookArtwork } from '@/helpers/replaceBookArtwork';
+import { PressableScale } from 'pressto';
 
 const NUM_COLUMNS = 2;
 const GRID_GAP = 10;
@@ -90,16 +91,9 @@ const CoverArtSearch = () => {
 
   const renderItem = useCallback(
     ({ item }: { item: DuckDuckGoImageResult }) => (
-      <Pressable
-        style={({ pressed }) => [
-          styles.gridItem,
-          {
-            backgroundColor: themeColors.modalBackground,
-            opacity: pressed ? 0.7 : 1,
-          },
-        ]}
+      <PressableScale
+        style={styles.gridItem}
         onPress={() => handleSelectImage(item.image)}
-        disabled={state === 'processing'}
       >
         <Image
           source={{ uri: item.thumbnail }}
@@ -113,7 +107,7 @@ const CoverArtSearch = () => {
         >
           {item.title}
         </Text>
-      </Pressable>
+      </PressableScale>
     ),
     [themeColors, handleSelectImage, state],
   );
@@ -123,7 +117,9 @@ const CoverArtSearch = () => {
       return (
         <View style={styles.centeredState}>
           <ActivityIndicator size='large' color={themeColors.primary} />
-          <Text style={[styles.stateText, { color: themeColors.textMuted }]}>
+          <Text
+            style={[styles.stateText, { color: themeColors.textMuted }]}
+          >
             Searching...
           </Text>
         </View>
@@ -133,14 +129,21 @@ const CoverArtSearch = () => {
     if (error) {
       return (
         <View style={styles.centeredState}>
-          <Text style={[styles.stateText, { color: themeColors.textMuted }]}>
+          <Text
+            style={[styles.stateText, { color: themeColors.textMuted }]}
+          >
             {error}
           </Text>
           <Pressable
-            style={[styles.retryButton, { borderColor: themeColors.primary }]}
+            style={[
+              styles.retryButton,
+              { borderColor: themeColors.primary },
+            ]}
             onPress={handleSearch}
           >
-            <Text style={[styles.retryText, { color: themeColors.primary }]}>
+            <Text
+              style={[styles.retryText, { color: themeColors.primary }]}
+            >
               Retry
             </Text>
           </Pressable>
@@ -151,7 +154,9 @@ const CoverArtSearch = () => {
     if (hasSearched && results.length === 0) {
       return (
         <View style={styles.centeredState}>
-          <Text style={[styles.stateText, { color: themeColors.textMuted }]}>
+          <Text
+            style={[styles.stateText, { color: themeColors.textMuted }]}
+          >
             No images found. Try a different search.
           </Text>
         </View>
@@ -182,18 +187,19 @@ const CoverArtSearch = () => {
         { paddingTop: top + 8, backgroundColor: themeColors.background },
       ]}
     >
-      <View style={styles.dragIndicatorContainer}>
-        <View
-          style={[
-            styles.dragIndicator,
-            { backgroundColor: withOpacity(themeColors.textMuted, 0.4) },
-          ]}
+      <View style={styles.header}>
+        <Text
+          style={[styles.headerTitle, { color: themeColors.textMuted }]}
+        >
+          Search Cover Art
+        </Text>
+        <X
+          size={30}
+          color={themeColors.text}
+          strokeWidth={1}
+          onPress={() => router.back()}
         />
       </View>
-
-      <Text style={[styles.header, { color: themeColors.textMuted }]}>
-        Search Cover Art
-      </Text>
 
       <View style={styles.searchRow}>
         <View
@@ -277,10 +283,15 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   header: {
-    fontFamily: 'Rubik-SemiBold',
-    fontSize: 22,
     paddingHorizontal: screenPadding.horizontal,
     marginBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontFamily: 'Rubik-SemiBold',
+    fontSize: 22,
   },
   searchRow: {
     paddingHorizontal: screenPadding.horizontal,
