@@ -184,6 +184,16 @@ export const useLibraryStore: UseBoundStore<StoreApi<LibraryState>> =
           'description',
           'copyright',
           'author_id',
+          'artwork',
+          'artwork_height',
+          'artwork_width',
+          'cover_color_dominant',
+          'cover_color_vibrant',
+          'cover_color_dark_vibrant',
+          'cover_color_light_vibrant',
+          'cover_color_muted',
+          'cover_color_dark_muted',
+          'cover_color_light_muted',
         ])
         .subscribe(async (changedRecords) => {
           const { books: currentBooks } = get();

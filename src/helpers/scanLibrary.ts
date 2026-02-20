@@ -477,7 +477,7 @@ async function extractMetadata(
 /**
  * Sanitizes a string for use in a filename by replacing non-alphanumeric characters.
  */
-function sanitizeForFilename(str: string): string {
+export function sanitizeForFilename(str: string): string {
   return str.replace(/[^a-zA-Z0-9]/g, '_');
 }
 

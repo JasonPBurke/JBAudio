@@ -6,6 +6,7 @@ import {
   View,
   KeyboardAvoidingView,
   TouchableOpacity,
+  Pressable,
 } from 'react-native';
 import { colors } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
@@ -20,6 +21,7 @@ import { unknownBookImageUri } from '@/constants/images';
 import { useEffect, useState } from 'react';
 import { BookEditableFields } from '@/types/Book';
 import { updateBookDetails } from '@/db/bookQueries';
+import { ImagePlus } from 'lucide-react-native';
 
 const editTitleDetails = () => {
   const { colors: themeColors } = useTheme();
@@ -59,6 +61,17 @@ const editTitleDetails = () => {
     value: string,
   ) => {
     setFormState((prevState) => ({ ...prevState, [field]: value }));
+  };
+
+  const handleCoverArtPress = () => {
+    router.push({
+      pathname: '/coverArtSearch',
+      params: {
+        bookId,
+        author: book?.author ?? '',
+        bookTitle: book?.bookTitle ?? '',
+      },
+    });
   };
 
   const handleSave = async () => {
@@ -101,13 +114,25 @@ const editTitleDetails = () => {
           {/* Edit {book?.bookTitle} Details */}
           Edit Book Details
         </Animated.Text>
-        <Image
-          contentFit='contain'
-          source={{
-            uri: book?.artwork ?? unknownBookImageUri,
-          }}
-          style={styles.image}
-        />
+        <Pressable onPress={handleCoverArtPress} style={styles.imageWrapper}>
+          <Image
+            contentFit='contain'
+            source={{
+              uri: book.artwork ?? unknownBookImageUri,
+            }}
+            style={styles.image}
+          />
+          <View
+            style={[
+              styles.imageOverlayIcon,
+              {
+                backgroundColor: withOpacity(themeColors.background, 0.7),
+              },
+            ]}
+          >
+            <ImagePlus size={18} color={themeColors.textMuted} strokeWidth={1.5} />
+          </View>
+        </Pressable>
         <Animated.View
           entering={FadeInDown.duration(600).delay(400)}
           style={[
@@ -306,9 +331,19 @@ const styles = StyleSheet.create({
     fontSize: 24,
     paddingBottom: 5,
   },
+  imageWrapper: {
+    width: '100%',
+  },
   image: {
     width: '100%',
     height: 345,
+  },
+  imageOverlayIcon: {
+    position: 'absolute',
+    bottom: 8,
+    right: 12,
+    borderRadius: 20,
+    padding: 8,
   },
   card: {
     width: '100%',

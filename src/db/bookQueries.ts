@@ -3,6 +3,7 @@ import Book from '@/db/models/Book';
 import Author from '@/db/models/Author';
 import Chapter from '@/db/models/Chapter';
 import { BookEditableFields, Chapter as ChapterType } from '@/types/Book';
+import { BookImageColors } from '@/helpers/imageColorExtractor';
 import { Q, Query, Relation } from '@nozbe/watermelondb';
 import { Observable } from 'rxjs';
 
@@ -105,6 +106,34 @@ export const getBookById = async (bookId: string): Promise<Book | null> => {
     return null;
   }
 };
+
+export async function updateBookArtwork(
+  bookId: string,
+  artworkUri: string,
+  artworkWidth: number,
+  artworkHeight: number,
+  colors: BookImageColors,
+): Promise<void> {
+  await database.write(async () => {
+    try {
+      const book = await database.get<Book>('books').find(bookId);
+      await book.update((b) => {
+        b.artwork = artworkUri;
+        b.artworkWidth = artworkWidth;
+        b.artworkHeight = artworkHeight;
+        b.coverColorDominant = colors.dominantAndroid;
+        b.coverColorVibrant = colors.vibrant;
+        b.coverColorDarkVibrant = colors.darkVibrant;
+        b.coverColorLightVibrant = colors.lightVibrant;
+        b.coverColorMuted = colors.muted;
+        b.coverColorDarkMuted = colors.darkMuted;
+        b.coverColorLightMuted = colors.lightMuted;
+      });
+    } catch (error) {
+      console.error('Error updating book artwork:', error);
+    }
+  });
+}
 
 export const updateBookDetails = async (
   bookId: string,

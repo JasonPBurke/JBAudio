@@ -106,7 +106,9 @@ const App = () => {
   }, [initializeTheme]);
 
   // Initialize subscription store
-  const initSubscription = useSubscriptionStore((state) => state.initialize);
+  const initSubscription = useSubscriptionStore(
+    (state) => state.initialize,
+  );
 
   useEffect(() => {
     initSubscription();
@@ -115,7 +117,10 @@ const App = () => {
   // Run trial-expired cleanup when subscription finishes loading and user is not pro
   useEffect(() => {
     const unsubscribe = useSubscriptionStore.subscribe(
-      (state) => ({ isLoading: state.isLoading, isProUser: state.isProUser }),
+      (state) => ({
+        isLoading: state.isLoading,
+        isProUser: state.isProUser,
+      }),
       ({ isLoading, isProUser }) => {
         if (!isLoading && !isProUser) {
           runTrialExpiredCleanup();
@@ -141,7 +146,7 @@ const App = () => {
           initSubscription();
         }
         appState.current = nextAppState;
-      }
+      },
     );
 
     return () => subscription.remove();
@@ -200,6 +205,14 @@ const RootNavigation = () => {
           options={{
             presentation: 'formSheet',
             animation: 'slide_from_bottom',
+            sheetCornerRadius: 15,
+          }}
+        />
+        <Stack.Screen
+          name='coverArtSearch'
+          options={{
+            presentation: 'transparentModal',
+            animation: 'fade',
             sheetCornerRadius: 15,
           }}
         />
