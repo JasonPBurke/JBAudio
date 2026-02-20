@@ -78,16 +78,25 @@ const BooksGrid = ({
       return sorted.map((book) => book.bookId).filter((bookId) => !!bookId);
     }
     if (authors) {
+      // Standalone view: sort all books by title regardless of author
+      // Embedded view (BooksHome): sort within each author group
+      if (standAlone) {
+        return authors
+          .flatMap((author) => author.books)
+          .sort((a, b) => compareBookTitles(a.bookTitle, b.bookTitle))
+          .map((book) => book.bookId)
+          .filter((bookId): bookId is string => !!bookId);
+      }
       return authors
         .flatMap((author) =>
           [...author.books]
             .sort((a, b) => compareBookTitles(a.bookTitle, b.bookTitle))
             .map((book) => book.bookId),
         )
-        .filter((bookId): bookId is string => !!bookId); // Filter out null/undefined and assert type
+        .filter((bookId): bookId is string => !!bookId);
     }
     return [];
-  }, [authors, books, preserveOrder]);
+  }, [authors, books, preserveOrder, standAlone]);
 
   const renderBookItem = useCallback(
     ({ item: bookId }: { item: string }) => (

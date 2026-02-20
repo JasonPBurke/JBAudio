@@ -29,13 +29,12 @@ const BooksList = ({
 }: BookListProps) => {
   const { colors: themeColors } = useTheme();
   const bookIds = useMemo(() => {
+    // BooksList is only used standalone — sort all books by title regardless of author
     return authors
-      .flatMap((author) =>
-        [...author.books]
-          .sort((a, b) => compareBookTitles(a.bookTitle, b.bookTitle))
-          .map((book) => book.bookId),
-      )
-      .filter((bookId): bookId is string => !!bookId); // Filter out null/undefined and assert type
+      .flatMap((author) => author.books)
+      .sort((a, b) => compareBookTitles(a.bookTitle, b.bookTitle))
+      .map((book) => book.bookId)
+      .filter((bookId): bookId is string => !!bookId);
   }, [authors]);
 
   const renderBookItem = useCallback(
