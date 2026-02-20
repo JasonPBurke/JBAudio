@@ -98,15 +98,15 @@ const CoverArtSearch = () => {
         <Image
           source={{ uri: item.thumbnail }}
           style={styles.thumbnail}
-          contentFit='cover'
+          contentFit='contain'
           transition={200}
         />
-        <Text
+        {/* <Text
           style={[styles.imageTitle, { color: themeColors.textMuted }]}
           numberOfLines={2}
         >
           {item.title}
-        </Text>
+        </Text> */}
       </PressableScale>
     ),
     [themeColors, handleSelectImage, state],
