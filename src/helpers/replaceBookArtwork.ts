@@ -1,5 +1,6 @@
 import ImageResizer from '@bam.tech/react-native-image-resizer';
 import * as RNFS from '@dr.pogodin/react-native-fs';
+import { Image } from 'expo-image';
 
 import { updateBookArtwork } from '@/db/bookQueries';
 
@@ -30,7 +31,9 @@ export async function replaceBookArtwork(
     }).promise;
 
     if (downloadResult.statusCode !== 200) {
-      throw new Error(`Download failed with status ${downloadResult.statusCode}`);
+      throw new Error(
+        `Download failed with status ${downloadResult.statusCode}`,
+      );
     }
 
     const resized = await ImageResizer.createResizedImage(
@@ -52,10 +55,13 @@ export async function replaceBookArtwork(
     const artworkUri = `file://${finalPath}`;
     const colors = await extractImageColors(artworkUri);
 
-    const cacheBustedUri = `${artworkUri}?t=${Date.now()}`;
+    // Clear expo-image cache so the new artwork is picked up without a cache-buster query param
+    await Image.clearDiskCache();
+    await Image.clearMemoryCache();
+
     await updateBookArtwork(
       bookId,
-      cacheBustedUri,
+      artworkUri,
       resized.width,
       resized.height,
       colors,
