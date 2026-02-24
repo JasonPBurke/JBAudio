@@ -33,7 +33,7 @@ export const useTheme = () => {
       // Pre-computed opacity variants used in scroll-hot components
       primaryAlpha75: withOpacity(effectivePrimaryColor, 0.75),
       backgroundAlpha59: withOpacity(colorTokens[activeColorScheme].background, 0.59),
-      textMutedAlpha25: withOpacity(colorTokens.shared.textMuted, 0.25),
+      textMutedAlpha25: withOpacity(colorTokens[activeColorScheme].textMuted, 0.25),
       dividerAlpha16: withOpacity(colorTokens[activeColorScheme].divider, 0.16),
     };
   }, [activeColorScheme, customPrimaryColor]);
