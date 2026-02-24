@@ -146,7 +146,11 @@ const BooksHome = ({
   return (
     <View
       ref={listContainerRef}
-      style={{ flex: 1, paddingTop: CONTAINER_PADDING_TOP }}
+      style={{
+        flex: 1,
+        paddingTop: CONTAINER_PADDING_TOP,
+        paddingBottom: CONTAINER_PADDING_TOP + 8,
+      }}
     >
       <FlashList
         ref={listRef}

@@ -74,7 +74,9 @@ const BooksGrid = ({
     if (books) {
       const sorted = preserveOrder
         ? books
-        : [...books].sort((a, b) => compareBookTitles(a.bookTitle, b.bookTitle));
+        : [...books].sort((a, b) =>
+            compareBookTitles(a.bookTitle, b.bookTitle),
+          );
       return sorted.map((book) => book.bookId).filter((bookId) => !!bookId);
     }
     if (authors) {

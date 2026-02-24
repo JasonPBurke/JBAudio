@@ -283,7 +283,7 @@ export const BookGridItem = memo(function BookGridItem({
               flowDirection === 'row' ? 3 : numColumns === 1 ? 4 : 3
             }
             style={{
-              marginTop: 3,
+              marginTop: 4,
               maxWidth: numColumns === 1 ? '40%' : undefined,
             }}
           />
@@ -311,17 +311,17 @@ const styles = StyleSheet.create({
     height: 68,
     justifyContent: 'flex-start',
     alignItems: 'flex-start',
-    paddingHorizontal: 4,
+    paddingHorizontal: 2,
   },
   bookTitleText: {
     ...defaultStyles.text,
     fontFamily: 'Rubik-SemiBold',
     maxWidth: '100%',
-    marginTop: 2,
+    // marginTop: 2,
   },
   bookAuthorText: {
     fontFamily: 'Rubik',
-    marginTop: 4,
+    // marginTop: 4,
   },
   playingIconBase: {
     position: 'absolute',
