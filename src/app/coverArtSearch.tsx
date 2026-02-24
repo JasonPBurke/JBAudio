@@ -71,7 +71,6 @@ const CoverArtSearch = () => {
   useEffect(() => {
     handleSearch();
     return () => {
-      setResults([]);
       Image.clearMemoryCache();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
