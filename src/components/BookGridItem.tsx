@@ -1,7 +1,7 @@
 import { memo, useCallback, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { PressableScale } from 'pressto';
-import { FadeInImage } from '@/components/FadeInImage';
+import FastImage from '@d11/react-native-fast-image';
 import { fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import { useTheme } from '@/hooks/useTheme';
@@ -236,10 +236,15 @@ export const BookGridItem = memo(function BookGridItem({
     >
       <View style={[styles.containerBase, itemDimensions.container]}>
         <View style={itemDimensions.imageContainer}>
-          <FadeInImage
-            source={{ uri: artwork ?? unknownBookImageUri }}
+          <FastImage
+            source={{
+              uri: artwork ?? unknownBookImageUri,
+              priority: FastImage.priority.low,
+              cache: FastImage.cacheControl.immutable,
+            }}
             style={styles.bookArtworkImage}
-            resizeMode='contain'
+            resizeMode={FastImage.resizeMode.contain}
+            transition={FastImage.transition.fade}
           />
           <BookPlayButton
             bookId={bookId}

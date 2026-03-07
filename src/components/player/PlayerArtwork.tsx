@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Pressable } from 'react-native';
 import { ShadowedView, shadowStyle } from 'react-native-fast-shadow';
-import { Image } from 'expo-image';
+import FastImage from '@d11/react-native-fast-image';
 import { unknownBookImageUri } from '@/constants/images';
 
 const FIXED_ARTWORK_HEIGHT = 350;
@@ -37,10 +37,14 @@ export const PlayerArtwork = React.memo(
             offset: [5, 3],
           })}
         >
-          <Image
-            contentFit='contain'
-            source={{ uri: artwork ?? unknownBookImageUri }}
+          <FastImage
+            source={{
+              uri: artwork ?? unknownBookImageUri,
+              priority: FastImage.priority.high,
+              cache: FastImage.cacheControl.immutable,
+            }}
             style={styles.image}
+            resizeMode={FastImage.resizeMode.contain}
           />
         </ShadowedView>
       </Pressable>

@@ -132,8 +132,11 @@ const BooksGrid = ({
       data={bookIds}
       renderItem={renderBookItem}
       masonry
+      optimizeItemArrangement
       numColumns={numColumns}
       keyExtractor={keyExtractor}
+      drawDistance={150}
+      overrideProps={{ initialDrawBatchSize: 6 }}
       showsVerticalScrollIndicator={false}
       onScroll={onScroll}
       scrollEventThrottle={16}

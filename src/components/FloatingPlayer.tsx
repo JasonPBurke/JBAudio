@@ -5,7 +5,7 @@ import {
   View,
 } from 'react-native';
 import { useActiveTrack } from 'react-native-track-player';
-import { Image } from 'expo-image';
+import FastImage from '@d11/react-native-fast-image';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { unknownBookImageUri } from '@/constants/images';
@@ -74,12 +74,14 @@ export const FloatingPlayer = React.memo(() => {
       style={containerStyle}
     >
       <>
-        <Image
-          contentFit='contain'
+        <FastImage
           source={{
             uri: displayedBook.artwork ?? unknownBookImageUri,
+            priority: FastImage.priority.high,
+            cache: FastImage.cacheControl.immutable,
           }}
           style={styles.bookArtworkImage}
+          resizeMode={FastImage.resizeMode.contain}
         />
 
         <View style={styles.bookTitleContainer}>

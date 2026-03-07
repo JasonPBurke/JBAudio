@@ -149,6 +149,13 @@ android {
     }
 }
 
+configurations.all {
+    // Resolve duplicate androidsvg classes: expo-image uses androidsvg-aar (AAR)
+    // while @d11/react-native-fast-image uses androidsvg (JAR).
+    // Exclude the JAR variant to keep only the AAR.
+    exclude group: 'com.caverock', module: 'androidsvg'
+}
+
 dependencies {
     implementation project(':watermelondb-jsi')
 

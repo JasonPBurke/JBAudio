@@ -14,7 +14,7 @@ import { withOpacity } from '@/helpers/colorUtils';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBehavior } from '@/hooks/useBehavior';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
-import { Image } from 'expo-image';
+import FastImage from '@d11/react-native-fast-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useBookById, refreshLibraryStore } from '@/store/library';
 import { unknownBookImageUri } from '@/constants/images';
@@ -41,6 +41,12 @@ const editTitleDetails = () => {
     description: '',
     copyright: '',
   });
+
+  useEffect(() => {
+    return () => {
+      FastImage.clearMemoryCache();
+    };
+  }, []);
 
   useEffect(() => {
     if (book) {
@@ -115,12 +121,14 @@ const editTitleDetails = () => {
           Edit Book Details
         </Animated.Text>
         <Pressable onPress={handleCoverArtPress} style={styles.imageWrapper}>
-          <Image
-            contentFit='contain'
+          <FastImage
             source={{
               uri: book.artwork ?? unknownBookImageUri,
+              priority: FastImage.priority.high,
+              cache: FastImage.cacheControl.immutable,
             }}
             style={styles.image}
+            resizeMode={FastImage.resizeMode.contain}
           />
           <View
             style={[

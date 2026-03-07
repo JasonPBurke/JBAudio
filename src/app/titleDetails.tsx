@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Text,
   View,
@@ -9,7 +9,7 @@ import {
   Modal,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Image } from 'expo-image';
+import FastImage from '@d11/react-native-fast-image';
 import * as Haptics from 'expo-haptics';
 import {
   Play,
@@ -68,6 +68,12 @@ const TitleDetails = () => {
 
   const { playing } = useIsPlaying();
   const activeTrack = useActiveTrack();
+
+  useEffect(() => {
+    return () => {
+      FastImage.clearMemoryCache();
+    };
+  }, []);
 
   if (!book) {
     // Optional: Render a loading state or return null
@@ -429,12 +435,14 @@ const TitleDetails = () => {
               offset: [5, 3],
             })}
           >
-            <Image
-              contentFit='contain'
+            <FastImage
               source={{
                 uri: book.artwork ?? unknownBookImageUri,
+                priority: FastImage.priority.high,
+                cache: FastImage.cacheControl.immutable,
               }}
               style={styles.bookArtworkImage}
+              resizeMode={FastImage.resizeMode.contain}
             />
           </ShadowedView>
         </View>

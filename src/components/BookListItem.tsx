@@ -1,7 +1,7 @@
 import { unknownBookImageUri } from '@/constants/images';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import React, { memo, useCallback } from 'react';
-import { FadeInImage } from '@/components/FadeInImage';
+import FastImage from '@d11/react-native-fast-image';
 import { colors, fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import { withOpacity } from '@/helpers/colorUtils';
@@ -88,10 +88,15 @@ export const BookListItem = memo(function BookListItem({
     >
       <View style={styles.bookItemContainer}>
         <View style={styles.bookArtworkImage}>
-          <FadeInImage
-            source={{ uri: artwork ?? unknownBookImageUri }}
+          <FastImage
+            source={{
+              uri: artwork ?? unknownBookImageUri,
+              priority: FastImage.priority.low,
+              cache: FastImage.cacheControl.immutable,
+            }}
             style={{ width: '100%', height: '100%' }}
-            resizeMode='contain'
+            resizeMode={FastImage.resizeMode.contain}
+            transition={FastImage.transition.fade}
           />
         </View>
         <View style={styles.bookInfoContainer}>

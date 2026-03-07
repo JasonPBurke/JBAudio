@@ -8,7 +8,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Image } from 'expo-image';
+import FastImage from '@d11/react-native-fast-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -71,7 +71,7 @@ const CoverArtSearch = () => {
   useEffect(() => {
     handleSearch();
     return () => {
-      Image.clearMemoryCache();
+      FastImage.clearMemoryCache();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -98,21 +98,18 @@ const CoverArtSearch = () => {
         style={styles.gridItem}
         onPress={() => handleSelectImage(item.image)}
       >
-        <Image
-          source={{ uri: item.thumbnail }}
+        <FastImage
+          source={{
+            uri: item.thumbnail,
+            cache: FastImage.cacheControl.web,
+          }}
           style={styles.thumbnail}
-          contentFit='contain'
-          transition={200}
+          resizeMode={FastImage.resizeMode.contain}
+          transition={FastImage.transition.fade}
         />
-        {/* <Text
-          style={[styles.imageTitle, { color: themeColors.textMuted }]}
-          numberOfLines={2}
-        >
-          {item.title}
-        </Text> */}
       </PressableScale>
     ),
-    [themeColors, handleSelectImage, state],
+    [handleSelectImage],
   );
 
   const renderContent = () => {
