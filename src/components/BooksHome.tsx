@@ -1,19 +1,27 @@
 'use no memo'; // Receives Reanimated scroll handler
 import React, { memo, useCallback, useMemo, useRef } from 'react';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Dimensions,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
 import { ChevronRight } from 'lucide-react-native';
 
-import BooksGrid from './BooksGrid';
+import { BookGridItem } from './BookGridItem';
 import BooksHorizontal from './BooksHorizontal';
 import { Book, Author } from '@/types/Book';
 import { useTheme } from '@/hooks/useTheme';
+import { useSettingsStore } from '@/store/settingsStore';
+import { compareBookTitles } from '@/helpers/miscellaneous';
 import { fontSize, screenPadding } from '@/constants/tokens';
 import { utilsStyles } from '@/styles';
 
 type PendingScroll = {
-  index: number;
+  sectionId: string;
   relativeY: number;
 } | null;
 
@@ -26,9 +34,16 @@ export type BookListProps = Partial<FlashListProps<Book>> & {
   ListHeaderComponent?: React.ReactElement;
 };
 
-type ListDataItem =
-  | { type: 'recentlyAdded'; books: Book[] }
-  | { type: 'author'; author: Author };
+type FlatListItem =
+  | { type: 'sectionHeader'; sectionId: string; title: string }
+  | {
+      type: 'horizontalRow';
+      sectionId: string;
+      books?: Book[];
+      authors?: Author[];
+      preserveOrder?: boolean;
+    }
+  | { type: 'book'; bookId: string };
 
 const BooksHome = ({
   authors = [],
@@ -39,10 +54,20 @@ const BooksHome = ({
 }: BookListProps) => {
   const { colors: themeColors } = useTheme();
   const listRef =
-    useRef<React.ComponentRef<typeof FlashList<ListDataItem>>>(null);
+    useRef<React.ComponentRef<typeof FlashList<FlatListItem>>>(null);
   const listContainerRef = useRef<View>(null);
   const pendingScrollRef = useRef<PendingScroll>(null);
   const CONTAINER_PADDING_TOP = 8;
+
+  const numColumns = useSettingsStore((state) => state.numColumns);
+  const { width: screenWidth } = Dimensions.get('window');
+  const ITEM_MARGIN_HORIZONTAL = 10;
+  const itemWidth = useMemo(
+    () =>
+      (screenWidth - ITEM_MARGIN_HORIZONTAL * (numColumns + 1)) /
+      numColumns,
+    [screenWidth, numColumns],
+  );
 
   // Memoize sorted authors to avoid sorting on every render
   const sortedAuthors = useMemo(() => {
@@ -72,41 +97,92 @@ const BooksHome = ({
     return allBooks.slice(0, 25);
   }, [sortedAuthors]);
 
-  // Create a data structure for the main FlashList
-  const listData: ListDataItem[] = useMemo(() => {
-    if (recentlyAddedBooks.length === 0) return [];
-    return [
-      { type: 'recentlyAdded', books: recentlyAddedBooks },
-      ...sortedAuthors.map(
-        (author) => ({ type: 'author', author }) as const,
-      ),
-    ];
-  }, [recentlyAddedBooks, sortedAuthors]);
+  // Build flat data array for the single FlashList
+  const flatData: FlatListItem[] = useMemo(() => {
+    if (recentlyAddedBooks.length === 0 && sortedAuthors.length === 0)
+      return [];
+    const items: FlatListItem[] = [];
+
+    // Recently Added section
+    if (recentlyAddedBooks.length > 0) {
+      items.push({
+        type: 'sectionHeader',
+        sectionId: 'recentlyAdded',
+        title: 'Recently Added',
+      });
+      if (activeGridSection === 'recentlyAdded') {
+        for (const book of recentlyAddedBooks) {
+          if (book.bookId)
+            items.push({ type: 'book', bookId: book.bookId });
+        }
+      } else {
+        items.push({
+          type: 'horizontalRow',
+          sectionId: 'recentlyAdded',
+          books: recentlyAddedBooks,
+          preserveOrder: true,
+        });
+      }
+    }
+
+    // Author sections
+    for (const author of sortedAuthors) {
+      items.push({
+        type: 'sectionHeader',
+        sectionId: author.name,
+        title: author.name,
+      });
+      if (activeGridSection === author.name) {
+        const sortedBooks = [...author.books].sort((a, b) =>
+          compareBookTitles(a.bookTitle, b.bookTitle),
+        );
+        for (const book of sortedBooks) {
+          if (book.bookId)
+            items.push({ type: 'book', bookId: book.bookId });
+        }
+      } else {
+        items.push({
+          type: 'horizontalRow',
+          sectionId: author.name,
+          authors: [author],
+        });
+      }
+    }
+
+    return items;
+  }, [activeGridSection, recentlyAddedBooks, sortedAuthors]);
 
   const handleSectionPress = useCallback(
-    (sectionId: string, index: number, pageY: number) => {
-      // Measure the list's top position to calculate relative offset
+    (sectionId: string, _index: number, pageY: number) => {
       listContainerRef.current?.measureInWindow((_x, listTopY) => {
         const relativeY = pageY - listTopY;
-        pendingScrollRef.current = { index, relativeY };
+        pendingScrollRef.current = { sectionId, relativeY };
 
         setActiveGridSection((prev) => {
           const newValue = prev === sectionId ? null : sectionId;
 
-          // Schedule the scroll restoration after layout settles
           requestAnimationFrame(() => {
-            // setTimeout(() => {
-            if (pendingScrollRef.current && listRef.current) {
-              listRef.current.scrollToIndex({
-                index: pendingScrollRef.current.index,
-                animated: false,
-                viewOffset:
-                  -pendingScrollRef.current.relativeY +
-                  CONTAINER_PADDING_TOP,
-              });
+            setTimeout(() => {
+              if (!pendingScrollRef.current || !listRef.current) return;
+              const targetId = pendingScrollRef.current.sectionId;
+              const newFlatData = listRef.current.props.data;
+              if (!newFlatData) return;
+              const headerIndex = newFlatData.findIndex(
+                (item) =>
+                  item.type === 'sectionHeader' &&
+                  item.sectionId === targetId,
+              );
+              if (headerIndex >= 0) {
+                listRef.current.scrollToIndex({
+                  index: headerIndex,
+                  animated: false,
+                  viewOffset:
+                    -pendingScrollRef.current.relativeY +
+                    CONTAINER_PADDING_TOP,
+                });
+              }
               pendingScrollRef.current = null;
-            }
-            // }, 50);
+            }, 50);
           });
 
           return newValue;
@@ -117,31 +193,73 @@ const BooksHome = ({
   );
 
   const renderItem = useCallback(
-    ({ item, index }: { item: ListDataItem; index: number }) => {
-      if (item.type === 'recentlyAdded') {
-        return (
-          <RecentlyAddedSection
-            books={item.books}
-            activeGridSection={activeGridSection}
-            index={index}
-            onSectionPress={handleSectionPress}
-          />
-        );
+    ({ item, index }: { item: FlatListItem; index: number }) => {
+      switch (item.type) {
+        case 'sectionHeader':
+          return (
+            <View style={styles.sectionHeaderContainer}>
+              <SectionHeader
+                title={item.title}
+                sectionId={item.sectionId}
+                isActive={activeGridSection === item.sectionId}
+                index={index}
+                onSectionPress={handleSectionPress}
+              />
+            </View>
+          );
+        case 'horizontalRow':
+          return (
+            <View style={styles.horizontalRowContainer}>
+              <BooksHorizontal
+                books={item.books}
+                authors={item.authors}
+                flowDirection='row'
+                preserveOrder={item.preserveOrder}
+              />
+            </View>
+          );
+        case 'book':
+          return (
+            <BookGridItem
+              bookId={item.bookId}
+              flowDirection='column'
+              numColumns={numColumns}
+              itemWidth={itemWidth}
+            />
+          );
+        default:
+          return null;
       }
-      if (item.type === 'author') {
-        return (
-          <AuthorSection
-            author={item.author}
-            activeGridSection={activeGridSection}
-            index={index}
-            onSectionPress={handleSectionPress}
-          />
-        );
-      }
-      return null;
     },
-    [activeGridSection, handleSectionPress],
+    [activeGridSection, handleSectionPress, numColumns, itemWidth],
   );
+
+  const keyExtractor = useCallback((item: FlatListItem) => {
+    switch (item.type) {
+      case 'sectionHeader':
+        return `header-${item.sectionId}`;
+      case 'horizontalRow':
+        return `row-${item.sectionId}`;
+      case 'book':
+        return item.bookId;
+    }
+  }, []);
+
+  const overrideItemLayout = useCallback(
+    (
+      layout: { span?: number },
+      item: FlatListItem,
+      _index: number,
+      maxColumns: number,
+    ) => {
+      if (item.type !== 'book') {
+        layout.span = maxColumns;
+      }
+    },
+    [],
+  );
+
+  const getItemType = useCallback((item: FlatListItem) => item.type, []);
 
   return (
     <View
@@ -154,12 +272,16 @@ const BooksHome = ({
     >
       <FlashList
         ref={listRef}
-        data={listData}
+        data={flatData}
         renderItem={renderItem}
-        keyExtractor={(item) =>
-          item.type === 'author' ? item.author.name : item.type
-        }
-        getItemType={(item) => item.type}
+        keyExtractor={keyExtractor}
+        getItemType={getItemType}
+        overrideItemLayout={overrideItemLayout}
+        masonry
+        optimizeItemArrangement
+        numColumns={numColumns}
+        drawDistance={150}
+        overrideProps={{ initialDrawBatchSize: 8 }}
         onScroll={onScroll}
         scrollEventThrottle={16}
         ListHeaderComponent={ListHeaderComponent}
@@ -173,70 +295,12 @@ const BooksHome = ({
             No books found
           </Text>
         }
-        // ItemSeparatorComponent={() => <View style={{ height: 4 }} />}
         contentContainerStyle={{ paddingBottom: 58 }}
         showsVerticalScrollIndicator={false}
       />
     </View>
   );
 };
-
-type SectionProps = {
-  books?: Book[];
-  activeGridSection: string | null;
-  index: number;
-  onSectionPress: (sectionId: string, index: number, pageY: number) => void;
-};
-
-const RecentlyAddedSection = memo(
-  ({ books, activeGridSection, index, onSectionPress }: SectionProps) => (
-    <View style={styles.containerGap}>
-      <SectionHeader
-        title='Recently Added'
-        sectionId='recentlyAdded'
-        isActive={activeGridSection === 'recentlyAdded'}
-        index={index}
-        onSectionPress={onSectionPress}
-      />
-      {activeGridSection === 'recentlyAdded' ? (
-        <BooksGrid books={books} flowDirection='column' preserveOrder />
-      ) : (
-        <BooksHorizontal books={books} flowDirection='row' preserveOrder />
-      )}
-    </View>
-  ),
-);
-
-type AuthorSectionProps = {
-  author: Author;
-  activeGridSection: string | null;
-  index: number;
-  onSectionPress: (sectionId: string, index: number, pageY: number) => void;
-};
-
-const AuthorSection = memo(
-  ({
-    author,
-    activeGridSection,
-    index,
-    onSectionPress,
-  }: AuthorSectionProps) => (
-    <View style={styles.containerGap}>
-      <SectionHeader
-        title={author.name}
-        sectionId={author.name}
-        isActive={activeGridSection === author.name}
-        index={index}
-        onSectionPress={onSectionPress}
-      />
-      {activeGridSection === author.name ? (
-        <BooksGrid authors={[author]} flowDirection='column' />
-      ) : (
-        <BooksHorizontal authors={[author]} flowDirection='row' />
-      )}
-    </View>
-  ),
-);
 
 const SectionHeader = memo(
   ({
@@ -301,11 +365,8 @@ export default memo(BooksHome);
 const styles = StyleSheet.create({
   sectionHeaderPressable: {
     paddingVertical: 4,
+    marginBottom: 4,
   },
-  // listContainer: {
-  //   flex: 1,
-  //   paddingTop: 8,
-  // },
   titleBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -323,7 +384,10 @@ const styles = StyleSheet.create({
   chevronRotated: {
     transform: [{ rotate: '90deg' }],
   },
-  containerGap: {
-    gap: 12,
+  sectionHeaderContainer: {
+    paddingTop: 4,
+  },
+  horizontalRowContainer: {
+    paddingBottom: 4,
   },
 });
