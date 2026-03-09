@@ -58,6 +58,7 @@ const BooksHome = ({
   const listContainerRef = useRef<View>(null);
   const pendingScrollRef = useRef<PendingScroll>(null);
   const CONTAINER_PADDING_TOP = 8;
+  const SECTION_HEADER_PADDING_TOP = 4;
 
   const numColumns = useSettingsStore((state) => state.numColumns);
   const { width: screenWidth } = Dimensions.get('window');
@@ -178,7 +179,8 @@ const BooksHome = ({
                   animated: false,
                   viewOffset:
                     -pendingScrollRef.current.relativeY +
-                    CONTAINER_PADDING_TOP,
+                    CONTAINER_PADDING_TOP +
+                    SECTION_HEADER_PADDING_TOP,
                 });
               }
               pendingScrollRef.current = null;
