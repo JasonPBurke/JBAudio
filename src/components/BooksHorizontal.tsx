@@ -26,7 +26,9 @@ const BooksHorizontal = ({
     if (books) {
       const sorted = preserveOrder
         ? books
-        : [...books].sort((a, b) => compareBookTitles(a.bookTitle, b.bookTitle));
+        : [...books].sort((a, b) =>
+            compareBookTitles(a.bookTitle, b.bookTitle),
+          );
       return sorted.map((book) => book.bookId).filter((bookId) => !!bookId);
     }
     if (authors) {
@@ -58,6 +60,7 @@ const BooksHorizontal = ({
         data={bookIds}
         renderItem={renderBookItem}
         keyExtractor={(item) => item}
+        drawDistance={100}
         horizontal={true}
         showsHorizontalScrollIndicator={false}
         ListEmptyComponent={

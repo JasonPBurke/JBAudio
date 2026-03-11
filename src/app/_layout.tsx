@@ -2,7 +2,7 @@ import { useSetupTrackPlayer } from '@/hooks/useSetupTrackPlayer';
 import { Stack, SplashScreen } from 'expo-router';
 import { SystemBars } from 'react-native-edge-to-edge';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import TrackPlayer from 'react-native-track-player';
 import { useLogTrackPlayerState } from '@/hooks/useLogTrackPlayerState';
 import { PlayerStateSync } from '@/components/PlayerStateSync';
@@ -11,6 +11,8 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import {
   configureReanimatedLogger,
   ReanimatedLogLevel,
+  ReducedMotionConfig,
+  ReduceMotion,
 } from 'react-native-reanimated';
 import playbackService from '@/setup/service';
 import { DatabaseProvider } from '@nozbe/watermelondb/DatabaseProvider';
@@ -133,6 +135,7 @@ const App = () => {
 
   // Refresh trial/subscription status when app returns from background
   const appState = useRef(AppState.currentState);
+  const [isBackground, setIsBackground] = useState(false);
 
   useEffect(() => {
     const subscription = AppState.addEventListener(
@@ -145,6 +148,7 @@ const App = () => {
         ) {
           initSubscription();
         }
+        setIsBackground(nextAppState === 'background');
         appState.current = nextAppState;
       },
     );
@@ -168,6 +172,9 @@ const App = () => {
 
   return (
     <SafeAreaProvider>
+      <ReducedMotionConfig
+        mode={isBackground ? ReduceMotion.Always : ReduceMotion.System}
+      />
       <PlayerStateSync />
       <GestureHandlerRootView>
         <DatabaseProvider database={database}>

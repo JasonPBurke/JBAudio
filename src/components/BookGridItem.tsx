@@ -224,6 +224,10 @@ export const BookGridItem = memo(function BookGridItem({
             width: itemWidth + 2,
             height: (1 / aspectRatio) * itemWidth + 12,
           },
+      // Explicit pixel dimensions so Glide can downscale at decode time
+      imageSize: isRow
+        ? { width: Math.round(aspectRatio * 140), height: 140, borderRadius: 3 }
+        : { width: Math.round(itemWidth), height: Math.round((1 / aspectRatio) * itemWidth), borderRadius: 3 },
       bookInfoWidth: isRow ? aspectRatio * 150 - 10 : itemWidth,
     };
   }, [isRow, itemWidth, safeArtworkWidth, safeArtworkHeight]);
@@ -242,7 +246,7 @@ export const BookGridItem = memo(function BookGridItem({
               priority: FastImage.priority.low,
               cache: FastImage.cacheControl.immutable,
             }}
-            style={styles.bookArtworkImage}
+            style={itemDimensions.imageSize}
             resizeMode={FastImage.resizeMode.contain}
             transition={FastImage.transition.fade}
           />
@@ -306,11 +310,6 @@ const styles = StyleSheet.create({
   },
   containerBase: {
     alignItems: 'center',
-  },
-  bookArtworkImage: {
-    height: '100%',
-    width: '100%',
-    borderRadius: 3,
   },
   bookInfoContainer: {
     height: 68,

@@ -94,7 +94,7 @@ export const BookListItem = memo(function BookListItem({
               priority: FastImage.priority.low,
               cache: FastImage.cacheControl.immutable,
             }}
-            style={{ width: '100%', height: '100%' }}
+            style={{ width: 60, height: 80 }}
             resizeMode={FastImage.resizeMode.contain}
             transition={FastImage.transition.fade}
           />

@@ -33,5 +33,9 @@ allprojects {
   }
 }
 
+ext {
+  excludeAppGlideModule = true
+}
+
 apply plugin: "expo-root-project"
 apply plugin: "com.facebook.react.rootproject"
