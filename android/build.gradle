@@ -35,6 +35,7 @@ allprojects {
 
 ext {
   excludeAppGlideModule = true
+  ndkVersion = "27.2.12479018"
 }
 
 apply plugin: "expo-root-project"

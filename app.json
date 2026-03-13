@@ -44,6 +44,7 @@
         {
           "android": {
             "kotlinVersion": "2.0.21",
+            "ndkVersion": "27.2.12479018",
             "packagingOptions": {
               "pickFirst": [
                 "**/libc++_shared.so"
@@ -65,7 +66,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/icons/turntable-light-mode.svg",
+          "image": "./assets/icons/turntable-dark-mode.png",
           "backgroundColor": "#ECEFF4",
           "dark": {
             "image": "./assets/icons/turntable-dark-mode.png",
@@ -76,7 +77,6 @@
         }
       ],
       "expo-asset",
-      "expo-build-properties",
       [
         "@sentry/react-native/expo",
         {

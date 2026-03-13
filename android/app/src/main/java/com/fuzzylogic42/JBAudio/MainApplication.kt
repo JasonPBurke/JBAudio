@@ -1,4 +1,5 @@
 package com.fuzzylogic42.JBAudio
+import com.facebook.react.common.assets.ReactFontManager
 
 
 import android.app.Application
@@ -55,6 +56,9 @@ class MainApplication : Application(), ReactApplication {
 
   override fun onCreate() {
     super.onCreate()
+    // @generated begin xml-fonts-init - expo prebuild (DO NOT MODIFY) sync-74a219754f1d94d116f12fda36bb502a3078c3cd
+    ReactFontManager.getInstance().addCustomFont(this, "Rubik", R.font.xml_rubik)
+    // @generated end xml-fonts-init
     SoLoader.init(this, OpenSourceMergedSoMapping)
     if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
       // If you opted-in for the New Architecture, we load the native entry point for this app.
