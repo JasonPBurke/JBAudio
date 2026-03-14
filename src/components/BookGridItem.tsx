@@ -33,6 +33,7 @@ type BookPlayButtonProps = {
   fullBook: Book;
   iconPadding: number;
   iconBottom: number;
+  iconRight: number;
   iconSize: number;
   playIconSize: number;
 };
@@ -42,6 +43,7 @@ const BookPlayButton = memo(function BookPlayButton({
   fullBook,
   iconPadding,
   iconBottom,
+  iconRight,
   iconSize,
   playIconSize,
 }: BookPlayButtonProps) {
@@ -81,6 +83,7 @@ const BookPlayButton = memo(function BookPlayButton({
       {
         padding: iconPadding,
         bottom: iconBottom,
+        right: iconRight,
         backgroundColor: themeColors.backgroundAlpha59,
       },
     ],
@@ -92,10 +95,11 @@ const BookPlayButton = memo(function BookPlayButton({
       styles.pausedIconBase,
       {
         bottom: iconBottom,
+        right: iconRight,
         backgroundColor: themeColors.backgroundAlpha59,
       },
     ],
-    [iconBottom, themeColors.backgroundAlpha59],
+    [iconBottom, iconRight, themeColors.backgroundAlpha59],
   );
 
   const loaderStyle = useMemo(
@@ -184,21 +188,22 @@ export const BookGridItem = memo(function BookGridItem({
         fontSize: isRow ? 10 : numColumns === 1 ? fontSize.sm : fontSize.xs,
       },
       iconPadding: isRow ? 6 : 8,
-      iconBottom: isRow ? 2 : 12,
+      iconBottom: isRow ? 2 : 4,
+      iconRight: isRow ? 2 : 4,
       iconSize: isRow
         ? 20
         : numColumns === 1
           ? 32
           : numColumns === 2
             ? 24
-            : 18,
+            : 14,
       playIconSize: isRow
         ? 20
         : numColumns === 1
           ? 36
           : numColumns === 2
             ? 28
-            : 22,
+            : 18,
     }),
     [
       isRow,
@@ -226,8 +231,16 @@ export const BookGridItem = memo(function BookGridItem({
           },
       // Explicit pixel dimensions so Glide can downscale at decode time
       imageSize: isRow
-        ? { width: Math.round(aspectRatio * 140), height: 140, borderRadius: 3 }
-        : { width: Math.round(itemWidth), height: Math.round((1 / aspectRatio) * itemWidth), borderRadius: 3 },
+        ? {
+            width: Math.round(aspectRatio * 140),
+            height: 140,
+            borderRadius: 3,
+          }
+        : {
+            width: Math.round(itemWidth),
+            height: Math.round((1 / aspectRatio) * itemWidth),
+            borderRadius: 3,
+          },
       bookInfoWidth: isRow ? aspectRatio * 150 - 10 : itemWidth,
     };
   }, [isRow, itemWidth, safeArtworkWidth, safeArtworkHeight]);
@@ -255,6 +268,7 @@ export const BookGridItem = memo(function BookGridItem({
             fullBook={fullBook}
             iconPadding={layoutStyles.iconPadding}
             iconBottom={layoutStyles.iconBottom}
+            iconRight={layoutStyles.iconRight}
             iconSize={layoutStyles.iconSize}
             playIconSize={layoutStyles.playIconSize}
           />
@@ -336,7 +350,7 @@ const styles = StyleSheet.create({
   },
   pausedIconBase: {
     position: 'absolute',
-    right: 2,
+    // right: 2,
     padding: 6,
     borderRadius: 4,
   },
