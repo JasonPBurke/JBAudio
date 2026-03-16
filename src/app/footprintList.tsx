@@ -207,7 +207,7 @@ const FootprintListScreen = () => {
       ]}
     >
       <Text style={[styles.headerText, { color: themeColors.text }]}>
-        Where Was I...
+        Footprints
       </Text>
 
       {footprints.length > 0 ? (

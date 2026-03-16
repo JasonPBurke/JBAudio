@@ -156,7 +156,6 @@ export const BookListItem = memo(function BookListItem({
                 hitSlop={10}
               >
                 <Play
-                  // onPress={() => handlePressPlay(book)}
                   size={18}
                   color={themeColors.textMuted}
                   strokeWidth={1}
