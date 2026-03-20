@@ -1,0 +1,81 @@
+diff --git a/node_modules/react-native-drawer-layout/lib/module/views/Drawer.native.js b/node_modules/react-native-drawer-layout/lib/module/views/Drawer.native.js
+index c5882f9..e4e3469 100644
+--- a/node_modules/react-native-drawer-layout/lib/module/views/Drawer.native.js
++++ b/node_modules/react-native-drawer-layout/lib/module/views/Drawer.native.js
+@@ -7,7 +7,7 @@ import useLatestCallback from 'use-latest-callback';
+ import { DrawerGestureContext } from "../utils/DrawerGestureContext.js";
+ import { DrawerProgressContext } from "../utils/DrawerProgressContext.js";
+ import { getDrawerWidthNative } from "../utils/getDrawerWidth.js";
+-import { Gesture, GestureDetector, GestureHandlerRootView, GestureState } from './GestureHandler';
++import { Gesture, GestureDetector, GestureState } from './GestureHandler';
+ import { Overlay } from './Overlay';
+ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+ const SWIPE_EDGE_WIDTH = 32;
+@@ -254,7 +254,7 @@ export function Drawer({
+   const progress = useDerivedValue(() => {
+     return drawerType === 'permanent' ? 1 : interpolate(translateX.value, [getDrawerTranslationX(false), getDrawerTranslationX(true)], [0, 1]);
+   });
+-  return /*#__PURE__*/_jsx(GestureHandlerRootView, {
++  return /*#__PURE__*/_jsx(View, {
+     style: [styles.container, style],
+     children: /*#__PURE__*/_jsx(DrawerProgressContext.Provider, {
+       value: progress,
+@@ -280,7 +280,7 @@ export function Drawer({
+                 accessibilityLabel: overlayAccessibilityLabel
+               }) : null]
+             }), /*#__PURE__*/_jsx(Animated.View, {
+-              removeClippedSubviews: Platform.OS !== 'ios',
++              removeClippedSubviews: false,
+               style: [styles.drawer, {
+                 width: drawerWidth,
+                 position: drawerType === 'permanent' ? 'relative' : 'absolute'
+diff --git a/node_modules/react-native-drawer-layout/lib/module/views/Overlay.native.js b/node_modules/react-native-drawer-layout/lib/module/views/Overlay.native.js
+index 347d806..731309d 100644
+--- a/node_modules/react-native-drawer-layout/lib/module/views/Overlay.native.js
++++ b/node_modules/react-native-drawer-layout/lib/module/views/Overlay.native.js
+@@ -1,7 +1,8 @@
+ "use strict";
+ 
++import * as React from 'react';
+ import { Pressable, StyleSheet } from 'react-native';
+-import Animated, { useAnimatedProps, useAnimatedStyle } from 'react-native-reanimated';
++import Animated, { useAnimatedStyle, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
+ import { jsx as _jsx } from "react/jsx-runtime";
+ const PROGRESS_EPSILON = 0.05;
+ export function Overlay({
+@@ -11,22 +12,26 @@ export function Overlay({
+   accessibilityLabel = 'Close drawer',
+   ...rest
+ }) {
++  const [pointerEvents, setPointerEvents] = React.useState('none');
++  useAnimatedReaction(
++    () => progress.value > PROGRESS_EPSILON,
++    (active, prevActive) => {
++      'worklet';
++      if (active !== prevActive) {
++        runOnJS(setPointerEvents)(active ? 'auto' : 'none');
++      }
++    },
++    [progress]
++  );
+   const animatedStyle = useAnimatedStyle(() => {
+     return {
+-      opacity: progress.value
+-    };
+-  }, [progress]);
+-  const animatedProps = useAnimatedProps(() => {
+-    const active = progress.value > PROGRESS_EPSILON;
+-    return {
+-      'pointerEvents': active ? 'auto' : 'none',
+-      'aria-hidden': !active
++      opacity: progress.value,
+     };
+   }, [progress]);
+   return /*#__PURE__*/_jsx(Animated.View, {
+     ...rest,
++    pointerEvents: pointerEvents,
+     style: [StyleSheet.absoluteFill, styles.overlay, animatedStyle, style],
+-    animatedProps: animatedProps,
+     children: /*#__PURE__*/_jsx(Pressable, {
+       onPress: onPress,
+       style: styles.pressable,

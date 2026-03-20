@@ -6,7 +6,6 @@ module.exports = function (api) {
       ['babel-plugin-react-compiler'],
       ['react-native-boost/plugin'],
       ['@babel/plugin-proposal-decorators', { legacy: true }],
-      ['@babel/plugin-transform-class-properties', { loose: true }],
       ['react-native-worklets/plugin'],
     ],
   };

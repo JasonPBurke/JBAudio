@@ -656,10 +656,13 @@ const TitleDetails = () => {
               />
             )}
             <View style={styles.inlineInfoContainer}>
-              <TruncatedParagraph
+              {/* <TruncatedParagraph
                 content={book.metadata.description}
                 maxLines={4}
-              />
+              /> */}
+              <Text style={styles.paragraph}>
+                {book.metadata.description}
+              </Text>
             </View>
             <View
               style={{
@@ -696,7 +699,7 @@ const TitleDetails = () => {
 
 export default TitleDetails;
 
-const FIXED_ARTWORK_HEIGHT = 350;
+const FIXED_ARTWORK_HEIGHT = 375;
 
 const styles = StyleSheet.create({
   screenContainer: {
@@ -773,6 +776,12 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 8,
     backgroundColor: colors.modalBackground,
+  },
+  paragraph: {
+    fontFamily: 'Rubik',
+    fontSize: fontSize.sm,
+    color: colors.text,
+    lineHeight: 24,
   },
   trackPlayingImageIcon: {
     position: 'absolute',

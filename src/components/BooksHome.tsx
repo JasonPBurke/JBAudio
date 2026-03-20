@@ -180,7 +180,8 @@ const BooksHome = ({
                   viewOffset:
                     -pendingScrollRef.current.relativeY +
                     CONTAINER_PADDING_TOP +
-                    SECTION_HEADER_PADDING_TOP,
+                    SECTION_HEADER_PADDING_TOP +
+                    8, //TODO: fix this hacky patch
                 });
               }
               pendingScrollRef.current = null;
@@ -331,8 +332,7 @@ const SectionHeader = memo(
       });
     }, [sectionId, index, onSectionPress]);
 
-    // Memoize chevron style to avoid creating new object references on each render
-    const chevronStyle = useMemo(
+    const chevronWrapperStyle = useMemo(
       () => [styles.chevronBase, isActive && styles.chevronRotated],
       [isActive],
     );
@@ -351,11 +351,9 @@ const SectionHeader = memo(
           >
             {title}
           </Text>
-          <ChevronRight
-            size={24}
-            color={themeColors.icon}
-            style={chevronStyle}
-          />
+          <View style={chevronWrapperStyle}>
+            <ChevronRight size={24} color={themeColors.icon} />
+          </View>
         </View>
       </Pressable>
     );

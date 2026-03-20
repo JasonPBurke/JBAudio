@@ -22,7 +22,7 @@ interface ThemeState {
 // Helper to determine active color scheme based on mode
 function getActiveColorScheme(
   mode: ThemeMode,
-  systemScheme: ColorSchemeName
+  systemScheme: ColorSchemeName | null | undefined
 ): 'light' | 'dark' {
   if (mode === 'system') {
     return systemScheme === 'light' ? 'light' : 'dark';

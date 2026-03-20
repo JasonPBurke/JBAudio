@@ -1,0 +1,16 @@
+diff --git a/node_modules/@d11/react-native-fast-image/android/src/main/java/com/dylanvann/fastimage/FastImageGlideModule.java b/node_modules/@d11/react-native-fast-image/android/src/main/java/com/dylanvann/fastimage/FastImageGlideModule.java
+index 6708bb8..55d4dfa 100644
+--- a/node_modules/@d11/react-native-fast-image/android/src/main/java/com/dylanvann/fastimage/FastImageGlideModule.java
++++ b/node_modules/@d11/react-native-fast-image/android/src/main/java/com/dylanvann/fastimage/FastImageGlideModule.java
+@@ -1,9 +1,8 @@
+ package com.dylanvann.fastimage;
+ 
+-import com.bumptech.glide.annotation.GlideModule;
+ import com.bumptech.glide.module.AppGlideModule;
+ 
+-// We need an AppGlideModule to be present for progress events to work.
+-@GlideModule
++// Removed @GlideModule annotation: the host app provides its own AppGlideModule
++// (CustomGlideModule) which handles GeneratedAppGlideModuleImpl generation.
+ public final class FastImageGlideModule extends AppGlideModule {
+ }

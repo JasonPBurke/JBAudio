@@ -120,7 +120,10 @@ const editTitleDetails = () => {
           {/* Edit {book?.bookTitle} Details */}
           Edit Book Details
         </Animated.Text>
-        <Pressable onPress={handleCoverArtPress} style={styles.imageWrapper}>
+        <Pressable
+          onPress={handleCoverArtPress}
+          style={styles.imageWrapper}
+        >
           <FastImage
             source={{
               uri: book.artwork ?? unknownBookImageUri,
@@ -138,7 +141,11 @@ const editTitleDetails = () => {
               },
             ]}
           >
-            <ImagePlus size={18} color={themeColors.textMuted} strokeWidth={1.5} />
+            <ImagePlus
+              size={18}
+              color={themeColors.textMuted}
+              strokeWidth={1.5}
+            />
           </View>
         </Pressable>
         <Animated.View
@@ -344,7 +351,7 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
-    height: 345,
+    height: 370, //* this is 5px smaller than the FIXED_IMAGE_HEIGHT in titleDetails for alignment
   },
   imageOverlayIcon: {
     position: 'absolute',

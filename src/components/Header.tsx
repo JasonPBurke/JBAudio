@@ -184,22 +184,24 @@ const Header = (props: headerProps) => {
         <View style={styles.headerGroup}>
           <Pressable hitSlop={15} onPress={handleToggleView}>
             {toggleView === 0 && (
-              <Library
-                style={{ transform: [{ rotateY: '180deg' }] }}
-                size={24}
-                color={themeColors.icon}
-                strokeWidth={1.5}
-                absoluteStrokeWidth
-              />
+              <View style={{ transform: [{ rotateY: '180deg' }] }}>
+                <Library
+                  size={24}
+                  color={themeColors.icon}
+                  strokeWidth={1.5}
+                  absoluteStrokeWidth
+                />
+              </View>
             )}
             {toggleView === 1 && (
-              <List
-                size={24}
-                color={themeColors.icon}
-                strokeWidth={1.5}
-                absoluteStrokeWidth
-                style={{ transform: [{ rotateY: '180deg' }] }}
-              />
+              <View style={{ transform: [{ rotateY: '180deg' }] }}>
+                <List
+                  size={24}
+                  color={themeColors.icon}
+                  strokeWidth={1.5}
+                  absoluteStrokeWidth
+                />
+              </View>
             )}
             {toggleView === 2 && (
               <Grip

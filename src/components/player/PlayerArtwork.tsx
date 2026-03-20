@@ -49,7 +49,7 @@ export const PlayerArtwork = React.memo(
         </ShadowedView>
       </Pressable>
     );
-  }
+  },
 );
 
 PlayerArtwork.displayName = 'PlayerArtwork';

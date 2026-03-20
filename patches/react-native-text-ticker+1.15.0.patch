@@ -1,0 +1,22 @@
+diff --git a/node_modules/react-native-text-ticker/index.js b/node_modules/react-native-text-ticker/index.js
+index 77b7ac5..31f550f 100644
+--- a/node_modules/react-native-text-ticker/index.js
++++ b/node_modules/react-native-text-ticker/index.js
+@@ -341,7 +341,7 @@ export default class TextMarquee extends PureComponent {
+           ref={c => (this.textRef = c)}
+           numberOfLines={1}
+           {... props}
+-          style={[style, { transform: [{ translateX: this.animatedValue }], width: null }]}
++          style={[style, { transform: [{ translateX: this.animatedValue }], width: undefined }]}
+         >
+           {this.props.children}
+         </Animated.Text>
+@@ -350,7 +350,7 @@ export default class TextMarquee extends PureComponent {
+             <Animated.Text
+               numberOfLines={1}
+               {... props}
+-              style={[style, { transform: [{ translateX: this.animatedValue }], width: null }]}
++              style={[style, { transform: [{ translateX: this.animatedValue }], width: undefined }]}
+             >
+               {this.props.children}
+             </Animated.Text>

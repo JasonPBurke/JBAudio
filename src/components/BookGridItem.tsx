@@ -180,12 +180,12 @@ export const BookGridItem = memo(function BookGridItem({
             ? fontSize.lg
             : numColumns === 2
               ? fontSize.sm
-              : 14,
+              : 12,
       },
       bookAuthor: {
         ...styles.bookAuthorText,
         color: themeColors.textMuted,
-        fontSize: isRow ? 10 : numColumns === 1 ? fontSize.sm : fontSize.xs,
+        fontSize: isRow ? 12 : numColumns === 1 ? fontSize.sm : fontSize.xs,
       },
       iconPadding: isRow ? 6 : 8,
       iconBottom: isRow ? 2 : 4,

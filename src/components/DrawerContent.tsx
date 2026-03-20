@@ -1,9 +1,6 @@
-import { View, StyleSheet, Pressable } from 'react-native';
-import {
-  DrawerContentComponentProps,
-  DrawerContentScrollView,
-  DrawerItem,
-} from '@react-navigation/drawer';
+import { View, StyleSheet, Text } from 'react-native';
+import { DrawerContentComponentProps } from '@react-navigation/drawer';
+import { Pressable } from 'react-native-gesture-handler';
 import {
   X,
   Sun,
@@ -15,16 +12,54 @@ import {
   PencilRuler,
   Timer,
   CassetteTape,
-  HelpCircle,
   Crown,
 } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
 import { colors } from '@/constants/tokens';
 import { scanLibrary } from '@/helpers/scanLibrary';
 import { useThemeStore } from '@/store/themeStore';
 import { useTheme } from '@/hooks/useTheme';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = DrawerContentComponentProps;
+
+type DrawerRowProps = {
+  label: string;
+  icon: LucideIcon;
+  onPress: () => void;
+  iconColor: string;
+  labelColor: string;
+  dividerColor: string;
+  disabled?: boolean;
+};
+
+const SPACING = 12;
+
+const DrawerRow = ({
+  label,
+  icon: Icon,
+  onPress,
+  iconColor,
+  labelColor,
+  dividerColor,
+  disabled,
+}: DrawerRowProps) => (
+  <Pressable onPress={onPress}>
+    <View style={[styles.drawerItem, { opacity: disabled ? 0.4 : 1 }]}>
+      <Icon size={24} color={iconColor} strokeWidth={1} />
+      <View style={styles.labelWrapper}>
+        <Text
+          numberOfLines={1}
+          style={[styles.labelText, { color: labelColor }]}
+        >
+          {label}
+        </Text>
+      </View>
+    </View>
+    <View style={[styles.divider, { backgroundColor: dividerColor }]} />
+  </Pressable>
+);
 
 const DrawerContent = (props: Props) => {
   const { colors: themeColors } = useTheme();
@@ -32,6 +67,7 @@ const DrawerContent = (props: Props) => {
   const activeScheme = useThemeStore((state) => state.activeColorScheme);
   const setMode = useThemeStore((state) => state.setMode);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const handleThemeToggle = () => {
     if (mode === 'system') {
@@ -43,54 +79,25 @@ const DrawerContent = (props: Props) => {
     }
   };
 
-  const handleGeneralPress = () => {
-    router.navigate('/general');
-  };
-
-  const handleTimerPress = () => {
-    router.navigate('/timer');
-  };
-
-  const handlePlayerPress = () => {
-    router.navigate('/playerOptions');
-  };
-
-  const handleLibraryPress = () => {
-    router.navigate('/library');
-  };
-
-  // const handleFaqPress = () => {
-  //   router.navigate('/faq');
-  // };
-
-  const handleBookStatsPress = () => {
-    router.navigate('/bookStats');
-  };
-
-  const handleProPress = () => {
-    router.navigate('/subscription');
-  };
-
-  const handleHelpPress = () => {
-    router.navigate('/help');
-  };
-
-  const handleTestScreenPress = () => {
-    props.navigation.navigate('testScreen');
-  };
+  const iconColor = themeColors.text;
+  const labelColor = themeColors.text;
+  const dividerColor = themeColors.divider;
 
   return (
-    <DrawerContentScrollView
-      {...props}
-      style={{ backgroundColor: themeColors.modalBackground }}
+    <View
+      style={{
+        backgroundColor: themeColors.modalBackground,
+        flex: 1,
+        paddingTop: SPACING + insets.top,
+        paddingBottom: SPACING + insets.bottom,
+        paddingStart: SPACING + insets.left,
+        paddingEnd: SPACING,
+      }}
     >
       <View style={styles.drawerHeader}>
-        <X
-          size={30}
-          color={themeColors.text}
-          strokeWidth={1}
-          onPress={() => props.navigation.closeDrawer()}
-        />
+        <Pressable onPress={() => props.navigation.closeDrawer()}>
+          <X size={30} color={themeColors.text} strokeWidth={1} />
+        </Pressable>
         <Pressable
           onPress={handleThemeToggle}
           style={styles.themeToggleContainer}
@@ -112,123 +119,76 @@ const DrawerContent = (props: Props) => {
           )}
         </Pressable>
       </View>
-      {/* Custom drawer items */}
-      <DrawerItem
-        label={'Rescan Library'}
+      <DrawerRow
+        label='Rescan Library'
+        icon={RefreshCcw}
         onPress={() => {
           scanLibrary();
           props.navigation.closeDrawer();
         }}
-        icon={() => (
-          <RefreshCcw size={24} color={themeColors.text} strokeWidth={1} />
-        )}
-        labelStyle={[styles.labelStyle, { color: themeColors.text }]}
-        style={[
-          styles.drawerItem,
-          { borderBottomColor: themeColors.divider },
-        ]}
+        iconColor={iconColor}
+        labelColor={labelColor}
+        dividerColor={dividerColor}
       />
-      <DrawerItem
-        label={'Manage Library'}
-        onPress={handleLibraryPress}
-        icon={() => (
-          <BookOpenText
-            size={24}
-            color={themeColors.text}
-            strokeWidth={1}
-          />
-        )}
-        labelStyle={[styles.labelStyle, { color: themeColors.text }]}
-        style={[
-          styles.drawerItem,
-          { borderBottomColor: themeColors.divider },
-        ]}
+      <DrawerRow
+        label='Manage Library'
+        icon={BookOpenText}
+        onPress={() => router.navigate('/library')}
+        iconColor={iconColor}
+        labelColor={labelColor}
+        dividerColor={dividerColor}
       />
-      <DrawerItem
-        label={'Book Stats'}
-        onPress={handleBookStatsPress}
-        icon={() => (
-          <ChartNoAxesCombined
-            size={24}
-            color={themeColors.text}
-            strokeWidth={1}
-          />
-        )}
-        labelStyle={[styles.labelStyle, { color: themeColors.text }]}
-        style={[
-          styles.drawerItem,
-          { borderBottomColor: themeColors.divider, opacity: 0.4 },
-        ]}
+      <DrawerRow
+        label='Book Stats'
+        icon={ChartNoAxesCombined}
+        onPress={() => router.navigate('/bookStats')}
+        iconColor={iconColor}
+        labelColor={labelColor}
+        dividerColor={dividerColor}
+        disabled
       />
-      <DrawerItem
-        label={'Help'}
-        onPress={handleHelpPress}
-        icon={() => (
-          <FileQuestionMark
-            size={24}
-            color={themeColors.text}
-            strokeWidth={1}
-          />
-        )}
-        labelStyle={[styles.labelStyle, { color: themeColors.text }]}
-        style={[
-          styles.drawerItem,
-          { borderBottomColor: themeColors.divider },
-        ]}
+      <DrawerRow
+        label='Help'
+        icon={FileQuestionMark}
+        onPress={() => router.navigate('/help')}
+        iconColor={iconColor}
+        labelColor={labelColor}
+        dividerColor={dividerColor}
       />
-      <DrawerItem
-        label={'Appearance'}
-        onPress={handleGeneralPress}
-        icon={() => (
-          <PencilRuler size={24} color={themeColors.text} strokeWidth={1} />
-        )}
-        labelStyle={[styles.labelStyle, { color: themeColors.text }]}
-        style={[
-          styles.drawerItem,
-          { borderBottomColor: themeColors.divider },
-        ]}
+      <DrawerRow
+        label='Appearance'
+        icon={PencilRuler}
+        onPress={() => router.navigate('/general')}
+        iconColor={iconColor}
+        labelColor={labelColor}
+        dividerColor={dividerColor}
       />
-      <DrawerItem
-        label={'Timer'}
-        onPress={handleTimerPress}
-        icon={() => (
-          <Timer size={24} color={themeColors.text} strokeWidth={1} />
-        )}
-        labelStyle={[styles.labelStyle, { color: themeColors.text }]}
-        style={[
-          styles.drawerItem,
-          { borderBottomColor: themeColors.divider },
-        ]}
+      <DrawerRow
+        label='Timer'
+        icon={Timer}
+        onPress={() => router.navigate('/timer')}
+        iconColor={iconColor}
+        labelColor={labelColor}
+        dividerColor={dividerColor}
       />
-      <DrawerItem
-        label={'Player Options'}
-        onPress={handlePlayerPress}
-        icon={() => (
-          <CassetteTape
-            size={24}
-            color={themeColors.text}
-            strokeWidth={1}
-          />
-        )}
-        labelStyle={[styles.labelStyle, { color: themeColors.text }]}
-        style={[
-          styles.drawerItem,
-          { borderBottomColor: themeColors.divider, opacity: 0.4 },
-        ]}
+      <DrawerRow
+        label='Player Options'
+        icon={CassetteTape}
+        onPress={() => router.navigate('/playerOptions')}
+        iconColor={iconColor}
+        labelColor={labelColor}
+        dividerColor={dividerColor}
+        disabled
       />
-      <DrawerItem
-        label={'Get Pro'}
-        onPress={handleProPress}
-        icon={() => (
-          <Crown size={24} color={themeColors.text} strokeWidth={1} />
-        )}
-        labelStyle={[styles.labelStyle, { color: themeColors.text }]}
-        style={[
-          styles.drawerItem,
-          { borderBottomColor: themeColors.divider },
-        ]}
+      <DrawerRow
+        label='Get Pro'
+        icon={Crown}
+        onPress={() => router.navigate('/subscription')}
+        iconColor={iconColor}
+        labelColor={labelColor}
+        dividerColor={dividerColor}
       />
-    </DrawerContentScrollView>
+    </View>
   );
 };
 
@@ -253,15 +213,29 @@ const styles = StyleSheet.create({
     borderColor: colors.modalBackground,
   },
   drawerItem: {
-    // paddingStart: 4,
-    gap: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
     marginHorizontal: 10,
-    marginBottom: 10,
-    borderBottomWidth: 1,
+    paddingVertical: 11,
+    paddingStart: 16,
+    paddingEnd: 24,
   },
-  labelStyle: {
+  divider: {
+    height: 1,
+    marginHorizontal: 20,
+    marginBottom: 10,
+  },
+  labelWrapper: {
+    marginStart: 12,
+    marginEnd: 12,
+    marginVertical: 4,
+    flex: 1,
+  },
+  labelText: {
     fontFamily: 'Rubik-Medium',
     fontSize: 16,
+    lineHeight: 24,
+    textAlignVertical: 'center',
   },
 });
 

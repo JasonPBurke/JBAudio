@@ -11,9 +11,10 @@ import { Logs } from 'lucide-react-native';
 import { TickerText } from '../components/TickerText';
 import { useCurrentChapterStable } from '@/hooks/useCurrentChapterStable';
 import { useTheme } from '@/hooks/useTheme';
-// import { LinearGradient } from 'expo-linear-gradient';
 
-const logsIconStyle = { transform: [{ rotateY: '180deg' as const }] };
+const logsIconWrapperStyle = {
+  transform: [{ rotateY: '180deg' as const }],
+};
 const loadingContainerStyle = [
   defaultStyles.container,
   { justifyContent: 'center' as const },
@@ -47,13 +48,14 @@ export const PlayerChaptersModal = React.memo(
 
     return (
       <Pressable onPress={handlePress} style={styles.chapterTitleContainer}>
-        <Logs
-          size={24}
-          style={logsIconStyle}
-          color={themeColors.lightIcon}
-          strokeWidth={1.5}
-          absoluteStrokeWidth
-        />
+        <View style={logsIconWrapperStyle}>
+          <Logs
+            size={24}
+            color={themeColors.lightIcon}
+            strokeWidth={1.5}
+            absoluteStrokeWidth
+          />
+        </View>
 
         <View style={styles.trackTitleContainer}>
           <TickerText
@@ -64,13 +66,6 @@ export const PlayerChaptersModal = React.memo(
               color: themeColors.lightIcon,
             }}
           />
-          {/* <LinearGradient
-            colors={['transparent', darkestColor]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.fadeOverlay}
-            pointerEvents='none'
-          /> */}
         </View>
       </Pressable>
     );
@@ -90,18 +85,9 @@ const styles = StyleSheet.create({
   trackTitleContainer: {
     overflow: 'hidden',
     maxWidth: '80%',
-    // borderColor: 'red',
-    // borderWidth: 1,
   },
   trackTitleText: {
     fontSize: 18,
     fontFamily: 'Rubik-Medium',
   },
-  // fadeOverlay: {
-  //   position: 'absolute',
-  //   right: 0,
-  //   top: 0,
-  //   bottom: 0,
-  //   width: 10,
-  // },
 });

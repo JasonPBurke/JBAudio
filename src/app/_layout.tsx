@@ -205,6 +205,7 @@ const RootNavigation = () => {
             presentation: 'formSheet',
             animation: 'slide_from_bottom',
             sheetCornerRadius: 15,
+            sheetShouldOverflowTopInset: true,
           }}
         />
         <Stack.Screen
@@ -213,6 +214,7 @@ const RootNavigation = () => {
             presentation: 'formSheet',
             animation: 'slide_from_bottom',
             sheetCornerRadius: 15,
+            sheetShouldOverflowTopInset: true,
           }}
         />
         <Stack.Screen
