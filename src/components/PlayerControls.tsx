@@ -485,8 +485,9 @@ export function PlaybackSpeed({ iconSize = 30 }: PlayerButtonProps) {
   const [currentIndex, setCurrentIndex] = useState(1);
 
   const handleSpeedRate = async () => {
-    setCurrentIndex((prevIndex) => (prevIndex + 1) % speedRates.length);
-    // await TrackPlayer.setRate(currentIndex);
+    const nextIndex = (currentIndex + 1) % speedRates.length;
+    setCurrentIndex(nextIndex);
+    await TrackPlayer.setRate(speedRates[nextIndex]);
   };
 
   return (
