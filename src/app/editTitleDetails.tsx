@@ -22,6 +22,7 @@ import { useEffect, useState } from 'react';
 import { BookEditableFields } from '@/types/Book';
 import { updateBookDetails } from '@/db/bookQueries';
 import { ImagePlus } from 'lucide-react-native';
+import { normalizeSize } from '@/helpers/normalizeSize';
 
 const editTitleDetails = () => {
   const { colors: themeColors } = useTheme();
@@ -351,7 +352,7 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
-    height: 370, //* this is 5px smaller than the FIXED_IMAGE_HEIGHT in titleDetails for alignment
+    height: normalizeSize(370), //* this is 5px smaller than the FIXED_IMAGE_HEIGHT in titleDetails for alignment
   },
   imageOverlayIcon: {
     position: 'absolute',

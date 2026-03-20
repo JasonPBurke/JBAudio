@@ -48,6 +48,7 @@ import { removeAutoChapters } from '@/helpers/autoChapterGenerator';
 import { recordFootprint } from '@/db/footprintQueries';
 import { getBookById } from '@/db/bookQueries';
 import MeshGradientBackground from '@/components/MeshGradientBackground';
+import { normalizeSize } from '@/helpers/normalizeSize';
 
 const TitleDetails = () => {
   const { top, bottom } = useSafeAreaInsets();
@@ -699,7 +700,7 @@ const TitleDetails = () => {
 
 export default TitleDetails;
 
-const FIXED_ARTWORK_HEIGHT = 375;
+const FIXED_ARTWORK_HEIGHT = normalizeSize(375);
 
 const styles = StyleSheet.create({
   screenContainer: {

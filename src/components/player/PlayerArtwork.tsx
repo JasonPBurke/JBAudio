@@ -3,12 +3,12 @@ import { StyleSheet, Pressable } from 'react-native';
 import { ShadowedView, shadowStyle } from 'react-native-fast-shadow';
 import FastImage from '@d11/react-native-fast-image';
 import { unknownBookImageUri } from '@/constants/images';
-
-const FIXED_ARTWORK_HEIGHT = 350;
+import { normalizeSize } from '@/helpers/normalizeSize';
 
 type PlayerArtworkProps = {
   artwork: string | null | undefined;
   width: number;
+  height: number;
   onLongPress?: () => void;
 };
 
@@ -23,12 +23,12 @@ type PlayerArtworkProps = {
  * - Long press to access footprints
  */
 export const PlayerArtwork = React.memo(
-  ({ artwork, width, onLongPress }: PlayerArtworkProps) => {
+  ({ artwork, width, height, onLongPress }: PlayerArtworkProps) => {
     return (
       <Pressable
         onLongPress={onLongPress}
         delayLongPress={400}
-        style={[styles.container, { width }]}
+        style={[styles.container, { width, height }]}
       >
         <ShadowedView
           style={shadowStyle({
@@ -43,7 +43,7 @@ export const PlayerArtwork = React.memo(
               priority: FastImage.priority.high,
               cache: FastImage.cacheControl.immutable,
             }}
-            style={[styles.image, { width }]}
+            style={[styles.image, { width, height }]}
             resizeMode={FastImage.resizeMode.contain}
           />
         </ShadowedView>
@@ -56,12 +56,11 @@ PlayerArtwork.displayName = 'PlayerArtwork';
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 60,
+    marginTop: normalizeSize(60),
+    marginBottom: normalizeSize(30),
     alignSelf: 'center',
-    height: FIXED_ARTWORK_HEIGHT,
   },
   image: {
-    height: FIXED_ARTWORK_HEIGHT,
     width: '100%',
     alignSelf: 'center',
     borderRadius: 6,

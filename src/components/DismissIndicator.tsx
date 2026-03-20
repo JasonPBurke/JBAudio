@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors } from '@/constants/tokens';
 import { withOpacity } from '@/helpers/colorUtils';
+import { normalizeSize } from '@/helpers/normalizeSize';
 
 //? = (sheetRef: React.ForwardedRef<BottomSheetModal>) =>
 export const DismissIndicator = () => {
@@ -16,7 +17,7 @@ export const DismissIndicator = () => {
   return (
     <Pressable
       hitSlop={10}
-      style={{ ...styles.backButton, top: top + 8 }}
+      style={{ ...styles.backButton, top: top + normalizeSize(8) }}
       onPress={handlePress}
     />
   );
@@ -24,7 +25,7 @@ export const DismissIndicator = () => {
 
 const styles = StyleSheet.create({
   backButton: {
-    marginBottom: 18,
+    marginBottom: normalizeSize(18),
     width: 55,
     height: 7,
     backgroundColor: withOpacity(colors.background, 0.66),

@@ -17,6 +17,7 @@ import { selectGradientColors } from '@/helpers/gradientColorSorter';
 import { withOpacity } from '@/helpers/colorUtils';
 import { useTheme } from '@/hooks/useTheme';
 import MeshGradientBackground from '@/components/MeshGradientBackground';
+import { normalizeSize } from '@/helpers/normalizeSize';
 
 // Memoized components - extracted to prevent re-renders
 import { PlayerArtwork } from '@/components/player/PlayerArtwork';
@@ -26,15 +27,14 @@ import { PlayerChaptersModal } from '@/modals/PlayerChaptersModal';
 import { BookTimeRemaining } from '@/components/BookTimeRemaining';
 import { DismissIndicator } from '@/components/DismissIndicator';
 
-const FIXED_ARTWORK_HEIGHT = 350;
+const FIXED_ARTWORK_HEIGHT = normalizeSize(375);
 
 // Pre-defined styles to avoid inline object creation on each render
-const progressBarStyle = { marginTop: 70 };
+const progressBarStyle = { marginTop: normalizeSize(70) };
 const timeRemainingContainerStyle = { alignItems: 'center' as const };
-const controlsStyle = { marginTop: 50 };
-const chapterSectionStyle = { marginTop: 50 };
+const controlsStyle = { marginTop: normalizeSize(50) };
+const chapterSectionStyle = { marginTop: normalizeSize(50) };
 const loadingContainerStyle = { justifyContent: 'center' as const };
-
 
 // Note: defaultGradientColors is now defined inside the component to use theme colors
 
@@ -147,6 +147,7 @@ const PlayerScreen = () => {
         <PlayerArtwork
           artwork={book?.artwork}
           width={artworkWidth}
+          height={FIXED_ARTWORK_HEIGHT}
           onLongPress={handleArtworkLongPress}
         />
 
