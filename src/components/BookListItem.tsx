@@ -2,7 +2,7 @@ import { unknownBookImageUri } from '@/constants/images';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import React, { memo, useCallback } from 'react';
 import FastImage from '@d11/react-native-fast-image';
-import { colors, fontSize } from '@/constants/tokens';
+import { fontSize } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import { withOpacity } from '@/helpers/colorUtils';
 import { useTheme } from '@/hooks/useTheme';
@@ -11,7 +11,7 @@ import {
   useIsBookActiveAndPlaying,
 } from '@/store/playerState';
 
-import { Play, EllipsisVertical } from 'lucide-react-native';
+import { Play } from 'lucide-react-native';
 import LoaderKitView from 'react-native-loader-kit';
 import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
@@ -132,16 +132,8 @@ export const BookListItem = memo(function BookListItem({
             />
           </View>
           <View style={{ gap: 8 }}>
-            <Pressable style={{ padding: 8 }} hitSlop={10}>
-              <EllipsisVertical
-                size={18}
-                color={themeColors.icon}
-                strokeWidth={1}
-                absoluteStrokeWidth
-              />
-            </Pressable>
             {isActiveAndPlaying ? (
-              <View style={{ padding: 8 }}>
+              <View style={{ paddingVertical: 8 }}>
                 <LoaderKitView
                   style={styles.trackPlayingImageIcon}
                   name={'LineScaleParty'}
@@ -152,11 +144,11 @@ export const BookListItem = memo(function BookListItem({
             ) : (
               <Pressable
                 onPress={handlePressPlay}
-                style={{ padding: 8 }}
+                style={{ paddingVertical: 8 }}
                 hitSlop={10}
               >
                 <Play
-                  size={18}
+                  size={26}
                   color={themeColors.textMuted}
                   strokeWidth={1}
                   absoluteStrokeWidth
@@ -191,7 +183,6 @@ const styles = StyleSheet.create({
     ...defaultStyles.text,
     fontSize: fontSize.sm,
     fontFamily: 'Rubik-SemiBold',
-    // fontWeight: '600',
     maxWidth: '90%',
   },
   bookAuthorText: {
@@ -201,7 +192,7 @@ const styles = StyleSheet.create({
   },
   trackPlayingImageIcon: {
     padding: 8,
-    width: 20,
-    height: 20,
+    width: 24,
+    height: 24,
   },
 });

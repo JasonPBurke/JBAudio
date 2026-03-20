@@ -113,6 +113,7 @@ const BookPlayButton = memo(function BookPlayButton({
         <LoaderKitView
           style={loaderStyle}
           name={'LineScaleParty'}
+          animationSpeedMultiplier={0.5}
           color={themeColors.primary}
         />
       </View>
