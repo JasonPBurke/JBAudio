@@ -89,5 +89,6 @@ const styles = StyleSheet.create({
   trackTitleText: {
     fontSize: 18,
     fontFamily: 'Rubik-Medium',
+    includeFontPadding: false,
   },
 });
