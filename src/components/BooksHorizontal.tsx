@@ -1,5 +1,11 @@
 import { StyleSheet, Text, View } from 'react-native';
-import React, { memo, useCallback, useMemo } from 'react';
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
 import { Author, Book } from '@/types/Book';
 import { BookGridItem } from './BookGridItem';
@@ -7,6 +13,7 @@ import { utilsStyles } from '@/styles';
 import { compareBookTitles } from '@/helpers/miscellaneous';
 
 export type BookHorizontalProps = Partial<FlashListProps<string>> & {
+  sectionId: string;
   authors?: Author[];
   books?: Book[];
   flowDirection: 'row' | 'column';
@@ -14,14 +21,20 @@ export type BookHorizontalProps = Partial<FlashListProps<string>> & {
 };
 
 const BooksHorizontal = ({
+  sectionId,
   authors,
   books,
   flowDirection,
   preserveOrder,
 }: BookHorizontalProps) => {
-  // This is the core change. We now create a stable list of book IDs.
-  // useMemo ensures this list is only recalculated when the `authors` array changes.
-  // Books are sorted by title within each author's collection.
+  const listRef =
+    useRef<React.ComponentRef<typeof FlashList<string>>>(null);
+
+  // Reset scroll position to start when recycled for a different section
+  useEffect(() => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: false });
+  }, [sectionId]);
+
   const bookIds = useMemo(() => {
     if (books) {
       const sorted = preserveOrder
@@ -53,6 +66,7 @@ const BooksHorizontal = ({
   return (
     <View style={styles.listContainer}>
       <FlashList
+        ref={listRef}
         contentContainerStyle={{
           paddingBottom: 6,
         }}

@@ -214,6 +214,7 @@ const BooksHome = ({
           return (
             <View style={styles.horizontalRowContainer}>
               <BooksHorizontal
+                sectionId={item.sectionId}
                 books={item.books}
                 authors={item.authors}
                 flowDirection='row'
