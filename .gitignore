@@ -41,6 +41,8 @@ sentry.properties
 # agents
 .roo
 .qodo
+.agents
+.claude
 
 # accidental apk files
 *.apk
@@ -53,5 +55,6 @@ app-example
 # md prompt files
 plans
 docs
+skills-lock.json
 
 .env.local
