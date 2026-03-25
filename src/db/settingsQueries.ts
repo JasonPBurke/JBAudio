@@ -371,6 +371,38 @@ export async function setBedtimeSettings(
   });
 }
 
+export async function getSkipBackDuration(): Promise<number> {
+  const settingsCollection = database.collections.get<Settings>('settings');
+  const settingsRecord = await settingsCollection.query().fetch();
+
+  if (settingsRecord.length > 0) {
+    return settingsRecord[0].skipBackDuration ?? 30;
+  }
+  return 30;
+}
+
+export async function getSkipForwardDuration(): Promise<number> {
+  const settingsCollection = database.collections.get<Settings>('settings');
+  const settingsRecord = await settingsCollection.query().fetch();
+
+  if (settingsRecord.length > 0) {
+    return settingsRecord[0].skipForwardDuration ?? 30;
+  }
+  return 30;
+}
+
+export async function updateSkipBackDuration(value: number): Promise<void> {
+  return updateSetting((record) => {
+    record.skipBackDuration = value;
+  });
+}
+
+export async function updateSkipForwardDuration(value: number): Promise<void> {
+  return updateSetting((record) => {
+    record.skipForwardDuration = value;
+  });
+}
+
 export async function getAutoChapterInterval(): Promise<number | null> {
   const settingsCollection = database.collections.get<Settings>('settings');
   const settingsRecord = await settingsCollection.query().fetch();

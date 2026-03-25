@@ -2,6 +2,7 @@ import TrackPlayer, { Event, State } from 'react-native-track-player';
 import { AppState } from 'react-native';
 import { useLibraryStore } from '@/store/library';
 import { usePlayerStateStore } from '@/store/playerState';
+import { useSettingsStore } from '@/store/settingsStore';
 import {
   getTimerSettings,
   updateSleepTime,
@@ -61,9 +62,6 @@ let cachedTimer = {
 const SETTINGS_REFRESH_INTERVAL = 1000; // 1s is enough for UI updates
 // Throttle interval for volume updates (ms)
 const VOLUME_THROTTLE_MS = 100;
-//! these will come from the settings db
-const skip_back_duration = 30;
-const skip_forward_duration = 30;
 
 // Periodic progress save interval (defense in depth for force-close scenarios)
 const PROGRESS_SAVE_INTERVAL = 30000; // 30 seconds
@@ -152,10 +150,12 @@ export default module.exports = async function () {
     TrackPlayer.seekTo(position);
   });
   TrackPlayer.addEventListener(Event.RemoteJumpForward, () => {
-    TrackPlayer.seekBy(skip_forward_duration);
+    const { skipForwardDuration } = useSettingsStore.getState();
+    TrackPlayer.seekBy(skipForwardDuration);
   });
   TrackPlayer.addEventListener(Event.RemoteJumpBackward, () => {
-    TrackPlayer.seekBy(-skip_back_duration);
+    const { skipBackDuration } = useSettingsStore.getState();
+    TrackPlayer.seekBy(-skipBackDuration);
   });
   TrackPlayer.addEventListener(Event.RemoteNext, () =>
     TrackPlayer.skipToNext(),

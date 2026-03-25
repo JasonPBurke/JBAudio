@@ -11,6 +11,7 @@ import { usePermission } from '@/contexts/PermissionContext';
 import { getLastActiveBook } from '@/db/settingsQueries';
 import { getBookWithChaptersForRestoration } from '@/db/bookQueries';
 import { useQueueStore } from '@/store/queue';
+import { getSkipBackDuration, getSkipForwardDuration } from '@/db/settingsQueries';
 import { getChapterProgressInDB } from '@/db/chapterQueries';
 import { unknownBookImageUri } from '@/constants/images';
 import {
@@ -39,8 +40,12 @@ async function requestAudioPermission(): Promise<
 }
 
 const setupPlayer = async () => {
-  //! will come from the settings db
-  const userJumpInterval = 30;
+  const [skipBack, skipForward] = await Promise.all([
+    getSkipBackDuration(),
+    getSkipForwardDuration(),
+  ]);
+  // const userJumpInterval = 30;
+
   await TrackPlayer.setupPlayer({
     autoHandleInterruptions: true,
     androidAudioContentType: AndroidAudioContentType.Speech,
@@ -49,8 +54,10 @@ const setupPlayer = async () => {
 
   await TrackPlayer.updateOptions({
     progressUpdateEventInterval: 1,
-    forwardJumpInterval: userJumpInterval,
-    backwardJumpInterval: userJumpInterval,
+    forwardJumpInterval: skipForward,
+    backwardJumpInterval: skipBack,
+    // forwardJumpInterval: userJumpInterval,
+    // backwardJumpInterval: userJumpInterval,
     capabilities: [
       Capability.Play,
       Capability.Pause,

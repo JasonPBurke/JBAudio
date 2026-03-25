@@ -63,6 +63,7 @@ import {
   usePlayerStateStore,
 } from '@/store/playerState';
 import { useBookById } from '@/store/library';
+import { useSettingsStore } from '@/store/settingsStore';
 import { findChapterIndexByPosition } from '@/helpers/singleFileBook';
 
 type PlayerControlsProps = {
@@ -207,7 +208,7 @@ export function SeekBackButton({
   fontSize,
   color,
 }: PlayerButtonProps) {
-  const seekDuration = 30;
+  const seekDuration = useSettingsStore((s) => s.skipBackDuration);
   const rotation = useSharedValue(0);
   const iconColor = color ?? colors.icon;
   const { playing } = useIsPlaying();
@@ -293,7 +294,7 @@ export function SeekForwardButton({
   right = 12,
   fontSize,
 }: PlayerButtonProps) {
-  const seekDuration = 30;
+  const seekDuration = useSettingsStore((s) => s.skipForwardDuration);
   const rotation = useSharedValue(0);
   const { playing } = useIsPlaying();
 

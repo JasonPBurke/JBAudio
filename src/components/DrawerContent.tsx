@@ -178,7 +178,6 @@ const DrawerContent = (props: Props) => {
         iconColor={iconColor}
         labelColor={labelColor}
         dividerColor={dividerColor}
-        disabled
       />
       <DrawerRow
         label='Get Pro'

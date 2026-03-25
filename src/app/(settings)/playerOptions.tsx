@@ -1,12 +1,23 @@
 import { StyleSheet, Text, View, ScrollView } from 'react-native';
-import { AudioWaveform } from 'lucide-react-native';
+import { ArrowLeftRight } from 'lucide-react-native';
 import SettingsHeader from '@/components/SettingsHeader';
 import SettingsCard from '@/components/settings/SettingsCard';
+import SegmentedControl from '@/components/SegmentedControl';
 import { screenPadding } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
+import { useSettingsStore } from '@/store/settingsStore';
+
+const SKIP_OPTIONS = [10, 15, 30, 60];
+const SKIP_LABELS = ['10s', '15s', '30s', '60s'];
 
 const PlayerSettingsScreen = () => {
   const { colors: themeColors } = useTheme();
+  const skipBackDuration = useSettingsStore((s) => s.skipBackDuration);
+  const skipForwardDuration = useSettingsStore((s) => s.skipForwardDuration);
+  const setSkipBackDuration = useSettingsStore((s) => s.setSkipBackDuration);
+  const setSkipForwardDuration = useSettingsStore(
+    (s) => s.setSkipForwardDuration,
+  );
 
   return (
     <View
@@ -22,25 +33,55 @@ const PlayerSettingsScreen = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <SettingsCard title='Player Options' icon={AudioWaveform}>
-          <View style={styles.placeholderContent}>
+        <SettingsCard title='Skip Duration' icon={ArrowLeftRight}>
+          <View style={styles.sectionContent}>
             <Text
-              style={[
-                styles.comingSoonText,
-                { color: themeColors.textMuted },
-              ]}
+              style={[styles.settingLabel, { color: themeColors.textMuted }]}
             >
-              Player settings coming soon
+              Skip Back
             </Text>
             <Text
               style={[
-                styles.descriptionText,
+                styles.settingDescription,
                 { color: themeColors.textMuted },
               ]}
             >
-              Future options may include playback speed, skip intervals, and
-              audio quality settings.
+              How far to rewind when tapping the skip back button
             </Text>
+            <View style={styles.controlWrapper}>
+              <SegmentedControl
+                values={SKIP_LABELS}
+                selectedIndex={SKIP_OPTIONS.indexOf(skipBackDuration)}
+                onChange={(index) => setSkipBackDuration(SKIP_OPTIONS[index])}
+                height={40}
+              />
+            </View>
+          </View>
+
+          <View style={[styles.sectionContent, styles.sectionDivider]}>
+            <Text
+              style={[styles.settingLabel, { color: themeColors.textMuted }]}
+            >
+              Skip Forward
+            </Text>
+            <Text
+              style={[
+                styles.settingDescription,
+                { color: themeColors.textMuted },
+              ]}
+            >
+              How far to jump ahead when tapping the skip forward button
+            </Text>
+            <View style={styles.controlWrapper}>
+              <SegmentedControl
+                values={SKIP_LABELS}
+                selectedIndex={SKIP_OPTIONS.indexOf(skipForwardDuration)}
+                onChange={(index) =>
+                  setSkipForwardDuration(SKIP_OPTIONS[index])
+                }
+                height={40}
+              />
+            </View>
           </View>
         </SettingsCard>
       </ScrollView>
@@ -63,20 +104,25 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
     flexGrow: 1,
   },
-  placeholderContent: {
+  sectionContent: {
     paddingHorizontal: 16,
-    paddingVertical: 24,
-    gap: 12,
-    alignItems: 'center',
+    paddingBottom: 4,
   },
-  comingSoonText: {
-    fontFamily: 'Rubik-SemiBold',
+  sectionDivider: {
+    marginTop: 16,
+  },
+  settingLabel: {
     fontSize: 16,
+    fontFamily: 'Rubik-SemiBold',
+    marginBottom: 4,
   },
-  descriptionText: {
+  settingDescription: {
     fontFamily: 'Rubik',
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 17,
+  },
+  controlWrapper: {
+    marginTop: 8,
+    marginBottom: 8,
   },
 });
