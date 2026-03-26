@@ -14,29 +14,20 @@ import {
   updateTimerDuration,
   updateCustomTimer,
   updateChapterTimer,
-  updateTimerActive,
-  updateSleepTime,
 } from '@/db/settingsQueries';
-import { recordFootprint } from '@/db/footprintQueries';
 import UserSettings from '@/db/models/Settings';
 import { useDatabase } from '@nozbe/watermelondb/hooks';
 import { useEffect } from 'react';
-import TrackPlayer, { State } from 'react-native-track-player';
-import { usePlayerStateStore } from '@/store/playerState';
+import TrackPlayer from 'react-native-track-player';
 import { useRouter } from 'expo-router';
 import { useLibraryStore } from '@/store/library';
 import { findChapterIndexByPosition } from '@/helpers/singleFileBook';
+import * as sleepTimer from '@/setup/sleepTimer';
 
 const SleepTimerOptions = ({
   bottomSheetModalRef,
-  onOptimisticUpdate,
 }: {
   bottomSheetModalRef: RefObject<BottomSheetModal | null>;
-  onOptimisticUpdate?: (next: {
-    active: boolean;
-    endTimeMs: number | null;
-    chapters: number | null;
-  }) => void;
 }) => {
   const [showSlider, setShowSlider] = useState(false);
   const [customTimer, setCustomTimer] = useState({ hours: 0, minutes: 0 });
@@ -156,66 +147,20 @@ const SleepTimerOptions = ({
     setChaptersToEnd((prev) => Math.max(prev - 1, 0));
   };
 
-  // Helper to record timer activation footprint
-  const recordTimerFootprintAsync = async () => {
-    try {
-      const activeTrack = await TrackPlayer.getActiveTrack();
-      if (activeTrack?.bookId) {
-        await recordFootprint(activeTrack.bookId, 'timer_activation');
-      }
-    } catch {
-      // Silently fail if footprint recording fails
-    }
-  };
-
   const handlePresetPress = async (duration: number) => {
-    //! convert to milliseconds (timestamp) before saving for timer calculation
+    //! convert to milliseconds before saving for timer calculation
     const totalMilliseconds = duration * 60 * 1000;
 
     if (activeTimerDuration === totalMilliseconds) {
       //! deactivate timer
-      onOptimisticUpdate?.({
-        active: false,
-        endTimeMs: null,
-        chapters: null,
-      });
-      await updateTimerActive(false);
+      await sleepTimer.cancel();
       await updateTimerDuration(null);
-      await updateSleepTime(null);
       setActiveTimerDuration(null);
     } else {
       //! activate timer
-      // Check if player is currently playing
-      const playbackState = await TrackPlayer.getPlaybackState();
-      const isCurrentlyPlaying = playbackState.state === State.Playing;
-      const { setRemainingSleepTimeMs } = usePlayerStateStore.getState();
-
-      if (isCurrentlyPlaying) {
-        // Player is playing - set sleepTime to start countdown
-        onOptimisticUpdate?.({
-          active: true,
-          endTimeMs: Date.now() + totalMilliseconds,
-          chapters: null,
-        });
-        await updateSleepTime(Date.now() + totalMilliseconds);
-      } else {
-        // Player is paused - freeze the timer by setting remainingSleepTimeMs
-        onOptimisticUpdate?.({
-          active: true,
-          endTimeMs: null, // Pass null so CountdownTimer uses frozenTimeMs
-          chapters: null,
-        });
-        setRemainingSleepTimeMs(totalMilliseconds);
-        await updateSleepTime(null);
-      }
-
-      // Common activation steps
-      await updateTimerActive(true);
-      await updateTimerDuration(totalMilliseconds);
-      await updateChapterTimer(null);
+      await sleepTimer.activate({ kind: 'duration', durationMs: totalMilliseconds });
       setChapterTimerActive(false);
       setActiveTimerDuration(totalMilliseconds);
-      await recordTimerFootprintAsync();
       setTimeout(() => {
         bottomSheetModalRef.current?.close();
       }, 250);
@@ -231,50 +176,17 @@ const SleepTimerOptions = ({
       value.hours * 60 * 60 * 1000 + value.minutes * 60 * 1000;
     if (totalMilliseconds === 0) {
       //! deactivate timer
-      onOptimisticUpdate?.({
-        active: false,
-        endTimeMs: null,
-        chapters: null,
-      });
-      await updateTimerActive(false);
+      await sleepTimer.cancel();
       await updateTimerDuration(null);
-      await updateSleepTime(null);
       await updateCustomTimer(null, null);
       await updateChapterTimer(null);
       setActiveTimerDuration(null);
     } else {
       //! activate timer
-      // Check if player is currently playing
-      const playbackState = await TrackPlayer.getPlaybackState();
-      const isCurrentlyPlaying = playbackState.state === State.Playing;
-      const { setRemainingSleepTimeMs } = usePlayerStateStore.getState();
-
-      if (isCurrentlyPlaying) {
-        // Player is playing - set sleepTime to start countdown
-        onOptimisticUpdate?.({
-          active: true,
-          endTimeMs: Date.now() + totalMilliseconds,
-          chapters: null,
-        });
-        await updateSleepTime(Date.now() + totalMilliseconds);
-      } else {
-        // Player is paused - freeze the timer by setting remainingSleepTimeMs
-        onOptimisticUpdate?.({
-          active: true,
-          endTimeMs: null, // Pass null so CountdownTimer uses frozenTimeMs
-          chapters: null,
-        });
-        setRemainingSleepTimeMs(totalMilliseconds);
-        await updateSleepTime(null);
-      }
-
-      // Common activation steps
-      await updateTimerActive(true);
-      await updateTimerDuration(totalMilliseconds);
+      await sleepTimer.activate({ kind: 'duration', durationMs: totalMilliseconds });
       await updateCustomTimer(value.hours, value.minutes);
       setChapterTimerActive(false);
       setActiveTimerDuration(totalMilliseconds);
-      await recordTimerFootprintAsync();
       setTimeout(() => {
         bottomSheetModalRef.current?.close();
       }, 250);
@@ -286,28 +198,12 @@ const SleepTimerOptions = ({
   const handleChapterTimerPress = async () => {
     if (chapterTimerActive) {
       //! deactivate timer
-      onOptimisticUpdate?.({
-        active: false,
-        endTimeMs: null,
-        chapters: null,
-      });
-      await updateTimerActive(false);
-      await updateTimerDuration(null);
-      await updateChapterTimer(null);
+      await sleepTimer.cancel();
       setActiveTimerDuration(null);
     } else {
       //! activate timer
-      onOptimisticUpdate?.({
-        active: true,
-        endTimeMs: null,
-        chapters: chaptersToEnd,
-      });
-      await updateTimerActive(true);
-      await updateTimerDuration(null);
-      await updateSleepTime(null);
-      await updateChapterTimer(chaptersToEnd);
+      await sleepTimer.activate({ kind: 'chapter', chaptersRemaining: chaptersToEnd });
       setActiveTimerDuration(null);
-      await recordTimerFootprintAsync();
       setTimeout(() => {
         bottomSheetModalRef.current?.close();
       }, 250);

@@ -47,21 +47,14 @@ import * as Haptics from 'expo-haptics';
 import SleepTimerOptions from '../modals/SleepTimerOptions';
 import CountdownTimer from './CountdownTimer';
 import AnimatedZZZ from './animations/AnimatedZZZ';
-import {
-  getTimerSettings,
-  updateSleepTime,
-  updateTimerActive,
-} from '@/db/settingsQueries';
 import { recordFootprint } from '@/db/footprintQueries';
 import { getBookById } from '@/db/bookQueries';
 import { BookProgressState } from '@/helpers/handleBookPlay';
 import database from '@/db';
 import { useObserveSettings } from '@/hooks/useObserveSettings';
-import {
-  useIsPlayerPlaying,
-  useRemainingSleepTimeMs,
-  usePlayerStateStore,
-} from '@/store/playerState';
+import { useIsPlayerPlaying } from '@/store/playerState';
+import { useSleepTimer } from '@/hooks/useSleepTimer';
+import * as sleepTimer from '@/setup/sleepTimer';
 import { useBookById } from '@/store/library';
 import { useSettingsStore } from '@/store/settingsStore';
 import { findChapterIndexByPosition } from '@/helpers/singleFileBook';
@@ -519,24 +512,21 @@ export function PlaybackSpeed({ iconSize = 30 }: PlayerButtonProps) {
 export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
   const { colors: themeColors } = useTheme();
   const settings = useObserveSettings(database);
-  const timerActive = settings?.timerActive === true;
-  const chaptersCount: number | null = settings?.timerChapters ?? null;
-  const sleepTime: number | null = settings?.sleepTime ?? null;
   const isPlaying = useIsPlayerPlaying();
-  const remainingSleepTimeMs = useRemainingSleepTimeMs();
 
-  // Optimistic UI state to reflect immediate press feedback
-  const [optimistic, setOptimistic] = useState<{
-    active: boolean;
-    chapters: number | null;
-    endTimeMs: number | null;
-  } | null>(null);
-  const uiActive = optimistic ? optimistic.active : timerActive;
-  const uiChapters: number | null = optimistic
-    ? optimistic.chapters
-    : chaptersCount;
-  // Combine optimistic endTimeMs with sleepTime from settings
-  const uiSleepTime: number | null = optimistic?.endTimeMs ?? sleepTime;
+  // Live timer state from the sleep timer module (updated immediately on activate/cancel)
+  const {
+    isActive: storeActive,
+    endTimeMs: storeEndTimeMs,
+    frozenRemainingMs,
+    remainingChapters: storeChapters,
+  } = useSleepTimer();
+
+  // Store takes precedence for live updates; DB observation is the fallback for initial state
+  const uiActive = storeActive || (settings?.timerActive === true);
+  const uiChapters: number | null = storeChapters ?? settings?.timerChapters ?? null;
+  const uiSleepTime: number | null = storeEndTimeMs ?? settings?.sleepTime ?? null;
+  const timerDuration: number | null = settings?.timerDuration ?? null;
 
   const [mountSheet, setMountSheet] = useState(false);
   const { bottom } = useSafeAreaInsets();
@@ -547,10 +537,6 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
   const countdownOpacity = useSharedValue(0);
   const countdownScale = useSharedValue(0.8);
 
-  // Reconcile optimistic UI with store updates
-  useEffect(() => {
-    setOptimistic(null);
-  }, [settings]);
 
   useEffect(() => {
     if (uiActive) {
@@ -584,17 +570,6 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
     [],
   );
 
-  const onOptimisticUpdate = useCallback(
-    (next: {
-      active: boolean;
-      endTimeMs: number | null;
-      chapters: number | null;
-    }) => {
-      setOptimistic(next);
-    },
-    [],
-  );
-
   const handlePresentModalPress = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (!mountSheet) setMountSheet(true);
@@ -602,79 +577,13 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
   }, [mountSheet]);
 
   const handlePress = useCallback(async () => {
-    const { timerDuration, timerActive, timerChapters, fadeoutDuration } =
-      await getTimerSettings();
-
-    // Helper to record timer activation footprint
-    const recordTimerFootprintAsync = async () => {
-      try {
-        const activeTrack = await TrackPlayer.getActiveTrack();
-        if (activeTrack?.bookId) {
-          await recordFootprint(activeTrack.bookId, 'timer_activation');
-        }
-      } catch {
-        // Silently fail if footprint recording fails
-      }
-    };
-
-    // Helper to reset volume with retries to outlast service.js cache (1 second refresh)
-    // This ensures fade logic doesn't override our volume reset during the stale cache window
-    const resetVolumeWithRetry = () => {
-      TrackPlayer.setVolume(1);
-      setTimeout(() => TrackPlayer.setVolume(1), 600);
-      setTimeout(() => TrackPlayer.setVolume(1), 1200);
-    };
-
-    // Get current playing state and setRemainingSleepTimeMs from store
-    const { isPlaying: currentlyPlaying, setRemainingSleepTimeMs } =
-      usePlayerStateStore.getState();
-
-    if (timerDuration !== null && timerActive === false) {
-      // Activating duration timer
-      if (currentlyPlaying) {
-        // Player is playing - set sleepTime to start countdown
-        setOptimistic({
-          active: true,
-          chapters: null,
-          endTimeMs: Date.now() + timerDuration,
-        });
-        await updateSleepTime(Date.now() + timerDuration);
-      } else {
-        // Player is paused - freeze the timer by setting remainingSleepTimeMs
-        setOptimistic({
-          active: true,
-          chapters: null,
-          endTimeMs: null, // Pass null so CountdownTimer uses frozenTimeMs
-        });
-        setRemainingSleepTimeMs(timerDuration);
-        await updateSleepTime(null);
-      }
-
-      await recordTimerFootprintAsync();
-      await updateTimerActive(true);
-      // Note: Don't restrict fadeoutDuration here - service.js calculates
-      // effectiveFadeout = min(userFade, timerDuration) at runtime
-    } else if (timerDuration !== null && timerActive === true) {
-      // Optimistically deactivate duration timer
-      setOptimistic({ active: false, chapters: null, endTimeMs: null });
-      await updateTimerActive(false);
-      await updateSleepTime(null);
-      resetVolumeWithRetry();
-    } else if (timerChapters !== null && timerActive === false) {
-      // Optimistically activate chapter timer
-      setOptimistic({
-        active: true,
-        chapters: timerChapters ?? null,
-        endTimeMs: null,
-      });
-      await recordTimerFootprintAsync();
-      await updateTimerActive(true);
-    } else if (timerChapters !== null && timerActive === true) {
-      // Optimistically deactivate chapter timer
-      setOptimistic({ active: false, chapters: null, endTimeMs: null });
-      resetVolumeWithRetry();
-      await updateTimerActive(false);
-    } else if (timerDuration === null && timerActive === false) {
+    if (uiActive) {
+      await sleepTimer.cancel();
+    } else if (timerDuration !== null) {
+      await sleepTimer.activate({ kind: 'duration', durationMs: timerDuration });
+    } else if (uiChapters !== null) {
+      await sleepTimer.activate({ kind: 'chapter', chaptersRemaining: uiChapters });
+    } else {
       handlePresentModalPress();
     }
 
@@ -683,7 +592,7 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
       withTiming(10, { duration: 200 }),
       withTiming(0, { duration: 100 }),
     );
-  }, [handlePresentModalPress]);
+  }, [uiActive, timerDuration, uiChapters, handlePresentModalPress]);
 
   return (
     <Pressable
@@ -721,7 +630,6 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
         >
           <SleepTimerOptions
             bottomSheetModalRef={bottomSheetModalRef}
-            onOptimisticUpdate={onOptimisticUpdate}
           />
         </BottomSheetModal>
       )}
@@ -741,7 +649,7 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
             <CountdownTimer
               timerChapters={uiChapters != null ? uiChapters + 1 : null}
               endTimeMs={uiSleepTime}
-              frozenTimeMs={!isPlaying ? remainingSleepTimeMs : null}
+              frozenTimeMs={frozenRemainingMs}
             />
           </Animated.View>
         )}

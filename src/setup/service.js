@@ -1,20 +1,11 @@
 import TrackPlayer, { Event, State } from 'react-native-track-player';
-import { AppState } from 'react-native';
 import { useLibraryStore } from '@/store/library';
-import { usePlayerStateStore } from '@/store/playerState';
 import { useSettingsStore } from '@/store/settingsStore';
-import {
-  getTimerSettings,
-  updateSleepTime,
-  updateTimerActive,
-  updateChapterTimer,
-} from '@/db/settingsQueries';
 import {
   updateChapterProgressInDB,
   updateChapterIndexInDB,
 } from '@/db/chapterQueries';
 import { getBookById } from '@/db/bookQueries';
-import { isWithinBedtimeWindow } from '@/helpers/bedtimeUtils';
 import { BookProgressState } from '@/helpers/handleBookPlay';
 import { recordFootprint } from '@/db/footprintQueries';
 import {
@@ -22,46 +13,16 @@ import {
   calculateProgressWithinChapter,
   hasValidChapterData,
 } from '@/helpers/singleFileBook';
+import * as sleepTimer from '@/setup/sleepTimer';
 
 const { setPlaybackIndex, setPlaybackProgress } =
   useLibraryStore.getState();
-const { setRemainingSleepTimeMs } = usePlayerStateStore.getState();
-
-// Sleep timer fade state (module-scope)
-let fadeState = {
-  isFading: false,
-  baselineVolume: 1,
-  lastAppliedVolume: 1,
-  lastSetVolumeAt: 0,
-};
-
-// Flag to prevent Paused handler from freezing timer during timer-initiated pause
-let isTimerInitiatedPause = false;
 
 // Single-file book chapter tracking state (module-scope)
 let singleFileChapterState = {
   lastChapterIndex: -1,
   bookId: null,
 };
-
-// Cached timer settings to avoid DB reads each tick
-let cachedTimer = {
-  sleepTime: null,
-  timerActive: false,
-  fadeoutDuration: 0,
-  lastRefreshedAt: 0,
-  // Bedtime fields
-  bedtimeModeEnabled: false,
-  bedtimeStart: null,
-  bedtimeEnd: null,
-  timerDuration: null,
-  timerChapters: null,
-};
-
-// Refresh interval for cached settings (ms)
-const SETTINGS_REFRESH_INTERVAL = 1000; // 1s is enough for UI updates
-// Throttle interval for volume updates (ms)
-const VOLUME_THROTTLE_MS = 100;
 
 // Periodic progress save interval (defense in depth for force-close scenarios)
 const PROGRESS_SAVE_INTERVAL = 30000; // 30 seconds
@@ -73,56 +34,14 @@ let lastProgressSaveTime = 0;
 let lastPlayingStateAt = 0;
 const REMOTE_STOP_GUARD_MS = 500;
 
-// Backup timer state (setTimeout fallback for when progress events are throttled by Doze)
-let backupTimerId = null;
-const BACKUP_TIMER_BUFFER_MS = 2000; // Fire 2s after sleepTime so primary path gets first chance
-
-// Idempotent sleep timer fire — re-reads DB to confirm timer is still active before acting.
-// Used by both the primary (progress event) and backup (setTimeout) paths.
-async function fireSleepTimer() {
-  const settings = await getTimerSettings();
-  if (!settings.timerActive || settings.sleepTime === null) return;
-  if (settings.sleepTime > Date.now()) return; // Not yet expired
-
-  isTimerInitiatedPause = true;
-  try {
-    // Drop volume instantly (backup path skips gradual fade since events were throttled)
-    await TrackPlayer.setVolume(0);
-    await TrackPlayer.pause();
-    await TrackPlayer.setVolume(1);
-
-    fadeState.isFading = false;
-    fadeState.lastAppliedVolume = 1;
-    fadeState.baselineVolume = 1;
-
-    await updateTimerActive(false);
-    await updateSleepTime(null);
-    setRemainingSleepTimeMs(null);
-    cachedTimer.lastRefreshedAt = 0;
-  } finally {
-    isTimerInitiatedPause = false;
-  }
-  cancelBackupTimer();
-}
-
-function scheduleBackupTimer(sleepTimeMs) {
-  const hadPrevious = backupTimerId !== null;
-  cancelBackupTimer();
-  const delay = Math.max(0, sleepTimeMs - Date.now()) + BACKUP_TIMER_BUFFER_MS;
-  backupTimerId = setTimeout(() => {
-    backupTimerId = null;
-    fireSleepTimer();
-  }, delay);
-}
-
-function cancelBackupTimer() {
-  if (backupTimerId !== null) {
-    clearTimeout(backupTimerId);
-    backupTimerId = null;
-  }
-}
-
 export default module.exports = async function () {
+  // Hydrate sleep timer store from DB so UI shows correct state immediately on start
+  try {
+    await sleepTimer.syncFromDB();
+  } catch {
+    // Non-critical — store will be populated on first progress tick
+  }
+
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {
     // Record footprint for remote play (lock screen, headphones, etc.)
     try {
@@ -255,18 +174,7 @@ export default module.exports = async function () {
 
           // Handle sleep timer chapter countdown on chapter change
           if (wasChapterChange) {
-            const { timerChapters, timerActive } = await getTimerSettings();
-            if (
-              timerActive &&
-              timerChapters !== null &&
-              timerChapters > 0
-            ) {
-              await updateChapterTimer(timerChapters - 1);
-            } else if (timerActive && timerChapters === 0) {
-              await TrackPlayer.pause();
-              await TrackPlayer.setVolume(1);
-              await updateTimerActive(false);
-            }
+            await sleepTimer.onChapterChanged();
           }
         }
 
@@ -309,105 +217,7 @@ export default module.exports = async function () {
         setPlaybackProgress(trackToUpdate.bookId, position);
       }
 
-      // Refresh cached settings at most every SETTINGS_REFRESH_INTERVAL
-      const nowTs = Date.now();
-      if (
-        !cachedTimer.lastRefreshedAt ||
-        nowTs - cachedTimer.lastRefreshedAt >= SETTINGS_REFRESH_INTERVAL
-      ) {
-        const timerSettings = await getTimerSettings();
-        cachedTimer.sleepTime = timerSettings.sleepTime;
-        cachedTimer.timerActive = !!timerSettings.timerActive;
-        cachedTimer.fadeoutDuration =
-          typeof timerSettings.fadeoutDuration === 'number'
-            ? timerSettings.fadeoutDuration
-            : 0;
-        // Bedtime fields
-        cachedTimer.bedtimeModeEnabled = !!timerSettings.bedtimeModeEnabled;
-        cachedTimer.bedtimeStart = timerSettings.bedtimeStart;
-        cachedTimer.bedtimeEnd = timerSettings.bedtimeEnd;
-        cachedTimer.timerDuration = timerSettings.timerDuration;
-        cachedTimer.timerChapters = timerSettings.timerChapters;
-        cachedTimer.lastRefreshedAt = nowTs;
-      }
-
-      const { sleepTime, timerActive, fadeoutDuration, timerDuration } =
-        cachedTimer;
-
-      // Single source of truth for stopping at or after sleep time for both fade and non-fade
-      if (
-        sleepTime !== null &&
-        timerActive === true &&
-        sleepTime <= Date.now()
-      ) {
-        await fireSleepTimer();
-        return; // nothing more to do on this tick
-      }
-
-      // Schedule backup timer for when progress events may be throttled by Doze
-      if (sleepTime !== null && timerActive === true && sleepTime > Date.now()) {
-        scheduleBackupTimer(sleepTime);
-      }
-
-      //* fadeout timer logic
-      if (
-        sleepTime !== null &&
-        timerActive &&
-        typeof fadeoutDuration === 'number' &&
-        fadeoutDuration > 0
-      ) {
-        const now = Date.now();
-        // Calculate effective fade: user's preference capped by timer duration
-        // This preserves the stored setting while applying shorter fade when timer < fade
-        const effectiveFadeout =
-          timerDuration !== null && timerDuration > 0
-            ? Math.min(fadeoutDuration, timerDuration)
-            : fadeoutDuration;
-        const beginFadeout = sleepTime - effectiveFadeout;
-
-        if (now < beginFadeout && fadeState.isFading) {
-          // If the timer is reset to be longer than the fadeout,
-          // and a fade was already in progress, reset volume to 1.
-          await TrackPlayer.setVolume(1);
-          fadeState.isFading = false;
-          fadeState.lastAppliedVolume = 1;
-          fadeState.baselineVolume = 1;
-        }
-
-        if (now < beginFadeout) {
-          // Before fade window: reset fade state and don't force user volume
-          if (fadeState.isFading) {
-            fadeState.isFading = false;
-            fadeState.baselineVolume = 1;
-          }
-        } else if (now >= beginFadeout && now < sleepTime) {
-          // Entering fade window: capture baseline once
-          if (!fadeState.isFading) {
-            fadeState.isFading = true;
-            // In this app, TrackPlayer internal volume is always 1 before fade.
-            fadeState.baselineVolume = 1;
-            fadeState.lastAppliedVolume = 1;
-          }
-          // Compute linear fade from baseline -> 0
-          const t = Math.min(
-            1,
-            Math.max(0, (now - beginFadeout) / effectiveFadeout),
-          );
-          const volume = Math.max(0, fadeState.baselineVolume * (1 - t));
-
-          // Only set if change is meaningful and respect throttle
-          const nowSet = Date.now();
-          if (
-            Math.abs(volume - fadeState.lastAppliedVolume) >= 0.01 &&
-            nowSet - fadeState.lastSetVolumeAt >= VOLUME_THROTTLE_MS
-          ) {
-            await TrackPlayer.setVolume(volume);
-            fadeState.lastAppliedVolume = volume;
-            fadeState.lastSetVolumeAt = nowSet;
-          }
-        }
-        // When now >= sleepTime the earlier single-source block already handled stopping/cleanup
-      }
+      await sleepTimer.onProgressTick(position);
     },
   );
 
@@ -501,96 +311,18 @@ export default module.exports = async function () {
       // If book not in Zustand yet, skip saving to avoid corruption
     }
 
-    // On pause: freeze the timer by saving remaining time
-    // Skip if this pause was initiated by the sleep timer itself (cleanup handles state)
-    if (event.state === State.Paused && !isTimerInitiatedPause) {
-      const { sleepTime, timerActive } = await getTimerSettings();
-      if (timerActive && sleepTime !== null) {
-        const remaining = Math.max(0, sleepTime - Date.now());
-        setRemainingSleepTimeMs(remaining);
-      }
+    if (event.state === State.Paused) {
+      await sleepTimer.onPlaybackPaused();
     }
 
     if (event.state === State.Stopped) {
-      cancelBackupTimer();
-      await updateChapterTimer(null);
-      await updateTimerActive(false);
-      setRemainingSleepTimeMs(null);
+      await sleepTimer.onPlaybackStopped();
     }
 
-    // On play: resume timer from saved remaining time (if any)
+    // On play: resume timer from saved remaining time (if any), or bedtime auto-activate
     if (event.state === State.Playing) {
       lastPlayingStateAt = Date.now();
-      // Clean up expired timers BEFORE anything else.
-      // If the timer expired while in background (progress events throttled),
-      // the user just pressed play — honor that intent, don't auto-pause.
-      const expiredCheck = await getTimerSettings();
-      const isExpired =
-        expiredCheck.timerActive &&
-        expiredCheck.sleepTime !== null &&
-        expiredCheck.sleepTime <= Date.now();
-      if (isExpired) {
-        cancelBackupTimer();
-        await updateTimerActive(false);
-        await updateSleepTime(null);
-        await TrackPlayer.setVolume(1);
-        fadeState.isFading = false;
-        fadeState.lastAppliedVolume = 1;
-        fadeState.baselineVolume = 1;
-        setRemainingSleepTimeMs(null);
-        // Invalidate cached timer so progress handler reads fresh state
-        cachedTimer.lastRefreshedAt = 0;
-        return;
-      }
-
-      const playerState = usePlayerStateStore.getState();
-      const remainingMs = playerState.remainingSleepTimeMs;
-      const willResume = remainingMs !== null && remainingMs > 0;
-      if (willResume) {
-        // Resume timer: recalculate sleepTime from remaining duration
-        const newSleepTime = Date.now() + remainingMs;
-        await updateSleepTime(newSleepTime);
-        setRemainingSleepTimeMs(null);
-        scheduleBackupTimer(newSleepTime);
-      }
-
-      const timerSettings = await getTimerSettings();
-
-      const inBedtimeWindow = isWithinBedtimeWindow(
-        timerSettings.bedtimeStart,
-        timerSettings.bedtimeEnd,
-      );
-      const willActivateBedtime =
-        timerSettings.bedtimeModeEnabled &&
-        !timerSettings.timerActive &&
-        inBedtimeWindow;
-      // Check all conditions for bedtime mode activation:
-      // 1. Bedtime mode is enabled
-      // 2. Timer is not already active
-      // 3. Current time is within bedtime window
-      // 4. A timer duration or chapter count is configured
-      if (willActivateBedtime) {
-        // Record footprint for bedtime auto-activation
-        try {
-          const activeTrack = await TrackPlayer.getActiveTrack();
-          if (activeTrack?.bookId) {
-            await recordFootprint(activeTrack.bookId, 'timer_activation');
-          }
-        } catch {
-          // Silently fail if footprint recording fails
-        }
-
-        // Activate the timer based on what's configured
-        if (timerSettings.timerDuration !== null) {
-          const bedtimeSleepTime = Date.now() + timerSettings.timerDuration;
-          await updateTimerActive(true);
-          await updateSleepTime(bedtimeSleepTime);
-          scheduleBackupTimer(bedtimeSleepTime);
-        } else if (timerSettings.timerChapters !== null) {
-          await updateTimerActive(true);
-          // Chapter timer doesn't need sleepTime
-        }
-      }
+      await sleepTimer.onPlaybackResumed();
     }
   });
 
@@ -617,23 +349,7 @@ export default module.exports = async function () {
       await updateChapterIndexInDB(trackAtIndex.bookId, event.index);
 
       // Handle sleep timer chapter countdown (multi-file books only)
-      const { timerChapters, timerActive } = await getTimerSettings();
-      if (timerActive && timerChapters !== null && timerChapters > 0) {
-        await updateChapterTimer(timerChapters - 1);
-      } else if (timerActive && timerChapters === 0) {
-        await TrackPlayer.pause();
-        await TrackPlayer.setVolume(1);
-        await updateTimerActive(false);
-      }
+      await sleepTimer.onChapterChanged();
     },
   );
-
-  // Invalidate cached timer when app returns to foreground after background.
-  // After extended background (Doze), cached values may be arbitrarily stale.
-  AppState.addEventListener('change', (nextAppState) => {
-    const cacheAge = Date.now() - cachedTimer.lastRefreshedAt;
-    if (nextAppState === 'active') {
-      cachedTimer.lastRefreshedAt = 0;
-    }
-  });
 };
