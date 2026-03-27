@@ -37,5 +37,8 @@
     </activity>
     <profileable android:shell="true"/>
     <provider android:name="com.facebook.react.modules.blob.BlobProvider" android:authorities="@string/blob_provider_authority" android:exported="false"/>
+    <meta-data
+        android:name="com.google.android.gms.car.application"
+        android:resource="@xml/automotive_app_desc"/>
   </application>
 </manifest>
