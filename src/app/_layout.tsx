@@ -58,11 +58,6 @@ if (revenueCatApiKey) {
 }
 
 TrackPlayer.registerPlaybackService(() => playbackService);
-//! THIS IS TO TEMP SUPPRESS REANIMATED WARNINGS OF WRITING TO 'VALUE' DURING COMPONENT RERENDER
-configureReanimatedLogger({
-  level: ReanimatedLogLevel.warn,
-  strict: false, // Reanimated runs in strict mode by default
-});
 
 SplashScreen.preventAutoHideAsync();
 

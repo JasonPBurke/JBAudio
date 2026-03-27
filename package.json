@@ -32,7 +32,7 @@
     "@somesoap/react-native-image-palette": "^1.2.2",
     "babel-plugin-react-compiler": "1.0.0",
     "babel-preset-expo": "~55.0.8",
-    "expo": "^55.0.8",
+    "expo": "~55",
     "expo-asset": "~55.0.8",
     "expo-build-properties": "~55.0.9",
     "expo-constants": "~55.0.7",
@@ -93,7 +93,6 @@
   },
   "reanimated": {
     "staticFeatureFlags": {
-      "ANDROID_SYNCHRONOUSLY_UPDATE_UI_PROPS": true,
       "USE_COMMIT_HOOK_ONLY_FOR_REACT_COMMITS": true
     }
   },
