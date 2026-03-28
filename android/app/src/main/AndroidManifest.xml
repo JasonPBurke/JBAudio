@@ -37,6 +37,15 @@
     </activity>
     <profileable android:shell="true"/>
     <provider android:name="com.facebook.react.modules.blob.BlobProvider" android:authorities="@string/blob_provider_authority" android:exported="false"/>
+    <provider
+        android:name="androidx.core.content.FileProvider"
+        android:authorities="${applicationId}.aa_artwork"
+        android:exported="false"
+        android:grantUriPermissions="true">
+        <meta-data
+            android:name="android.support.FILE_PROVIDER_PATHS"
+            android:resource="@xml/android_auto_provider_paths" />
+    </provider>
     <meta-data
         android:name="com.google.android.gms.car.application"
         android:resource="@xml/automotive_app_desc"/>

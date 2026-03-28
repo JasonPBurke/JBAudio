@@ -1,21 +1,22 @@
 diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
-index b495b5a..824fa31 100644
+index b495b5a..509e0a7 100644
 --- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
 +++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
-@@ -52,8 +52,12 @@ import com.google.common.util.concurrent.ListenableFuture
+@@ -52,8 +52,13 @@ import com.google.common.util.concurrent.ListenableFuture
  import kotlinx.coroutines.*
  import kotlinx.coroutines.flow.flow
  import timber.log.Timber
 +import org.json.JSONArray
 +import org.json.JSONObject
 +import java.io.File
++import androidx.core.content.FileProvider
  import java.util.concurrent.TimeUnit
  import kotlin.system.exitProcess
 +import androidx.media3.common.MediaMetadata
  
  @OptIn(UnstableApi::class)
  @MainThread
-@@ -862,6 +866,103 @@ class MusicService : HeadlessJsMediaService() {
+@@ -862,6 +867,121 @@ class MusicService : HeadlessJsMediaService() {
          val service = this@MusicService
      }
  
@@ -39,20 +40,22 @@ index b495b5a..824fa31 100644
 +                    .build()
 +            ).build()
 +
-+    private fun buildBookItems(arr: JSONArray): ImmutableList<MediaItem> {
++    private fun buildBookItems(arr: JSONArray, browserPkg: String): ImmutableList<MediaItem> {
++        val authority = "$packageName.aa_artwork"
 +        val builder = ImmutableList.builder<MediaItem>()
 +        for (i in 0 until arr.length()) {
 +            val book = arr.getJSONObject(i)
 +            val bookId = book.optString("bookId", "")
 +            if (bookId.isEmpty()) continue
-+            val artworkUri = book.optString("artwork", "")
 +            val metaBuilder = MediaMetadata.Builder()
 +                .setIsBrowsable(false)
 +                .setIsPlayable(true)
 +                .setTitle(book.optString("title", "Unknown"))
 +                .setArtist(book.optString("author", ""))
-+            if (artworkUri.isNotEmpty()) {
-+                metaBuilder.setArtworkUri(Uri.parse(artworkUri))
++            val rawArtwork = book.optString("artwork", "")
++            if (rawArtwork.isNotEmpty()) {
++                val contentUri = artworkToContentUri(rawArtwork, authority, browserPkg)
++                if (contentUri != null) metaBuilder.setArtworkUri(contentUri)
 +            }
 +            builder.add(
 +                MediaItem.Builder()
@@ -64,7 +67,23 @@ index b495b5a..824fa31 100644
 +        return builder.build()
 +    }
 +
-+    private fun buildBrowseChildren(parentId: String): ImmutableList<MediaItem> {
++    private fun artworkToContentUri(fileUriStr: String, authority: String, browserPkg: String): Uri? {
++        return try {
++            val path = Uri.parse(fileUriStr).path ?: return null
++            val file = File(path).canonicalFile
++            val contentUri = FileProvider.getUriForFile(this, authority, file)
++            grantUriPermission(browserPkg, contentUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
++            contentUri
++        } catch (e: IllegalArgumentException) {
++            Timber.w("AA artwork outside FileProvider paths: $fileUriStr")
++            null
++        } catch (e: Exception) {
++            Timber.w("AA artwork URI conversion failed: ${e.message}")
++            null
++        }
++    }
++
++    private fun buildBrowseChildren(parentId: String, browserPkg: String): ImmutableList<MediaItem> {
 +        return when {
 +            parentId == "root" -> ImmutableList.of(
 +                buildCategoryItem("recently_added", "Recently Added"),
@@ -74,12 +93,12 @@ index b495b5a..824fa31 100644
 +            parentId == "recently_added" -> {
 +                val arr = readAutoCache()?.optJSONArray("recentlyAdded")
 +                    ?: return ImmutableList.of()
-+                buildBookItems(arr)
++                buildBookItems(arr, browserPkg)
 +            }
 +            parentId == "all_books" -> {
 +                val arr = readAutoCache()?.optJSONArray("allBooks")
 +                    ?: return ImmutableList.of()
-+                buildBookItems(arr)
++                buildBookItems(arr, browserPkg)
 +            }
 +            parentId == "by_author" -> {
 +                val authors = readAutoCache()?.optJSONArray("authors")
@@ -103,7 +122,7 @@ index b495b5a..824fa31 100644
 +                    if (author.optString("name") == authorName) {
 +                        val books = author.optJSONArray("books")
 +                            ?: return ImmutableList.of()
-+                        return buildBookItems(books)
++                        return buildBookItems(books, browserPkg)
 +                    }
 +                }
 +                ImmutableList.of()
@@ -119,7 +138,7 @@ index b495b5a..824fa31 100644
      private inner class InnerMediaSessionCallback : MediaLibrarySession.Callback {
          // HACK: I'm sure most of the callbacks were not implemented correctly.
          // ATM I only care that andorid auto still functions.
-@@ -925,6 +1026,52 @@ class MusicService : HeadlessJsMediaService() {
+@@ -925,6 +1045,52 @@ class MusicService : HeadlessJsMediaService() {
              }
          }
  
@@ -148,7 +167,7 @@ index b495b5a..824fa31 100644
 +            pageSize: Int,
 +            params: LibraryParams?,
 +        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-+            val all = buildBrowseChildren(parentId)
++            val all = buildBrowseChildren(parentId, browser.packageName)
 +            val from = page * pageSize
 +            val to = minOf(from + pageSize, all.size)
 +            val paged = if (from >= all.size) ImmutableList.of() else ImmutableList.copyOf(all.subList(from, to))
