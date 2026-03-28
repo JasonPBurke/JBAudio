@@ -88,8 +88,11 @@ export default module.exports = async function () {
     const { activeBookId, setActiveBookId } = useQueueStore.getState();
     const book = books[bookId];
     if (!book) return;
-    const isActive = activeBookId === bookId;
-    await handleBookPlay(book, true, isActive, activeBookId, setActiveBookId);
+    if (activeBookId === bookId) {
+      await TrackPlayer.play();
+      return;
+    }
+    await handleBookPlay(book, true, false, activeBookId, setActiveBookId);
   });
 
   TrackPlayer.addEventListener(
