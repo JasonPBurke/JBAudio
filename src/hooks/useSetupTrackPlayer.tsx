@@ -72,6 +72,8 @@ const setupPlayer = async () => {
       Capability.Play,
       Capability.JumpForward,
       Capability.JumpBackward,
+      Capability.SkipToNext,
+      Capability.SkipToPrevious,
       Capability.Stop,
       // Capability.SeekTo,
       // Capability.Pause,
