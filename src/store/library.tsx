@@ -159,6 +159,7 @@ export const useLibraryStore: UseBoundStore<StoreApi<LibraryState>> =
         .sort((a, b) => a.name.localeCompare(b.name));
 
       set({ authors: finalAuthorsData, books: newBookMap });
+      writeAndroidAutoCache(finalAuthorsData); // fire-and-forget: keep AA browse tree in sync
     },
     init: () => {
       // Guard against duplicate subscriptions (memory leak prevention)
