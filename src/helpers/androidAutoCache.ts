@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import RNFS from '@dr.pogodin/react-native-fs';
+import * as RNFS from '@dr.pogodin/react-native-fs';
 import type { Author, Book } from '@/types/Book';
 import { compareBookTitles } from './miscellaneous';
 

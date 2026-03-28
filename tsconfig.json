@@ -7,6 +7,9 @@
 		"module": "esnext",
 		"moduleResolution": "bundler",
 		"jsx": "react-native",
+		"types": [
+			"jest"
+		],
 		"lib": [
 			"dom",
 			"esnext"
@@ -30,6 +33,8 @@
 		}
 	},
 	"include": [
+		"src",
+		"tests",
 		"**/*.ts",
 		"**/*.tsx",
 		".expo/types/**/*.ts",

@@ -1,8 +1,8 @@
 diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
-index b495b5a..b7f0255 100644
+index b495b5a..824fa31 100644
 --- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
 +++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
-@@ -52,8 +52,13 @@ import com.google.common.util.concurrent.ListenableFuture
+@@ -52,8 +52,12 @@ import com.google.common.util.concurrent.ListenableFuture
  import kotlinx.coroutines.*
  import kotlinx.coroutines.flow.flow
  import timber.log.Timber
@@ -12,11 +12,10 @@ index b495b5a..b7f0255 100644
  import java.util.concurrent.TimeUnit
  import kotlin.system.exitProcess
 +import androidx.media3.common.MediaMetadata
-+import androidx.media3.session.MediaLibrarySession
  
  @OptIn(UnstableApi::class)
  @MainThread
-@@ -862,6 +867,103 @@ class MusicService : HeadlessJsMediaService() {
+@@ -862,6 +866,103 @@ class MusicService : HeadlessJsMediaService() {
          val service = this@MusicService
      }
  
@@ -120,14 +119,14 @@ index b495b5a..b7f0255 100644
      private inner class InnerMediaSessionCallback : MediaLibrarySession.Callback {
          // HACK: I'm sure most of the callbacks were not implemented correctly.
          // ATM I only care that andorid auto still functions.
-@@ -925,6 +1027,52 @@ class MusicService : HeadlessJsMediaService() {
+@@ -925,6 +1026,52 @@ class MusicService : HeadlessJsMediaService() {
              }
          }
  
 +        override fun onGetLibraryRoot(
 +            session: MediaLibrarySession,
 +            browser: MediaSession.ControllerInfo,
-+            params: MediaLibrarySession.LibraryParams?,
++            params: LibraryParams?,
 +        ): ListenableFuture<LibraryResult<MediaItem>> {
 +            val rootItem = MediaItem.Builder()
 +                .setMediaId("root")
@@ -147,7 +146,7 @@ index b495b5a..b7f0255 100644
 +            parentId: String,
 +            page: Int,
 +            pageSize: Int,
-+            params: MediaLibrarySession.LibraryParams?,
++            params: LibraryParams?,
 +        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
 +            val all = buildBrowseChildren(parentId)
 +            val from = page * pageSize
