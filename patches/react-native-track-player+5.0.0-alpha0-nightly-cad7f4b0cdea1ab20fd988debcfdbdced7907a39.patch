@@ -1,5 +1,5 @@
 diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
-index b495b5a..509e0a7 100644
+index b495b5a..0861f7b 100644
 --- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
 +++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
 @@ -52,8 +52,13 @@ import com.google.common.util.concurrent.ListenableFuture
@@ -16,7 +16,7 @@ index b495b5a..509e0a7 100644
  
  @OptIn(UnstableApi::class)
  @MainThread
-@@ -862,6 +867,121 @@ class MusicService : HeadlessJsMediaService() {
+@@ -862,6 +867,141 @@ class MusicService : HeadlessJsMediaService() {
          val service = this@MusicService
      }
  
@@ -72,7 +72,27 @@ index b495b5a..509e0a7 100644
 +            val path = Uri.parse(fileUriStr).path ?: return null
 +            val file = File(path).canonicalFile
 +            val contentUri = FileProvider.getUriForFile(this, authority, file)
++
++            // Grant to the subscribing browser (logged to diagnose unexpected packages).
++            Timber.d("AA artwork grant: browserPkg=$browserPkg uri=$contentUri")
 +            grantUriPermission(browserPkg, contentUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
++
++            // Grant to additional AA rendering packages that may run in a different
++            // process/UID (e.g. coolwalk split-screen small pane renderer).
++            val extraPackages = listOf(
++                "com.google.android.projection.gearhead",
++                "com.google.android.embedded.projection"
++            )
++            for (pkg in extraPackages) {
++                if (pkg == browserPkg) continue  // already granted above
++                try {
++                    grantUriPermission(pkg, contentUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
++                    Timber.d("AA artwork extra grant OK: pkg=$pkg")
++                } catch (e: Exception) {
++                    Timber.d("AA artwork extra grant skipped: pkg=$pkg reason=${e.message}")
++                }
++            }
++
 +            contentUri
 +        } catch (e: IllegalArgumentException) {
 +            Timber.w("AA artwork outside FileProvider paths: $fileUriStr")
@@ -138,7 +158,7 @@ index b495b5a..509e0a7 100644
      private inner class InnerMediaSessionCallback : MediaLibrarySession.Callback {
          // HACK: I'm sure most of the callbacks were not implemented correctly.
          // ATM I only care that andorid auto still functions.
-@@ -925,6 +1045,52 @@ class MusicService : HeadlessJsMediaService() {
+@@ -925,6 +1065,52 @@ class MusicService : HeadlessJsMediaService() {
              }
          }
  
