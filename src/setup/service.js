@@ -92,6 +92,7 @@ export default module.exports = async function () {
       await TrackPlayer.play();
       return;
     }
+    // playing=true is unused here: isActiveBook=false bypasses handleBookPlay's guard
     await handleBookPlay(book, true, false, activeBookId, setActiveBookId);
   });
 
