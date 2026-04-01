@@ -54,7 +54,6 @@ const loadingContainerStyle = { justifyContent: 'center' as const };
  * This screen should only re-render when:
  * - Active track changes (useActiveTrack)
  * - Book data changes (useBookById)
- * - App state changes (background/foreground)
  */
 const PlayerScreen = () => {
   const router = useRouter();
