@@ -91,6 +91,40 @@ export function getChapterEndPosition(
 }
 
 /**
+ * Returns the start position (in seconds) of the next chapter, or null if at the last chapter.
+ * Used by both in-app and lock screen skip-next buttons for single-file books.
+ */
+export function getNextChapterStartSeconds(
+  chapters: Chapter[],
+  positionSeconds: number,
+): number | null {
+  if (!chapters || chapters.length <= 1) return null;
+
+  const currentIndex = findChapterIndexByPosition(chapters, positionSeconds);
+  if (currentIndex < chapters.length - 1) {
+    return (chapters[currentIndex + 1].startMs || 0) / 1000;
+  }
+  return null;
+}
+
+/**
+ * Returns the start position (in seconds) of the previous chapter, or 0 if at the first chapter.
+ * Used by both in-app and lock screen skip-previous buttons for single-file books.
+ */
+export function getPreviousChapterStartSeconds(
+  chapters: Chapter[],
+  positionSeconds: number,
+): number {
+  if (!chapters || chapters.length <= 1) return 0;
+
+  const currentIndex = findChapterIndexByPosition(chapters, positionSeconds);
+  if (currentIndex > 0) {
+    return (chapters[currentIndex - 1].startMs || 0) / 1000;
+  }
+  return 0;
+}
+
+/**
  * Determines if a book has valid chapter timing data.
  * Returns true if the book has multiple chapters with at least one having a non-zero startMs.
  * Used to decide whether to show chapter-level metadata on lock screen.

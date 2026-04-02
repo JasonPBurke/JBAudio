@@ -57,7 +57,10 @@ import { useSleepTimer } from '@/hooks/useSleepTimer';
 import * as sleepTimer from '@/setup/sleepTimer';
 import { useBookById } from '@/store/library';
 import { useSettingsStore } from '@/store/settingsStore';
-import { findChapterIndexByPosition } from '@/helpers/singleFileBook';
+import {
+  getNextChapterStartSeconds,
+  getPreviousChapterStartSeconds,
+} from '@/helpers/singleFileBook';
 
 type PlayerControlsProps = {
   style?: ViewStyle;
@@ -390,24 +393,10 @@ export function SkipToPreviousButton({ iconSize = 30 }: PlayerButtonProps) {
     const isSingleFile = queue.length === 1;
 
     if (isSingleFile && book?.chapters && book.chapters.length > 1) {
-      // Single-file book: seek to previous chapter's startMs
       const { position } = await TrackPlayer.getProgress();
-      const currentChapterIndex = findChapterIndexByPosition(
-        book.chapters,
-        position,
-      );
-
-      if (currentChapterIndex > 0) {
-        // Seek to start of previous chapter
-        const prevChapterStart =
-          (book.chapters[currentChapterIndex - 1].startMs || 0) / 1000;
-        await TrackPlayer.seekTo(prevChapterStart);
-      } else {
-        // At first chapter: seek to start
-        await TrackPlayer.seekTo(0);
-      }
+      const prevStart = getPreviousChapterStartSeconds(book.chapters, position);
+      await TrackPlayer.seekTo(prevStart);
     } else {
-      // Multi-file book: use default behavior
       await TrackPlayer.skipToPrevious();
     }
   };
@@ -433,18 +422,11 @@ export function SkipToNextButton({ iconSize = 30 }: PlayerButtonProps) {
     const isSingleFile = queue.length === 1;
 
     if (isSingleFile && book?.chapters && book.chapters.length > 1) {
-      // Single-file book: seek to next chapter's startMs
       const { position } = await TrackPlayer.getProgress();
-      const currentChapterIndex = findChapterIndexByPosition(
-        book.chapters,
-        position,
-      );
+      const nextStart = getNextChapterStartSeconds(book.chapters, position);
 
-      if (currentChapterIndex < book.chapters.length - 1) {
-        // Seek to start of next chapter
-        const nextChapterStart =
-          (book.chapters[currentChapterIndex + 1].startMs || 0) / 1000;
-        await TrackPlayer.seekTo(nextChapterStart);
+      if (nextStart !== null) {
+        await TrackPlayer.seekTo(nextStart);
       } else {
         // At last chapter: mark finished, reset and stop
         if (activeTrack?.bookId) {
@@ -457,7 +439,6 @@ export function SkipToNextButton({ iconSize = 30 }: PlayerButtonProps) {
         await TrackPlayer.pause();
       }
     } else {
-      // Multi-file book: use default behavior
       await TrackPlayer.skipToNext();
     }
   };

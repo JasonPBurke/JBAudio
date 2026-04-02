@@ -15,6 +15,8 @@ import {
   findChapterIndexByPosition,
   calculateProgressWithinChapter,
   hasValidChapterData,
+  getNextChapterStartSeconds,
+  getPreviousChapterStartSeconds,
 } from '@/helpers/singleFileBook';
 import * as sleepTimer from '@/setup/sleepTimer';
 import { usePlayerStateStore } from '@/store/playerState';
@@ -81,12 +83,49 @@ export default module.exports = async function () {
     const { skipBackDuration } = useSettingsStore.getState();
     TrackPlayer.seekBy(-skipBackDuration);
   });
-  TrackPlayer.addEventListener(Event.RemoteNext, () =>
-    TrackPlayer.skipToNext(),
-  );
-  TrackPlayer.addEventListener(Event.RemotePrevious, () =>
-    TrackPlayer.skipToPrevious(),
-  );
+  TrackPlayer.addEventListener(Event.RemoteNext, async () => {
+    const activeTrack = await TrackPlayer.getActiveTrack();
+    if (!activeTrack?.bookId) {
+      await TrackPlayer.skipToNext();
+      return;
+    }
+
+    const book = useLibraryStore.getState().books[activeTrack.bookId];
+    if (book?.isSingleFile && book.chapters && book.chapters.length > 1) {
+      const { position } = await TrackPlayer.getProgress();
+      const nextStart = getNextChapterStartSeconds(book.chapters, position);
+
+      if (nextStart !== null) {
+        await TrackPlayer.seekTo(nextStart);
+      } else {
+        // At last chapter: mark finished, reset and pause
+        const bookModel = await getBookById(activeTrack.bookId);
+        if (bookModel) {
+          await bookModel.updateBookProgress(BookProgressState.Finished);
+        }
+        await TrackPlayer.seekTo(0);
+        await TrackPlayer.pause();
+      }
+    } else {
+      await TrackPlayer.skipToNext();
+    }
+  });
+  TrackPlayer.addEventListener(Event.RemotePrevious, async () => {
+    const activeTrack = await TrackPlayer.getActiveTrack();
+    if (!activeTrack?.bookId) {
+      await TrackPlayer.skipToPrevious();
+      return;
+    }
+
+    const book = useLibraryStore.getState().books[activeTrack.bookId];
+    if (book?.isSingleFile && book.chapters && book.chapters.length > 1) {
+      const { position } = await TrackPlayer.getProgress();
+      const prevStart = getPreviousChapterStartSeconds(book.chapters, position);
+      await TrackPlayer.seekTo(prevStart);
+    } else {
+      await TrackPlayer.skipToPrevious();
+    }
+  });
   TrackPlayer.addEventListener('remote-play-book', async ({ bookId }) => {
     const { books } = useLibraryStore.getState();
     const { activeBookId, setActiveBookId } = useQueueStore.getState();
