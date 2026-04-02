@@ -6,7 +6,10 @@ import {
   updateChapterIndexInDB,
 } from '@/db/chapterQueries';
 import { getBookById } from '@/db/bookQueries';
-import { BookProgressState } from '@/helpers/handleBookPlay';
+import {
+  handleBookPlay,
+  BookProgressState,
+} from '@/helpers/handleBookPlay';
 import { recordFootprint } from '@/db/footprintQueries';
 import {
   findChapterIndexByPosition,
@@ -14,7 +17,7 @@ import {
   hasValidChapterData,
 } from '@/helpers/singleFileBook';
 import * as sleepTimer from '@/setup/sleepTimer';
-import { usePlayerStateStore } from '@/store/playerState';
+import { useQueueStore } from '@/store/queue';
 
 const { setPlaybackIndex, setPlaybackProgress } =
   useLibraryStore.getState();
@@ -83,6 +86,18 @@ export default module.exports = async function () {
   TrackPlayer.addEventListener(Event.RemotePrevious, () =>
     TrackPlayer.skipToPrevious(),
   );
+  TrackPlayer.addEventListener('remote-play-book', async ({ bookId }) => {
+    const { books } = useLibraryStore.getState();
+    const { activeBookId, setActiveBookId } = useQueueStore.getState();
+    const book = books[bookId];
+    if (!book) return;
+    if (activeBookId === bookId) {
+      await TrackPlayer.play();
+      return;
+    }
+    // playing=true is unused here: isActiveBook=false bypasses handleBookPlay's guard
+    await handleBookPlay(book, true, false, activeBookId, setActiveBookId);
+  });
 
   TrackPlayer.addEventListener(
     Event.PlaybackProgressUpdated,
