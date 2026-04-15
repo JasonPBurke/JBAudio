@@ -5,7 +5,6 @@ import TrackPlayer, {
 } from 'react-native-track-player';
 import { useBookById } from '@/store/library';
 import { Chapter } from '@/types/Book';
-import { usePlayerStateStore } from '@/store/playerState';
 
 /**
  * A stable version of useCurrentChapter that minimizes re-renders.
@@ -94,10 +93,7 @@ export const useCurrentChapterStable = () => {
     // Listen for track changes to re-initialize chapter (helps after cold start)
     const trackChangedSubscription = TrackPlayer.addEventListener(
       Event.PlaybackActiveTrackChanged,
-      () => {
-        if (usePlayerStateStore.getState().isBackground) return;
-        updateFromPosition();
-      }
+      updateFromPosition
     );
 
     // For multi-file books, only track changes matter (handled by activeTrack dependency)
@@ -110,7 +106,6 @@ export const useCurrentChapterStable = () => {
     const progressSubscription = TrackPlayer.addEventListener(
       Event.PlaybackProgressUpdated,
       ({ position }) => {
-        if (usePlayerStateStore.getState().isBackground) return;
         positionRef.current = position;
         updateChapterIfChanged(findChapter(position));
       }
@@ -119,10 +114,7 @@ export const useCurrentChapterStable = () => {
     // Listen for seek/playback state changes to update chapter immediately
     const seekSubscription = TrackPlayer.addEventListener(
       Event.PlaybackState,
-      () => {
-        if (usePlayerStateStore.getState().isBackground) return;
-        updateFromPosition();
-      }
+      updateFromPosition
     );
 
     return () => {
@@ -137,21 +129,6 @@ export const useCurrentChapterStable = () => {
     findChapter,
     updateChapterIfChanged,
   ]);
-
-  // Snap to current chapter when returning from background
-  useEffect(() => {
-    const unsubscribe = usePlayerStateStore.subscribe(
-      (state, prevState) => {
-        if (prevState.isBackground && !state.isBackground) {
-          TrackPlayer.getProgress().then(({ position }) => {
-            positionRef.current = position;
-            updateChapterIfChanged(findChapter(position));
-          }).catch(() => {});
-        }
-      }
-    );
-    return unsubscribe;
-  }, [findChapter, updateChapterIfChanged]);
 
   return currentChapter;
 };

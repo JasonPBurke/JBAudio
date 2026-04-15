@@ -10,7 +10,6 @@ import {
 } from '@/db/settingsQueries';
 import { isWithinBedtimeWindow } from '@/helpers/bedtimeUtils';
 import { recordFootprint } from '@/db/footprintQueries';
-import { usePlayerStateStore } from '@/store/playerState';
 
 // ─── Public Types ─────────────────────────────────────────────────────────────
 
@@ -241,11 +240,9 @@ export async function cancel(): Promise<void> {
  */
 export async function onProgressTick(_position: number): Promise<void> {
   const nowTs = Date.now();
-  const isBackground = usePlayerStateStore.getState().isBackground;
   if (
-    !isBackground &&
-    (!cachedTimer.lastRefreshedAt ||
-      nowTs - cachedTimer.lastRefreshedAt >= SETTINGS_REFRESH_INTERVAL)
+    !cachedTimer.lastRefreshedAt ||
+    nowTs - cachedTimer.lastRefreshedAt >= SETTINGS_REFRESH_INTERVAL
   ) {
     const timerSettings = await getTimerSettings();
     cachedTimer.sleepTime = timerSettings.sleepTime;

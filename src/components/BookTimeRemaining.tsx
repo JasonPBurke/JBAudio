@@ -15,7 +15,6 @@ import { formatSecondsToHoursMinutes } from '@/helpers/miscellaneous';
 import { useLastActiveTrack } from '@/hooks/useLastActiveTrack';
 import { colors } from '@/constants/tokens';
 import { Book, Chapter } from '@/types/Book';
-import { usePlayerStateStore } from '@/store/playerState';
 
 type BookTimeRemainingProps = {
   size?: number;
@@ -126,7 +125,6 @@ const BookTimeRemainingInner = React.memo(
       const subscription = TrackPlayer.addEventListener(
         Event.PlaybackProgressUpdated,
         ({ position }) => {
-          if (usePlayerStateStore.getState().isBackground) return;
           // Only update every 5 seconds to reduce re-renders
           const currentBucket = Math.floor(position / 5);
           if (currentBucket !== lastUpdateRef.current) {
@@ -137,21 +135,6 @@ const BookTimeRemainingInner = React.memo(
       );
 
       return () => subscription.remove();
-    }, [calculateRemaining]);
-
-    // Snap to current values when returning from background
-    useEffect(() => {
-      const unsubscribe = usePlayerStateStore.subscribe(
-        (state, prevState) => {
-          if (prevState.isBackground && !state.isBackground) {
-            TrackPlayer.getProgress().then(({ position }) => {
-              lastUpdateRef.current = Math.floor(position / 5);
-              setRemainingText(calculateRemaining(position));
-            }).catch(() => {});
-          }
-        }
-      );
-      return unsubscribe;
     }, [calculateRemaining]);
 
     return (

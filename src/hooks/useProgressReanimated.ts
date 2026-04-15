@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { useSharedValue, SharedValue } from 'react-native-reanimated';
 import TrackPlayer, { Event, Progress } from 'react-native-track-player';
-import { usePlayerStateStore } from '@/store/playerState';
 
 export type ProgressReanimated = {
   position: SharedValue<number>;
@@ -43,7 +42,6 @@ export const useProgressReanimated = (): ProgressReanimated => {
     const progressSubscription = TrackPlayer.addEventListener(
       Event.PlaybackProgressUpdated,
       (event) => {
-        if (usePlayerStateStore.getState().isBackground) return;
         position.value = event.position;
         duration.value = event.duration;
         buffered.value = event.buffered;
@@ -54,7 +52,6 @@ export const useProgressReanimated = (): ProgressReanimated => {
     const trackChangedSubscription = TrackPlayer.addEventListener(
       Event.PlaybackActiveTrackChanged,
       async () => {
-        if (usePlayerStateStore.getState().isBackground) return;
         try {
           const progress: Progress = await TrackPlayer.getProgress();
           position.value = progress.position;
@@ -70,7 +67,6 @@ export const useProgressReanimated = (): ProgressReanimated => {
     const seekSubscription = TrackPlayer.addEventListener(
       Event.PlaybackState,
       async () => {
-        if (usePlayerStateStore.getState().isBackground) return;
         try {
           const progress: Progress = await TrackPlayer.getProgress();
           position.value = progress.position;
@@ -87,22 +83,6 @@ export const useProgressReanimated = (): ProgressReanimated => {
       trackChangedSubscription.remove();
       seekSubscription.remove();
     };
-  }, [position, duration, buffered]);
-
-  // Snap to current values when returning from background
-  useEffect(() => {
-    const unsubscribe = usePlayerStateStore.subscribe(
-      (state, prevState) => {
-        if (prevState.isBackground && !state.isBackground) {
-          TrackPlayer.getProgress().then((progress) => {
-            position.value = progress.position;
-            duration.value = progress.duration;
-            buffered.value = progress.buffered;
-          }).catch(() => {});
-        }
-      }
-    );
-    return unsubscribe;
   }, [position, duration, buffered]);
 
   return { position, duration, buffered };

@@ -142,7 +142,6 @@ export default module.exports = async function () {
   TrackPlayer.addEventListener(
     Event.PlaybackProgressUpdated,
     async ({ position, track }) => {
-      const isBackground = usePlayerStateStore.getState().isBackground;
       //? event {"buffered": 107.232, "duration": 4626.991, "position": 0.526, "track": 3}
       const trackToUpdate = await TrackPlayer.getTrack(track);
 
@@ -172,9 +171,7 @@ export default module.exports = async function () {
         );
 
         // Update progress in store using progress within chapter
-        if (!isBackground) {
-          setPlaybackProgress(trackToUpdate.bookId, progressWithinChapter);
-        }
+        setPlaybackProgress(trackToUpdate.bookId, progressWithinChapter);
 
         //! this was unstable and did not update the notification player w/chapter durations.
         // // Update now playing metadata with chapter-relative position for lock screen
@@ -204,9 +201,7 @@ export default module.exports = async function () {
           singleFileChapterState.lastChapterIndex = currentChapterIndex;
 
           // Update Zustand store for UI reactivity
-          if (!isBackground) {
-            setPlaybackIndex(trackToUpdate.bookId, currentChapterIndex);
-          }
+          setPlaybackIndex(trackToUpdate.bookId, currentChapterIndex);
           // Update database for persistence - save BOTH chapterIndex AND progress atomically
           // This ensures they're always in sync, even if app is force-closed
           await updateChapterIndexInDB(
@@ -275,9 +270,7 @@ export default module.exports = async function () {
         }
       } else {
         // Multi-file book OR single-chapter book - just update progress normally
-        if (!isBackground) {
-          setPlaybackProgress(trackToUpdate.bookId, position);
-        }
+        setPlaybackProgress(trackToUpdate.bookId, position);
       }
 
       await sleepTimer.onProgressTick(position);
@@ -407,9 +400,7 @@ export default module.exports = async function () {
       if (isSingleFile) return;
 
       // Multi-file book: Update Zustand store immediately for UI reactivity
-      if (!usePlayerStateStore.getState().isBackground) {
-        setPlaybackIndex(trackAtIndex.bookId, event.index);
-      }
+      setPlaybackIndex(trackAtIndex.bookId, event.index);
       // Update database for persistence
       await updateChapterIndexInDB(trackAtIndex.bookId, event.index);
 
