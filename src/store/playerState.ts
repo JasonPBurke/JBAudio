@@ -3,19 +3,20 @@ import { create } from 'zustand';
 interface PlayerState {
   activeBookId: string | null;
   isPlaying: boolean;
-  isBackground: boolean;
+  wasPlayerScreenDismissedToBackground: boolean;
   setActiveBookId: (id: string | null) => void;
   setIsPlaying: (playing: boolean) => void;
-  setIsBackground: (value: boolean) => void;
+  setWasPlayerScreenDismissedToBackground: (value: boolean) => void;
 }
 
 export const usePlayerStateStore = create<PlayerState>()((set) => ({
   activeBookId: null,
   isPlaying: false,
-  isBackground: false,
+  wasPlayerScreenDismissedToBackground: false,
   setActiveBookId: (id) => set({ activeBookId: id }),
   setIsPlaying: (playing) => set({ isPlaying: playing }),
-  setIsBackground: (value) => set({ isBackground: value }),
+  setWasPlayerScreenDismissedToBackground: (value) =>
+    set({ wasPlayerScreenDismissedToBackground: value }),
 }));
 
 /**
