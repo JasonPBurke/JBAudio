@@ -19,7 +19,6 @@ import {
   getPreviousChapterStartSeconds,
 } from '@/helpers/singleFileBook';
 import * as sleepTimer from '@/setup/sleepTimer';
-import { usePlayerStateStore } from '@/store/playerState';
 import { useQueueStore } from '@/store/queue';
 
 const { setPlaybackIndex, setPlaybackProgress } =
