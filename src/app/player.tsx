@@ -1,18 +1,15 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   StyleSheet,
   View,
   ActivityIndicator,
-  AppState,
 } from 'react-native';
 import { useActiveTrack } from 'react-native-track-player';
-import { useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { colors, screenPadding } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import { useBookById } from '@/store/library';
-import { usePlayerStateStore } from '@/store/playerState';
 import { selectGradientColors } from '@/helpers/gradientColorSorter';
 import { withOpacity } from '@/helpers/colorUtils';
 import { useTheme } from '@/hooks/useTheme';
@@ -57,12 +54,8 @@ const loadingContainerStyle = { justifyContent: 'center' as const };
  * This screen should only re-render when:
  * - Active track changes (useActiveTrack)
  * - Book data changes (useBookById)
- * - App state changes (background/foreground)
  */
 const PlayerScreen = () => {
-  // App state handling for background dismissal
-  const appState = useRef(AppState.currentState);
-  const navigation = useNavigation();
   const router = useRouter();
 
   const { colors: themeColors } = useTheme();
@@ -70,36 +63,6 @@ const PlayerScreen = () => {
   // These hooks only fire on track change, not during playback progress
   const activeTrack = useActiveTrack();
   const book = useBookById(activeTrack?.bookId ?? '');
-
-  // Get the setter for tracking player screen dismissal
-  const setWasPlayerScreenDismissedToBackground = usePlayerStateStore(
-    useCallback(
-      (state) => state.setWasPlayerScreenDismissedToBackground,
-      [],
-    ),
-  );
-
-  // App state subscription for dismissing player when app goes to background
-  useEffect(() => {
-    const subscription = AppState.addEventListener(
-      'change',
-      (nextAppState) => {
-        if (
-          appState.current.match(/active|inactive/) &&
-          nextAppState === 'background'
-        ) {
-          // Set flag BEFORE navigating away so we can restore on foreground
-          setWasPlayerScreenDismissedToBackground(true);
-
-          if (navigation.canGoBack()) {
-            navigation.goBack();
-          }
-        }
-        appState.current = nextAppState;
-      },
-    );
-    return () => subscription.remove();
-  }, [navigation, setWasPlayerScreenDismissedToBackground]);
 
   // Memoized artwork width calculation based on aspect ratio
   const artworkWidth = useMemo(() => {

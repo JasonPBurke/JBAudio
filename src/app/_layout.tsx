@@ -23,7 +23,6 @@ import { ensureSettingsRecord } from '@/db/settingsQueries';
 import { useThemeStore } from '@/store/themeStore';
 import { useLibraryStore } from '@/store/library';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
-import { usePlayerScreenRestoration } from '@/hooks/usePlayerScreenRestoration';
 import { useTheme } from '@/hooks/useTheme';
 import { runTrialExpiredCleanup } from '@/helpers/trialCleanup';
 import * as Sentry from '@sentry/react-native';
@@ -154,9 +153,6 @@ const App = () => {
   useSetupTrackPlayer({
     onLoad: handleTrackPlayerLoaded,
   });
-
-  // Restore player screen when app returns from background
-  usePlayerScreenRestoration();
 
   //* for debugging
   // useLogTrackPlayerState();
