@@ -20,6 +20,7 @@ export interface Book {
   artworkHeight: number | null;
   artworkWidth: number | null;
   artworkColors: ArtworkColors | null;
+  selectedAccentColorType: string | null;
   bookDuration: number;
   bookProgress: {
     currentChapterIndex: number;

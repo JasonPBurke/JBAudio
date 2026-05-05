@@ -53,6 +53,7 @@ export default class Book extends Model {
     | boolean
     | null;
   @field('is_single_file') isSingleFile!: boolean | null;
+  @text('selected_accent_color_type') selectedAccentColorType!: string | null;
 
   @relation('authors', 'author_id') author!: Author;
   @children('chapters') chapters!: Chapter[];

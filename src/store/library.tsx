@@ -122,6 +122,7 @@ export const useLibraryStore: UseBoundStore<StoreApi<LibraryState>> =
             darkMuted: bookModel.coverColorDarkMuted,
             lightMuted: bookModel.coverColorLightMuted,
           },
+          selectedAccentColorType: bookModel.selectedAccentColorType ?? null,
           bookDuration: bookModel.bookDuration,
           bookProgress: {
             currentChapterIndex: bookModel.currentChapterIndex,
@@ -196,6 +197,7 @@ export const useLibraryStore: UseBoundStore<StoreApi<LibraryState>> =
           'cover_color_muted',
           'cover_color_dark_muted',
           'cover_color_light_muted',
+          'selected_accent_color_type',
         ])
         .subscribe(async (changedRecords) => {
           const { books: currentBooks } = get();
@@ -245,6 +247,7 @@ export const useLibraryStore: UseBoundStore<StoreApi<LibraryState>> =
                 darkMuted: bookModel.coverColorDarkMuted,
                 lightMuted: bookModel.coverColorLightMuted,
               },
+              selectedAccentColorType: bookModel.selectedAccentColorType ?? null,
               bookDuration: bookModel.bookDuration,
               bookProgress: {
                 currentChapterIndex: bookModel.currentChapterIndex,

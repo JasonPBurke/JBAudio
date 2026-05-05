@@ -19,10 +19,16 @@ import { withOpacity } from '@/helpers/colorUtils';
 export const useTheme = () => {
   const activeColorScheme = useThemeStore((state) => state.activeColorScheme);
   const customPrimaryColor = useThemeStore((state) => state.customPrimaryColor);
+  const autoAccentEnabled = useThemeStore((state) => state.autoAccentEnabled);
+  const autoAccentColor = useThemeStore((state) => state.autoAccentColor);
+  const manualOverrideActive = useThemeStore((state) => state.manualOverrideActive);
 
   const colors = useMemo(() => {
-    // Use custom primary color if set, otherwise use default primary
-    const effectivePrimaryColor = customPrimaryColor || colorTokens.shared.primary;
+    // Auto accent takes priority when enabled, not manually overridden, and has a resolved color
+    const effectivePrimaryColor =
+      autoAccentEnabled && !manualOverrideActive && autoAccentColor
+        ? autoAccentColor
+        : customPrimaryColor || colorTokens.shared.primary;
 
     // Return merged colors with primary override and minimumTrackTintColor added
     return {
@@ -36,7 +42,7 @@ export const useTheme = () => {
       textMutedAlpha25: withOpacity(colorTokens[activeColorScheme].textMuted, 0.25),
       dividerAlpha16: withOpacity(colorTokens[activeColorScheme].divider, 0.16),
     };
-  }, [activeColorScheme, customPrimaryColor]);
+  }, [activeColorScheme, customPrimaryColor, autoAccentEnabled, autoAccentColor, manualOverrideActive]);
 
   return {
     colors,

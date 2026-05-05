@@ -5,18 +5,27 @@ import {
   View,
   ScrollView,
 } from 'react-native';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSharedValue } from 'react-native-reanimated';
 import { Settings, Palette } from 'lucide-react-native';
 import { ColorPickerModal } from '@/components/ColorPicker';
 import SettingsHeader from '@/components/SettingsHeader';
 import SettingsCard from '@/components/settings/SettingsCard';
+import CompactSettingsRow from '@/components/settings/CompactSettingsRow';
+import AccentColorSwatches from '@/components/settings/AccentColorSwatches';
 import { screenPadding } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
+import { useThemeStore } from '@/store/themeStore';
+import { usePlayerStateStore } from '@/store/playerState';
+import { useBookById } from '@/store/library';
+import { updateBookSelectedAccentColorType } from '@/db/bookQueries';
 import SegmentedControl from '@/components/SegmentedControl';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useRequiresPro } from '@/hooks/useRequiresPro';
 import { ProBadge } from '@/components/ProBadge';
 import ProFeaturePopup from '@/modals/ProFeaturePopup';
+import ToggleSwitch from '@/components/animations/ToggleSwitch';
+import { ArtworkColors } from '@/helpers/gradientColorSorter';
 
 const GeneralSettingsScreen = () => {
   const { colors: themeColors } = useTheme();
@@ -25,12 +34,43 @@ const GeneralSettingsScreen = () => {
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
   const [showProPopup, setShowProPopup] = useState(false);
 
+  // Auto accent state
+  const autoAccentEnabled = useThemeStore((s) => s.autoAccentEnabled);
+  const setAutoAccentEnabled = useThemeStore((s) => s.setAutoAccentEnabled);
+  const activeBookId = usePlayerStateStore((s) => s.activeBookId);
+  const activeBook = useBookById(activeBookId ?? '');
+  const autoAccentToggleValue = useSharedValue(autoAccentEnabled ? 1 : 0);
+
+  useEffect(() => {
+    autoAccentToggleValue.value = autoAccentEnabled ? 1 : 0;
+  }, [autoAccentEnabled]);
+
   const showColorPicker = () => {
     if (!hasProAccess) {
       setShowProPopup(true);
       return;
     }
     setColorPickerVisible(true);
+  };
+
+  const handleAutoAccentToggle = async () => {
+    if (!autoAccentEnabled && !hasProAccess) {
+      setShowProPopup(true);
+      return;
+    }
+    const newValue = !autoAccentEnabled;
+    autoAccentToggleValue.value = newValue ? 1 : 0;
+    await setAutoAccentEnabled(newValue);
+  };
+
+  const handleSwatchSelect = async (colorType: string) => {
+    if (!activeBookId || !activeBook?.artworkColors) return;
+    await updateBookSelectedAccentColorType(activeBookId, colorType);
+    // Optimistically update the accent color
+    const color = activeBook.artworkColors[colorType as keyof ArtworkColors];
+    if (color) {
+      useThemeStore.setState({ autoAccentColor: color, manualOverrideActive: false });
+    }
   };
 
   return (
@@ -112,6 +152,43 @@ const GeneralSettingsScreen = () => {
               </View>
             </Pressable>
           </View>
+
+          <CompactSettingsRow
+            label='Auto Accent from Cover'
+            showDivider={false}
+            control={
+              <ToggleSwitch
+                value={autoAccentToggleValue}
+                onPress={handleAutoAccentToggle}
+                style={{ width: 72, height: 36, padding: 5 }}
+                trackColors={{
+                  on: themeColors.primary,
+                  off: themeColors.modalBackground,
+                }}
+              />
+            }
+          />
+
+          {autoAccentEnabled && activeBook?.artworkColors && (
+            <View style={styles.swatchesContainer}>
+              <AccentColorSwatches
+                artworkColors={activeBook.artworkColors}
+                selectedColorType={activeBook.selectedAccentColorType || 'vibrant'}
+                onSelectColorType={handleSwatchSelect}
+              />
+            </View>
+          )}
+
+          {autoAccentEnabled && !activeBook?.artworkColors && (
+            <Text
+              style={[
+                styles.settingDescription,
+                { color: themeColors.textMuted, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 },
+              ]}
+            >
+              Play a book with cover art to see color options
+            </Text>
+          )}
         </SettingsCard>
       </ScrollView>
 
@@ -171,33 +248,9 @@ const styles = StyleSheet.create({
     width: 50,
     borderRadius: 25,
   },
-  subscriptionContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
+  swatchesContainer: {
     paddingHorizontal: 16,
-  },
-  subscriptionInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  subscriptionTitle: {
-    fontSize: 16,
-    fontFamily: 'Rubik-SemiBold',
-  },
-  subscriptionSubtitle: {
-    fontSize: 14,
-    fontFamily: 'Rubik',
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  statusBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontFamily: 'Rubik-SemiBold',
+    paddingTop: 8,
+    paddingBottom: 12,
   },
 });

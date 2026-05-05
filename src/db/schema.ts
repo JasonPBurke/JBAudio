@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 24,
+  version: 25,
   tables: [
     tableSchema({
       name: 'authors',
@@ -87,6 +87,11 @@ export default appSchema({
         {
           name: 'is_single_file',
           type: 'boolean',
+          isOptional: true,
+        },
+        {
+          name: 'selected_accent_color_type',
+          type: 'string',
           isOptional: true,
         },
       ],
@@ -194,6 +199,11 @@ export default appSchema({
         },
         {
           name: 'mesh_gradient_enabled',
+          type: 'boolean',
+          isOptional: true,
+        },
+        {
+          name: 'auto_accent_enabled',
           type: 'boolean',
           isOptional: true,
         },

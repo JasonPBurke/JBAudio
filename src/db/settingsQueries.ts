@@ -421,6 +421,24 @@ export async function setAutoChapterInterval(
   });
 }
 
+export async function getAutoAccentEnabled(): Promise<boolean> {
+  const settingsCollection = database.collections.get<Settings>('settings');
+  const settingsRecord = await settingsCollection.query().fetch();
+
+  if (settingsRecord.length > 0) {
+    return settingsRecord[0].autoAccentEnabled === true;
+  }
+  return false;
+}
+
+export async function setAutoAccentEnabled(
+  enabled: boolean,
+): Promise<void> {
+  return updateSetting((record) => {
+    record.autoAccentEnabled = enabled;
+  });
+}
+
 export async function getBooksWithoutChapterData(): Promise<Book[]> {
   const booksCollection = database.collections.get<Book>('books');
   const allBooks = await booksCollection.query().fetch();

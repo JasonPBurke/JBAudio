@@ -7,6 +7,31 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      toVersion: 25,
+      steps: [
+        addColumns({
+          table: 'books',
+          columns: [
+            {
+              name: 'selected_accent_color_type',
+              type: 'string',
+              isOptional: true,
+            },
+          ],
+        }),
+        addColumns({
+          table: 'settings',
+          columns: [
+            {
+              name: 'auto_accent_enabled',
+              type: 'boolean',
+              isOptional: true,
+            },
+          ],
+        }),
+      ],
+    },
+    {
       toVersion: 24,
       steps: [
         addColumns({

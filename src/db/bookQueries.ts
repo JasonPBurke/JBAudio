@@ -202,3 +202,15 @@ export const updateBookDetails = async (
     }
   });
 };
+
+export async function updateBookSelectedAccentColorType(
+  bookId: string,
+  colorType: string | null,
+): Promise<void> {
+  await database.write(async () => {
+    const book = await database.get<Book>('books').find(bookId);
+    await book.update((b) => {
+      b.selectedAccentColorType = colorType;
+    });
+  });
+}
