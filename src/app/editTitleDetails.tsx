@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   Pressable,
 } from 'react-native';
-import { colors } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { withOpacity } from '@/helpers/colorUtils';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -171,8 +170,8 @@ const editTitleDetails = () => {
             ]}
             value={formState.bookTitle}
             onChangeText={(text) => handleInputChange('bookTitle', text)}
-            cursorColor={colors.primary}
-            selectionColor={colors.primary}
+            cursorColor={themeColors.primary}
+            selectionColor={themeColors.primary}
           ></TextInput>
           <Text
             style={[styles.fieldTitle, { color: themeColors.textMuted }]}
@@ -189,8 +188,8 @@ const editTitleDetails = () => {
             ]}
             value={formState.author}
             onChangeText={(text) => handleInputChange('author', text)}
-            cursorColor={colors.primary}
-            selectionColor={colors.primary}
+            cursorColor={themeColors.primary}
+            selectionColor={themeColors.primary}
           ></TextInput>
           <Text
             style={[styles.fieldTitle, { color: themeColors.textMuted }]}
@@ -209,8 +208,8 @@ const editTitleDetails = () => {
             placeholderTextColor={withOpacity(themeColors.textMuted, 0.5)}
             value={formState.narrator ?? ''}
             onChangeText={(text) => handleInputChange('narrator', text)}
-            cursorColor={colors.primary}
-            selectionColor={colors.primary}
+            cursorColor={themeColors.primary}
+            selectionColor={themeColors.primary}
           ></TextInput>
           <Text
             style={[styles.fieldTitle, { color: themeColors.textMuted }]}
@@ -229,8 +228,8 @@ const editTitleDetails = () => {
             placeholderTextColor={withOpacity(themeColors.textMuted, 0.5)}
             value={formState.genre ?? ''}
             onChangeText={(text) => handleInputChange('genre', text)}
-            cursorColor={colors.primary}
-            selectionColor={colors.primary}
+            cursorColor={themeColors.primary}
+            selectionColor={themeColors.primary}
           ></TextInput>
           <Text
             style={[styles.fieldTitle, { color: themeColors.textMuted }]}
@@ -249,8 +248,8 @@ const editTitleDetails = () => {
             placeholderTextColor={withOpacity(themeColors.textMuted, 0.5)}
             value={formState.year ?? ''}
             onChangeText={(text) => handleInputChange('year', text)}
-            cursorColor={colors.primary}
-            selectionColor={colors.primary}
+            cursorColor={themeColors.primary}
+            selectionColor={themeColors.primary}
             keyboardType='numeric'
           ></TextInput>
           <Text
@@ -270,8 +269,8 @@ const editTitleDetails = () => {
             placeholderTextColor={withOpacity(themeColors.textMuted, 0.5)}
             value={formState.description ?? ''}
             onChangeText={(text) => handleInputChange('description', text)}
-            cursorColor={colors.primary}
-            selectionColor={colors.primary}
+            cursorColor={themeColors.primary}
+            selectionColor={themeColors.primary}
             multiline
             textAlignVertical='top'
           ></TextInput>
@@ -292,8 +291,8 @@ const editTitleDetails = () => {
             placeholderTextColor={withOpacity(themeColors.textMuted, 0.5)}
             value={formState.copyright ?? ''}
             onChangeText={(text) => handleInputChange('copyright', text)}
-            cursorColor={colors.primary}
-            selectionColor={colors.primary}
+            cursorColor={themeColors.primary}
+            selectionColor={themeColors.primary}
           ></TextInput>
           <View style={styles.buttonContainer}>
             <TouchableOpacity

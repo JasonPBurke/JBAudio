@@ -74,14 +74,18 @@ const App = () => {
   }, [fontsLoaded]);
 
   const initializeTheme = useThemeStore((state) => state.initializeTheme);
+  const initializeSettings = useSettingsStore(
+    (state) => state.initializeSettings,
+  );
   const { activeColorScheme } = useTheme();
 
-  useSettingsStore();
-
-  // Ensure the Settings singleton record exists before any settings reads/writes
+  // Ensure the Settings singleton row exists, then hydrate the settings store from DB
   useEffect(() => {
-    ensureSettingsRecord();
-  }, []);
+    (async () => {
+      await ensureSettingsRecord();
+      await initializeSettings();
+    })();
+  }, [initializeSettings]);
 
   useEffect(() => {
     if (fontError) {

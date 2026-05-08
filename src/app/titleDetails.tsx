@@ -18,13 +18,17 @@ import {
   Pencil,
   Layers,
   ChevronRight,
-  ChevronDown,
   BookCheck,
 } from 'lucide-react-native';
 import { ShadowedView, shadowStyle } from 'react-native-fast-shadow';
 import { ScrollView } from 'react-native-gesture-handler';
 import { Clock8, Calendar, Book } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import TrackPlayer, {
   useActiveTrack,
   useIsPlaying,
@@ -38,7 +42,7 @@ import { selectGradientColors } from '@/helpers/gradientColorSorter';
 import { ensureReadable, withOpacity } from '@/helpers/colorUtils';
 import { useTheme } from '@/hooks/useTheme';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
-import TruncatedParagraph from '@/components/TruncatedParagraph';
+// import TruncatedParagraph from '@/components/TruncatedParagraph';
 import { BookDurationRow } from '@/components/BookDurationRow';
 import {
   handleBookPlay,
@@ -64,6 +68,22 @@ const TitleDetails = () => {
   const [showLoading, setShowLoading] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showProgressOptions, setShowProgressOptions] = useState(false);
+  const progressExpand = useSharedValue(0);
+
+  useEffect(() => {
+    progressExpand.value = withTiming(showProgressOptions ? 1 : 0, {
+      duration: 250,
+    });
+  }, [showProgressOptions]);
+
+  const progressMenuStyle = useAnimatedStyle(() => ({
+    height: progressExpand.value * PROGRESS_MENU_HEIGHT,
+    opacity: progressExpand.value,
+  }));
+
+  const progressChevronStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${progressExpand.value * 90}deg` }],
+  }));
 
   const { colors: themeColors } = useTheme();
 
@@ -336,87 +356,81 @@ const TitleDetails = () => {
                   >
                     Mark Book as...
                   </Text>
-                  {showProgressOptions ? (
-                    <ChevronDown
-                      size={18}
-                      color={themeColors.textMuted}
-                      strokeWidth={1.5}
-                    />
-                  ) : (
+                  <Animated.View style={progressChevronStyle}>
                     <ChevronRight
                       size={18}
                       color={themeColors.textMuted}
                       strokeWidth={1.5}
                     />
-                  )}
+                  </Animated.View>
                 </Pressable>
-                {showProgressOptions && (
-                  <>
-                    <Pressable
-                      onPress={() =>
-                        handleProgressChange(BookProgressState.NotStarted)
-                      }
+                <Animated.View
+                  style={[styles.progressMenuWrapper, progressMenuStyle]}
+                >
+                  <Pressable
+                    onPress={() =>
+                      handleProgressChange(BookProgressState.NotStarted)
+                    }
+                    style={[
+                      styles.menuSubItem,
+                      book.bookProgressValue ===
+                        BookProgressState.NotStarted && {
+                        backgroundColor: themeColors.chapterActive,
+                      },
+                    ]}
+                  >
+                    <Text
                       style={[
-                        styles.menuSubItem,
-                        book.bookProgressValue ===
-                          BookProgressState.NotStarted && {
-                          backgroundColor: themeColors.chapterActive,
-                        },
+                        styles.menuItemText,
+                        { color: themeColors.text },
                       ]}
                     >
-                      <Text
-                        style={[
-                          styles.menuItemText,
-                          { color: themeColors.text },
-                        ]}
-                      >
-                        Unplayed
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() =>
-                        handleProgressChange(BookProgressState.Started)
-                      }
+                      Unplayed
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() =>
+                      handleProgressChange(BookProgressState.Started)
+                    }
+                    style={[
+                      styles.menuSubItem,
+                      book.bookProgressValue ===
+                        BookProgressState.Started && {
+                        backgroundColor: themeColors.chapterActive,
+                      },
+                    ]}
+                  >
+                    <Text
                       style={[
-                        styles.menuSubItem,
-                        book.bookProgressValue ===
-                          BookProgressState.Started && {
-                          backgroundColor: themeColors.chapterActive,
-                        },
+                        styles.menuItemText,
+                        { color: themeColors.text },
                       ]}
                     >
-                      <Text
-                        style={[
-                          styles.menuItemText,
-                          { color: themeColors.text },
-                        ]}
-                      >
-                        Playing
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() =>
-                        handleProgressChange(BookProgressState.Finished)
-                      }
+                      Playing
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() =>
+                      handleProgressChange(BookProgressState.Finished)
+                    }
+                    style={[
+                      styles.menuSubItem,
+                      book.bookProgressValue ===
+                        BookProgressState.Finished && {
+                        backgroundColor: themeColors.chapterActive,
+                      },
+                    ]}
+                  >
+                    <Text
                       style={[
-                        styles.menuSubItem,
-                        book.bookProgressValue ===
-                          BookProgressState.Finished && {
-                          backgroundColor: themeColors.chapterActive,
-                        },
+                        styles.menuItemText,
+                        { color: themeColors.text },
                       ]}
                     >
-                      <Text
-                        style={[
-                          styles.menuItemText,
-                          { color: themeColors.text },
-                        ]}
-                      >
-                        Finished
-                      </Text>
-                    </Pressable>
-                  </>
-                )}
+                      Finished
+                    </Text>
+                  </Pressable>
+                </Animated.View>
               </View>
             </Pressable>
           </Modal>
@@ -701,6 +715,8 @@ const TitleDetails = () => {
 export default TitleDetails;
 
 const FIXED_ARTWORK_HEIGHT = normalizeSize(375);
+const PROGRESS_OPTION_HEIGHT = 44;
+const PROGRESS_MENU_HEIGHT = PROGRESS_OPTION_HEIGHT * 3;
 
 const styles = StyleSheet.create({
   screenContainer: {
@@ -867,10 +883,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderBottomWidth: 1,
   },
+  progressMenuWrapper: {
+    overflow: 'hidden',
+  },
   menuSubItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    height: PROGRESS_OPTION_HEIGHT,
     paddingHorizontal: 16,
     paddingLeft: 48,
   },
