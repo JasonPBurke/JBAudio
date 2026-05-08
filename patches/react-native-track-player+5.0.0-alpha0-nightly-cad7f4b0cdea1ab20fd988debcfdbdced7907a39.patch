@@ -1,5 +1,5 @@
 diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
-index b495b5a..0861f7b 100644
+index b495b5a..7795317 100644
 --- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
 +++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
 @@ -52,8 +52,13 @@ import com.google.common.util.concurrent.ListenableFuture
@@ -16,7 +16,30 @@ index b495b5a..0861f7b 100644
  
  @OptIn(UnstableApi::class)
  @MainThread
-@@ -862,6 +867,141 @@ class MusicService : HeadlessJsMediaService() {
+@@ -107,6 +112,7 @@ class MusicService : HeadlessJsMediaService() {
+         mediaSession = MediaLibrarySession.Builder(this, fakePlayer,
+             InnerMediaSessionCallback()
+         )
++            .setId("rntp_${System.currentTimeMillis()}")
+             .setBitmapLoader(CacheBitmapLoader(CoilBitmapLoader(this)))
+             // https://github.com/androidx/media/issues/1218
+             .setSessionActivity(
+@@ -792,9 +798,12 @@ class MusicService : HeadlessJsMediaService() {
+ 
+     @MainThread
+     override fun onDestroy() {
+-        if (::player.isInitialized) {
+-            Timber.d("Releasing media session and destroying player")
++        if (::mediaSession.isInitialized) {
++            Timber.d("Releasing media session")
+             mediaSession.release()
++        }
++        if (::player.isInitialized) {
++            Timber.d("Destroying player")
+             player.destroy()
+         }
+ 
+@@ -862,6 +871,141 @@ class MusicService : HeadlessJsMediaService() {
          val service = this@MusicService
      }
  
@@ -158,7 +181,7 @@ index b495b5a..0861f7b 100644
      private inner class InnerMediaSessionCallback : MediaLibrarySession.Callback {
          // HACK: I'm sure most of the callbacks were not implemented correctly.
          // ATM I only care that andorid auto still functions.
-@@ -925,6 +1065,52 @@ class MusicService : HeadlessJsMediaService() {
+@@ -925,6 +1069,52 @@ class MusicService : HeadlessJsMediaService() {
              }
          }
  
