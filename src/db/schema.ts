@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 25,
+  version: 26,
   tables: [
     tableSchema({
       name: 'authors',
@@ -204,6 +204,11 @@ export default appSchema({
         },
         {
           name: 'auto_accent_enabled',
+          type: 'boolean',
+          isOptional: true,
+        },
+        {
+          name: 'shake_to_reset_enabled',
           type: 'boolean',
           isOptional: true,
         },

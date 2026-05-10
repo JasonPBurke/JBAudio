@@ -439,6 +439,24 @@ export async function setAutoAccentEnabled(
   });
 }
 
+export async function getShakeToResetEnabled(): Promise<boolean> {
+  const settingsCollection = database.collections.get<Settings>('settings');
+  const settingsRecord = await settingsCollection.query().fetch();
+
+  if (settingsRecord.length > 0) {
+    return settingsRecord[0].shakeToResetEnabled === true;
+  }
+  return false;
+}
+
+export async function setShakeToResetEnabled(
+  enabled: boolean,
+): Promise<void> {
+  return updateSetting((record) => {
+    record.shakeToResetEnabled = enabled;
+  });
+}
+
 export async function getBooksWithoutChapterData(): Promise<Book[]> {
   const booksCollection = database.collections.get<Book>('books');
   const allBooks = await booksCollection.query().fetch();

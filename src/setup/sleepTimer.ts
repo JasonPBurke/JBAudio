@@ -27,6 +27,8 @@ export type SleepTimerStatus = {
   /** Chapters remaining before stop. Set in chapter mode. */
   remainingChapters: number | null;
   isFading: boolean;
+  /** Epoch ms when the timer last fired. Cleared after SHAKE_GRACE_MS or on activate/cancel/manual resume. */
+  expiredAt: number | null;
 };
 
 // ─── Zustand Store ────────────────────────────────────────────────────────────
@@ -38,6 +40,7 @@ export const useSleepTimerStore = create<SleepTimerStatus>(() => ({
   frozenRemainingMs: null,
   remainingChapters: null,
   isFading: false,
+  expiredAt: null,
 }));
 
 // ─── Internal Constants ───────────────────────────────────────────────────────
@@ -45,6 +48,8 @@ export const useSleepTimerStore = create<SleepTimerStatus>(() => ({
 const SETTINGS_REFRESH_INTERVAL = 1000;
 const VOLUME_THROTTLE_MS = 100;
 const BACKUP_TIMER_BUFFER_MS = 2000;
+const SHAKE_GRACE_MS = 2 * 60 * 1000;
+const SHAKE_COOLDOWN_MS = 1000;
 
 // ─── Internal State ───────────────────────────────────────────────────────────
 
@@ -74,6 +79,17 @@ let frozenRemainingMs: number | null = null;
 
 let backupTimerId: ReturnType<typeof setTimeout> | null = null;
 
+// Snapshot of the most recent activation, used to re-arm on shake-reset
+// (post-expiry chapter mode loses timerChapters from DB once decremented to 0,
+// so we keep an in-memory copy of the original mode here).
+let lastActivatedMode: TimerMode | null = null;
+
+// Clears expiredAt from the store after the grace window passes.
+let graceClearTimerId: ReturnType<typeof setTimeout> | null = null;
+
+// Debounces back-to-back shake events from the package.
+let lastShakeHandledAt = 0;
+
 // ─── Private Helpers ──────────────────────────────────────────────────────────
 
 function _setStore(patch: Partial<SleepTimerStatus>): void {
@@ -81,6 +97,9 @@ function _setStore(patch: Partial<SleepTimerStatus>): void {
 }
 
 function _clearStore(): void {
+  // Note: leaves expiredAt untouched so _fire() can set it after clearing.
+  // Callers that want to invalidate the post-expiry grace (cancel, activate,
+  // manual resume) clear it explicitly via _clearGrace().
   _setStore({
     isActive: false,
     mode: null,
@@ -89,6 +108,16 @@ function _clearStore(): void {
     remainingChapters: null,
     isFading: false,
   });
+}
+
+function _clearGrace(): void {
+  if (graceClearTimerId !== null) {
+    clearTimeout(graceClearTimerId);
+    graceClearTimerId = null;
+  }
+  if (useSleepTimerStore.getState().expiredAt !== null) {
+    _setStore({ expiredAt: null });
+  }
 }
 
 function scheduleBackupTimer(sleepTimeMs: number): void {
@@ -131,6 +160,14 @@ async function _fire(): Promise<void> {
     frozenRemainingMs = null;
     cachedTimer.lastRefreshedAt = 0;
     _clearStore();
+
+    // Open the post-expiry shake-grace window
+    if (graceClearTimerId !== null) clearTimeout(graceClearTimerId);
+    _setStore({ expiredAt: Date.now() });
+    graceClearTimerId = setTimeout(() => {
+      graceClearTimerId = null;
+      _setStore({ expiredAt: null });
+    }, SHAKE_GRACE_MS);
   } finally {
     isTimerInitiatedPause = false;
   }
@@ -144,6 +181,11 @@ async function _fire(): Promise<void> {
  * callers declare intent, the module figures out the correct DB writes.
  */
 export async function activate(mode: TimerMode): Promise<void> {
+  // Snapshot the activation so shake-reset knows what to re-arm with,
+  // and clear any prior post-expiry grace window.
+  lastActivatedMode = mode;
+  _clearGrace();
+
   const playbackState = await TrackPlayer.getPlaybackState();
   const isPlaying = playbackState.state === State.Playing;
 
@@ -228,6 +270,7 @@ export async function cancel(): Promise<void> {
   cachedTimer.sleepTime = null;
   cachedTimer.lastRefreshedAt = 0;
   _clearStore();
+  _clearGrace();
 
   await updateTimerActive(false);
   await updateSleepTime(null);
@@ -367,6 +410,8 @@ export async function onPlaybackResumed(): Promise<void> {
     frozenRemainingMs = null;
     cachedTimer.lastRefreshedAt = 0;
     _clearStore();
+    // User manually resumed playback — they've taken control, end the grace.
+    _clearGrace();
     return;
   }
 
@@ -461,7 +506,57 @@ export async function onChapterChanged(): Promise<void> {
     await TrackPlayer.setVolume(1);
     await updateTimerActive(false);
     _clearStore();
+
+    // Open the post-expiry shake-grace window
+    if (graceClearTimerId !== null) clearTimeout(graceClearTimerId);
+    _setStore({ expiredAt: Date.now() });
+    graceClearTimerId = setTimeout(() => {
+      graceClearTimerId = null;
+      _setStore({ expiredAt: null });
+    }, SHAKE_GRACE_MS);
   }
+}
+
+/**
+ * Re-arm the timer in response to a device shake. Caller (the shake hook)
+ * already gated on (enabled && (isFading || inGrace)), but we re-validate
+ * state here defensively — between event dispatch and this call the timer
+ * could have been cancelled or expired-then-cleared.
+ *
+ * - During fade phase (duration mode only): cancel + re-activate at full duration.
+ * - Within 2-min post-expiry grace: re-activate at full duration AND resume play.
+ */
+export async function resetFromShake(): Promise<boolean> {
+  const now = Date.now();
+  if (now - lastShakeHandledAt < SHAKE_COOLDOWN_MS) return false;
+  lastShakeHandledAt = now;
+
+  if (lastActivatedMode === null) return false;
+
+  const status = useSleepTimerStore.getState();
+  const inGrace = status.expiredAt !== null;
+
+  // Fade-window reset: only meaningful for duration mode (chapter mode has no fade)
+  if (
+    status.isActive &&
+    status.isFading &&
+    lastActivatedMode.kind === 'duration'
+  ) {
+    const mode = lastActivatedMode;
+    await cancel();
+    await activate(mode);
+    return true;
+  }
+
+  // Post-expiry: re-arm and resume playback
+  if (inGrace) {
+    const mode = lastActivatedMode;
+    await activate(mode);
+    await TrackPlayer.play();
+    return true;
+  }
+
+  return false;
 }
 
 /**

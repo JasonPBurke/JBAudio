@@ -7,6 +7,21 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      toVersion: 26,
+      steps: [
+        addColumns({
+          table: 'settings',
+          columns: [
+            {
+              name: 'shake_to_reset_enabled',
+              type: 'boolean',
+              isOptional: true,
+            },
+          ],
+        }),
+      ],
+    },
+    {
       toVersion: 25,
       steps: [
         addColumns({

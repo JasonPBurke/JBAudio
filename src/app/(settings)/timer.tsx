@@ -6,7 +6,7 @@ import {
   View,
   ScrollView,
 } from 'react-native';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useSharedValue } from 'react-native-reanimated';
 import { useFocusEffect } from '@react-navigation/native';
 import { Picker } from '@react-native-picker/picker';
@@ -16,6 +16,7 @@ import {
   Sunset,
   Moon,
   ClockFading,
+  Vibrate,
 } from 'lucide-react-native';
 import SettingsHeader from '@/components/SettingsHeader';
 import SettingsCard from '@/components/settings/SettingsCard';
@@ -50,6 +51,7 @@ import { ProBadge } from '@/components/ProBadge';
 import ProFeaturePopup from '@/modals/ProFeaturePopup';
 import SleepTimerDurationCard from '@/components/settings/SleepTimerDurationCard';
 import { useLibraryStore } from '@/store/library';
+import { useSettingsStore } from '@/store/settingsStore';
 import { findChapterIndexByPosition } from '@/helpers/singleFileBook';
 
 const TimerSettingsScreen = () => {
@@ -71,10 +73,30 @@ const TimerSettingsScreen = () => {
   const [customTimer, setCustomTimer] = useState({ hours: 0, minutes: 0 });
   const [maxChapters, setMaxChapters] = useState(20);
   const [hasActiveTrack, setHasActiveTrack] = useState(false);
+  const [shakeInfoVisible, setShakeInfoVisible] = useState(false);
   const enabledValue = useSharedValue(0);
+  const shakeEnabledValue = useSharedValue(0);
+
+  const shakeToResetEnabled = useSettingsStore((s) => s.shakeToResetEnabled);
+  const setShakeToResetEnabled = useSettingsStore(
+    (s) => s.setShakeToResetEnabled,
+  );
+
+  const shakeInfo =
+    'When enabled, shake your device to reset the sleep timer in two situations: while the audio is fading out, or within 2 minutes after the timer has stopped playback. The timer restarts at its full duration.';
 
   const fadeOutDurationInfo =
     'When the sleep timer is activated, the audio will begin to fade out when the sleep time remaining is the same as the fade-out duration you have set.  If the fade-out duration exceeds the timer duration, fade-out will begin when the timer begins.';
+
+  useEffect(() => {
+    shakeEnabledValue.value = shakeToResetEnabled ? 1 : 0;
+  }, [shakeToResetEnabled, shakeEnabledValue]);
+
+  const toggleShakeToReset = async () => {
+    const newValue = !shakeToResetEnabled;
+    shakeEnabledValue.value = newValue ? 1 : 0;
+    await setShakeToResetEnabled(newValue);
+  };
 
   // Non-pro users are limited to 1 minute; pro users get up to 30 minutes
   const numbers = isProUser
@@ -392,6 +414,39 @@ const TimerSettingsScreen = () => {
           hasActiveTrack={hasActiveTrack}
         />
 
+        <SettingsCard title='Shake to Reset Timer' icon={Vibrate}>
+          <CompactSettingsRow
+            label='Enable Shake to Reset'
+            control={
+              <ToggleSwitch
+                value={shakeEnabledValue}
+                onPress={toggleShakeToReset}
+                style={{ width: 72, height: 36, padding: 5 }}
+                trackColors={{
+                  on: themeColors.primary,
+                  off: themeColors.modalBackground,
+                }}
+              />
+            }
+          />
+          <CompactSettingsRow
+            label='How it works'
+            control={
+              <Pressable
+                onPress={() => setShakeInfoVisible(true)}
+                hitSlop={10}
+                style={styles.infoButton}
+              >
+                <Info
+                  color={themeColors.textMuted}
+                  size={16}
+                  strokeWidth={1.5}
+                />
+              </Pressable>
+            }
+          />
+        </SettingsCard>
+
         <SettingsCard
           title='Bedtime Mode'
           icon={Moon}
@@ -520,6 +575,13 @@ const TimerSettingsScreen = () => {
         onClose={() => setModalVisible(false)}
         title='Fadeout Duration'
         message={fadeOutDurationInfo}
+      />
+
+      <InfoDialogPopup
+        isVisible={shakeInfoVisible}
+        onClose={() => setShakeInfoVisible(false)}
+        title='Shake to Reset Timer'
+        message={shakeInfo}
       />
 
       <ProFeaturePopup

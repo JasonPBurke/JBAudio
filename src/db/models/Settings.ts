@@ -26,6 +26,7 @@ export default class Settings extends Model {
   @field('auto_chapter_interval') autoChapterInterval!: number | null;
   @field('mesh_gradient_enabled') meshGradientEnabled!: boolean | null;
   @field('auto_accent_enabled') autoAccentEnabled!: boolean | null;
+  @field('shake_to_reset_enabled') shakeToResetEnabled!: boolean | null;
 
   // Getter to automatically parse the libraryPaths JSON string
   get parsedLibraryPaths(): string[] {
