@@ -15,6 +15,10 @@ import { withOpacity } from '@/helpers/colorUtils';
 import { useTheme } from '@/hooks/useTheme';
 import MeshGradientBackground from '@/components/MeshGradientBackground';
 import { normalizeSize } from '@/helpers/normalizeSize';
+import {
+  CurrentChapterContext,
+  useCurrentChapterStable,
+} from '@/hooks/useCurrentChapterStable';
 
 // Memoized components - extracted to prevent re-renders
 import { PlayerArtwork } from '@/components/player/PlayerArtwork';
@@ -64,6 +68,11 @@ const PlayerScreen = () => {
   const activeTrack = useActiveTrack();
   const book = useBookById(activeTrack?.bookId ?? '');
 
+  // Single shared chapter subscription — broadcast via Context to
+  // PlayerChaptersModal and PlayerProgressBar so they don't each open their
+  // own TrackPlayer listeners and getProgress() call.
+  const currentChapter = useCurrentChapterStable();
+
   // Memoized artwork width calculation based on aspect ratio
   const artworkWidth = useMemo(() => {
     if (!book?.artworkHeight) return 0;
@@ -98,42 +107,45 @@ const PlayerScreen = () => {
   }
 
   return (
-    <View style={styles.container}>
-      <MeshGradientBackground
-        gradientColors={gradientColors}
-        artworkColors={book?.artworkColors ?? null}
-      />
-      <View style={styles.overlayContainer}>
-        <DismissIndicator />
-
-        {/* Memoized artwork component - only re-renders when artwork/width changes */}
-        <PlayerArtwork
-          artwork={book?.artwork}
-          width={artworkWidth}
-          height={FIXED_ARTWORK_HEIGHT}
-          onLongPress={handleArtworkLongPress}
+    <CurrentChapterContext.Provider value={currentChapter}>
+      <View style={styles.container}>
+        <MeshGradientBackground
+          gradientColors={gradientColors}
+          artworkColors={book?.artworkColors ?? null}
         />
+        <View style={styles.dimOverlay} pointerEvents='none' />
+        <View style={styles.overlayContainer}>
+          <DismissIndicator />
 
-        <View style={chapterSectionStyle}>
-          {/* Chapter trigger - navigates to chapter list screen */}
-          <PlayerChaptersModal
-            // darkestColor={withOpacity(gradientColors[3], 0.25)}
-            darkestColor={gradientColors[3]}
+          {/* Memoized artwork component - only re-renders when artwork/width changes */}
+          <PlayerArtwork
+            artwork={book?.artwork}
+            width={artworkWidth}
+            height={FIXED_ARTWORK_HEIGHT}
+            onLongPress={handleArtworkLongPress}
           />
 
-          {/* Progress bar uses Reanimated shared values - no React re-renders */}
-          <PlayerProgressBar style={progressBarStyle} />
+          <View style={chapterSectionStyle}>
+            {/* Chapter trigger - navigates to chapter list screen */}
+            <PlayerChaptersModal
+              // darkestColor={withOpacity(gradientColors[3], 0.25)}
+              darkestColor={gradientColors[3]}
+            />
 
-          <View style={timeRemainingContainerStyle}>
-            {/* Time remaining updates every 5 seconds via event listener */}
-            <BookTimeRemaining size={16} color={colors.textMuted} />
+            {/* Progress bar uses Reanimated shared values - no React re-renders */}
+            <PlayerProgressBar style={progressBarStyle} />
+
+            <View style={timeRemainingContainerStyle}>
+              {/* Time remaining updates every 5 seconds via event listener */}
+              <BookTimeRemaining size={16} color={colors.textMuted} />
+            </View>
+
+            {/* Memoized controls - uses Reanimated for button animations */}
+            <PlayerControls style={controlsStyle} />
           </View>
-
-          {/* Memoized controls - uses Reanimated for button animations */}
-          <PlayerControls style={controlsStyle} />
         </View>
       </View>
-    </View>
+    </CurrentChapterContext.Provider>
   );
 };
 
@@ -143,10 +155,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  dimOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: withOpacity(colors.background, 0.3),
+  },
   overlayContainer: {
     ...defaultStyles.container,
     paddingHorizontal: screenPadding.horizontal,
-    backgroundColor: withOpacity(colors.background, 0.3),
-    // backgroundColor: 'transparent',
   },
 });

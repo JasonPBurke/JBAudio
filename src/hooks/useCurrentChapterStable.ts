@@ -1,10 +1,42 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+} from 'react';
 import TrackPlayer, {
   Event,
   useActiveTrack,
 } from 'react-native-track-player';
 import { useBookById } from '@/store/library';
 import { Chapter } from '@/types/Book';
+
+/**
+ * Context for sharing a single useCurrentChapterStable subscription across
+ * multiple consumers (PlayerChaptersModal, PlayerProgressBar). Without this,
+ * each consumer would register its own TrackPlayer event listeners and fire
+ * its own getProgress() on mount — multiplying the bridge work during the
+ * player slide-in.
+ *
+ * Value of `null` means "no provider above" — consumers should treat that as
+ * an error path or fall back to calling the hook directly.
+ */
+export const CurrentChapterContext = createContext<Chapter | undefined | null>(
+  null,
+);
+
+export const useCurrentChapter = (): Chapter | undefined => {
+  const value = useContext(CurrentChapterContext);
+  if (value === null) {
+    throw new Error(
+      'useCurrentChapter must be used inside a CurrentChapterContext.Provider',
+    );
+  }
+  return value;
+};
 
 /**
  * A stable version of useCurrentChapter that minimizes re-renders.

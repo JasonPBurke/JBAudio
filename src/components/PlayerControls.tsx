@@ -491,8 +491,21 @@ export function PlaybackSpeed({ iconSize = 30 }: PlayerButtonProps) {
 }
 
 export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
+  // Defer the WatermelonDB settings subscription until the slide-in
+  // settles. The Zustand `useSleepTimer` store already provides live
+  // state for the bell icon; the DB row is only needed for the
+  // user-configured `timerDuration` (which gates single-tap activation
+  // vs. opening the modal). Within the slide window, that field stays
+  // null and a single tap opens the modal — acceptable, since a tap
+  // landing inside the slide window is essentially impossible.
+  const [settingsEnabled, setSettingsEnabled] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(() => setSettingsEnabled(true), 250);
+    return () => clearTimeout(id);
+  }, []);
+
   const { colors: themeColors } = useTheme();
-  const settings = useObserveSettings(database);
+  const settings = useObserveSettings(settingsEnabled ? database : null);
   const isPlaying = useIsPlayerPlaying();
 
   // Live timer state from the sleep timer module (updated immediately on activate/cancel)

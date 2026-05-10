@@ -9,7 +9,7 @@ import { useRouter } from 'expo-router';
 import { defaultStyles } from '@/styles';
 import { Logs } from 'lucide-react-native';
 import { TickerText } from '../components/TickerText';
-import { useCurrentChapterStable } from '@/hooks/useCurrentChapterStable';
+import { useCurrentChapter } from '@/hooks/useCurrentChapterStable';
 import { useTheme } from '@/hooks/useTheme';
 
 const logsIconWrapperStyle = {
@@ -32,7 +32,7 @@ export const PlayerChaptersModal = React.memo(
   ({ darkestColor }: { darkestColor: string }) => {
     const router = useRouter();
     const { colors: themeColors } = useTheme();
-    const currentChapter = useCurrentChapterStable();
+    const currentChapter = useCurrentChapter();
 
     const handlePress = () => {
       router.push('/chapterList');

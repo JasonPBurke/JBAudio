@@ -185,6 +185,7 @@ const App = () => {
 };
 
 const RootNavigation = () => {
+  const { colors: themeColors } = useTheme();
   return (
     <BottomSheetModalProvider>
       <Stack
@@ -201,6 +202,7 @@ const RootNavigation = () => {
             animation: 'slide_from_bottom',
             sheetCornerRadius: 15,
             sheetShouldOverflowTopInset: true,
+            contentStyle: { backgroundColor: themeColors.background },
           }}
         />
         <Stack.Screen

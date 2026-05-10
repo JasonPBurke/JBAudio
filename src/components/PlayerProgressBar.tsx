@@ -12,9 +12,8 @@ import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { fontSize } from '@/constants/tokens';
 import { utilsStyles } from '@/styles';
 import { useProgressReanimated } from '@/hooks/useProgressReanimated';
-import { useCurrentChapterStable } from '@/hooks/useCurrentChapterStable';
+import { useCurrentChapter } from '@/hooks/useCurrentChapterStable';
 import { useTheme } from '@/hooks/useTheme';
-import { useLibraryStore } from '@/store/library';
 import { recordSeekFootprint } from '@/db/footprintQueries';
 
 // Pre-defined styles to avoid inline object creation
@@ -57,8 +56,9 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
   // Use Reanimated-based progress hook - updates shared values without React re-renders
   const { position, duration } = useProgressReanimated();
 
-  // Get current chapter info - only triggers re-render when chapter changes
-  const currentChapter = useCurrentChapterStable();
+  // Get current chapter info from screen-level Context. Single shared
+  // subscription instead of one per consumer.
+  const currentChapter = useCurrentChapter();
 
   // Use shared values instead of refs for chapter info (worklet-compatible)
   const chapterStart = useSharedValue(0);
@@ -87,39 +87,6 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
     }
   }, [currentChapter, chapterStart, chapterDuration, position]);
 
-  // Fallback: when currentChapter is undefined, try to get chapter from track index
-  useEffect(() => {
-    if (currentChapter || chapterDuration.value > 0) return;
-
-    const initializeChapterFromIndex = async () => {
-      try {
-        const [trackIndex, activeTrack, { position }] = await Promise.all([
-          TrackPlayer.getActiveTrackIndex(),
-          TrackPlayer.getActiveTrack(),
-          TrackPlayer.getProgress(),
-        ]);
-        if (trackIndex == null || !activeTrack?.bookId) return;
-
-        const book = useLibraryStore.getState().books[activeTrack.bookId];
-        const chapter = book?.chapters?.[trackIndex];
-        if (!chapter) return;
-
-        const start = (chapter.startMs ?? 0) / 1000;
-        const duration = chapter.chapterDuration ?? 0;
-        chapterStart.value = start;
-        chapterDuration.value = duration;
-
-        const chapterPos = Math.max(0, position - start);
-        const remaining = Math.max(0, duration - chapterPos);
-        setTrackElapsedTime(formatSecondsToMinutes(chapterPos));
-        setTrackRemainingTime('-' + formatSecondsToMinutes(remaining));
-      } catch {
-        // Ignore errors during initialization
-      }
-    };
-
-    initializeChapterFromIndex();
-  }, [currentChapter, chapterStart, chapterDuration]);
 
   // State for time text displays - updated at reduced frequency
   const [trackElapsedTime, setTrackElapsedTime] = useState('0:00');

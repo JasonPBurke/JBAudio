@@ -18,7 +18,7 @@ function isEqualSettings(a: SettingsSlice, b: SettingsSlice) {
   );
 }
 
-export function useObserveSettings(database: any): SettingsSlice {
+export function useObserveSettings(database: any | null): SettingsSlice {
   const snapshotRef = useRef<SettingsSlice>(null);
 
   const getSnapshot = useCallback(() => snapshotRef.current, []);
@@ -26,6 +26,7 @@ export function useObserveSettings(database: any): SettingsSlice {
 
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
+      if (!database) return () => {};
       const collection = database.collections.get('settings');
       const query = collection.query();
       const hasObserveWithColumns =
