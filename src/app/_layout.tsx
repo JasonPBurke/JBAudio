@@ -1,19 +1,17 @@
 import { useSetupTrackPlayer } from '@/hooks/useSetupTrackPlayer';
 import { Stack, SplashScreen } from 'expo-router';
 import { SystemBars } from 'react-native-edge-to-edge';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import {
+  SafeAreaProvider,
+  initialWindowMetrics,
+} from 'react-native-safe-area-context';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import TrackPlayer from 'react-native-track-player';
-import { useLogTrackPlayerState } from '@/hooks/useLogTrackPlayerState';
+// import { useLogTrackPlayerState } from '@/hooks/useLogTrackPlayerState';
 import { PlayerStateSync } from '@/components/PlayerStateSync';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import {
-  configureReanimatedLogger,
-  ReanimatedLogLevel,
-  ReducedMotionConfig,
-  ReduceMotion,
-} from 'react-native-reanimated';
+import { ReducedMotionConfig, ReduceMotion } from 'react-native-reanimated';
 import playbackService from '@/setup/service';
 import { DatabaseProvider } from '@nozbe/watermelondb/DatabaseProvider';
 import database from '@/db';
@@ -166,7 +164,7 @@ const App = () => {
   }
 
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <ReducedMotionConfig
         mode={isBackground ? ReduceMotion.Always : ReduceMotion.System}
       />
