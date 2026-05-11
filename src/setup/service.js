@@ -1,4 +1,6 @@
 import TrackPlayer, { Event, State } from 'react-native-track-player';
+import RNShake from 'react-native-shake';
+import * as Haptics from 'expo-haptics';
 import { useLibraryStore } from '@/store/library';
 import { useSettingsStore } from '@/store/settingsStore';
 import {
@@ -19,6 +21,7 @@ import {
   getPreviousChapterStartSeconds,
 } from '@/helpers/singleFileBook';
 import * as sleepTimer from '@/setup/sleepTimer';
+import { useSleepTimerStore } from '@/setup/sleepTimer';
 import { useQueueStore } from '@/store/queue';
 
 const { setPlaybackIndex, setPlaybackProgress } =
@@ -39,6 +42,44 @@ let lastProgressSaveTime = 0;
 // We ignore RemoteStop if Playing state was reached within this window.
 let lastPlayingStateAt = 0;
 const REMOTE_STOP_GUARD_MS = 500;
+
+// ─── Shake-to-reset listener ───────────────────────────────────────────────
+// Lives at module scope (NOT inside a React component) so the subscription
+// belongs to the playback-service JS runtime. On Android the foreground
+// media service keeps that runtime warm even after the user swipes the app
+// away, which is the only window in which React-tree subscriptions die but
+// the timer keeps ticking.
+//
+// We only register the RNShake listener when the timer is in the fade
+// window OR within the 2-minute post-expiry grace, AND the user has the
+// setting enabled — driven by Zustand `subscribe` callbacks that re-evaluate
+// on every store change. The accelerometer stays idle outside those windows.
+let _shakeSubscription = null;
+
+function _evaluateShakeListenerState() {
+  const enabled = useSettingsStore.getState().shakeToResetEnabled;
+  const { isFading, expiredAt } = useSleepTimerStore.getState();
+  const shouldListen = enabled && (isFading || expiredAt !== null);
+
+  if (shouldListen && _shakeSubscription === null) {
+    _shakeSubscription = RNShake.addListener(() => {
+      sleepTimer.resetFromShake().then((didReset) => {
+        if (didReset) {
+          Haptics.impactAsync(
+            Haptics.ImpactFeedbackStyle.Medium,
+          ).catch(() => {});
+        }
+      });
+    });
+  } else if (!shouldListen && _shakeSubscription !== null) {
+    _shakeSubscription.remove();
+    _shakeSubscription = null;
+  }
+}
+
+useSleepTimerStore.subscribe(_evaluateShakeListenerState);
+useSettingsStore.subscribe(_evaluateShakeListenerState);
+_evaluateShakeListenerState();
 
 export default module.exports = async function () {
   // Hydrate sleep timer store from DB so UI shows correct state immediately on start

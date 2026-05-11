@@ -20,7 +20,6 @@ import database from '@/db';
 import { PermissionProvider } from '@/contexts/PermissionContext';
 import { useSettingsStore } from '@/store/settingsStore';
 import { ensureSettingsRecord } from '@/db/settingsQueries';
-import { useShakeToResetTimer } from '@/hooks/useShakeToResetTimer';
 import { useThemeStore } from '@/store/themeStore';
 import { useLibraryStore } from '@/store/library';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
@@ -158,8 +157,6 @@ const App = () => {
   useSetupTrackPlayer({
     onLoad: handleTrackPlayerLoaded,
   });
-
-  useShakeToResetTimer();
 
   //* for debugging
   // useLogTrackPlayerState();
