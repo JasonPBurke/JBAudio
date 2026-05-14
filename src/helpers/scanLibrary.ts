@@ -10,6 +10,7 @@ import { populateSingleBook } from '@/hooks/usePopulateDatabase';
 import {
   getLibraryPaths,
   getAutoChapterInterval,
+  setLastScanAt,
 } from '@/db/settingsQueries';
 import {
   analyzeFileWithMediaInfo,
@@ -737,7 +738,7 @@ async function removeMissingFiles(allFiles: string[]): Promise<void> {
 }
 
 export async function scanLibrary(): Promise<void> {
-  console.log('Scanning library');
+  if (__DEV__) console.log('[startup] scan-start');
 
   // Reset cover tracking for new scan
   booksWithCoverExtracted.clear();
@@ -768,5 +769,8 @@ export async function scanLibrary(): Promise<void> {
   // Clean up any files that no longer exist
   await removeMissingFiles(combinedAllFiles);
 
+  await setLastScanAt(Date.now());
+
   useScanProgressStore.getState().endScan();
+  if (__DEV__) console.log('[startup] scan-end');
 }

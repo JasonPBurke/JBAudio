@@ -27,6 +27,7 @@ export default class Settings extends Model {
   @field('mesh_gradient_enabled') meshGradientEnabled!: boolean | null;
   @field('auto_accent_enabled') autoAccentEnabled!: boolean | null;
   @field('shake_to_reset_enabled') shakeToResetEnabled!: boolean | null;
+  @field('last_scan_at') lastScanAt!: number | null;
 
   // Getter to automatically parse the libraryPaths JSON string
   get parsedLibraryPaths(): string[] {

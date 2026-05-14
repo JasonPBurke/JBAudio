@@ -24,9 +24,19 @@ import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { useTheme } from '@/hooks/useTheme';
 import { runTrialExpiredCleanup } from '@/helpers/trialCleanup';
 import * as Sentry from '@sentry/react-native';
-import { useFonts } from 'expo-font';
 import Purchases, { LOG_LEVEL } from 'react-native-purchases';
-import { AppState, AppStateStatus, Platform } from 'react-native';
+import {
+  AppState,
+  AppStateStatus,
+  InteractionManager,
+  Platform,
+  View,
+} from 'react-native';
+
+const appStartMs = Date.now();
+const logStartup = (label: string) => {
+  if (__DEV__) console.log(`[startup] ${label}`, Date.now() - appStartMs);
+};
 
 Sentry.init({
   dsn: 'https://f560ec15a66fbab84326dc1d343ea729@o4510664873541632.ingest.us.sentry.io/4510664874590208',
@@ -59,23 +69,33 @@ TrackPlayer.registerPlaybackService(() => playbackService);
 SplashScreen.preventAutoHideAsync();
 
 const App = () => {
-  const [fontsLoaded, fontError] = useFonts({
-    Rubik: require('../../assets/fonts/rubik_regular.ttf'),
-    'Rubik-Medium': require('../../assets/fonts/rubik_medium.ttf'),
-    'Rubik-SemiBold': require('../../assets/fonts/rubik_semi_bold.ttf'),
-  });
-
-  const handleTrackPlayerLoaded = useCallback(() => {
-    if (fontsLoaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded]);
+  useEffect(() => {
+    logStartup('mounted');
+  }, []);
 
   const initializeTheme = useThemeStore((state) => state.initializeTheme);
+  const isThemeInitialized = useThemeStore((state) => state.isInitialized);
   const initializeSettings = useSettingsStore(
     (state) => state.initializeSettings,
   );
   const { activeColorScheme } = useTheme();
+
+  // Hide splash only after: (1) theme has loaded so the user's accent color is
+  // applied from the first paint, and (2) the root view has laid out + JS is
+  // idle so the library screen is rendered (no gray gap).
+  const [hasLaidOut, setHasLaidOut] = useState(false);
+  const onRootLayout = useCallback(() => {
+    setHasLaidOut(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isThemeInitialized || !hasLaidOut) return;
+    const handle = InteractionManager.runAfterInteractions(() => {
+      logStartup('splash-hidden');
+      SplashScreen.hideAsync();
+    });
+    return () => handle.cancel();
+  }, [isThemeInitialized, hasLaidOut]);
 
   // Ensure the Settings singleton row exists, then hydrate the settings store from DB
   useEffect(() => {
@@ -84,12 +104,6 @@ const App = () => {
       await initializeSettings();
     })();
   }, [initializeSettings]);
-
-  useEffect(() => {
-    if (fontError) {
-      console.error('Font loading error:', fontError);
-    }
-  }, [fontError]);
 
   // Initialize library store BEFORE useSetupTrackPlayer so book data is available
   const initLibraryStore = useLibraryStore((state) => state.init);
@@ -152,33 +166,37 @@ const App = () => {
     return () => subscription.remove();
   }, [initSubscription]);
 
-  useSetupTrackPlayer({
-    onLoad: handleTrackPlayerLoaded,
-  });
+  const handleTrackPlayerReady = useCallback(() => {
+    logStartup('track-player-ready');
+  }, []);
+
+  useSetupTrackPlayer({ onLoad: handleTrackPlayerReady });
 
   //* for debugging
   // useLogTrackPlayerState();
 
-  if (!fontsLoaded && !fontError) {
-    return null;
-  }
+  // Wait for theme to load before rendering anything theme-dependent.
+  // The splash stays visible until SplashScreen.hideAsync() fires in the effect above.
+  if (!isThemeInitialized) return null;
 
   return (
-    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-      <ReducedMotionConfig
-        mode={isBackground ? ReduceMotion.Always : ReduceMotion.System}
-      />
-      <PlayerStateSync />
-      <GestureHandlerRootView>
-        <DatabaseProvider database={database}>
-          <RootNavigation />
-        </DatabaseProvider>
-        <SystemBars
-          hidden={{ statusBar: false, navigationBar: false }}
-          style={activeColorScheme === 'dark' ? 'light' : 'dark'}
+    <View style={{ flex: 1 }} onLayout={onRootLayout}>
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        <ReducedMotionConfig
+          mode={isBackground ? ReduceMotion.Always : ReduceMotion.System}
         />
-      </GestureHandlerRootView>
-    </SafeAreaProvider>
+        <PlayerStateSync />
+        <GestureHandlerRootView>
+          <DatabaseProvider database={database}>
+            <RootNavigation />
+          </DatabaseProvider>
+          <SystemBars
+            hidden={{ statusBar: false, navigationBar: false }}
+            style={activeColorScheme === 'dark' ? 'light' : 'dark'}
+          />
+        </GestureHandlerRootView>
+      </SafeAreaProvider>
+    </View>
   );
 };
 

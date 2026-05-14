@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 26,
+  version: 27,
   tables: [
     tableSchema({
       name: 'authors',
@@ -210,6 +210,11 @@ export default appSchema({
         {
           name: 'shake_to_reset_enabled',
           type: 'boolean',
+          isOptional: true,
+        },
+        {
+          name: 'last_scan_at',
+          type: 'number',
           isOptional: true,
         },
       ],

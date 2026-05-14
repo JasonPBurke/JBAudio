@@ -124,7 +124,7 @@ const Header = (props: headerProps) => {
                 <AnimatedView
                   key='scanning'
                   entering={SlideInLeft.delay(100).duration(1500)}
-                  exiting={SlideOutLeft.delay(2000).duration(1500)}
+                  exiting={SlideOutLeft.delay(1200).duration(1500)}
                   style={[
                     styles.scanningText,
                     {
@@ -159,15 +159,16 @@ const Header = (props: headerProps) => {
               ) : scanJustCompleted ? (
                 <AnimatedText
                   key='onicbooks'
-                  entering={SlideInLeft.delay(2100).duration(1500)}
+                  entering={SlideInLeft.delay(2000).duration(1500)}
                   exiting={SlideOutLeft.duration(1500)}
                   style={[styles.titleText, { color: themeColors.icon }]}
                 >
                   onicbooks
                 </AnimatedText>
               ) : (
-                <Text
+                <AnimatedText
                   key='onicbooks-static'
+                  exiting={SlideOutLeft.duration(1500)}
                   style={[
                     styles.titleText,
                     {
@@ -176,7 +177,7 @@ const Header = (props: headerProps) => {
                   ]}
                 >
                   onicbooks
-                </Text>
+                </AnimatedText>
               )}
             </View>
           </View>

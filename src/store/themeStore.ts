@@ -7,7 +7,10 @@ import {
   setCustomPrimaryColor as setCustomPrimaryColorInDB,
   getAutoAccentEnabled,
   setAutoAccentEnabled as setAutoAccentEnabledInDB,
+  getLastActiveBook,
 } from '@/db/settingsQueries';
+import database from '@/db';
+import BookModel from '@/db/models/Book';
 import { usePlayerStateStore } from '@/store/playerState';
 import { useLibraryStore } from '@/store/library';
 import { ArtworkColors } from '@/helpers/gradientColorSorter';
@@ -91,15 +94,46 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
     const systemScheme = Appearance.getColorScheme();
     const activeColorScheme = getActiveColorScheme(mode, systemScheme);
 
-    set({ mode, activeColorScheme, customPrimaryColor, autoAccentEnabled, isInitialized: true });
-
-    // If auto accent is enabled, compute for the current active book
+    // Pre-resolve the auto-accent color for the last active book so the first
+    // paint already has the correct accent. Without this, the UI renders once
+    // with the default/custom color and then re-renders when the library store
+    // populates — causing a visible flash.
+    let autoAccentColor: string | null = null;
     if (autoAccentEnabled) {
-      const activeBookId = usePlayerStateStore.getState().activeBookId;
-      if (activeBookId) {
-        get().computeAutoAccentForBook(activeBookId);
+      try {
+        const lastActiveBookId = await getLastActiveBook();
+        if (lastActiveBookId) {
+          const bookRecord = await database
+            .get<BookModel>('books')
+            .find(lastActiveBookId);
+          const artworkColors: ArtworkColors = {
+            dominantAndroid: bookRecord.coverColorDominant,
+            vibrant: bookRecord.coverColorVibrant,
+            darkVibrant: bookRecord.coverColorDarkVibrant,
+            lightVibrant: bookRecord.coverColorLightVibrant,
+            muted: bookRecord.coverColorMuted,
+            darkMuted: bookRecord.coverColorDarkMuted,
+            lightMuted: bookRecord.coverColorLightMuted,
+          };
+          autoAccentColor = resolveAutoAccentColor(
+            artworkColors,
+            bookRecord.selectedAccentColorType ?? null,
+          );
+        }
+      } catch {
+        // Book not found / DB error — fall through with autoAccentColor=null;
+        // the library-store subscription below will fix it once data arrives.
       }
     }
+
+    set({
+      mode,
+      activeColorScheme,
+      customPrimaryColor,
+      autoAccentEnabled,
+      autoAccentColor,
+      isInitialized: true,
+    });
 
     // Clean up any existing subscription
     if (appearanceSubscription) {
@@ -179,9 +213,17 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
     }
 
     const book = useLibraryStore.getState().books[bookId];
+    if (!book) {
+      // Library store hasn't populated this book yet. Preserve the current
+      // autoAccentColor (which may have been pre-resolved in initializeTheme)
+      // rather than clearing to null — the library-store subscription will
+      // re-fire when data arrives.
+      return;
+    }
+
     const color = resolveAutoAccentColor(
-      book?.artworkColors,
-      book?.selectedAccentColorType ?? null
+      book.artworkColors,
+      book.selectedAccentColorType ?? null
     );
 
     set({ autoAccentColor: color, manualOverrideActive: false });

@@ -54,6 +54,10 @@ const BookPlayButton = memo(function BookPlayButton({
   const isActiveAndPlaying = useIsBookActiveAndPlaying(bookId);
 
   const handlePressPlay = useCallback(async () => {
+    const queueState = useQueueStore.getState();
+    if (!queueState.isPlayerReady && queueState.playerSetupPromise) {
+      await queueState.playerSetupPromise;
+    }
     const playbackState = await TrackPlayer.getPlaybackState();
     const isCurrentlyPlaying = playbackState.state === State.Playing;
 

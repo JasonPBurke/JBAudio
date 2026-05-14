@@ -57,6 +57,10 @@ export const BookListItem = memo(function BookListItem({
 
   const handlePressPlay = useCallback(async () => {
     if (!fullBook) return;
+    const queueState = useQueueStore.getState();
+    if (!queueState.isPlayerReady && queueState.playerSetupPromise) {
+      await queueState.playerSetupPromise;
+    }
     const playbackState = await TrackPlayer.getPlaybackState();
     const isCurrentlyPlaying = playbackState.state === State.Playing;
 

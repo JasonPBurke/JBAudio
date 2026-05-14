@@ -90,14 +90,22 @@ export const useSetupTrackPlayer = ({
 }) => {
   const isInitialized = useRef(false);
   const { setAudioPermissionStatus } = usePermission();
-  const { setActiveBookId, setPlayerReady } = useQueueStore();
+  const { setActiveBookId, setPlayerReady, setPlayerSetupPromise } =
+    useQueueStore();
 
   useEffect(() => {
+    let resolveSetupPromise: () => void = () => {};
+    const setupPromise = new Promise<void>((resolve) => {
+      resolveSetupPromise = resolve;
+    });
+    setPlayerSetupPromise(setupPromise);
+
     const setup = async () => {
       const status = await requestAudioPermission();
       setAudioPermissionStatus(status);
       if (status !== 'granted') {
         setPlayerReady(true);
+        resolveSetupPromise();
         onLoad?.();
         return;
       }
@@ -283,10 +291,17 @@ export const useSetupTrackPlayer = ({
       } finally {
         // Ensure we always hide the splash screen
         setPlayerReady(true);
+        resolveSetupPromise();
         onLoad?.();
       }
     };
 
     setup();
-  }, [onLoad, setAudioPermissionStatus, setActiveBookId, setPlayerReady]);
+  }, [
+    onLoad,
+    setAudioPermissionStatus,
+    setActiveBookId,
+    setPlayerReady,
+    setPlayerSetupPromise,
+  ]);
 };

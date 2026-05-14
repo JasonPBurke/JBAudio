@@ -4,6 +4,7 @@ import { Book } from '@/types/Book';
 import { getBookById } from '@/db/bookQueries';
 import TrackPlayer, { Track } from 'react-native-track-player';
 import { updateLastActiveBook } from '@/db/settingsQueries';
+import { useQueueStore } from '@/store/queue';
 import {
   isSingleFileBook,
   calculateAbsolutePosition,
@@ -25,6 +26,11 @@ export const handleBookPlay = async (
 ) => {
   if (!book) return;
   if (isActiveBook && playing) return;
+
+  const queueState = useQueueStore.getState();
+  if (!queueState.isPlayerReady && queueState.playerSetupPromise) {
+    await queueState.playerSetupPromise;
+  }
 
   // If the book has not been started, update its progress value in the DB
   if (book.bookProgressValue === BookProgressState.NotStarted) {

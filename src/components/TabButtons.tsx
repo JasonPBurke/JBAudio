@@ -125,7 +125,7 @@ const TabButtons = ({
                 style={{
                   ...styles.buttonText,
                   color: color,
-                  fontFamily: 'Rubik-Regular',
+                  fontFamily: 'Rubik',
                 }}
               >
                 {button.title}

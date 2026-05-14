@@ -457,6 +457,22 @@ export async function setShakeToResetEnabled(
   });
 }
 
+export async function getLastScanAt(): Promise<number | null> {
+  const settingsCollection = database.collections.get<Settings>('settings');
+  const settingsRecord = await settingsCollection.query().fetch();
+
+  if (settingsRecord.length > 0) {
+    return settingsRecord[0].lastScanAt;
+  }
+  return null;
+}
+
+export async function setLastScanAt(timestamp: number): Promise<void> {
+  return updateSetting((record) => {
+    record.lastScanAt = timestamp;
+  });
+}
+
 export async function getBooksWithoutChapterData(): Promise<Book[]> {
   const booksCollection = database.collections.get<Book>('books');
   const allBooks = await booksCollection.query().fetch();

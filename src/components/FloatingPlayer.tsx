@@ -4,6 +4,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useActiveTrack } from 'react-native-track-player';
 import FastImage from '@d11/react-native-fast-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -44,18 +45,20 @@ export const FloatingPlayer = React.memo(() => {
 
   const displayedBook = useBookById(displayedTrack?.bookId ?? '');
 
-  // Memoize the container style to avoid new object reference on each render
-  const containerStyle = useMemo(
+  const wrapperStyle = useMemo(
+    () => [styles.absoluteWrapper, { marginBottom: bottom - 12 }],
+    [bottom],
+  );
+
+  const touchableStyle = useMemo(
     () => [
-      styles.parentContainer,
+      styles.touchable,
       {
-        marginBottom: bottom - 12,
         borderColor: themeColors.primary,
-        borderWidth: StyleSheet.hairlineWidth,
         backgroundColor: themeColors.modalBackground,
       },
     ],
-    [bottom, themeColors.primary, themeColors.modalBackground],
+    [themeColors.primary, themeColors.modalBackground],
   );
 
   // Memoize the navigation callback
@@ -68,12 +71,16 @@ export const FloatingPlayer = React.memo(() => {
   }
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.9}
-      onPress={handlePress}
-      style={containerStyle}
+    <Animated.View
+      style={wrapperStyle}
+      entering={FadeIn.duration(250)}
+      pointerEvents='box-none'
     >
-      <>
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={handlePress}
+        style={touchableStyle}
+      >
         <FastImage
           source={{
             uri: displayedBook.artwork ?? unknownBookImageUri,
@@ -109,23 +116,25 @@ export const FloatingPlayer = React.memo(() => {
           />
           <PlayPauseButton iconSize={40} top={6} left={6} />
         </View>
-      </>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </Animated.View>
   );
 });
 
 FloatingPlayer.displayName = 'FloatingPlayer';
 
 const styles = StyleSheet.create({
-  parentContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    // backgroundColor moved to containerStyle for theme support
-    borderRadius: 6,
+  absoluteWrapper: {
     position: 'absolute',
     left: 8,
     right: 8,
     bottom: 10,
+  },
+  touchable: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 6,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   bookArtworkImage: {
     height: 50,

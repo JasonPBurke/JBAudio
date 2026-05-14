@@ -5,6 +5,8 @@ type QueueStore = {
   setActiveBookId: (bookId: string) => void;
   isPlayerReady: boolean;
   setPlayerReady: (isReady: boolean) => void;
+  playerSetupPromise: Promise<void> | null;
+  setPlayerSetupPromise: (promise: Promise<void> | null) => void;
 };
 
 export const useQueueStore = create<QueueStore>()((set) => ({
@@ -12,6 +14,8 @@ export const useQueueStore = create<QueueStore>()((set) => ({
   setActiveBookId: (bookId) => set({ activeBookId: bookId }),
   isPlayerReady: false,
   setPlayerReady: (isReady) => set({ isPlayerReady: isReady }),
+  playerSetupPromise: null,
+  setPlayerSetupPromise: (promise) => set({ playerSetupPromise: promise }),
 }));
 
 export const useBookQueue = () =>

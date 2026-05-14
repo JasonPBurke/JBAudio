@@ -7,6 +7,21 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      toVersion: 27,
+      steps: [
+        addColumns({
+          table: 'settings',
+          columns: [
+            {
+              name: 'last_scan_at',
+              type: 'number',
+              isOptional: true,
+            },
+          ],
+        }),
+      ],
+    },
+    {
       toVersion: 26,
       steps: [
         addColumns({

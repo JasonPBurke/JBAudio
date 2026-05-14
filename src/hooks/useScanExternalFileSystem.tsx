@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
+  InteractionManager,
   PermissionsAndroid,
   Platform,
   Alert,
@@ -9,8 +10,10 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usePermission } from '@/contexts/PermissionContext';
 import { scanLibrary } from '@/helpers/scanLibrary';
+import { getLastScanAt } from '@/db/settingsQueries';
 
 const ASKED_FOR_FULL_ACCESS_KEY = '@hasAskedForFullAccess';
+const SCAN_FRESHNESS_WINDOW_MS = 30 * 60 * 1000;
 
 export const useScanExternalFileSystem = () => {
   const { audioPermissionStatus } = usePermission();
@@ -19,6 +22,21 @@ export const useScanExternalFileSystem = () => {
   >(null);
 
   const handleScan = useCallback(async () => {
+    const lastScanAt = await getLastScanAt();
+    if (
+      lastScanAt !== null &&
+      Date.now() - lastScanAt < SCAN_FRESHNESS_WINDOW_MS
+    ) {
+      if (__DEV__) {
+        console.log(
+          '[startup] scan skipped (last scan',
+          Math.round((Date.now() - lastScanAt) / 1000),
+          's ago)',
+        );
+      }
+      return;
+    }
+
     if (Platform.OS !== 'android') {
       scanLibrary();
       return;
@@ -77,12 +95,24 @@ export const useScanExternalFileSystem = () => {
     loadPersistence();
   }, []);
 
+  const hasDeferredFirstScan = useRef(false);
+
   useEffect(() => {
-    if (audioPermissionStatus === 'granted') {
-      // Wait until we've loaded the persisted value before trying to scan.
-      if (hasAskedForFullAccess !== null) {
-        handleScan();
-      }
+    if (audioPermissionStatus !== 'granted') return;
+    if (hasAskedForFullAccess === null) return;
+
+    if (!hasDeferredFirstScan.current) {
+      hasDeferredFirstScan.current = true;
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      const handle = InteractionManager.runAfterInteractions(() => {
+        timeoutId = setTimeout(handleScan, 500);
+      });
+      return () => {
+        handle.cancel();
+        if (timeoutId !== null) clearTimeout(timeoutId);
+      };
     }
+
+    handleScan();
   }, [audioPermissionStatus, handleScan, hasAskedForFullAccess]);
 };
