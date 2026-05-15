@@ -316,7 +316,7 @@ const SleepTimerDurationCard = ({
             backgroundColor: themeColors.modalBackground,
           },
           backgroundColor: themeColors.modalBackground,
-          button: { borderRadius: 4, fontFamily: 'Rubik-Medium' },
+          button: { borderRadius: 4, fontFamily: 'Rubik', fontWeight: '500' },
           cancelButton: {
             backgroundColor: themeColors.background,
             color: themeColors.text,
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   presetText: {
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     fontSize: 15,
   },
   divider: {
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   chapterLabel: {
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     fontSize: 15,
     textAlign: 'center',
     flex: 1,
@@ -392,11 +392,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   customLabel: {
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     fontSize: 15,
   },
   customValue: {
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     fontSize: 15,
   },
 });

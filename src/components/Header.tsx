@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   titleStaticS: {
-    fontFamily: 'Rubik-Medium',
+    fontFamily: 'Rubik', fontWeight: '500',
     fontSize: 20,
     zIndex: 1,
     backgroundColor: 'transparent',
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
     minWidth: 200, // Set a minimum width to prevent clipping
   },
   titleText: {
-    fontFamily: 'Rubik-Medium',
+    fontFamily: 'Rubik', fontWeight: '500',
     fontSize: 20,
   },
   bookTotalText: {

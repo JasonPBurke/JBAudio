@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     fontSize: 17,
   },
   content: {

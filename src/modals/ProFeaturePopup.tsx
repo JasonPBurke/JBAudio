@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   titleText: {
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     fontSize: 18,
     marginBottom: 12,
     textAlign: 'center',
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   dismissButton: {},
   proButton: {},
   buttonText: {
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     fontSize: 15,
   },
 });

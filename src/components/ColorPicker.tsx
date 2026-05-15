@@ -259,11 +259,11 @@ const colorPickerStyle = StyleSheet.create({
   },
   colorPickerTitle: {
     fontSize: 18,
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
   },
   colorPickerCloseButton: {
     fontSize: 16,
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
   },
   statusContainer: {
     marginBottom: 12,
@@ -282,6 +282,6 @@ const colorPickerStyle = StyleSheet.create({
   },
   resetButtonText: {
     fontSize: 14,
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
   },
 });

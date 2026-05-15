@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
   },
   bookTitleText: {
     ...defaultStyles.text,
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     maxWidth: '100%',
     // marginTop: 2,
   },

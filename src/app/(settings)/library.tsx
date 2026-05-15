@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   removeButtonText: {
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     fontSize: 14,
   },
   addFolderContent: {
@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   addButtonText: {
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     fontSize: 16,
   },
   autoChapterContent: {

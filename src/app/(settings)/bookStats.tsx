@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   comingSoonText: {
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     fontSize: 16,
   },
   descriptionText: {

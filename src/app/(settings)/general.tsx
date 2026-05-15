@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
   },
   settingLabel: {
     fontSize: 16,
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     marginBottom: 4,
   },
   settingDescription: {

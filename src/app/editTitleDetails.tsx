@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
     paddingTop: 25,
   },
   header: {
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     fontSize: 24,
     paddingBottom: 5,
   },
@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   buttonText: {
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     fontSize: 16,
   },
 });

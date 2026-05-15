@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   tourButtonText: {
-    fontFamily: 'Rubik-Medium',
+    fontFamily: 'Rubik', fontWeight: '500',
     fontSize: 15,
     flex: 1,
   },
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   faqQuestionText: {
-    fontFamily: 'Rubik-Medium',
+    fontFamily: 'Rubik', fontWeight: '500',
     fontSize: 15,
     flex: 1,
     paddingRight: 12,
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tipTitle: {
-    fontFamily: 'Rubik-Medium',
+    fontFamily: 'Rubik', fontWeight: '500',
     fontSize: 15,
     marginBottom: 2,
   },

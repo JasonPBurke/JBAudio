@@ -770,7 +770,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   bookTitleText: {
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     fontSize: 21,
     // fontWeight: '600',
     textAlign: 'center',

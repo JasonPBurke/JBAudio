@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
   bookTitleText: {
     ...defaultStyles.text,
     fontSize: fontSize.sm,
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     maxWidth: '90%',
   },
   bookAuthorText: {

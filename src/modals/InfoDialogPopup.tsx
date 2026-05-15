@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   modalTitleText: {
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     color: colors.text,
     marginBottom: 15,
     textAlign: 'left',

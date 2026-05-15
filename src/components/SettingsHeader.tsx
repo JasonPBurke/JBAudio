@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 20,
     fontSize: 36,
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
   },
   fadeGradient: {
     position: 'absolute',

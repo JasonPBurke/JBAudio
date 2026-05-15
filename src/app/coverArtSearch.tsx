@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     fontSize: 22,
   },
   searchRow: {
@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   retryText: {
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     fontSize: 15,
   },
   columnWrapper: {
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   processingText: {
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     fontSize: 16,
     marginTop: 16,
   },

@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     margin: 4,
   },
   bookTitle: {
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     fontSize: 18,
   },
   bookControlsContainer: {

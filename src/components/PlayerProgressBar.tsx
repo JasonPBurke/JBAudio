@@ -258,6 +258,6 @@ const styles = StyleSheet.create({
     opacity: 0.75,
     fontSize: fontSize.xs,
     letterSpacing: 0.7,
-    fontFamily: 'Rubik-Medium',
+    fontFamily: 'Rubik', fontWeight: '500',
   },
 });

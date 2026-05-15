@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   labelText: {
-    fontFamily: 'Rubik-Medium',
+    fontFamily: 'Rubik', fontWeight: '500',
     fontSize: 16,
     lineHeight: 24,
     textAlignVertical: 'center',

@@ -643,7 +643,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   timeValue: {
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     fontSize: 15,
   },
 });

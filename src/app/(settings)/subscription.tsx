@@ -358,11 +358,11 @@ const styles = StyleSheet.create({
   badgeText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
   },
   statusTitle: {
     fontSize: 24,
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
   },
   statusSubtitle: {
     fontSize: 16,
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: '#FFFFFF',
     fontSize: 18,
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
   },
   secondaryButton: {
     padding: 16,
@@ -404,14 +404,14 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     fontSize: 16,
-    fontFamily: 'Rubik-Medium',
+    fontFamily: 'Rubik', fontWeight: '500',
   },
   featureListContainer: {
     gap: 12,
   },
   featureListTitle: {
     fontSize: 20,
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     marginBottom: 8,
   },
   featureItem: {
@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
   },
   featureTitle: {
     fontSize: 16,
-    fontFamily: 'Rubik-Medium',
+    fontFamily: 'Rubik', fontWeight: '500',
   },
   featureDescription: {
     fontSize: 14,

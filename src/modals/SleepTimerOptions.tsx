@@ -633,7 +633,7 @@ const SleepTimerOptions = ({
             backgroundColor: themeColors.modalBackground,
           },
           backgroundColor: themeColors.modalBackground,
-          button: { borderRadius: 4, fontFamily: 'Rubik-Medium' },
+          button: { borderRadius: 4, fontFamily: 'Rubik', fontWeight: '500' },
           cancelButton: {
             backgroundColor: themeColors.background,
             color: themeColors.text,
@@ -671,7 +671,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   title: {
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     fontSize: 18,
     marginStart: 12,
   },
@@ -692,7 +692,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonText: {
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     alignSelf: 'center',
     fontSize: 16,
   },

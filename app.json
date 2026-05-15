@@ -95,24 +95,14 @@
                   {
                     "path": "./assets/fonts/rubik_regular.ttf",
                     "weight": 400
-                  }
-                ]
-              },
-              {
-                "fontFamily": "Rubik-Medium",
-                "fontDefinitions": [
+                  },
                   {
                     "path": "./assets/fonts/rubik_medium.ttf",
-                    "weight": 400
-                  }
-                ]
-              },
-              {
-                "fontFamily": "Rubik-SemiBold",
-                "fontDefinitions": [
+                    "weight": 500
+                  },
                   {
                     "path": "./assets/fonts/rubik_semi_bold.ttf",
-                    "weight": 400
+                    "weight": 600
                   }
                 ]
               }

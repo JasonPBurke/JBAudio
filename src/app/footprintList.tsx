@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   },
   headerText: {
     fontSize: 18,
-    fontFamily: 'Rubik-SemiBold',
+    fontFamily: 'Rubik', fontWeight: '600',
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
   },
   chapterTitle: {
     fontSize: 15,
-    fontFamily: 'Rubik-Medium',
+    fontFamily: 'Rubik', fontWeight: '500',
     maxWidth: '60%',
   },
   positionText: {
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
   },
   triggerText: {
     fontSize: 12,
-    fontFamily: 'Rubik-Medium',
+    fontFamily: 'Rubik', fontWeight: '500',
   },
   timeText: {
     fontFamily: 'Rubik',
