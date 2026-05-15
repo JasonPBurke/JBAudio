@@ -8,7 +8,7 @@ import { defaultStyles } from '@/styles';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from '@/hooks/useTheme';
 import { View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Header from '@/components/Header';
 import { useScanExternalFileSystem } from '@/hooks/useScanExternalFileSystem';
 import { useLibraryStore } from '@/store/library';
@@ -25,6 +25,7 @@ const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/gi, '');
 
 const LibraryScreen = ({ navigation }: any) => {
   const { colors: themeColors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [toggleView, setToggleView] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
@@ -148,7 +149,18 @@ const LibraryScreen = ({ navigation }: any) => {
         { backgroundColor: themeColors.background },
       ]}
     >
-      <SafeAreaView style={{ flex: 1 }}>
+      {/* JS-driven padding instead of <SafeAreaView>: the native SafeAreaView
+          computes padding via onPreDraw and can paint one frame with zero
+          insets on cold start, flashing the header behind the status bar. */}
+      <View
+        style={{
+          flex: 1,
+          paddingTop: insets.top,
+          paddingBottom: insets.bottom,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        }}
+      >
         {/* MOVE HEADER ABOVE SCROLL VIEW TO DOCK IT AT TOP OF SCREEN */}
         <Header
           setToggleView={setToggleView}
@@ -194,7 +206,7 @@ const LibraryScreen = ({ navigation }: any) => {
             isVisible={isVisible}
           />
         </View>
-      </SafeAreaView>
+      </View>
       <FloatingPlayer />
     </View>
   );

@@ -26,7 +26,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { runTrialExpiredCleanup } from '@/helpers/trialCleanup';
 import * as Sentry from '@sentry/react-native';
 import Purchases, { LOG_LEVEL } from 'react-native-purchases';
-import { AppState, AppStateStatus, Platform } from 'react-native';
+import { AppState, AppStateStatus } from 'react-native';
 
 Sentry.init({
   dsn: 'https://f560ec15a66fbab84326dc1d343ea729@o4510664873541632.ingest.us.sentry.io/4510664874590208',
@@ -164,7 +164,7 @@ const App = () => {
   if (!isThemeInitialized) return null;
 
   return (
-    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+    <>
       <ReducedMotionConfig
         mode={isBackground ? ReduceMotion.Always : ReduceMotion.System}
       />
@@ -178,7 +178,7 @@ const App = () => {
           style={activeColorScheme === 'dark' ? 'light' : 'dark'}
         />
       </GestureHandlerRootView>
-    </SafeAreaProvider>
+    </>
   );
 };
 
@@ -256,8 +256,10 @@ const RootNavigation = () => {
 
 export default function WrappedApp() {
   return (
-    <PermissionProvider>
-      <App />
-    </PermissionProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+      <PermissionProvider>
+        <App />
+      </PermissionProvider>
+    </SafeAreaProvider>
   );
 }
