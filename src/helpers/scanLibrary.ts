@@ -738,8 +738,6 @@ async function removeMissingFiles(allFiles: string[]): Promise<void> {
 }
 
 export async function scanLibrary(): Promise<void> {
-  if (__DEV__) console.log('[startup] scan-start');
-
   // Reset cover tracking for new scan
   booksWithCoverExtracted.clear();
 
@@ -772,5 +770,4 @@ export async function scanLibrary(): Promise<void> {
   await setLastScanAt(Date.now());
 
   useScanProgressStore.getState().endScan();
-  if (__DEV__) console.log('[startup] scan-end');
 }

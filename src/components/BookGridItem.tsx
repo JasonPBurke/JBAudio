@@ -10,6 +10,7 @@ import { Play } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
 import { handleBookPlay } from '@/helpers/handleBookPlay';
+import { awaitPlayerReady } from '@/helpers/awaitPlayerReady';
 import { BookDurationRow } from '@/components/BookDurationRow';
 import { useBookById, useBookDisplayData } from '@/store/library';
 import { unknownBookImageUri } from '@/constants/images';
@@ -54,10 +55,7 @@ const BookPlayButton = memo(function BookPlayButton({
   const isActiveAndPlaying = useIsBookActiveAndPlaying(bookId);
 
   const handlePressPlay = useCallback(async () => {
-    const queueState = useQueueStore.getState();
-    if (!queueState.isPlayerReady && queueState.playerSetupPromise) {
-      await queueState.playerSetupPromise;
-    }
+    await awaitPlayerReady();
     const playbackState = await TrackPlayer.getPlaybackState();
     const isCurrentlyPlaying = playbackState.state === State.Playing;
 

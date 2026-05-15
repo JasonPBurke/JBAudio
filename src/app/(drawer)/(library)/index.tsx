@@ -5,13 +5,14 @@ import BooksHome from '@/components/BooksHome';
 import BooksGrid from '@/components/BooksGrid';
 import SearchBar, { SEARCH_BAR_HEIGHT } from '@/components/SearchBar';
 import { defaultStyles } from '@/styles';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from '@/hooks/useTheme';
 import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Header from '@/components/Header';
 import { useScanExternalFileSystem } from '@/hooks/useScanExternalFileSystem';
 import { useLibraryStore } from '@/store/library';
+import { useUIReadyStore } from '@/store/uiReadyStore';
 import { FloatingPlayer } from '@/components/FloatingPlayer';
 import { CustomTabs } from '@/components/TabScreen';
 import { BookProgressState } from '@/helpers/handleBookPlay';
@@ -37,6 +38,13 @@ const LibraryScreen = ({ navigation }: any) => {
   );
 
   useScanExternalFileSystem();
+
+  // Signal that the library screen has rendered so _layout can hide the splash.
+  // This fires after the first commit; combined with requestIdleCallback in
+  // _layout, RN gets time to paint before the splash dissolves.
+  useEffect(() => {
+    useUIReadyStore.getState().markLibraryFirstRenderDone();
+  }, []);
 
   // Note: Library store init is handled in _layout.tsx to ensure it runs before useSetupTrackPlayer
 

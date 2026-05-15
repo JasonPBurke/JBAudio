@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Appearance, ColorSchemeName } from 'react-native';
 import {
+  ensureSettingsRecord,
   getThemeMode,
   setThemeMode as setThemeModeInDB,
   getCustomPrimaryColor,
@@ -71,6 +72,8 @@ function resolveAutoAccentColor(
 }
 
 let appearanceSubscription: any = null;
+let playerStateSubscription: (() => void) | null = null;
+let libraryStoreSubscription: (() => void) | null = null;
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
   mode: 'system',
@@ -83,6 +86,13 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
 
   initializeTheme: async () => {
     if (get().isInitialized) return;
+
+    // Defensive: ensure the singleton settings row exists before we read from
+    // it. `_layout.tsx` also calls this in a separate effect but the ordering
+    // is not guaranteed; this protects against a parallel-effect race that
+    // would leave lastActiveBook (and thus autoAccentColor) null on a fresh
+    // install.
+    await ensureSettingsRecord();
 
     // Get saved theme mode and custom primary color from database
     const savedMode = await getThemeMode();
@@ -149,9 +159,16 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
       }
     });
 
+    // Tear down any stale subscriptions before creating new ones. The
+    // `isInitialized` guard at the top of this function prevents re-entry in
+    // normal flow, but this defends against any future code that resets
+    // isInitialized (e.g., a logout/reset path).
+    playerStateSubscription?.();
+    libraryStoreSubscription?.();
+
     // Subscribe to activeBookId changes for auto accent
     let prevActiveBookId = usePlayerStateStore.getState().activeBookId;
-    usePlayerStateStore.subscribe((state) => {
+    playerStateSubscription = usePlayerStateStore.subscribe((state) => {
       const newBookId = state.activeBookId;
       if (newBookId !== prevActiveBookId) {
         prevActiveBookId = newBookId;
@@ -164,7 +181,7 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
 
     // Subscribe to library store for cover art replacement detection
     let prevArtworkColorsRef: ArtworkColors | null = null;
-    useLibraryStore.subscribe((state) => {
+    libraryStoreSubscription = useLibraryStore.subscribe((state) => {
       const { autoAccentEnabled, manualOverrideActive } = get();
       if (!autoAccentEnabled || manualOverrideActive) return;
       const activeBookId = usePlayerStateStore.getState().activeBookId;

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import {
-  InteractionManager,
   PermissionsAndroid,
   Platform,
   Alert,
@@ -27,13 +26,6 @@ export const useScanExternalFileSystem = () => {
       lastScanAt !== null &&
       Date.now() - lastScanAt < SCAN_FRESHNESS_WINDOW_MS
     ) {
-      if (__DEV__) {
-        console.log(
-          '[startup] scan skipped (last scan',
-          Math.round((Date.now() - lastScanAt) / 1000),
-          's ago)',
-        );
-      }
       return;
     }
 
@@ -104,11 +96,11 @@ export const useScanExternalFileSystem = () => {
     if (!hasDeferredFirstScan.current) {
       hasDeferredFirstScan.current = true;
       let timeoutId: ReturnType<typeof setTimeout> | null = null;
-      const handle = InteractionManager.runAfterInteractions(() => {
+      const idleHandle = requestIdleCallback(() => {
         timeoutId = setTimeout(handleScan, 500);
       });
       return () => {
-        handle.cancel();
+        cancelIdleCallback(idleHandle);
         if (timeoutId !== null) clearTimeout(timeoutId);
       };
     }

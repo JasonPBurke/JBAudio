@@ -16,6 +16,7 @@ import LoaderKitView from 'react-native-loader-kit';
 import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
 import { handleBookPlay } from '@/helpers/handleBookPlay';
+import { awaitPlayerReady } from '@/helpers/awaitPlayerReady';
 import { BookDurationRow } from '@/components/BookDurationRow';
 import { useBookById, useBookDisplayData } from '@/store/library';
 import TrackPlayer, { State } from 'react-native-track-player';
@@ -57,10 +58,7 @@ export const BookListItem = memo(function BookListItem({
 
   const handlePressPlay = useCallback(async () => {
     if (!fullBook) return;
-    const queueState = useQueueStore.getState();
-    if (!queueState.isPlayerReady && queueState.playerSetupPromise) {
-      await queueState.playerSetupPromise;
-    }
+    await awaitPlayerReady();
     const playbackState = await TrackPlayer.getPlaybackState();
     const isCurrentlyPlaying = playbackState.state === State.Playing;
 
