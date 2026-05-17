@@ -8,29 +8,24 @@ export async function directoryPicker() {
       requestLongTermAccess: true,
     });
 
-    if (result) {
-      const { uri } = result;
-      const pathAfterDelimiter = uri.split('%3A')[1];
+    if (!result) return;
 
-      const decodedPath = decodeURIComponent(pathAfterDelimiter);
-      const currentPaths = (await getLibraryPaths()) || [];
-      const isSubpath = currentPaths.some((path: string) =>
-        decodedPath.startsWith(path + '/'),
+    const { uri } = result;
+
+    if (result.bookmarkStatus === 'error') {
+      console.warn(
+        'SAF long-term access failed; tree access may not persist across reboots:',
+        result.bookmarkError,
       );
-
-      if (!currentPaths.includes(decodedPath) && !isSubpath) {
-        // Filter out any existing paths that are subpaths of the new path
-        const updatedPaths = currentPaths.filter(
-          (path: string) => !path.startsWith(decodedPath + '/'),
-        );
-
-        const newPaths = [...updatedPaths, decodedPath];
-        await updateLibraryPaths(newPaths);
-      }
-      await scanLibrary();
     }
+
+    const currentUris = (await getLibraryPaths()) || [];
+    if (!currentUris.includes(uri)) {
+      await updateLibraryPaths([...currentUris, uri]);
+    }
+
+    await scanLibrary();
   } catch (err) {
-    // see error handling section
     console.error(err);
   }
 }

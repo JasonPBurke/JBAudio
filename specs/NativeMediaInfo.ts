@@ -21,6 +21,23 @@ export interface Spec extends TurboModule {
   analyzeNoCover(path: string): string;
 
   /**
+   * Analyze a media file via a SAF content URI.
+   * Opens the URI as a ParcelFileDescriptor and reads through /proc/self/fd/N.
+   *
+   * @param uri - content:// URI from a SAF tree grant
+   * @returns JSON string with media metadata
+   */
+  analyzeUri(uri: string): string;
+
+  /**
+   * Analyze a media file via a SAF content URI, without extracting cover art.
+   *
+   * @param uri - content:// URI from a SAF tree grant
+   * @returns JSON string with media metadata (without Cover_Data)
+   */
+  analyzeUriNoCover(uri: string): string;
+
+  /**
    * Get diagnostic information about the MediaInfo native build.
    * Useful for troubleshooting Cover_Data support.
    *

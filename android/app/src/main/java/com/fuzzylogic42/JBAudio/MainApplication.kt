@@ -19,6 +19,7 @@ import expo.modules.ApplicationLifecycleDispatcher
 import expo.modules.ExpoReactHostFactory
 
 import com.fuzzylogic42.JBAudio.mediainfo.NativeMediaInfoPackage
+import com.fuzzylogic42.JBAudio.saf.SafFsPackage
 
 class MainApplication : Application(), ReactApplication {
 
@@ -26,8 +27,8 @@ class MainApplication : Application(), ReactApplication {
     ExpoReactHostFactory.getDefaultReactHost(
       applicationContext,
       PackageList(this).packages.apply {
-        add(PermissionPackage())
         add(NativeMediaInfoPackage())
+        add(SafFsPackage())
         add(WatermelonDBJSIPackage())
       }
     )

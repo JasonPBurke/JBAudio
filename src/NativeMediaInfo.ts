@@ -172,6 +172,54 @@ export async function analyzeMediaNoCoverAsync(
 }
 
 /**
+ * Synchronous wrapper that analyzes a media file via SAF content URI.
+ */
+export function analyzeMediaFromUri(uri: string): MediaInfoJSON {
+  const json = NativeMediaInfoModule.analyzeUri(uri);
+  return JSON.parse(json) as MediaInfoJSON;
+}
+
+/**
+ * Synchronous wrapper that analyzes a SAF content URI without cover extraction.
+ */
+export function analyzeMediaFromUriNoCover(uri: string): MediaInfoJSON {
+  const json = NativeMediaInfoModule.analyzeUriNoCover(uri);
+  return JSON.parse(json) as MediaInfoJSON;
+}
+
+/**
+ * Async wrapper for SAF URI-based MediaInfo analysis.
+ */
+export async function analyzeMediaFromUriAsync(
+  uri: string
+): Promise<MediaInfoJSON> {
+  return new Promise((resolve, reject) => {
+    try {
+      const parsed = analyzeMediaFromUri(uri);
+      resolve(parsed);
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+/**
+ * Async wrapper for SAF URI-based MediaInfo analysis without cover extraction.
+ */
+export async function analyzeMediaFromUriNoCoverAsync(
+  uri: string
+): Promise<MediaInfoJSON> {
+  return new Promise((resolve, reject) => {
+    try {
+      const parsed = analyzeMediaFromUriNoCover(uri);
+      resolve(parsed);
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+/**
  * Get diagnostic information about the MediaInfo native build.
  * Useful for troubleshooting Cover_Data support.
  *

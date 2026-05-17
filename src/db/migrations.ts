@@ -2,10 +2,24 @@ import {
   createTable,
   schemaMigrations,
   addColumns,
+  unsafeExecuteSql,
 } from '@nozbe/watermelondb/Schema/migrations';
 
 export default schemaMigrations({
   migrations: [
+    {
+      // SAF migration: library_paths now stores content:// URIs instead of raw
+      // filesystem paths. Wipe scanned data so the user re-picks their library
+      // folder via the document picker, which then re-scans with SAF URIs.
+      toVersion: 28,
+      steps: [
+        unsafeExecuteSql('DELETE FROM chapters;'),
+        unsafeExecuteSql('DELETE FROM books;'),
+        unsafeExecuteSql('DELETE FROM authors;'),
+        unsafeExecuteSql('DELETE FROM footprints;'),
+        unsafeExecuteSql('UPDATE settings SET library_paths = NULL;'),
+      ],
+    },
     {
       toVersion: 27,
       steps: [

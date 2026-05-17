@@ -4,7 +4,24 @@ import database from '@/db';
 import Settings from '@/db/models/Settings';
 import { Q } from '@nozbe/watermelondb';
 import Book from '@/db/models/Book';
-import * as RNFS from '@dr.pogodin/react-native-fs';
+
+/**
+ * Renders a SAF tree URI as a human-readable folder name.
+ * Tree URI shape: content://AUTHORITY/tree/{percentEncodedDocId}
+ * where docId is "{volumeId}:{relativePath}" (e.g. "primary:Audiobooks/Fiction").
+ * Returns the relativePath portion for display.
+ */
+export function libraryFolderDisplayName(treeUri: string): string {
+  try {
+    const lastSlash = treeUri.lastIndexOf('/');
+    if (lastSlash === -1) return treeUri;
+    const docId = decodeURIComponent(treeUri.substring(lastSlash + 1));
+    const colonIdx = docId.indexOf(':');
+    return colonIdx === -1 ? docId : docId.substring(colonIdx + 1);
+  } catch {
+    return treeUri;
+  }
+}
 
 export async function ensureSettingsRecord(): Promise<void> {
   await database.write(async () => {
@@ -235,7 +252,7 @@ export const getLibraryFolders = async (): Promise<string[]> => {
   return [];
 };
 
-export const removeLibraryFolder = async (folderPath: string) => {
+export const removeLibraryFolder = async (treeUri: string) => {
   await database.write(async (writer) => {
     const settingsCollection =
       database.collections.get<Settings>('settings');
@@ -246,18 +263,20 @@ export const removeLibraryFolder = async (folderPath: string) => {
 
     const settings = settingsRecords[0];
 
-    // 1. Remove the folder path from settings
-    const currentFolders = settings.parsedLibraryPaths;
-    const updatedFolders = currentFolders.filter(
-      (path: string) => path !== folderPath,
+    // 1. Remove the tree URI from settings
+    const currentTrees = settings.parsedLibraryPaths;
+    const updatedTrees = currentTrees.filter(
+      (uri: string) => uri !== treeUri,
     );
     await settings.update((s) => {
-      s.libraryPaths = JSON.stringify(updatedFolders);
+      s.libraryPaths =
+        updatedTrees.length > 0 ? JSON.stringify(updatedTrees) : null;
     });
 
-    // 2. Find all books that are inside the removed folder path
-    // Construct absolute path since chapter URLs are stored as absolute paths
-    const absoluteFolderPath = `${RNFS.ExternalStorageDirectoryPath}/${folderPath}`;
+    // 2. Find books whose chapter URIs descend from the removed tree.
+    // Child document URIs are built by appending /document/{docId} to the tree URI,
+    // so a prefix check with a trailing slash safely identifies descendants.
+    const treeUriPrefix = treeUri + '/';
     const booksCollection = database.collections.get<Book>('books');
     const allBooks = await booksCollection.query().fetch();
 
@@ -266,7 +285,7 @@ export const removeLibraryFolder = async (folderPath: string) => {
       const chapters = await (book.chapters as any).fetch();
       if (
         chapters.length > 0 &&
-        chapters[0].url.startsWith(absoluteFolderPath)
+        chapters[0].url.startsWith(treeUriPrefix)
       ) {
         booksToDelete.push(book);
       }

@@ -31,6 +31,7 @@ import {
   getAutoChapterInterval,
   setAutoChapterInterval,
   getBooksWithoutChapterData,
+  libraryFolderDisplayName,
 } from '@/db/settingsQueries';
 import { applyAutoChaptersToExistingBooks } from '@/helpers/autoChapterGenerator';
 import { directoryPicker } from '@/helpers/directoryPicker';
@@ -82,10 +83,10 @@ const LibrarySettingsScreen = () => {
     }, []),
   );
 
-  const handleRemoveFolder = (folderPath: string) => {
+  const handleRemoveFolder = (treeUri: string) => {
     Alert.alert(
       'Remove Library',
-      `Are you sure you want to remove this folder and all of its books from your library?\n\n${folderPath}`,
+      `Are you sure you want to remove this folder and all of its books from your library?\n\n${libraryFolderDisplayName(treeUri)}`,
       [
         {
           text: 'Cancel',
@@ -95,10 +96,10 @@ const LibrarySettingsScreen = () => {
           text: 'Remove',
           style: 'destructive',
           onPress: async () => {
-            await removeLibraryFolder(folderPath);
+            await removeLibraryFolder(treeUri);
             await refreshLibraryStore();
             setLibraryFolders((prev) =>
-              prev.filter((path) => path !== folderPath),
+              prev.filter((uri) => uri !== treeUri),
             );
           },
         },
@@ -333,7 +334,7 @@ const LibrarySettingsScreen = () => {
             {libraryFolders.map((folder, index) => (
               <CompactSettingsRow
                 key={folder}
-                label={folder}
+                label={libraryFolderDisplayName(folder)}
                 showDivider={index < libraryFolders.length - 1}
                 control={
                   <TouchableOpacity
