@@ -19,6 +19,7 @@ import expo.modules.ApplicationLifecycleDispatcher
 import expo.modules.ExpoReactHostFactory
 
 import com.fuzzylogic42.JBAudio.mediainfo.NativeMediaInfoPackage
+import com.fuzzylogic42.JBAudio.saf.SafCueReaderPackage
 
 class MainApplication : Application(), ReactApplication {
 
@@ -28,6 +29,7 @@ class MainApplication : Application(), ReactApplication {
       PackageList(this).packages.apply {
         add(PermissionPackage())
         add(NativeMediaInfoPackage())
+        add(SafCueReaderPackage())
         add(WatermelonDBJSIPackage())
       }
     )

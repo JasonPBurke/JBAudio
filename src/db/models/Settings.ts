@@ -1,6 +1,13 @@
 import { Model } from '@nozbe/watermelondb';
 import { field, text } from '@nozbe/watermelondb/decorators';
 
+export type LibraryFolderEntry = {
+  /** Filesystem path relative to ExternalStorageDirectoryPath (used by RNFS.readDir + path-based MediaInfo). */
+  path: string;
+  /** SAF tree URI persisted via takePersistableUriPermission (used by SafCueReader for .cue reads). */
+  treeUri: string;
+};
+
 export default class Settings extends Model {
   static table = 'settings';
 
@@ -29,16 +36,30 @@ export default class Settings extends Model {
   @field('shake_to_reset_enabled') shakeToResetEnabled!: boolean | null;
   @field('last_scan_at') lastScanAt!: number | null;
 
-  // Getter to automatically parse the libraryPaths JSON string
-  get parsedLibraryPaths(): string[] {
-    if (!this.libraryPaths) {
-      return [];
-    }
+  // Canonical accessor: returns the full library folder entries (path + SAF tree URI).
+  // Performs a one-shot migration from the legacy `string[]` shape — if detected, the
+  // entries are treated as empty and the user must re-add folders to grant SAF access.
+  get parsedLibraryFolderEntries(): LibraryFolderEntry[] {
+    if (!this.libraryPaths) return [];
     try {
-      return JSON.parse(this.libraryPaths);
+      const parsed = JSON.parse(this.libraryPaths);
+      if (!Array.isArray(parsed) || parsed.length === 0) return [];
+      if (typeof parsed[0] === 'string') return [];
+      return parsed.filter(
+        (e: unknown): e is LibraryFolderEntry =>
+          !!e &&
+          typeof e === 'object' &&
+          typeof (e as LibraryFolderEntry).path === 'string' &&
+          typeof (e as LibraryFolderEntry).treeUri === 'string',
+      );
     } catch (e) {
-      console.error('Failed to parse library paths:', e);
+      console.error('Failed to parse library folder entries:', e);
       return [];
     }
+  }
+
+  // Backward-compat: returns just the relative paths (used by UI display).
+  get parsedLibraryPaths(): string[] {
+    return this.parsedLibraryFolderEntries.map((e) => e.path);
   }
 }

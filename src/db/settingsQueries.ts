@@ -1,7 +1,7 @@
 import { of } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import database from '@/db';
-import Settings from '@/db/models/Settings';
+import Settings, { LibraryFolderEntry } from '@/db/models/Settings';
 import { Q } from '@nozbe/watermelondb';
 import Book from '@/db/models/Book';
 import * as RNFS from '@dr.pogodin/react-native-fs';
@@ -153,24 +153,25 @@ export function getNumColumnsObservable() {
     );
 }
 
-export async function updateLibraryPaths(paths: string[]) {
+export async function updateLibraryFolderEntries(
+  entries: LibraryFolderEntry[],
+) {
   return updateSetting((record) => {
-    record.libraryPaths = paths.length > 0 ? JSON.stringify(paths) : null;
+    record.libraryPaths =
+      entries.length > 0 ? JSON.stringify(entries) : null;
   });
 }
 
-export async function getLibraryPaths() {
+export async function getLibraryFolderEntries(): Promise<
+  LibraryFolderEntry[]
+> {
   const settingsCollection = database.collections.get<Settings>('settings');
   const settingsRecord = await settingsCollection.query().fetch();
 
   if (settingsRecord.length > 0) {
-    const settings = settingsRecord[0];
-    if (settings.libraryPaths) {
-      return JSON.parse(settings.libraryPaths);
-    }
-    return [];
+    return settingsRecord[0].parsedLibraryFolderEntries;
   }
-  return null;
+  return [];
 }
 
 export async function getTimerSettings() {
@@ -246,13 +247,14 @@ export const removeLibraryFolder = async (folderPath: string) => {
 
     const settings = settingsRecords[0];
 
-    // 1. Remove the folder path from settings
-    const currentFolders = settings.parsedLibraryPaths;
-    const updatedFolders = currentFolders.filter(
-      (path: string) => path !== folderPath,
+    // 1. Remove the folder entry from settings (match by path)
+    const currentEntries = settings.parsedLibraryFolderEntries;
+    const updatedEntries = currentEntries.filter(
+      (entry) => entry.path !== folderPath,
     );
     await settings.update((s) => {
-      s.libraryPaths = JSON.stringify(updatedFolders);
+      s.libraryPaths =
+        updatedEntries.length > 0 ? JSON.stringify(updatedEntries) : null;
     });
 
     // 2. Find all books that are inside the removed folder path

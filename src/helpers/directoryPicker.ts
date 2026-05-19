@@ -1,5 +1,8 @@
 import { pickDirectory } from '@react-native-documents/picker';
-import { getLibraryPaths, updateLibraryPaths } from '../db/settingsQueries';
+import {
+  getLibraryFolderEntries,
+  updateLibraryFolderEntries,
+} from '../db/settingsQueries';
 import { scanLibrary } from './scanLibrary';
 
 export async function directoryPicker() {
@@ -8,29 +11,32 @@ export async function directoryPicker() {
       requestLongTermAccess: true,
     });
 
-    if (result) {
-      const { uri } = result;
-      const pathAfterDelimiter = uri.split('%3A')[1];
+    if (!result) return;
 
-      const decodedPath = decodeURIComponent(pathAfterDelimiter);
-      const currentPaths = (await getLibraryPaths()) || [];
-      const isSubpath = currentPaths.some((path: string) =>
-        decodedPath.startsWith(path + '/'),
+    const { uri } = result;
+    const pathAfterDelimiter = uri.split('%3A')[1];
+    if (!pathAfterDelimiter) return;
+    const decodedPath = decodeURIComponent(pathAfterDelimiter);
+
+    const currentEntries = await getLibraryFolderEntries();
+    const isSubpath = currentEntries.some((entry) =>
+      decodedPath.startsWith(entry.path + '/'),
+    );
+    const alreadyExists = currentEntries.some(
+      (entry) => entry.path === decodedPath,
+    );
+
+    if (!alreadyExists && !isSubpath) {
+      // Drop any existing entries that are subpaths of the new path
+      const filtered = currentEntries.filter(
+        (entry) => !entry.path.startsWith(decodedPath + '/'),
       );
-
-      if (!currentPaths.includes(decodedPath) && !isSubpath) {
-        // Filter out any existing paths that are subpaths of the new path
-        const updatedPaths = currentPaths.filter(
-          (path: string) => !path.startsWith(decodedPath + '/'),
-        );
-
-        const newPaths = [...updatedPaths, decodedPath];
-        await updateLibraryPaths(newPaths);
-      }
-      await scanLibrary();
+      const next = [...filtered, { path: decodedPath, treeUri: uri }];
+      await updateLibraryFolderEntries(next);
     }
+
+    await scanLibrary();
   } catch (err) {
-    // see error handling section
     console.error(err);
   }
 }
