@@ -1,6 +1,8 @@
 import {
   analyzeMediaAsync,
   analyzeMediaNoCoverAsync,
+  analyzeBatchNoCoverStreaming,
+  BatchResult,
   MediaInfoJSON,
 } from '../NativeMediaInfo';
 import { Platform } from 'react-native';
@@ -9,6 +11,11 @@ export type MediaInfoResult = {
   raw: string;
   json: MediaInfoJSON | null;
 };
+
+function toMediaInfoResult(r: BatchResult): MediaInfoResult {
+  if (!r.json) return { raw: '', json: null };
+  return { raw: JSON.stringify(r.json), json: r.json };
+}
 
 export async function getMediaInfo(uri: string): Promise<MediaInfoResult> {
   if (Platform.OS !== 'android') {
@@ -56,6 +63,29 @@ export async function getMediaInfoNoCover(
       json: null,
     };
   }
+}
+
+/**
+ * Streaming parallel batch — runs N MediaInfo extractions concurrently in the
+ * native pool, returns results in the same order as the input paths. `onResult`
+ * fires per-file as each result arrives.
+ *
+ * Android-only. On other platforms returns an array of empty results without
+ * touching the native side.
+ */
+export async function getMediaInfoBatch(
+  uris: string[],
+  onResult?: (uri: string, result: MediaInfoResult) => void,
+): Promise<MediaInfoResult[]> {
+  if (Platform.OS !== 'android' || uris.length === 0) {
+    return uris.map(() => ({ raw: '', json: null }));
+  }
+
+  const paths = uris.map((u) => (u.startsWith('file://') ? u.slice(7) : u));
+  const results = await analyzeBatchNoCoverStreaming(paths, (r) => {
+    if (onResult) onResult(r.path, toMediaInfoResult(r));
+  });
+  return results.map(toMediaInfoResult);
 }
 
 // /**

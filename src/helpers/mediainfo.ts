@@ -66,8 +66,10 @@ export async function analyzeFileWithMediaInfoNoCover(
 
 /**
  * Shared logic for extracting metadata from MediaInfo result.
+ * Exported so callers that already have a MediaInfoResult (e.g. from the
+ * streaming batch path) can convert without re-invoking the native side.
  */
-function extractMetadataFromResult(
+export function extractMetadataFromResult(
   res: MediaInfoResult,
 ): ExtractedMetadata {
   const json = (res.json || {}) as any;

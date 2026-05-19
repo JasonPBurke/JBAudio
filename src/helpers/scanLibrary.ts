@@ -15,7 +15,10 @@ import {
 import {
   analyzeFileWithMediaInfo,
   analyzeFileWithMediaInfoNoCover,
+  extractMetadataFromResult,
+  ExtractedMetadata,
 } from './mediainfo';
+import { getMediaInfoBatch } from '@/lib/mediainfoAdapter';
 import { readCueText } from '@/lib/SafCueReader';
 
 /**
@@ -420,24 +423,43 @@ async function handleReadDirectory(
       }
     }
 
-    // Process new files in sorted order (multi-file audiobooks have chapters in same directory)
+    // Process new files in sorted order (multi-file audiobooks have chapters
+    // in the same directory; chapter ordering is filename-derived).
     newFilesToProcess.sort();
 
-    for (const filePath of newFilesToProcess) {
-      scanStats.audioFilesScanned += 1;
-      // First scan without cover to check if this is the first file of a new book
+    if (newFilesToProcess.length > 0) {
+      scanStats.audioFilesScanned += newFilesToProcess.length;
+
+      // Parallel no-cover batch via the native 4-thread pool. Results come back
+      // in input-path order; cover re-extraction stays serial (it only fires
+      // once per new book and currently costs ~6% of scan walltime).
       const tNoCover = Date.now();
-      let metadata = await extractMetadata(filePath, true);
+      const batchResults = await getMediaInfoBatch(newFilesToProcess);
       scanStats.msMediaInfoNoCover += Date.now() - tNoCover;
 
-      // If this is the first file of a new book, re-scan with cover extraction
-      if (needsCoverForFile(metadata)) {
-        const tWithCover = Date.now();
-        metadata = await extractMetadata(filePath, false);
-        scanStats.msMediaInfoWithCover += Date.now() - tWithCover;
-      }
+      for (let i = 0; i < newFilesToProcess.length; i++) {
+        const filePath = newFilesToProcess[i];
+        const result = batchResults[i];
 
-      newChaptersInDir.push(...metadata);
+        let metadata: any[];
+        if (!result.json) {
+          console.error(
+            `MediaInfo batch returned no result for ${filePath}`,
+          );
+          metadata = [makeErrorChapter(filePath)];
+        } else {
+          const extracted = extractMetadataFromResult(result);
+          metadata = buildChaptersFromMetadata(filePath, extracted);
+        }
+
+        if (needsCoverForFile(metadata)) {
+          const tWithCover = Date.now();
+          metadata = await extractMetadata(filePath, false);
+          scanStats.msMediaInfoWithCover += Date.now() - tWithCover;
+        }
+
+        newChaptersInDir.push(...metadata);
+      }
     }
 
     // Process discovered books immediately. Cue probing and auto-chapter
@@ -609,6 +631,84 @@ function buildBookMetadata(
   };
 }
 
+/**
+ * Builds chapter records from already-extracted ExtractedMetadata.
+ * Factored out of extractMetadata so the streaming batch path can reuse it
+ * without re-invoking the native side.
+ *
+ * Multi-chapter files are tagged `fromEmbeddedChapters: true` so the
+ * post-grouping cue probe skips them — a single embedded chapter is still
+ * authoritative over any sibling cue.
+ */
+function buildChaptersFromMetadata(
+  filePath: string,
+  metadata: ExtractedMetadata,
+): any[] {
+  const chapters = metadata.chapters || [];
+  const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
+  const bookTitleBackup = dirPath.split('/').pop();
+  const authorBackup = dirPath
+    .substring(0, dirPath.lastIndexOf('/'))
+    .split('/')
+    .pop();
+
+  if (chapters.length > 0) {
+    return chapters.map((chapter, index) => {
+      const nextChapter = chapters[index + 1];
+      const chapterEndMs = nextChapter
+        ? nextChapter.startMs
+        : metadata.durationMs || 0;
+      const chapterDuration = (chapterEndMs - chapter.startMs) / 1000;
+
+      return {
+        ...buildBookMetadata(
+          metadata,
+          filePath,
+          bookTitleBackup,
+          authorBackup,
+          {
+            title: chapter.title || `Chapter ${index + 1}`,
+            number: index + 1,
+            duration: chapterDuration,
+            startMs: chapter.startMs,
+            totalTracks: chapters.length,
+          },
+        ),
+        fromEmbeddedChapters: true,
+      };
+    });
+  }
+
+  // Single-chapter file (e.g. mp3)
+  const chapterDuration = metadata.durationMs
+    ? metadata.durationMs / 1000
+    : 0;
+  const fileName = filePath.split('/').pop() ?? '';
+  //! could make chapterTitle an array and store the fileName.split as a backup chapter name that the user could switch to for specific titles (see Aracanum Unbounded)
+  const chapterTitle =
+    metadata.title || fileName.split('.')[0] || 'Unknown Chapter';
+
+  return [
+    buildBookMetadata(metadata, filePath, bookTitleBackup, authorBackup, {
+      title: chapterTitle,
+      number: metadata.trackPosition || 1,
+      duration: chapterDuration,
+      startMs: 0,
+      totalTracks: 1,
+    }),
+  ];
+}
+
+function makeErrorChapter(filePath: string): any {
+  return {
+    title: filePath.split('/').pop(),
+    author: 'Unknown Author',
+    trackNumber: 0,
+    chapterDuration: 0,
+    url: filePath,
+  };
+}
+
 async function extractMetadata(
   filePath: string,
   skipCoverExtraction = false,
@@ -617,80 +717,10 @@ async function extractMetadata(
     const metadata = skipCoverExtraction
       ? await analyzeFileWithMediaInfoNoCover(filePath)
       : await analyzeFileWithMediaInfo(filePath);
-
-    const chapters = metadata.chapters || [];
-    const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
-    const bookTitleBackup = dirPath.split('/').pop();
-    const authorBackup = dirPath
-      .substring(0, dirPath.lastIndexOf('/'))
-      .split('/')
-      .pop();
-
-    // No cue probing here. For single-file books that genuinely need a cue
-    // (no embedded chapters + no trackPosition aggregation), the probe runs
-    // once per book in applyCueChaptersToBooks after groupChaptersIntoBooks
-    // has assembled multi-file books from per-file trackPosition records.
-
-    // Multi-chapter file (e.g. m4b, or an mp3 with ID3 CHAP/CTOC frames).
-    // Records are tagged `fromEmbeddedChapters: true` so the post-grouping cue
-    // probe skips this book even if it ends up with chapters.length === 1
-    // (a single embedded chapter is still authoritative over any sibling cue).
-    if (chapters.length > 0) {
-      return chapters.map((chapter, index) => {
-        const nextChapter = chapters[index + 1];
-        const chapterEndMs = nextChapter
-          ? nextChapter.startMs
-          : metadata.durationMs || 0;
-        const chapterDuration = (chapterEndMs - chapter.startMs) / 1000;
-
-        return {
-          ...buildBookMetadata(
-            metadata,
-            filePath,
-            bookTitleBackup,
-            authorBackup,
-            {
-              title: chapter.title || `Chapter ${index + 1}`,
-              number: index + 1,
-              duration: chapterDuration,
-              startMs: chapter.startMs,
-              totalTracks: chapters.length,
-            },
-          ),
-          fromEmbeddedChapters: true,
-        };
-      });
-    }
-
-    // Single-chapter file (e.g. mp3)
-    const chapterDuration = metadata.durationMs
-      ? metadata.durationMs / 1000
-      : 0;
-    const fileName = filePath.split('/').pop() ?? '';
-    //! could make chapterTitle an array and store the fileName.split as a backup chapter name that the user could switch to for specific titles (see Aracanum Unbounded)
-    const chapterTitle =
-      metadata.title || fileName.split('.')[0] || 'Unknown Chapter';
-
-    return [
-      buildBookMetadata(metadata, filePath, bookTitleBackup, authorBackup, {
-        title: chapterTitle,
-        number: metadata.trackPosition || 1,
-        duration: chapterDuration,
-        startMs: 0,
-        totalTracks: 1,
-      }),
-    ];
+    return buildChaptersFromMetadata(filePath, metadata);
   } catch (error) {
     console.error(`Error extracting metadata for ${filePath}`, error);
-    return [
-      {
-        title: filePath.split('/').pop(),
-        author: 'Unknown Author',
-        trackNumber: 0,
-        chapterDuration: 0,
-        url: filePath,
-      },
-    ];
+    return [makeErrorChapter(filePath)];
   }
 }
 

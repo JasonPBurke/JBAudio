@@ -30,6 +30,19 @@ export interface Spec extends TurboModule {
    *   - cover_data_supported: Whether Cover_Data extraction is available
    */
   getDiagnostics(): string;
+
+  /**
+   * Parallel batch extraction (no cover). Dispatches across a shared 4-thread
+   * native pool and emits one `MediaInfoBatchResult` event per file via
+   * DeviceEventEmitter as it completes. Event shape:
+   *   { batchId: string, path: string, json?: string, error?: string }
+   * Promise resolves with the input count when the last file finishes.
+   */
+  analyzeBatchNoCover(batchId: string, paths: string[]): Promise<number>;
+
+  /** RN-required stubs for any module that emits DeviceEventEmitter events. */
+  addListener(eventName: string): void;
+  removeListeners(count: number): void;
 }
 
 // Try TurboModuleRegistry first, fall back to NativeModules

@@ -1,3 +1,4 @@
+import { DeviceEventEmitter } from 'react-native';
 import NativeMediaInfoModule from '../specs/NativeMediaInfo';
 
 //
@@ -180,4 +181,57 @@ export async function analyzeMediaNoCoverAsync(
 export function getMediaInfoDiagnostics(): MediaInfoDiagnostics {
   const json = NativeMediaInfoModule.getDiagnostics();
   return JSON.parse(json) as MediaInfoDiagnostics;
+}
+
+export type BatchResult =
+  | { path: string; json: MediaInfoJSON; error?: never }
+  | { path: string; json?: never; error: string };
+
+let _batchCounter = 0;
+
+/**
+ * Streaming parallel batch extraction (no cover). The native side dispatches
+ * across a 4-thread pool and emits one event per file as it finishes; this
+ * wrapper subscribes, collects, and returns results in input path order.
+ *
+ * `onResult` fires per-file as each event arrives — useful for incremental
+ * progress UI or future per-book streaming persist. It runs on the JS thread.
+ */
+export async function analyzeBatchNoCoverStreaming(
+  paths: string[],
+  onResult?: (result: BatchResult) => void,
+): Promise<BatchResult[]> {
+  if (paths.length === 0) return [];
+
+  const batchId = `b${++_batchCounter}`;
+  const byPath = new Map<string, BatchResult>();
+
+  const subscription = DeviceEventEmitter.addListener(
+    'MediaInfoBatchResult',
+    (event: {
+      batchId: string;
+      path: string;
+      json?: string;
+      error?: string;
+    }) => {
+      if (event.batchId !== batchId) return;
+      const result: BatchResult = event.error
+        ? { path: event.path, error: event.error }
+        : { path: event.path, json: JSON.parse(event.json!) as MediaInfoJSON };
+      byPath.set(event.path, result);
+      onResult?.(result);
+    },
+  );
+
+  try {
+    await NativeMediaInfoModule.analyzeBatchNoCover(batchId, paths);
+    // Subscription callbacks run on the JS thread, so by the time await returns
+    // every emitted event has been processed (events are queued on the same
+    // thread that resolves the Promise).
+    return paths.map(
+      (p) => byPath.get(p) ?? { path: p, error: 'no result' },
+    );
+  } finally {
+    subscription.remove();
+  }
 }
