@@ -3,6 +3,7 @@ import AuthorModel from '@/db/models/Author';
 import BookModel from '@/db/models/Book';
 import ChapterModel from '@/db/models/Chapter';
 import * as RNFS from '@dr.pogodin/react-native-fs';
+import * as MediaLibrary from 'expo-media-library';
 import database from '@/db';
 import { Q } from '@nozbe/watermelondb';
 import ImageResizer from '@bam.tech/react-native-image-resizer';
@@ -20,18 +21,10 @@ import {
 } from './mediainfo';
 import { getMediaInfoBatch } from '@/lib/mediainfoAdapter';
 import { readCueText } from '@/lib/SafCueReader';
-
-/**
- * Per-library-folder scan context. Threaded through directory walks so that
- * .cue sidecars (which aren't readable by path under scoped storage) can be
- * read via the SAF tree URI granted at folder-add time.
- */
-type CueScanContext = {
-  /** Absolute filesystem path of the library folder root (e.g. /storage/emulated/0/Audiobooks). */
-  rootAbsPath: string;
-  /** Persisted SAF tree URI for the same folder. */
-  treeUri: string;
-};
+import {
+  enumerateAudioViaMediaStore,
+  type CueScanContext,
+} from '@/helpers/enumerateAudioViaMediaStore';
 import { BookImageColors, extractImageColors } from './imageColorExtractor';
 import { useScanProgressStore } from '@/hooks/useScanProgressStore';
 import { ArtworkColors } from './gradientColorSorter';
@@ -382,55 +375,37 @@ function needsCoverForFile(chapters: any[]): boolean {
 }
 
 /**
- * Scans a directory and processes books as they are discovered.
- * Recursively processes subdirectories after handling current directory files.
+ * Processes the audio files discovered in a single directory: DB existence
+ * check, MediaInfo batch, book grouping, cue probe, auto-chapter generation,
+ * and persistence. Mirrors the old per-directory body of handleReadDirectory
+ * but takes pre-enumerated paths instead of calling RNFS.readDir.
  */
-async function handleReadDirectory(
-  dirPath: string,
+async function processDirectoryFiles(
+  dir: string,
+  audioFiles: string[],
   context: CueScanContext,
-  allFiles: string[] = [],
-  autoChapterInterval: number | null = null,
-): Promise<{ allFiles: string[] }> {
+  autoChapterInterval: number | null,
+): Promise<void> {
   try {
-    const dirContents = await RNFS.readDir(dirPath);
     scanStats.directoriesWalked += 1;
 
-    const newChaptersInDir: any[] = [];
-    const subdirectories: string[] = [];
     const newFilesToProcess: string[] = [];
-
-    // Separate files and directories. We also count .cue files for diagnostic
-    // visibility (scanStats.cueFilesInListings) — though under scoped storage
-    // without MANAGE_EXTERNAL_STORAGE, RNFS.readDir filters non-media MIMEs
-    // and this count is always 0. The SAF probe in applyCueChaptersToBooks
-    // doesn't depend on the listing; it relies on ENOENT from the SAF read.
-    for (const item of dirContents) {
-      if (item.isDirectory()) {
-        subdirectories.push(item.path);
-      } else if (
-        item.isFile() &&
-        (item.name.endsWith('.m4b') || item.name.endsWith('.mp3'))
-      ) {
-        allFiles.push(item.path);
-        const exists = await checkIfFileExists(item.path);
-        if (!exists) {
-          newFilesToProcess.push(item.path);
-        }
-      } else if (item.isFile() && item.name.endsWith('.cue')) {
-        scanStats.cueFilesInListings += 1;
+    for (const filePath of audioFiles) {
+      const exists = await checkIfFileExists(filePath);
+      if (!exists) {
+        newFilesToProcess.push(filePath);
       }
     }
-
-    // Process new files in sorted order (multi-file audiobooks have chapters
-    // in the same directory; chapter ordering is filename-derived).
+    // audioFiles is already sorted by enumerateAudioViaMediaStore; we sort
+    // newFilesToProcess again only for the (rare) DB-filtered subset case.
     newFilesToProcess.sort();
+
+    const newChaptersInDir: any[] = [];
 
     if (newFilesToProcess.length > 0) {
       scanStats.audioFilesScanned += newFilesToProcess.length;
 
-      // Parallel no-cover batch via the native 4-thread pool. Results come back
-      // in input-path order; cover re-extraction stays serial (it only fires
-      // once per new book and currently costs ~6% of scan walltime).
+      // Parallel no-cover batch via the native 4-thread pool.
       const tNoCover = Date.now();
       const batchResults = await getMediaInfoBatch(newFilesToProcess);
       scanStats.msMediaInfoNoCover += Date.now() - tNoCover;
@@ -460,9 +435,6 @@ async function handleReadDirectory(
       }
     }
 
-    // Process discovered books immediately. Cue probing and auto-chapter
-    // generation are post-grouping steps — see the function docs above for the
-    // priority order (embedded > grouped-trackPosition > cue > auto-generated).
     if (newChaptersInDir.length > 0) {
       const booksInDir = groupChaptersIntoBooks(newChaptersInDir);
 
@@ -484,16 +456,8 @@ async function handleReadDirectory(
         scanStats.msPersistBook += Date.now() - tPersist;
       }
     }
-
-    // Recurse into subdirectories
-    for (const subdir of subdirectories) {
-      await handleReadDirectory(subdir, context, allFiles, autoChapterInterval);
-    }
-
-    return { allFiles };
   } catch (err) {
-    console.error('Error reading directory', err);
-    return { allFiles };
+    console.error(`Error processing directory ${dir}`, err);
   }
 }
 
@@ -996,30 +960,42 @@ export async function scanLibrary(): Promise<void> {
     return;
   }
 
+  // Permission gate. Defensive — the app already requests READ_MEDIA_AUDIO at
+  // startup (useSetupTrackPlayer.tsx), but bail cleanly if the user declined.
+  const perm = await MediaLibrary.getPermissionsAsync();
+  if (perm.status !== 'granted') {
+    console.log(
+      `READ_MEDIA_AUDIO not granted (status=${perm.status}). Aborting scan.`,
+    );
+    return;
+  }
+
   // Get auto-chapter interval setting for generating chapters on books without chapter data
   const autoChapterInterval = await getAutoChapterInterval();
 
   useScanProgressStore.getState().startScan();
-  const combinedAllFiles: string[] = [];
 
-  // Scan directories - books are processed incrementally as they are discovered
-  for (const entry of libraryEntries) {
-    const rootAbsPath = `${RNFS.ExternalStorageDirectoryPath}/${entry.path}`;
-    const context: CueScanContext = {
-      rootAbsPath,
-      treeUri: entry.treeUri,
-    };
-    const { allFiles } = await handleReadDirectory(
-      rootAbsPath,
-      context,
-      [],
-      autoChapterInterval,
+  const tEnum = Date.now();
+  const { filesByDir, contexts, allFiles, nonFileUriSkipped } =
+    await enumerateAudioViaMediaStore(libraryEntries);
+  scanStats.msMediaStoreEnumerate = Date.now() - tEnum;
+
+  if (nonFileUriSkipped > 0) {
+    console.warn(
+      `MediaStore returned ${nonFileUriSkipped} non-file:// URIs which were skipped.`,
     );
-    combinedAllFiles.push(...allFiles);
   }
 
-  // Clean up any files that no longer exist
-  await removeMissingFiles(combinedAllFiles);
+  // Process directories in sorted order for deterministic SCAN SUMMARY output.
+  const sortedDirs = Array.from(filesByDir.keys()).sort();
+  for (const dir of sortedDirs) {
+    const files = filesByDir.get(dir)!;
+    const context = contexts.get(dir)!;
+    await processDirectoryFiles(dir, files, context, autoChapterInterval);
+  }
+
+  // Clean up any files that no longer exist on disk.
+  await removeMissingFiles(allFiles);
 
   await setLastScanAt(Date.now());
 
