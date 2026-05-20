@@ -994,8 +994,18 @@ export async function scanLibrary(): Promise<void> {
     await processDirectoryFiles(dir, files, context, autoChapterInterval);
   }
 
-  // Clean up any files that no longer exist on disk.
-  await removeMissingFiles(allFiles);
+  // Clean up any files that no longer exist on disk. Guard against the
+  // catastrophic "MediaStore returned nothing" case — if allFiles is empty
+  // but the user has configured libraries (i.e. we expected SOMETHING),
+  // skip cleanup rather than risk wiping every chapter from the DB.
+  if (allFiles.length === 0) {
+    console.warn(
+      'MediaStore enumeration returned 0 files for configured libraries; ' +
+        'skipping removeMissingFiles to avoid deleting all DB chapters.',
+    );
+  } else {
+    await removeMissingFiles(allFiles);
+  }
 
   await setLastScanAt(Date.now());
 
