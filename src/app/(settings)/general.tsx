@@ -6,7 +6,6 @@ import {
   ScrollView,
 } from 'react-native';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'expo-router';
 import { useSharedValue } from 'react-native-reanimated';
 import { Settings, Palette } from 'lucide-react-native';
 import { ColorPickerModal } from '@/components/ColorPicker';
@@ -29,7 +28,6 @@ import ToggleSwitch from '@/components/animations/ToggleSwitch';
 import { ArtworkColors } from '@/helpers/gradientColorSorter';
 
 const GeneralSettingsScreen = () => {
-  const router = useRouter();
   const { colors: themeColors } = useTheme();
   const { numColumns, setNumColumns } = useSettingsStore();
   const { isProUser: hasProAccess, hasPurchasedPro } = useRequiresPro();
@@ -192,18 +190,6 @@ const GeneralSettingsScreen = () => {
             </Text>
           )}
         </SettingsCard>
-
-        <Pressable
-          onPress={() => router.navigate('/mediaStoreProbe')}
-          style={[
-            styles.debugButton,
-            { borderColor: themeColors.textMuted },
-          ]}
-        >
-          <Text style={[styles.debugButtonText, { color: themeColors.textMuted }]}>
-            Debug: MediaStore probe
-          </Text>
-        </Pressable>
       </ScrollView>
 
       <ColorPickerModal
@@ -266,18 +252,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 12,
-  },
-  debugButton: {
-    marginTop: 24,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center',
-  },
-  debugButtonText: {
-    fontFamily: 'Rubik',
-    fontWeight: '500',
-    fontSize: 13,
   },
 });
