@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigationContainerRef } from 'expo-router';
 import { CommonActions } from '@react-navigation/native';
+import { setPlayerNavIntent } from '@/store/playerNavIntent';
 
 /**
  * This route handles deep links from TrackPlayer notification taps.
@@ -18,6 +19,7 @@ export default function NotificationClickRedirect() {
 
   useEffect(() => {
     const navigateToPlayer = () => {
+      setPlayerNavIntent();
       // Reset navigation state with drawer at bottom, player on top
       // This ensures there's a screen to go back to when dismissing player
       navigationRef.dispatch(

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -19,6 +19,7 @@ import {
   CurrentChapterContext,
   useCurrentChapterStable,
 } from '@/hooks/useCurrentChapterStable';
+import { consumePlayerNavIntent } from '@/store/playerNavIntent';
 
 // Memoized components - extracted to prevent re-renders
 import { PlayerArtwork } from '@/components/player/PlayerArtwork';
@@ -61,6 +62,25 @@ const loadingContainerStyle = { justifyContent: 'center' as const };
  */
 const PlayerScreen = () => {
   const router = useRouter();
+
+  // Dismiss a ghost-mount caused by navigation state being restored across an
+  // Activity recreation with no user-initiated navigation to /player. See
+  // src/store/playerNavIntent.ts for the why.
+  useEffect(() => {
+    if (consumePlayerNavIntent()) return;
+    let cancelled = false;
+    // Defer back() to a microtask so the root Stack has time to finish
+    // mounting — router.back() during the initial commit throws
+    // "Attempted to navigate before mounting the Root Layout component."
+    queueMicrotask(() => {
+      if (cancelled) return;
+      router.back();
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { colors: themeColors } = useTheme();
 

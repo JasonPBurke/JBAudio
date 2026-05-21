@@ -22,6 +22,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useQueueStore } from '@/store/queue';
 import { useBookById } from '@/store/library';
 import { BookTimeRemaining } from '@/components/BookTimeRemaining';
+import { setPlayerNavIntent } from '@/store/playerNavIntent';
 
 /**
  * Optimized FloatingPlayer component.
@@ -63,6 +64,7 @@ export const FloatingPlayer = React.memo(() => {
 
   // Memoize the navigation callback
   const handlePress = useCallback(() => {
+    setPlayerNavIntent();
     router.navigate('/player');
   }, [router]);
 
