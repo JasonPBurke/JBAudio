@@ -53,6 +53,7 @@ import { recordFootprint } from '@/db/footprintQueries';
 import { getBookById } from '@/db/bookQueries';
 import MeshGradientBackground from '@/components/MeshGradientBackground';
 import { normalizeSize } from '@/helpers/normalizeSize';
+import { consumeTitleDetailsNavIntent } from '@/store/titleDetailsNavIntent';
 
 const TitleDetails = () => {
   const { top, bottom } = useSafeAreaInsets();
@@ -94,6 +95,26 @@ const TitleDetails = () => {
     return () => {
       FastImage.clearMemoryCache();
     };
+  }, []);
+
+  // Dismiss a ghost-mount caused by navigation state being restored across
+  // an Activity recreation with no user-initiated navigation to
+  // /titleDetails. See src/store/titleDetailsNavIntent.ts. Same shape as
+  // PlayerScreen's guard in src/app/player.tsx — applied here without a
+  // dev-side log-verification step because Metro reloads the dev client
+  // on swipe-from-recents, which wipes JS state and masks the bug. Verify
+  // in a preview/prod build.
+  useEffect(() => {
+    if (consumeTitleDetailsNavIntent()) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      router.back();
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!book) {

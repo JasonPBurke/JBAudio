@@ -21,6 +21,7 @@ import { BookDurationRow } from '@/components/BookDurationRow';
 import { useBookById, useBookDisplayData } from '@/store/library';
 import TrackPlayer, { State } from 'react-native-track-player';
 import { recordFootprint } from '@/db/footprintQueries';
+import { setTitleDetailsNavIntent } from '@/store/titleDetailsNavIntent';
 
 export type BookListItemProps = {
   bookId: string;
@@ -50,6 +51,7 @@ export const BookListItem = memo(function BookListItem({
   const isActiveAndPlaying = useIsBookActiveAndPlaying(bookId);
 
   const handlePress = useCallback(() => {
+    setTitleDetailsNavIntent();
     router.navigate({
       pathname: '/titleDetails',
       params: { bookId, author, bookTitle },

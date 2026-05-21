@@ -21,6 +21,7 @@ import {
 import TrackPlayer, { State } from 'react-native-track-player';
 import { recordFootprint } from '@/db/footprintQueries';
 import { Book } from '@/types/Book';
+import { setTitleDetailsNavIntent } from '@/store/titleDetailsNavIntent';
 
 export type BookGridItemProps = {
   bookId: string;
@@ -163,6 +164,7 @@ export const BookGridItem = memo(function BookGridItem({
   const isActiveBook = useIsBookActive(bookId);
 
   const handlePress = useCallback(() => {
+    setTitleDetailsNavIntent();
     router.navigate({
       pathname: '/titleDetails',
       params: { bookId, author, bookTitle },

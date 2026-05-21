@@ -94,6 +94,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0.0"
+        //! REMOVE THIS BLOCK FOR REMOTE BUILDS --- THIS ALLOWS LOCAL BUILDS TO NOT CRASH PC
         ndk {
             abiFilters "arm64-v8a"
         }

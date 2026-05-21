@@ -647,8 +647,8 @@ async function saveArtworkToFile(
 
     const resizedImage = await ImageResizer.createResizedImage(
       `file://${tempFilePath}`,
-      600,
-      600,
+      800,
+      800,
       'WEBP',
       80,
       0,
