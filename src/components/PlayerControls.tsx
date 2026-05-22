@@ -268,6 +268,7 @@ export function SeekBackButton({
         />
 
         <Text
+          allowFontScaling={false}
           style={{
             ...styles.seekTime,
             fontSize: fontSize,
@@ -369,6 +370,7 @@ export function SeekForwardButton({
         />
 
         <Text
+          allowFontScaling={false}
           style={{
             ...styles.seekTime,
             fontSize: fontSize,
@@ -394,7 +396,10 @@ export function SkipToPreviousButton({ iconSize = 30 }: PlayerButtonProps) {
 
     if (isSingleFile && book?.chapters && book.chapters.length > 1) {
       const { position } = await TrackPlayer.getProgress();
-      const prevStart = getPreviousChapterStartSeconds(book.chapters, position);
+      const prevStart = getPreviousChapterStartSeconds(
+        book.chapters,
+        position,
+      );
       await TrackPlayer.seekTo(prevStart);
     } else {
       await TrackPlayer.skipToPrevious();
@@ -517,9 +522,11 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
   } = useSleepTimer();
 
   // Store takes precedence for live updates; DB observation is the fallback for initial state
-  const uiActive = storeActive || (settings?.timerActive === true);
-  const uiChapters: number | null = storeChapters ?? settings?.timerChapters ?? null;
-  const uiSleepTime: number | null = storeEndTimeMs ?? settings?.sleepTime ?? null;
+  const uiActive = storeActive || settings?.timerActive === true;
+  const uiChapters: number | null =
+    storeChapters ?? settings?.timerChapters ?? null;
+  const uiSleepTime: number | null =
+    storeEndTimeMs ?? settings?.sleepTime ?? null;
   const timerDuration: number | null = settings?.timerDuration ?? null;
 
   const [mountSheet, setMountSheet] = useState(false);
@@ -530,7 +537,6 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
   const rotation = useSharedValue(0);
   const countdownOpacity = useSharedValue(0);
   const countdownScale = useSharedValue(0.8);
-
 
   useEffect(() => {
     if (uiActive) {
@@ -574,9 +580,15 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
     if (uiActive) {
       await sleepTimer.cancel();
     } else if (timerDuration !== null) {
-      await sleepTimer.activate({ kind: 'duration', durationMs: timerDuration });
+      await sleepTimer.activate({
+        kind: 'duration',
+        durationMs: timerDuration,
+      });
     } else if (uiChapters !== null) {
-      await sleepTimer.activate({ kind: 'chapter', chaptersRemaining: uiChapters });
+      await sleepTimer.activate({
+        kind: 'chapter',
+        chaptersRemaining: uiChapters,
+      });
     } else {
       handlePresentModalPress();
     }
@@ -622,9 +634,7 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
           index={0}
           snapPoints={snapPoints}
         >
-          <SleepTimerOptions
-            bottomSheetModalRef={bottomSheetModalRef}
-          />
+          <SleepTimerOptions bottomSheetModalRef={bottomSheetModalRef} />
         </BottomSheetModal>
       )}
 
