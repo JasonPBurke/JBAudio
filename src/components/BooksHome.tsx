@@ -271,7 +271,6 @@ const BooksHome = ({
       style={{
         flex: 1,
         paddingTop: CONTAINER_PADDING_TOP,
-        paddingBottom: CONTAINER_PADDING_TOP + 8,
       }}
     >
       <FlashList

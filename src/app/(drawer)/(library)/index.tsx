@@ -156,6 +156,7 @@ const LibraryScreen = ({ navigation }: any) => {
         style={{
           flex: 1,
           paddingTop: insets.top,
+          //* if you want to scroll behind the bottom nav, rm paddingBottom
           paddingBottom: insets.bottom,
           paddingLeft: insets.left,
           paddingRight: insets.right,
