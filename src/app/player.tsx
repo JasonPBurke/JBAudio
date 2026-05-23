@@ -1,9 +1,5 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
-import {
-  StyleSheet,
-  View,
-  ActivityIndicator,
-} from 'react-native';
+import { StyleSheet, View, ActivityIndicator } from 'react-native';
 import { useActiveTrack } from 'react-native-track-player';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -32,11 +28,19 @@ import { DismissIndicator } from '@/components/DismissIndicator';
 const FIXED_ARTWORK_HEIGHT = normalizeSize(375);
 
 // Pre-defined styles to avoid inline object creation on each render
-const progressBarStyle = { marginTop: normalizeSize(70) };
 const timeRemainingContainerStyle = { alignItems: 'center' as const };
-const controlsStyle = { marginTop: normalizeSize(50) };
-const chapterSectionStyle = { marginTop: normalizeSize(50) };
 const loadingContainerStyle = { justifyContent: 'center' as const };
+
+// Flex spacer that grows to its maxHeight at default Display Size but
+// collapses toward 0 when window height tightens (e.g. Display Size = Large),
+// keeping bottom controls reachable across accessibility settings.
+const Spacer = ({
+  flex,
+  maxHeight,
+}: {
+  flex: number;
+  maxHeight: number;
+}) => <View style={{ flex, maxHeight, minHeight: 0 }} />;
 
 // Note: defaultGradientColors is now defined inside the component to use theme colors
 
@@ -145,24 +149,28 @@ const PlayerScreen = () => {
             onLongPress={handleArtworkLongPress}
           />
 
-          <View style={chapterSectionStyle}>
-            {/* Chapter trigger - navigates to chapter list screen */}
-            <PlayerChaptersModal
-              // darkestColor={withOpacity(gradientColors[3], 0.25)}
-              darkestColor={gradientColors[3]}
-            />
+          <Spacer flex={1} maxHeight={normalizeSize(50)} />
 
-            {/* Progress bar uses Reanimated shared values - no React re-renders */}
-            <PlayerProgressBar style={progressBarStyle} />
+          {/* Chapter trigger - navigates to chapter list screen */}
+          <PlayerChaptersModal
+            // darkestColor={withOpacity(gradientColors[3], 0.25)}
+            darkestColor={gradientColors[3]}
+          />
 
-            <View style={timeRemainingContainerStyle}>
-              {/* Time remaining updates every 5 seconds via event listener */}
-              <BookTimeRemaining size={16} color={colors.textMuted} />
-            </View>
+          <Spacer flex={1.4} maxHeight={normalizeSize(70)} />
 
-            {/* Memoized controls - uses Reanimated for button animations */}
-            <PlayerControls style={controlsStyle} />
+          {/* Progress bar uses Reanimated shared values - no React re-renders */}
+          <PlayerProgressBar />
+
+          <View style={timeRemainingContainerStyle}>
+            {/* Time remaining updates every 5 seconds via event listener */}
+            <BookTimeRemaining size={16} color={colors.textMuted} />
           </View>
+
+          <Spacer flex={1} maxHeight={normalizeSize(50)} />
+
+          {/* Memoized controls - uses Reanimated for button animations */}
+          <PlayerControls />
         </View>
       </View>
     </CurrentChapterContext.Provider>
@@ -176,7 +184,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dimOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: withOpacity(colors.background, 0.3),
   },
   overlayContainer: {
