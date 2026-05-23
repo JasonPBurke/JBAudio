@@ -42,7 +42,6 @@ import { selectGradientColors } from '@/helpers/gradientColorSorter';
 import { ensureReadable, withOpacity } from '@/helpers/colorUtils';
 import { useTheme } from '@/hooks/useTheme';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
-// import TruncatedParagraph from '@/components/TruncatedParagraph';
 import { BookDurationRow } from '@/components/BookDurationRow';
 import {
   handleBookPlay,
@@ -692,10 +691,6 @@ const TitleDetails = () => {
               />
             )}
             <View style={styles.inlineInfoContainer}>
-              {/* <TruncatedParagraph
-                content={book.metadata.description}
-                maxLines={4}
-              /> */}
               <Text style={styles.paragraph}>
                 {book.metadata.description}
               </Text>
@@ -791,7 +786,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   bookTitleText: {
-    fontFamily: 'Rubik', fontWeight: '600',
+    fontFamily: 'Rubik',
+    fontWeight: '600',
     fontSize: 21,
     // fontWeight: '600',
     textAlign: 'center',
