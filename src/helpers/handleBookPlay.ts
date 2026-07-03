@@ -17,7 +17,7 @@ export enum BookProgressState {
   Finished = 2,
 }
 
-export const handleBookPlay = async (
+const handleBookPlayInner = async (
   book: Book | undefined,
   playing: boolean | undefined,
   isActiveBook: boolean,
@@ -26,6 +26,9 @@ export const handleBookPlay = async (
 ) => {
   if (!book) return;
   if (isActiveBook && playing) return;
+  // No chapters means nothing to load (possible transiently mid-rescan);
+  // bail rather than crash on chapters[0].url below.
+  if (!book.chapters || book.chapters.length === 0) return;
 
   await awaitPlayerReady();
 
@@ -46,11 +49,14 @@ export const handleBookPlay = async (
   const progressInfo = await getChapterProgressInDB(book.bookId!);
 
   // Default to chapter 0 if no valid progress info exists (prevents silent failure)
-  const chapterIndex =
+  const storedIndex =
     progressInfo?.chapterIndex !== undefined &&
     progressInfo.chapterIndex >= 0
       ? progressInfo.chapterIndex
       : 0;
+  // Clamp to the current chapter list — a rescan can shrink a book's chapter
+  // count, leaving a stale DB index that would make skip() throw out-of-range.
+  const chapterIndex = Math.min(storedIndex, book.chapters.length - 1);
   const chapterProgress = progressInfo?.progress ?? 0;
 
   const isChangingBook = book.bookId !== activeBookId;
@@ -127,4 +133,33 @@ export const handleBookPlay = async (
     await TrackPlayer.play();
     await TrackPlayer.setVolume(1);
   }
+};
+
+// Serializes play requests. Concurrent calls (double-tap, grid item +
+// floating player) each pass awaitPlayerReady and then interleave
+// reset()/add()/skip()/seekTo(), producing a doubled queue or out-of-range
+// skip errors. Chaining makes the second request start only after the first
+// has fully loaded the queue.
+let playChain: Promise<void> = Promise.resolve();
+
+export const handleBookPlay = (
+  book: Book | undefined,
+  playing: boolean | undefined,
+  isActiveBook: boolean,
+  activeBookId: string | null,
+  setActiveBookId: (bookId: string) => void,
+): Promise<void> => {
+  const next = playChain
+    .catch(() => {})
+    .then(() =>
+      handleBookPlayInner(
+        book,
+        playing,
+        isActiveBook,
+        activeBookId,
+        setActiveBookId,
+      ),
+    );
+  playChain = next;
+  return next;
 };

@@ -23,6 +23,8 @@ import { getMediaInfoBatch } from '@/lib/mediainfoAdapter';
 import { readCueText } from '@/lib/SafCueReader';
 import {
   enumerateAudioViaMediaStore,
+  compareFilePathsNatural,
+  libraryRootAbsPath,
   type CueScanContext,
 } from '@/helpers/enumerateAudioViaMediaStore';
 import { BookImageColors, extractImageColors } from './imageColorExtractor';
@@ -45,13 +47,48 @@ const DEFAULT_BOOK_ARTWORK_COLORS: ArtworkColors = {
 };
 
 /**
+ * One chapter record produced by the metadata-extraction phase of a scan,
+ * consumed by groupChaptersIntoBooks. Every producer (buildBookMetadata,
+ * makeErrorChapter) must emit this exact shape — the pipeline was previously
+ * any[], which let a mismatched error-chapter shape produce books with an
+ * undefined title.
+ */
+export type ScannedChapter = {
+  author: string;
+  narrator: string;
+  bookTitle: string;
+  chapterTitle: string;
+  chapterNumber: number;
+  year: number | null;
+  description?: string;
+  genre?: string;
+  sampleRate?: number;
+  codec?: string;
+  bitrate?: number;
+  copyright?: string;
+  artworkUri: null;
+  totalTrackCount: number;
+  coverBase64: string | null;
+  coverWidth: number | null;
+  coverHeight: number | null;
+  ctime: Date;
+  /** Not set by any current producer; grouping persists it as null. */
+  mtime?: Date;
+  chapterDuration: number;
+  startMs: number;
+  url: string;
+  /** True when chapters came from embedded (MediaInfo) chapter data. */
+  fromEmbeddedChapters?: boolean;
+};
+
+/**
  * Groups chapter metadata into book structures.
  * Returns array of { authorName, book } for immediate processing.
  * If autoChapterInterval is provided, books with <= 1 chapter will have
  * auto-generated chapters created at the specified interval.
  */
 function groupChaptersIntoBooks(
-  chapters: any[],
+  chapters: ScannedChapter[],
 ): { authorName: string; book: Book }[] {
   const bookMap = new Map<string, { authorName: string; book: Book }>();
 
@@ -257,6 +294,30 @@ async function processAndPersistBook(
   }
 }
 
+// Books persisted concurrently: overlaps one book's native image work
+// (resize + palette extraction) with another's DB write. WatermelonDB
+// serializes writes internally, so higher concurrency has diminishing
+// returns while holding more decoded artwork in memory.
+const PERSIST_CONCURRENCY = 2;
+
+async function forEachWithPool<T>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<void>,
+): Promise<void> {
+  let nextIndex = 0;
+  const workers = Array.from(
+    { length: Math.min(limit, items.length) },
+    async () => {
+      while (nextIndex < items.length) {
+        const item = items[nextIndex++];
+        await fn(item);
+      }
+    },
+  );
+  await Promise.all(workers);
+}
+
 // Track which books already have cover art extracted (author::title -> true)
 const booksWithCoverExtracted = new Set<string>();
 
@@ -264,7 +325,7 @@ const booksWithCoverExtracted = new Set<string>();
  * Checks if a chapter for this file needs cover extraction.
  * Returns true if any chapter belongs to a book we haven't seen yet.
  */
-function needsCoverForFile(chapters: any[]): boolean {
+function needsCoverForFile(chapters: ScannedChapter[]): boolean {
   for (const chapter of chapters) {
     const bookTitle = chapter.bookTitle;
     if (!bookTitle) continue;
@@ -301,9 +362,9 @@ async function processDirectoryFiles(
     }
     // audioFiles is already sorted by enumerateAudioViaMediaStore; we sort
     // newFilesToProcess again only for the (rare) DB-filtered subset case.
-    newFilesToProcess.sort();
+    newFilesToProcess.sort(compareFilePathsNatural);
 
-    const newChaptersInDir: any[] = [];
+    const newChaptersInDir: ScannedChapter[] = [];
 
     if (newFilesToProcess.length > 0) {
       const batchResults = await getMediaInfoBatch(newFilesToProcess);
@@ -312,7 +373,7 @@ async function processDirectoryFiles(
         const filePath = newFilesToProcess[i];
         const result = batchResults[i];
 
-        let metadata: any[];
+        let metadata: ScannedChapter[];
         if (!result.json) {
           console.error(
             `MediaInfo batch returned no result for ${filePath}`,
@@ -345,9 +406,11 @@ async function processDirectoryFiles(
         progressStore.totalBooks + booksInDir.length,
       );
 
-      for (const { authorName, book } of booksInDir) {
-        await processAndPersistBook(authorName, book);
-      }
+      await forEachWithPool(
+        booksInDir,
+        PERSIST_CONCURRENCY,
+        ({ authorName, book }) => processAndPersistBook(authorName, book),
+      );
     }
   } catch (err) {
     console.error(`Error processing directory ${dir}`, err);
@@ -434,10 +497,28 @@ async function parseCueFile(
 }
 
 /**
+ * Fallback author/book names derived from the file's parent directories,
+ * used when tags are missing: .../<author>/<book title>/<file>.
+ */
+function pathBackupNames(filePath: string): {
+  bookTitleBackup: string | undefined;
+  authorBackup: string | undefined;
+} {
+  const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
+  return {
+    bookTitleBackup: dirPath.split('/').pop(),
+    authorBackup: dirPath
+      .substring(0, dirPath.lastIndexOf('/'))
+      .split('/')
+      .pop(),
+  };
+}
+
+/**
  * Builds a book metadata object with common properties from file metadata.
  */
 function buildBookMetadata(
-  metadata: any,
+  metadata: ExtractedMetadata,
   filePath: string,
   bookTitleBackup: string | undefined,
   authorBackup: string | undefined,
@@ -448,14 +529,17 @@ function buildBookMetadata(
     startMs: number;
     totalTracks: number;
   },
-) {
+): ScannedChapter {
+  // parseInt (not Number) so date-shaped tags like "2021-05-04" yield the
+  // year instead of NaN; anything unparseable becomes null, never NaN.
+  const parsedYear = Number.parseInt(metadata.releaseDate ?? '', 10);
   return {
     author: metadata.author || authorBackup || 'Unknown Author',
     narrator: metadata.narrator || 'Unknown Voice Artist',
-    bookTitle: metadata.album || bookTitleBackup,
+    bookTitle: metadata.album || bookTitleBackup || 'Unknown Book',
     chapterTitle: chapterInfo.title,
     chapterNumber: chapterInfo.number,
-    year: Number(metadata.releaseDate),
+    year: Number.isFinite(parsedYear) ? parsedYear : null,
     description: metadata.description,
     genre: metadata.genre,
     sampleRate: metadata.sampleRate,
@@ -486,14 +570,9 @@ function buildBookMetadata(
 function buildChaptersFromMetadata(
   filePath: string,
   metadata: ExtractedMetadata,
-): any[] {
+): ScannedChapter[] {
   const chapters = metadata.chapters || [];
-  const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
-  const bookTitleBackup = dirPath.split('/').pop();
-  const authorBackup = dirPath
-    .substring(0, dirPath.lastIndexOf('/'))
-    .split('/')
-    .pop();
+  const { bookTitleBackup, authorBackup } = pathBackupNames(filePath);
 
   if (chapters.length > 0) {
     return chapters.map((chapter, index) => {
@@ -542,14 +621,22 @@ function buildChaptersFromMetadata(
   ];
 }
 
-function makeErrorChapter(filePath: string): any {
-  return {
-    title: filePath.split('/').pop(),
-    author: 'Unknown Author',
-    trackNumber: 0,
-    chapterDuration: 0,
-    url: filePath,
-  };
+/**
+ * Placeholder chapter for a file whose metadata extraction failed, so the
+ * file still appears in the library (named from its path) instead of
+ * vanishing. Built through buildBookMetadata with empty tags to guarantee
+ * the ScannedChapter shape stays in lockstep with the normal producers.
+ */
+function makeErrorChapter(filePath: string): ScannedChapter {
+  const { bookTitleBackup, authorBackup } = pathBackupNames(filePath);
+  const fileName = filePath.split('/').pop() ?? '';
+  return buildBookMetadata({}, filePath, bookTitleBackup, authorBackup, {
+    title: fileName.split('.')[0] || 'Unknown Chapter',
+    number: 1,
+    duration: 0,
+    startMs: 0,
+    totalTracks: 1,
+  });
 }
 
 async function extractMetadata(
@@ -621,6 +708,8 @@ type ArtworkResult = {
   height: number;
 };
 
+let tempFileSeq = 0;
+
 /**
  * Saves base64 artwork to a WebP file after resizing.
  * Handles truncated JPEG detection and repair.
@@ -641,7 +730,9 @@ async function saveArtworkToFile(
     await RNFS.mkdir(artworkDir);
 
     const { extension, needsJpegRepair } = detectImageFormat(base64Artwork);
-    const tempFilePath = `${RNFS.CachesDirectoryPath}/temp_artwork_${Date.now()}.${extension}`;
+    // Sequence suffix: books persist concurrently, so Date.now() alone can
+    // collide and two books would clobber each other's temp image.
+    const tempFilePath = `${RNFS.CachesDirectoryPath}/temp_artwork_${Date.now()}_${++tempFileSeq}.${extension}`;
 
     await writeTempImageFile(tempFilePath, base64Artwork, needsJpegRepair);
 
@@ -765,66 +856,90 @@ async function extractArtworkForBook(book: Book): Promise<Book> {
 /**
  * Removes chapters from the database that no longer exist on disk,
  * then cleans up any orphaned books and authors.
+ *
+ * "Not enumerated by MediaStore" is not proof of deletion: MediaStore can
+ * under-report (indexing lag, unavailable volume), and destroying a chapter
+ * row also destroys the book's listening progress, which a future rescan
+ * cannot restore. So a chapter under a configured root is only removed when
+ * (a) its whole library root is still present on disk, and (b) a direct
+ * existence probe confirms the file itself is gone. Chapters under no
+ * configured root (user removed the folder from settings) are removed as
+ * before. Probes only run for un-enumerated chapters — zero on a clean scan.
  */
-async function removeMissingFiles(allFiles: string[]): Promise<void> {
+async function removeMissingFiles(
+  allFiles: string[],
+  rootAbsPaths: string[],
+): Promise<void> {
   const fileSet = new Set(allFiles);
 
   const allChapters = await database
     .get<ChapterModel>('chapters')
     .query()
     .fetch();
-  const chaptersToRemove = allChapters.filter(
-    (chapter) => !fileSet.has(chapter.url),
-  );
 
-  if (chaptersToRemove.length > 0) {
-    await database.write(async () => {
-      for (const chapter of chaptersToRemove) {
-        await chapter.destroyPermanently();
-      }
-    });
-  }
-
-  // Clean up orphaned books
-  const allBooks = await database.get<BookModel>('books').query().fetch();
-  const orphanedBooks: BookModel[] = [];
-
-  for (const book of allBooks) {
-    // @ts-expect-error - fetchCount() not in type definitions
-    const chapterCount = await book.chapters.fetchCount();
-    if (chapterCount === 0) {
-      orphanedBooks.push(book);
+  const availableRoots = new Set<string>();
+  for (const root of rootAbsPaths) {
+    if (await RNFS.exists(root).catch(() => false)) {
+      availableRoots.add(root);
     }
   }
 
-  if (orphanedBooks.length > 0) {
-    await database.write(async () => {
-      for (const book of orphanedBooks) {
-        await book.destroyPermanently();
-      }
-    });
+  const chaptersToRemove: ChapterModel[] = [];
+  for (const chapter of allChapters) {
+    if (fileSet.has(chapter.url)) continue;
+
+    const root = rootAbsPaths.find(
+      (r) => chapter.url === r || chapter.url.startsWith(r + '/'),
+    );
+    if (root !== undefined) {
+      if (!availableRoots.has(root)) continue;
+      const stillOnDisk = await RNFS.exists(chapter.url).catch(() => false);
+      if (stillOnDisk) continue;
+    }
+
+    chaptersToRemove.push(chapter);
   }
 
-  // Clean up orphaned authors
+  // Orphaned books/authors are derived in memory from the surviving chapter
+  // set (one pass over already-fetched rows) instead of a per-record
+  // fetchCount query for every book and author.
+  const removedChapterIds = new Set(chaptersToRemove.map((c) => c.id));
+  const liveBookIds = new Set<string>();
+  for (const chapter of allChapters) {
+    if (!removedChapterIds.has(chapter.id)) {
+      // Relation .id reads the foreign key without fetching the record
+      liveBookIds.add((chapter.book as any).id);
+    }
+  }
+
+  const allBooks = await database.get<BookModel>('books').query().fetch();
+  const orphanedBooks = allBooks.filter((b) => !liveBookIds.has(b.id));
+
+  const orphanedBookIds = new Set(orphanedBooks.map((b) => b.id));
+  const liveAuthorIds = new Set<string>();
+  for (const book of allBooks) {
+    if (!orphanedBookIds.has(book.id)) {
+      liveAuthorIds.add((book.author as any).id);
+    }
+  }
+
   const allAuthors = await database
     .get<AuthorModel>('authors')
     .query()
     .fetch();
-  const orphanedAuthors: AuthorModel[] = [];
+  const orphanedAuthors = allAuthors.filter((a) => !liveAuthorIds.has(a.id));
 
-  for (const author of allAuthors) {
-    // @ts-expect-error - fetchCount() not in type definitions
-    const bookCount = await author.books.fetchCount();
-    if (bookCount === 0) {
-      orphanedAuthors.push(author);
-    }
-  }
-
-  if (orphanedAuthors.length > 0) {
+  const removeCount =
+    chaptersToRemove.length + orphanedBooks.length + orphanedAuthors.length;
+  if (removeCount > 0) {
+    // Single atomic batch: chapters, books, and authors go together, so a
+    // crash mid-cleanup can't leave half-orphaned rows behind.
     await database.write(async () => {
-      for (const author of orphanedAuthors) {
-        await author.destroyPermanently();
-      }
+      await database.batch(
+        ...chaptersToRemove.map((c) => c.prepareDestroyPermanently()),
+        ...orphanedBooks.map((b) => b.prepareDestroyPermanently()),
+        ...orphanedAuthors.map((a) => a.prepareDestroyPermanently()),
+      );
     });
   }
 }
@@ -900,7 +1015,7 @@ export async function scanLibrary(): Promise<void> {
         'skipping removeMissingFiles to avoid deleting all DB chapters.',
     );
   } else {
-    await removeMissingFiles(allFiles);
+    await removeMissingFiles(allFiles, libraryEntries.map(libraryRootAbsPath));
   }
 
   await setLastScanAt(Date.now());

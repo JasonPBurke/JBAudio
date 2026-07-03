@@ -16,6 +16,14 @@ export type EnumerationResult = {
 
 const AUDIO_EXTENSIONS = ['.m4b', '.mp3'] as const;
 
+/**
+ * Numeric-aware path comparison for ordering chapter files. Plain .sort() is
+ * lexicographic ("Chapter 10" < "Chapter 2"), which becomes the playback order
+ * for books whose files lack embedded track numbers.
+ */
+export const compareFilePathsNatural = (a: string, b: string): number =>
+  a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+
 const stripFileScheme = (uri: string): string | null => {
   if (!uri.startsWith('file://')) return null;
   try {
@@ -27,6 +35,10 @@ const stripFileScheme = (uri: string): string | null => {
 
 const isAudioFilename = (filename: string): boolean =>
   AUDIO_EXTENSIONS.some((ext) => filename.endsWith(ext));
+
+/** Absolute on-disk path of a configured library folder. */
+export const libraryRootAbsPath = (entry: LibraryFolderEntry): string =>
+  `${RNFS.ExternalStorageDirectoryPath}/${entry.path}`;
 
 export async function enumerateAudioViaMediaStore(
   libraryEntries: LibraryFolderEntry[],
@@ -41,7 +53,7 @@ export async function enumerateAudioViaMediaStore(
   }
 
   const roots = libraryEntries.map((e) => ({
-    absPath: `${RNFS.ExternalStorageDirectoryPath}/${e.path}`,
+    absPath: libraryRootAbsPath(e),
     treeUri: e.treeUri,
   }));
 
@@ -84,7 +96,7 @@ export async function enumerateAudioViaMediaStore(
   }
 
   for (const list of filesByDir.values()) {
-    list.sort();
+    list.sort(compareFilePathsNatural);
   }
 
   return { filesByDir, contexts, allFiles, nonFileUriSkipped };

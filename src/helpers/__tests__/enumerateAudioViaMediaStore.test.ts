@@ -211,4 +211,31 @@ describe('enumerateAudioViaMediaStore', () => {
       `${lambDir}/03.m4b`,
     ]);
   });
+
+  test('sorts unpadded chapter numbers naturally, not lexicographically', async () => {
+    const dir = '/storage/emulated/0/Audiobooks/Terry Pratchett/Mort';
+    const names = [
+      'Chapter 10.mp3',
+      'Chapter 2.mp3',
+      'Chapter 1.mp3',
+      'Chapter 11.mp3',
+      'Chapter 3.mp3',
+    ];
+    mockGetAssets.mockResolvedValue({
+      assets: names.map((n) => asset(`file://${dir}/${n}`, n)),
+      totalCount: names.length,
+      hasNextPage: false,
+      endCursor: '',
+    });
+
+    const r = await enumerateAudioViaMediaStore(ENTRIES);
+
+    expect(r.filesByDir.get(dir)).toEqual([
+      `${dir}/Chapter 1.mp3`,
+      `${dir}/Chapter 2.mp3`,
+      `${dir}/Chapter 3.mp3`,
+      `${dir}/Chapter 10.mp3`,
+      `${dir}/Chapter 11.mp3`,
+    ]);
+  });
 });

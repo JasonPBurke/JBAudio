@@ -33,12 +33,11 @@ import {
   getBedtimeSettings,
   setBedtimeSettings,
   setBedtimeModeEnabled,
-  updateTimerActive,
-  updateSleepTime,
   updateTimerDuration,
   updateCustomTimer,
   updateChapterTimer,
 } from '@/db/settingsQueries';
+import * as sleepTimer from '@/setup/sleepTimer';
 import RNDateTimePicker from '@react-native-community/datetimepicker';
 import TrackPlayer, { State } from 'react-native-track-player';
 import {
@@ -321,11 +320,19 @@ const TimerSettingsScreen = () => {
         const playerState = await TrackPlayer.getPlaybackState();
         if (playerState.state === State.Playing) {
           const { timerDuration, timerChapters } = await getTimerSettings();
+          // Arm via activate() rather than raw DB writes: it updates the
+          // service's in-memory cache (no longer refreshed by per-tick DB
+          // polling), schedules the Doze backup timer, and syncs the store.
           if (timerDuration !== null) {
-            await updateTimerActive(true);
-            await updateSleepTime(Date.now() + timerDuration);
+            await sleepTimer.activate({
+              kind: 'duration',
+              durationMs: timerDuration,
+            });
           } else if (timerChapters !== null) {
-            await updateTimerActive(true);
+            await sleepTimer.activate({
+              kind: 'chapter',
+              chaptersRemaining: timerChapters,
+            });
           }
         }
       }

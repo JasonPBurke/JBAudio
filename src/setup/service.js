@@ -37,6 +37,16 @@ let singleFileChapterState = {
 const PROGRESS_SAVE_INTERVAL = 30000; // 30 seconds
 let lastProgressSaveTime = 0;
 
+// Saves at most every 30 seconds during playback to limit data loss.
+// Used for both single-file (chapter-relative) and multi-file (track-relative)
+// progress — the interval is shared since only one book plays at a time.
+async function savePeriodicProgress(bookId, progress) {
+  const now = Date.now();
+  if (now - lastProgressSaveTime < PROGRESS_SAVE_INTERVAL) return;
+  lastProgressSaveTime = now;
+  await updateChapterProgressInDB(bookId, progress);
+}
+
 // Guard against spurious RemoteStop from Android MediaSession after Doze.
 // After extended background, the OS can fire RemoteStop immediately after playback starts.
 // We ignore RemoteStop if Playing state was reached within this window.
@@ -185,6 +195,14 @@ export default module.exports = async function () {
       //? event {"buffered": 107.232, "duration": 4626.991, "position": 0.526, "track": 3}
       const trackToUpdate = await TrackPlayer.getTrack(track);
 
+      // getTrack can return undefined mid-queue-transition (reset/book switch).
+      // Still tick the sleep timer so a duration timer isn't starved of its
+      // primary fire path during a transition.
+      if (!trackToUpdate?.bookId) {
+        await sleepTimer.onProgressTick(position);
+        return;
+      }
+
       //? trackToUpdate ["title", "album", "url", "artwork", "bookId", "artist"]
 
       // Get book data from library store - use isSingleFile from DB to avoid queue race condition
@@ -275,15 +293,7 @@ export default module.exports = async function () {
         }
 
         // Periodic progress save (defense in depth for force-close scenarios)
-        // Saves at most every 30 seconds during playback to limit data loss
-        const now = Date.now();
-        if (now - lastProgressSaveTime >= PROGRESS_SAVE_INTERVAL) {
-          lastProgressSaveTime = now;
-          await updateChapterProgressInDB(
-            trackToUpdate.bookId,
-            progressWithinChapter,
-          );
-        }
+        await savePeriodicProgress(trackToUpdate.bookId, progressWithinChapter);
 
         // Book end detection: check if position is near end of book
         const { duration } = await TrackPlayer.getProgress();
@@ -311,6 +321,10 @@ export default module.exports = async function () {
       } else {
         // Multi-file book OR single-chapter book - just update progress normally
         setPlaybackProgress(trackToUpdate.bookId, position);
+        // Periodic save here too — without it, multi-file books persist progress
+        // only on pause/stop/track-change, so a process kill mid-chapter loses
+        // the whole chapter's position.
+        await savePeriodicProgress(trackToUpdate.bookId, position);
       }
 
       await sleepTimer.onProgressTick(position);

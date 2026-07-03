@@ -45,7 +45,12 @@ export const useSleepTimerStore = create<SleepTimerStatus>(() => ({
 
 // ─── Internal Constants ───────────────────────────────────────────────────────
 
-const SETTINGS_REFRESH_INTERVAL = 1000;
+// Refresh cadence for re-reading timer settings from DB while a timer is
+// running. All activation/cancellation flows through activate()/cancel() in
+// this same JS runtime (RNTP's Android service shares the app's JS context),
+// so the DB read is only a safety net + pickup for settings-screen changes
+// (fadeoutDuration) made mid-timer — not the source of truth.
+const SETTINGS_REFRESH_INTERVAL = 30_000;
 const VOLUME_THROTTLE_MS = 100;
 const BACKUP_TIMER_BUFFER_MS = 2000;
 const SHAKE_GRACE_MS = 2 * 60 * 1000;
@@ -78,6 +83,10 @@ let cachedTimer = {
 let frozenRemainingMs: number | null = null;
 
 let backupTimerId: ReturnType<typeof setTimeout> | null = null;
+// Target sleepTime of the currently scheduled backup timer, so per-tick
+// rescheduling with an unchanged target is a no-op instead of a
+// clearTimeout/setTimeout churn every progress event.
+let backupTimerTarget = 0;
 
 // Snapshot of the most recent activation, used to re-arm on shake-reset
 // (post-expiry chapter mode loses timerChapters from DB once decremented to 0,
@@ -121,7 +130,9 @@ function _clearGrace(): void {
 }
 
 function scheduleBackupTimer(sleepTimeMs: number): void {
+  if (backupTimerId !== null && backupTimerTarget === sleepTimeMs) return;
   cancelBackupTimer();
+  backupTimerTarget = sleepTimeMs;
   const delay = Math.max(0, sleepTimeMs - Date.now()) + BACKUP_TIMER_BUFFER_MS;
   backupTimerId = setTimeout(() => {
     backupTimerId = null;
@@ -136,9 +147,24 @@ function cancelBackupTimer(): void {
   }
 }
 
+// Latch: the backup setTimeout and a progress tick can both reach _fire
+// before either writes timerActive=false — both would pass the DB check and
+// double-run the writes, interleaving setVolume(0)/setVolume(1).
+let isFiring = false;
+
 // Idempotent fire — re-reads DB to confirm timer still active before acting.
 // Used by both the primary (progress event) and backup (setTimeout) paths.
 async function _fire(): Promise<void> {
+  if (isFiring) return;
+  isFiring = true;
+  try {
+    await _fireInner();
+  } finally {
+    isFiring = false;
+  }
+}
+
+async function _fireInner(): Promise<void> {
   const settings = await getTimerSettings();
   if (!settings.timerActive || settings.sleepTime === null) return;
   if (settings.sleepTime > Date.now()) return;
@@ -246,6 +272,11 @@ export async function activate(mode: TimerMode): Promise<void> {
     await updateChapterTimer(mode.chaptersRemaining);
   }
 
+  // Re-assert after the awaits above: a progress tick interleaving with the
+  // DB writes can refresh cachedTimer from a half-written row and clobber the
+  // active flag back to false, which would stall the tick-driven fire path.
+  cachedTimer.timerActive = true;
+
   try {
     const activeTrack = await TrackPlayer.getActiveTrack();
     if (activeTrack?.bookId) {
@@ -283,9 +314,18 @@ export async function cancel(): Promise<void> {
  */
 export async function onProgressTick(_position: number): Promise<void> {
   const nowTs = Date.now();
+  // Refresh from DB only on the first tick after startup/foregrounding
+  // (lastRefreshedAt === 0) or periodically while a timer is running. An idle
+  // timer costs zero DB reads per tick — activation always lands in this
+  // runtime via activate() or onPlaybackResumed. The store's isActive is
+  // OR-ed in because activate() sets it synchronously before its DB writes
+  // land, so a tick interleaving with activation still refreshes.
+  const timerMayBeActive =
+    cachedTimer.timerActive || useSleepTimerStore.getState().isActive;
   if (
     !cachedTimer.lastRefreshedAt ||
-    nowTs - cachedTimer.lastRefreshedAt >= SETTINGS_REFRESH_INTERVAL
+    (timerMayBeActive &&
+      nowTs - cachedTimer.lastRefreshedAt >= SETTINGS_REFRESH_INTERVAL)
   ) {
     const timerSettings = await getTimerSettings();
     cachedTimer.sleepTime = timerSettings.sleepTime;
