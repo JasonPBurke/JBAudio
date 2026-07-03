@@ -8,10 +8,14 @@ import {
   updateChapterIndexInDB,
 } from '@/db/chapterQueries';
 import { getBookById } from '@/db/bookQueries';
+import { BookProgressState } from '@/helpers/handleBookPlay';
+import { handleRemotePlayPause } from '@/helpers/remotePlayPause';
 import {
-  handleBookPlay,
-  BookProgressState,
-} from '@/helpers/handleBookPlay';
+  handleRemotePlayBook,
+  isBookSwitchInProgress,
+} from '@/helpers/remotePlayBook';
+import { ensurePlayerSetup } from '@/helpers/playerSetup';
+import { restoreLastActiveBook } from '@/helpers/restoreLastActiveBook';
 import { recordFootprint } from '@/db/footprintQueries';
 import {
   findChapterIndexByPosition,
@@ -22,7 +26,6 @@ import {
 } from '@/helpers/singleFileBook';
 import * as sleepTimer from '@/setup/sleepTimer';
 import { useSleepTimerStore } from '@/setup/sleepTimer';
-import { useQueueStore } from '@/store/queue';
 
 const { setPlaybackIndex, setPlaybackProgress } =
   useLibraryStore.getState();
@@ -99,8 +102,8 @@ export default module.exports = async function () {
     // Non-critical — store will be populated on first progress tick
   }
 
-  TrackPlayer.addEventListener(Event.RemotePlay, async () => {
-    // Record footprint for remote play (lock screen, headphones, etc.)
+  // Record footprint for remote play (lock screen, headphones, etc.)
+  const recordRemotePlayFootprint = async () => {
     try {
       const activeTrack = await TrackPlayer.getActiveTrack();
       if (activeTrack?.bookId) {
@@ -109,11 +112,24 @@ export default module.exports = async function () {
     } catch {
       // Silently fail if footprint recording fails
     }
+  };
+
+  TrackPlayer.addEventListener(Event.RemotePlay, async () => {
+    // Android Auto follows a browse-item selection with a play() command;
+    // acting on it here would resume the OLD queue (and record a footprint
+    // for the wrong book) while remote-play-book is still loading the new one.
+    if (isBookSwitchInProgress()) return;
+    await recordRemotePlayFootprint();
     await TrackPlayer.play();
   });
-  // TrackPlayer.addEventListener(Event.RemotePlay, () => TrackPlayer.play());
   TrackPlayer.addEventListener(Event.RemotePause, () => {
     TrackPlayer.pause();
+  });
+  // Single "toggle" media key (KEYCODE_MEDIA_PLAY_PAUSE) from steering-wheel
+  // controls / Bluetooth AVRCP. Native consumes the key event and emits this;
+  // without a listener the toggle is a silent no-op.
+  TrackPlayer.addEventListener(Event.RemotePlayPause, () => {
+    handleRemotePlayPause(recordRemotePlayFootprint);
   });
   TrackPlayer.addEventListener(Event.RemoteStop, () => {
     const msSincePlaying = Date.now() - lastPlayingStateAt;
@@ -176,17 +192,31 @@ export default module.exports = async function () {
       await TrackPlayer.skipToPrevious();
     }
   });
-  TrackPlayer.addEventListener('remote-play-book', async ({ bookId }) => {
-    const { books } = useLibraryStore.getState();
-    const { activeBookId, setActiveBookId } = useQueueStore.getState();
-    const book = books[bookId];
-    if (!book) return;
-    if (activeBookId === bookId) {
-      await TrackPlayer.play();
-      return;
+  TrackPlayer.addEventListener('remote-play-book', ({ bookId }) => {
+    // Handles headless runtimes too: sets up the player if the UI never did
+    // and falls back to the DB when the library store is empty.
+    handleRemotePlayBook(bookId);
+  });
+
+  // Android Auto reconnect / Android 11+ media resumption: load the last
+  // active book (paused, at its saved position) so the system's follow-up
+  // play() command has a queue to act on. Works headlessly. Native re-emits
+  // this event while it waits for the queue, so guard against re-entry.
+  let resumptionInFlight = false;
+  TrackPlayer.addEventListener(Event.PlaybackResume, async () => {
+    if (resumptionInFlight) return;
+    resumptionInFlight = true;
+    try {
+      await ensurePlayerSetup();
+      const queue = await TrackPlayer.getQueue();
+      if (queue.length === 0) {
+        await restoreLastActiveBook();
+      }
+    } catch (error) {
+      console.error('Playback resumption failed:', error);
+    } finally {
+      resumptionInFlight = false;
     }
-    // playing=true is unused here: isActiveBook=false bypasses handleBookPlay's guard
-    await handleBookPlay(book, true, false, activeBookId, setActiveBookId);
   });
 
   TrackPlayer.addEventListener(

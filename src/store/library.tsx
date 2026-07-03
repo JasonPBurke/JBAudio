@@ -9,7 +9,7 @@ import { Subscription } from 'rxjs';
 import BookModel from '@/db/models/Book';
 import ChapterModel from '@/db/models/Chapter';
 // import { Q } from '@nozbe/watermelondb';
-import { writeAndroidAutoCache } from '@/helpers/androidAutoCache';
+import { scheduleAndroidAutoCacheWrite } from '@/helpers/androidAutoCache';
 
 /**
  * Using a mapped type for books allows for O(1) lookup time, which is much more
@@ -204,7 +204,7 @@ export const useLibraryStore: UseBoundStore<StoreApi<LibraryState>> =
       const finalAuthorsData = buildAuthors(newBookMap);
 
       set({ authors: finalAuthorsData, books: newBookMap });
-      writeAndroidAutoCache(finalAuthorsData); // fire-and-forget: keep AA browse tree in sync
+      scheduleAndroidAutoCacheWrite(finalAuthorsData); // debounced: keep AA browse tree in sync
     },
     init: () => {
       // Guard against duplicate subscriptions (memory leak prevention)
@@ -267,7 +267,7 @@ export const useLibraryStore: UseBoundStore<StoreApi<LibraryState>> =
           authors: finalAuthorsData,
           books: newBookMap,
         });
-        writeAndroidAutoCache(finalAuthorsData); // fire-and-forget: keep AA browse tree in sync
+        scheduleAndroidAutoCacheWrite(finalAuthorsData); // debounced: keep AA browse tree in sync
       };
 
       const booksSubscription = booksCollection

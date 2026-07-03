@@ -1,8 +1,110 @@
+diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/HeadlessJsMediaService.java b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/HeadlessJsMediaService.java
+index f2fd560..4a651ae 100644
+--- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/HeadlessJsMediaService.java
++++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/HeadlessJsMediaService.java
+@@ -28,6 +28,7 @@
+  import com.facebook.react.ReactInstanceEventListener;
+  import com.facebook.react.ReactNativeHost;
+  import com.facebook.react.ReactApplication;
++ import java.lang.ref.WeakReference;
+  import java.util.Set;
+  import java.util.concurrent.CopyOnWriteArraySet;
+ 
+@@ -50,21 +51,45 @@
+    private final Set<Integer> mActiveTasks = new CopyOnWriteArraySet<>();
+    public static @Nullable PowerManager.WakeLock sWakeLock;
+ 
+-   private boolean initialized = false;
++   // The React context the headless task last started in. The React host can
++   // be destroyed and recreated while this service keeps running (e.g. the
++   // Activity is killed during background playback); a one-shot "initialized"
++   // flag would leave the recreated JS runtime without the playback service's
++   // event listeners, permanently breaking remote controls until the process
++   // dies. Tracking the context lets reconcileHeadlessTask() re-register the
++   // task after every runtime recreation.
++   private WeakReference<ReactContext> lastTaskContext = new WeakReference<>(null);
++   private boolean taskStartPending = false;
+ 
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        super.onStartCommand(intent, flags, startId);
+-       HeadlessJsTaskConfig taskConfig = getTaskConfig(intent);
+-       if (!initialized && taskConfig != null) {
+-           // HACK: ensure headlessJsMediaService tasks are only registered once.
+-           initialized = true;
+-           startTask(taskConfig);
+-           return START_REDELIVER_INTENT;
+-       }
++       reconcileHeadlessTask();
+        return START_NOT_STICKY;
+    }
+ 
++   /**
++    * Starts the headless JS task unless it has already run in the current
++    * React context. Safe to call often: in the steady state this is two
++    * reference reads and a comparison. Must be called on the UI thread.
++    */
++   protected void reconcileHeadlessTask() {
++       ReactContext currentContext = getReactContext();
++       synchronized (this) {
++           if (currentContext != null && currentContext == lastTaskContext.get()) {
++               return; // task already registered in this runtime
++           }
++           if (currentContext == null && taskStartPending) {
++               return; // context creation already scheduled; task starts on init
++           }
++       }
++       HeadlessJsTaskConfig taskConfig = getTaskConfig(null);
++       if (taskConfig == null) {
++           return;
++       }
++       startTask(taskConfig);
++   }
++ 
+    /**
+     * Called from {@link #onStartCommand} to create a {@link HeadlessJsTaskConfig} for this intent.
+     *
+@@ -121,6 +146,17 @@
+    }
+  
+    private void invokeStartTask(ReactContext reactContext, final HeadlessJsTaskConfig taskConfig) {
++     synchronized (this) {
++       if (lastTaskContext.get() == reactContext) {
++         // Already started in this context (e.g. reconcileHeadlessTask ran
++         // between context initialization and this listener firing). Starting
++         // twice would register the playback service's listeners twice.
++         taskStartPending = false;
++         return;
++       }
++       lastTaskContext = new WeakReference<>(reactContext);
++       taskStartPending = false;
++     }
+      final HeadlessJsTaskContext headlessJsTaskContext =
+          HeadlessJsTaskContext.getInstance(reactContext);
+      headlessJsTaskContext.addTaskEventListener(this);
+@@ -194,6 +230,9 @@
+ 
+ 
+     private void createReactContextAndScheduleTask(final HeadlessJsTaskConfig taskConfig) {
++        synchronized (this) {
++            taskStartPending = true;
++        }
+ 
+         if (DefaultNewArchitectureEntryPoint.getBridgelessEnabled()) { // new arch
+             final ReactHost reactHost = getReactHost();
 diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
-index b495b5a..7795317 100644
+index b495b5a..5f00368 100644
 --- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
 +++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
-@@ -52,8 +52,13 @@ import com.google.common.util.concurrent.ListenableFuture
+@@ -46,14 +46,21 @@ import com.doublesymmetry.trackplayer.utils.BundleUtils.setRating
+ import com.doublesymmetry.trackplayer.utils.CoilBitmapLoader
+ import com.facebook.react.bridge.Arguments
+ import com.facebook.react.jstasks.HeadlessJsTaskConfig
++import android.os.SystemClock
+ import com.google.common.collect.ImmutableList
+ import com.google.common.util.concurrent.Futures
+ import com.google.common.util.concurrent.ListenableFuture
++import com.google.common.util.concurrent.SettableFuture
  import kotlinx.coroutines.*
  import kotlinx.coroutines.flow.flow
  import timber.log.Timber
@@ -16,7 +118,7 @@ index b495b5a..7795317 100644
  
  @OptIn(UnstableApi::class)
  @MainThread
-@@ -107,6 +112,7 @@ class MusicService : HeadlessJsMediaService() {
+@@ -107,6 +114,7 @@ class MusicService : HeadlessJsMediaService() {
          mediaSession = MediaLibrarySession.Builder(this, fakePlayer,
              InnerMediaSessionCallback()
          )
@@ -24,7 +126,149 @@ index b495b5a..7795317 100644
              .setBitmapLoader(CacheBitmapLoader(CoilBitmapLoader(this)))
              // https://github.com/androidx/media/issues/1218
              .setSessionActivity(
-@@ -792,9 +798,12 @@ class MusicService : HeadlessJsMediaService() {
+@@ -171,9 +179,16 @@ class MusicService : HeadlessJsMediaService() {
+             onMediaKeyEvent(intent)
+         }
+         // HACK: Why is onPlay triggering onStartCommand??
++        // The guard also prevents MediaSessionService.onStartCommand from
++        // re-dispatching media-button intents that onMediaKeyEvent already
++        // handled above (would double-handle keys on API < 33). On repeat
++        // commands, still reconcile the headless task so a recreated React
++        // runtime gets the playback service re-registered.
+         if (!commandStarted) {
+             commandStarted = true
+             super.onStartCommand(intent, flags, startId)
++        } else {
++            reconcileHeadlessTask()
+         }
+         return START_STICKY
+     }
+@@ -305,14 +320,15 @@ class MusicService : HeadlessJsMediaService() {
+         sessionCommands = sessionCommandsBuilder.build()
+         playerCommands = playerCommandsBuilder.build()
+ 
+-        if (mediaSession.mediaNotificationControllerInfo != null) {
+-            // https://github.com/androidx/media/blob/c35a9d62baec57118ea898e271ac66819399649b/demos/session_service/src/main/java/androidx/media3/demo/session/DemoMediaLibrarySessionCallback.kt#L107
+-            mediaSession.setCustomLayout(
+-                mediaSession.mediaNotificationControllerInfo!!,
+-                customLayout
+-            )
++        // Push the updated layout/commands to EVERY connected controller, not
++        // just the media notification controller. Android Auto may already be
++        // connected when JS applies options (app started from the car) — it
++        // would otherwise keep the stale layout from onConnect until reconnect.
++        // https://github.com/androidx/media/blob/c35a9d62baec57118ea898e271ac66819399649b/demos/session_service/src/main/java/androidx/media3/demo/session/DemoMediaLibrarySessionCallback.kt#L107
++        mediaSession.connectedControllers.forEach { controller ->
++            mediaSession.setCustomLayout(controller, customLayout)
+             mediaSession.setAvailableCommands(
+-                mediaSession.mediaNotificationControllerInfo!!,
++                controller,
+                 sessionCommandsBuilder.build(),
+                 playerCommands!!
+             )
+@@ -343,6 +359,38 @@ class MusicService : HeadlessJsMediaService() {
+         }
+     }
+ 
++    // Serve local artwork through the aa_artwork FileProvider so external
++    // controller processes can read it. Media3 exposes the track's artworkUri
++    // in the (legacy) session metadata; some Android Auto head units render
++    // now-playing art from that URI instead of the in-band bitmap, and a raw
++    // file:// URI into app-private storage fails silently there — covers then
++    // show on some vehicles but not others. Rewriting to a granted content://
++    // URI makes both paths work; the in-app notification is unaffected (Coil
++    // loads our own provider in-process).
++    // file:// URI (query included) → granted content:// URI. Every chapter of
++    // a multi-file book shares one cover, so this collapses hundreds of
++    // identical convert+grant binder calls per book load into one. Bounded by
++    // the number of distinct covers played in this process.
++    private val carArtworkCache = HashMap<String, Uri>()
++
++    private fun makeArtworkCarReadable(track: Track) {
++        val artwork = track.artwork ?: return
++        if (artwork.scheme != "file") return
++        val contentUri = carArtworkCache[artwork.toString()]
++            ?: artworkToContentUri(
++                artwork.toString(),
++                "$packageName.aa_artwork",
++                "com.google.android.projection.gearhead"
++            )?.also { carArtworkCache[artwork.toString()] = it }
++            ?: return
++        // Preserve any query string (?t=... cache-buster from artwork
++        // replacement) so Coil's cache key changes when the cover changes.
++        // FileProvider resolves by path only and ignores the query.
++        track.artwork = artwork.query
++            ?.let { contentUri.buildUpon().encodedQuery(it).build() }
++            ?: contentUri
++    }
++
+     @MainThread
+     fun add(track: Track) {
+         add(listOf(track))
+@@ -350,18 +398,21 @@ class MusicService : HeadlessJsMediaService() {
+ 
+     @MainThread
+     fun add(tracks: List<Track>) {
++        tracks.forEach { makeArtworkCarReadable(it) }
+         val items = tracks.map { it.toAudioItem() }
+         player.add(items)
+     }
+ 
+     @MainThread
+     fun add(tracks: List<Track>, atIndex: Int) {
++        tracks.forEach { makeArtworkCarReadable(it) }
+         val items = tracks.map { it.toAudioItem() }
+         player.add(items, atIndex)
+     }
+ 
+     @MainThread
+     fun load(track: Track) {
++        makeArtworkCarReadable(track)
+         player.load(track.toAudioItem())
+     }
+ 
+@@ -490,6 +541,8 @@ class MusicService : HeadlessJsMediaService() {
+     fun updateMetadataForTrack(index: Int, bundle: Bundle) {
+         tracks[index].let { currentTrack ->
+             currentTrack.setMetadata(reactContext, bundle, 0)
++            // setMetadata re-parses the raw file:// artwork from the JS bundle
++            makeArtworkCarReadable(currentTrack)
+ 
+             player.replaceItem(index, currentTrack.toAudioItem())
+         }
+@@ -674,12 +727,18 @@ class MusicService : HeadlessJsMediaService() {
+     @SuppressLint("VisibleForTests")
+     @MainThread
+     fun emit(event: String, data: Bundle? = null) {
++        // Self-heal: if the React runtime died and was recreated, the event
++        // listeners in service.js are gone. Reconciling here re-registers the
++        // headless task; this event is still lost when the runtime is mid-
++        // restart, but subsequent ones (e.g. the next button press) work.
++        reconcileHeadlessTask()
+         reactContext?.emitDeviceEvent(event, data?.let { Arguments.fromBundle(it) })
+     }
+ 
+     @SuppressLint("VisibleForTests")
+     @MainThread
+     private fun emitList(event: String, data: List<Bundle> = emptyList()) {
++        reconcileHeadlessTask()
+         val payload = Arguments.createArray()
+         data.forEach { payload.pushMap(Arguments.fromBundle(it)) }
+ 
+@@ -694,6 +753,12 @@ class MusicService : HeadlessJsMediaService() {
+     override fun onBind(intent: Intent?): IBinder? {
+         val intentAction = intent?.action
+         Timber.d("intentAction = $intentAction")
++        // A bind from the TrackPlayer module means the app UI is (re)attaching.
++        // If the React runtime was recreated since the headless task last ran
++        // (Activity killed during background playback), re-register service.js
++        // now so notification/Android Auto controls work again without a
++        // force close.
++        reconcileHeadlessTask()
+         return if (intentAction != null) {
+             super.onBind(intent)
+         } else {
+@@ -792,9 +857,12 @@ class MusicService : HeadlessJsMediaService() {
  
      @MainThread
      override fun onDestroy() {
@@ -39,7 +283,7 @@ index b495b5a..7795317 100644
              player.destroy()
          }
  
-@@ -862,6 +871,141 @@ class MusicService : HeadlessJsMediaService() {
+@@ -862,6 +930,181 @@ class MusicService : HeadlessJsMediaService() {
          val service = this@MusicService
      }
  
@@ -63,7 +307,15 @@ index b495b5a..7795317 100644
 +                    .build()
 +            ).build()
 +
-+    private fun buildBookItems(arr: JSONArray, browserPkg: String): ImmutableList<MediaItem> {
++    // Media IDs must be unique across the whole browse tree; the same book
++    // appears under Recently Added / All Books / By Author, so each node
++    // prefixes its items ("recent::<bookId>") and onAddMediaItems strips the
++    // prefix back off.
++    private fun buildBookItems(
++        arr: JSONArray,
++        browserPkg: String,
++        idPrefix: String,
++    ): ImmutableList<MediaItem> {
 +        val authority = "$packageName.aa_artwork"
 +        val builder = ImmutableList.builder<MediaItem>()
 +        for (i in 0 until arr.length()) {
@@ -75,6 +327,14 @@ index b495b5a..7795317 100644
 +                .setIsPlayable(true)
 +                .setTitle(book.optString("title", "Unknown"))
 +                .setArtist(book.optString("author", ""))
++                .setExtras(Bundle().apply {
++                    // Cache "progress" (0/1/2) matches the AA completion-status
++                    // values exactly: not played / partially / fully played.
++                    putInt(
++                        MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
++                        book.optInt("progress", 0)
++                    )
++                })
 +            val rawArtwork = book.optString("artwork", "")
 +            if (rawArtwork.isNotEmpty()) {
 +                val contentUri = artworkToContentUri(rawArtwork, authority, browserPkg)
@@ -82,7 +342,7 @@ index b495b5a..7795317 100644
 +            }
 +            builder.add(
 +                MediaItem.Builder()
-+                    .setMediaId(bookId)
++                    .setMediaId("$idPrefix$MEDIA_ID_SEPARATOR$bookId")
 +                    .setMediaMetadata(metaBuilder.build())
 +                    .build()
 +            )
@@ -136,12 +396,12 @@ index b495b5a..7795317 100644
 +            parentId == "recently_added" -> {
 +                val arr = readAutoCache()?.optJSONArray("recentlyAdded")
 +                    ?: return ImmutableList.of()
-+                buildBookItems(arr, browserPkg)
++                buildBookItems(arr, browserPkg, "recent")
 +            }
 +            parentId == "all_books" -> {
 +                val arr = readAutoCache()?.optJSONArray("allBooks")
 +                    ?: return ImmutableList.of()
-+                buildBookItems(arr, browserPkg)
++                buildBookItems(arr, browserPkg, "all")
 +            }
 +            parentId == "by_author" -> {
 +                val authors = readAutoCache()?.optJSONArray("authors")
@@ -165,7 +425,7 @@ index b495b5a..7795317 100644
 +                    if (author.optString("name") == authorName) {
 +                        val books = author.optJSONArray("books")
 +                            ?: return ImmutableList.of()
-+                        return buildBookItems(books, browserPkg)
++                        return buildBookItems(books, browserPkg, "author")
 +                    }
 +                }
 +                ImmutableList.of()
@@ -178,10 +438,34 @@ index b495b5a..7795317 100644
 +        id == "root" || id == "recently_added" || id == "all_books" ||
 +        id == "by_author" || id.startsWith("author__")
 +
++    // Case-insensitive AND-match of query terms against "title author".
++    // Used for both voice search ("play <book> on <app>") and typed search.
++    private fun searchBooks(query: String, browserPkg: String): ImmutableList<MediaItem> {
++        val terms = query.lowercase().split(" ").filter { it.isNotBlank() }
++        if (terms.isEmpty()) return ImmutableList.of()
++        val arr = readAutoCache()?.optJSONArray("allBooks")
++            ?: return ImmutableList.of()
++        val matched = JSONArray()
++        for (i in 0 until arr.length()) {
++            val book = arr.getJSONObject(i)
++            val haystack =
++                "${book.optString("title", "")} ${book.optString("author", "")}".lowercase()
++            if (terms.all { haystack.contains(it) }) matched.put(book)
++        }
++        return buildBookItems(matched, browserPkg, "search")
++    }
++
++    private fun <T> pageOf(all: ImmutableList<T>, page: Int, pageSize: Int): ImmutableList<T> {
++        val from = page * pageSize
++        val to = minOf(from + pageSize, all.size)
++        return if (from >= all.size) ImmutableList.of()
++        else ImmutableList.copyOf(all.subList(from, to))
++    }
++
      private inner class InnerMediaSessionCallback : MediaLibrarySession.Callback {
          // HACK: I'm sure most of the callbacks were not implemented correctly.
          // ATM I only care that andorid auto still functions.
-@@ -925,6 +1069,52 @@ class MusicService : HeadlessJsMediaService() {
+@@ -925,12 +1168,106 @@ class MusicService : HeadlessJsMediaService() {
              }
          }
  
@@ -199,7 +483,24 @@ index b495b5a..7795317 100644
 +                        .setTitle("JBAudio")
 +                        .build()
 +                ).build()
-+            return Futures.immediateFuture(LibraryResult.ofItem(rootItem, params))
++            // Content-style hints: categories as a list, books as a cover grid.
++            // Also advertise search so AA surfaces the search affordance.
++            val rootExtras = Bundle().apply {
++                putInt(
++                    MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
++                    MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM
++                )
++                putInt(
++                    MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
++                    MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM
++                )
++                putBoolean(
++                    MediaConstants.BROWSER_SERVICE_EXTRAS_KEY_SEARCH_SUPPORTED,
++                    true
++                )
++            }
++            val rootParams = LibraryParams.Builder().setExtras(rootExtras).build()
++            return Futures.immediateFuture(LibraryResult.ofItem(rootItem, rootParams))
 +        }
 +
 +        override fun onGetChildren(
@@ -211,10 +512,34 @@ index b495b5a..7795317 100644
 +            params: LibraryParams?,
 +        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
 +            val all = buildBrowseChildren(parentId, browser.packageName)
-+            val from = page * pageSize
-+            val to = minOf(from + pageSize, all.size)
-+            val paged = if (from >= all.size) ImmutableList.of() else ImmutableList.copyOf(all.subList(from, to))
-+            return Futures.immediateFuture(LibraryResult.ofItemList(paged, params))
++            return Futures.immediateFuture(
++                LibraryResult.ofItemList(pageOf(all, page, pageSize), params)
++            )
++        }
++
++        override fun onSearch(
++            session: MediaLibrarySession,
++            browser: MediaSession.ControllerInfo,
++            query: String,
++            params: LibraryParams?,
++        ): ListenableFuture<LibraryResult<Void>> {
++            val count = searchBooks(query, browser.packageName).size
++            session.notifySearchResultChanged(browser, query, count, params)
++            return Futures.immediateFuture(LibraryResult.ofVoid(params))
++        }
++
++        override fun onGetSearchResult(
++            session: MediaLibrarySession,
++            browser: MediaSession.ControllerInfo,
++            query: String,
++            page: Int,
++            pageSize: Int,
++            params: LibraryParams?,
++        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
++            val all = searchBooks(query, browser.packageName)
++            return Futures.immediateFuture(
++                LibraryResult.ofItemList(pageOf(all, page, pageSize), params)
++            )
 +        }
 +
 +        override fun onAddMediaItems(
@@ -222,8 +547,10 @@ index b495b5a..7795317 100644
 +            controller: MediaSession.ControllerInfo,
 +            mediaItems: List<MediaItem>,
 +        ): ListenableFuture<List<MediaItem>> {
-+            val bookId = mediaItems.firstOrNull()?.mediaId
-+            if (bookId != null && !isCategoryId(bookId)) {
++            val rawId = mediaItems.firstOrNull()?.mediaId
++            if (rawId != null && !isCategoryId(rawId)) {
++                // Strip the browse-node prefix ("recent::<bookId>" → "<bookId>")
++                val bookId = rawId.substringAfterLast(MEDIA_ID_SEPARATOR)
 +                val bundle = Bundle().apply { putString("bookId", bookId) }
 +                emit("remote-play-book", bundle)
 +                return Futures.immediateFuture(emptyList())
@@ -234,3 +561,75 @@ index b495b5a..7795317 100644
          override fun onCustomCommand(
              session: MediaSession,
              controller: MediaSession.ControllerInfo,
+             command: SessionCommand,
+             args: Bundle
+         ): ListenableFuture<SessionResult> {
++            // A controller (e.g. Android Auto) can send commands before JS has
++            // run setupPlayer — `player` is lateinit and would crash the service.
++            if (!::player.isInitialized) {
++                return super.onCustomCommand(session, controller, command, args)
++            }
+             player.forwardingPlayer.let {
+                 when (command.customAction) {
+                     CustomCommandButton.JUMP_BACKWARD.customAction -> { it.seekBack() }
+@@ -955,14 +1292,43 @@ class MusicService : HeadlessJsMediaService() {
+             )
+         }
+ 
++        // Restores the last session for Android Auto reconnects and the
++        // Android 11+ media-resumption notification. The queue itself is
++        // JS-owned, so this emits PLAYBACK_RESUME (the service.js handler runs
++        // ensurePlayerSetup + restoreLastActiveBook) and waits for the queue
++        // to appear. The event is re-emitted while waiting because the first
++        // emit may fire before a cold headless JS runtime has listeners; the
++        // handler is idempotent (it no-ops once the queue is populated).
+         override fun onPlaybackResumption(
+             mediaSession: MediaSession,
+             controller: MediaSession.ControllerInfo
+         ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+-            emit(MusicEvents.PLAYBACK_RESUME, Bundle().apply {
++            val eventBundle = Bundle().apply {
+                 putString("package", controller.packageName)
+-            })
+-            return super.onPlaybackResumption(mediaSession, controller)
++            }
++            emit(MusicEvents.PLAYBACK_RESUME, eventBundle)
++            val future = SettableFuture.create<MediaSession.MediaItemsWithStartPosition>()
++            scope.launch {
++                val deadline = SystemClock.elapsedRealtime() + RESUMPTION_TIMEOUT_MS
++                while (SystemClock.elapsedRealtime() < deadline) {
++                    if (this@MusicService::player.isInitialized && player.items.isNotEmpty()) {
++                        future.set(
++                            MediaSession.MediaItemsWithStartPosition(
++                                player.items.map { it.toMediaItem() },
++                                player.currentIndex,
++                                player.position
++                            )
++                        )
++                        return@launch
++                    }
++                    delay(500)
++                    emit(MusicEvents.PLAYBACK_RESUME, eventBundle)
++                }
++                future.setException(
++                    UnsupportedOperationException("Playback resumption not handled in time")
++                )
++            }
++            return future
+         }
+ 
+         override fun onSetRating(
+@@ -1029,5 +1395,13 @@ class MusicService : HeadlessJsMediaService() {
+ 
+         const val DEFAULT_JUMP_INTERVAL = 15.0
+         const val DEFAULT_STOP_FOREGROUND_GRACE_PERIOD = 5
++
++        // Separates the browse-node prefix from the bookId in browse-tree
++        // media IDs ("recent::<bookId>"). Must not occur in WatermelonDB ids.
++        const val MEDIA_ID_SEPARATOR = "::"
++
++        // How long onPlaybackResumption waits for JS to restore the queue
++        // (covers a cold headless runtime boot + DB read + queue load).
++        const val RESUMPTION_TIMEOUT_MS = 10_000L
+     }
+ }

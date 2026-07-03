@@ -6,13 +6,11 @@ import {
   initialWindowMetrics,
 } from 'react-native-safe-area-context';
 import { useEffect, useRef, useState } from 'react';
-import TrackPlayer from 'react-native-track-player';
 // import { useLogTrackPlayerState } from '@/hooks/useLogTrackPlayerState';
 import { PlayerStateSync } from '@/components/PlayerStateSync';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { ReducedMotionConfig, ReduceMotion } from 'react-native-reanimated';
-import playbackService from '@/setup/service';
 import { DatabaseProvider } from '@nozbe/watermelondb/DatabaseProvider';
 import database from '@/db';
 import { PermissionProvider } from '@/contexts/PermissionContext';
@@ -53,8 +51,6 @@ const revenueCatApiKey = process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY;
 if (revenueCatApiKey) {
   Purchases.configure({ apiKey: revenueCatApiKey });
 }
-
-TrackPlayer.registerPlaybackService(() => playbackService);
 
 SplashScreen.preventAutoHideAsync();
 
