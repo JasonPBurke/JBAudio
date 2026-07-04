@@ -3,7 +3,6 @@ import React, {
   useState,
   useEffect,
   useRef,
-  useMemo,
 } from 'react';
 import { Text } from 'react-native';
 import TrackPlayer, {
@@ -12,59 +11,14 @@ import TrackPlayer, {
 } from 'react-native-track-player';
 import { useBookById } from '@/store/library';
 import { formatSecondsToHoursMinutes } from '@/helpers/miscellaneous';
+import { calculateRemainingBookTime } from '@/helpers/chapterPlayback';
 import { useLastActiveTrack } from '@/hooks/useLastActiveTrack';
 import { colors } from '@/constants/tokens';
-import { Book, Chapter } from '@/types/Book';
 
 type BookTimeRemainingProps = {
   size?: number;
   color?: string;
 };
-
-/**
- * Calculates remaining book time based on position and book structure.
- * For single-file books (one audio file with chapters via startMs), position is the book position.
- * For multi-file books, position is the current chapter position.
- */
-function calculateRemainingTime(
-  book: Book,
-  position: number,
-  currentIndex: number | undefined,
-  isSingleFileBook: boolean,
-): number {
-  if (!book.chapters) {
-    return Math.max(0, book.bookDuration - position);
-  }
-
-  let totalPlayedTime: number;
-
-  if (isSingleFileBook) {
-    totalPlayedTime = position;
-  } else {
-    const chapters = book.chapters;
-    const idx =
-      typeof currentIndex === 'number' &&
-      currentIndex >= 0 &&
-      currentIndex < chapters.length
-        ? currentIndex
-        : 0;
-
-    totalPlayedTime = position;
-    for (let i = 0; i < idx; i++) {
-      totalPlayedTime += chapters[i]?.chapterDuration ?? 0;
-    }
-  }
-
-  return Math.max(0, book.bookDuration - totalPlayedTime);
-}
-
-/**
- * Detects if a book is a single-file book (one audio file with multiple chapters via startMs).
- */
-function isSingleFile(chapters: Chapter[] | undefined): boolean {
-  if (!chapters || chapters.length <= 1) return false;
-  return chapters.every((c) => c.url === chapters[0].url);
-}
 
 /**
  * Inner component that handles the progress-dependent time calculation.
@@ -88,22 +42,16 @@ const BookTimeRemainingInner = React.memo(
     const [remainingText, setRemainingText] = useState('');
     const lastUpdateRef = useRef(0);
 
-    const isSingleFileBook = useMemo(
-      () => isSingleFile(book?.chapters),
-      [book],
-    );
-
     const calculateRemaining = useCallback(
       (position: number) => {
-        const remaining = calculateRemainingTime(
+        const remaining = calculateRemainingBookTime(
           book,
           position,
           currentIndex,
-          isSingleFileBook,
         );
         return formatSecondsToHoursMinutes(remaining);
       },
-      [book, currentIndex, isSingleFileBook],
+      [book, currentIndex],
     );
 
     // Initial calculation and event-based updates
@@ -244,12 +192,7 @@ export async function bookTimeRemaining(
       TrackPlayer.getActiveTrackIndex(),
     ]);
 
-    return calculateRemainingTime(
-      book,
-      position,
-      currentIndex ?? undefined,
-      isSingleFile(book.chapters),
-    );
+    return calculateRemainingBookTime(book, position, currentIndex ?? undefined);
   } catch {
     return null;
   }

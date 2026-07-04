@@ -4,6 +4,7 @@ import Book from '@/db/models/Book';
 import Chapter from '@/db/models/Chapter';
 import { Q } from '@nozbe/watermelondb';
 import TrackPlayer from 'react-native-track-player';
+import { usesChapterQueue } from '@/helpers/chapterPlayback';
 
 const MAX_FOOTPRINTS_PER_BOOK = 10;
 
@@ -42,14 +43,10 @@ export async function getCurrentChapterInfo(
       }))
       .sort((a: ChapterData, b: ChapterData) => a.startMs - b.startMs);
 
-    // Check if it's a single-file book
-    const isSingleFileBook =
-      sortedChapters.length > 1 &&
-      sortedChapters.every(
-        (c: ChapterData) => c.url === sortedChapters[0].url,
-      );
-
-    if (isSingleFileBook) {
+    // Legacy single-file books are ONE queue item with absolute positions;
+    // multi-file and clipped single-file books are chapter queues where the
+    // track index IS the chapter index and positions are chapter-relative.
+    if (!usesChapterQueue(sortedChapters)) {
       // Calculate chapter index from position
       const positionMs = position * 1000;
       let currentChapterIndex = 0;
@@ -125,17 +122,12 @@ export async function recordSeekFootprint(
       }))
       .sort((a: ChapterData, b: ChapterData) => a.startMs - b.startMs);
 
-    // Check if it's a single-file book
-    const isSingleFileBook =
-      sortedChapters.length > 1 &&
-      sortedChapters.every(
-        (c: ChapterData) => c.url === sortedChapters[0].url,
-      );
-
     let chapterIndex: number;
     let positionInChapterMs: number;
 
-    if (isSingleFileBook) {
+    // Same mode split as getCurrentChapterInfo above: only legacy
+    // single-file books derive the chapter from an absolute position.
+    if (!usesChapterQueue(sortedChapters)) {
       // Calculate chapter index from the position before seek
       chapterIndex = 0;
       for (let i = sortedChapters.length - 1; i >= 0; i--) {

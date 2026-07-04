@@ -1,5 +1,6 @@
 import { Book } from '@/types/Book';
 import { BookProgressState } from '@/helpers/handleBookPlay';
+import { shouldUseClippedChapters } from '@/helpers/clippedChapters';
 import { formatSecondsToHoursMinutes } from '@/helpers/miscellaneous';
 
 export type BookProgressInfo = {
@@ -62,13 +63,15 @@ export function computeBookProgress(
 
   let totalPlayed: number;
 
-  if (book.isSingleFile) {
-    // Single-file books: chapterProgress is relative to the current chapter's start.
-    // Add the chapter's startMs offset to get the absolute position in the file.
+  if (book.isSingleFile && !shouldUseClippedChapters(chapters)) {
+    // Legacy single-file books: chapterProgress is relative to the current
+    // chapter's start. Add the chapter's startMs offset to get the absolute
+    // position in the file.
     const chapterStartSec = (chapters[idx]?.startMs ?? 0) / 1000;
     totalPlayed = chapterStartSec + chapterProgress;
   } else {
-    // Multi-file books: sum previous chapters + current chapter progress
+    // Chapter-queue books (multi-file, and clipped single-file under the
+    // spike): sum previous chapter durations + current chapter progress
     totalPlayed = chapterProgress;
     for (let i = 0; i < idx; i++) {
       totalPlayed += chapters[i]?.chapterDuration ?? 0;

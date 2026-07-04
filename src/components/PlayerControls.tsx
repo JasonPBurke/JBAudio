@@ -230,7 +230,10 @@ export function SeekBackButton({
     );
     const newPosition = currentPosition - seekDuration;
 
-    // Check if single-file book
+    // Check if single-file book. NOTE: under the clipped-chapters spike,
+    // single-file books load as one queue item PER chapter, so queue.length
+    // === 1 is false and they correctly flow through the multi-file paths in
+    // this file; these single-file branches only serve legacy mode.
     const queue = await TrackPlayer.getQueue();
     const isSingleFile = queue.length === 1;
 

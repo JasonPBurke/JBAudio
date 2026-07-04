@@ -15,7 +15,7 @@ import { CircleX } from 'lucide-react-native';
 import { useBookById, useLibraryStore } from '@/store/library';
 import { useTheme } from '@/hooks/useTheme';
 import { withOpacity, ensureReadable } from '@/helpers/colorUtils';
-import { useCurrentChapterStable } from '@/hooks/useCurrentChapterStable';
+import { usesChapterQueue } from '@/helpers/chapterPlayback';
 import { Chapter } from '@/types/Book';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { FlashList } from '@shopify/flash-list';
@@ -33,21 +33,30 @@ const ChapterListScreen = () => {
 
   const activeTrack = useActiveTrack();
   const book = useBookById(paramBookId ?? activeTrack?.bookId ?? '');
-  const activeChapter = useCurrentChapterStable();
 
   const updateBookChapterIndex = useLibraryStore(
     useCallback((state) => state.updateBookChapterIndex, []),
   );
 
-  // Calculate active chapter index
+  // Chapter identity is the queue/store index (see helpers/chapterPlayback):
+  // never match by URL — clipped queue items all share one URL.
+  const storeIndex = useLibraryStore(
+    useCallback(
+      (state) =>
+        book?.bookId ? state.playbackIndex[book.bookId] : undefined,
+      [book?.bookId],
+    ),
+  );
+
+  // Calculate active chapter index (only when this book is the loaded one)
   const activeIndex = useMemo(() => {
-    if (!book?.chapters || !activeChapter) return -1;
-    return book.chapters.findIndex(
-      (ch) =>
-        ch.url === activeChapter.url &&
-        ch.chapterNumber === activeChapter.chapterNumber,
-    );
-  }, [book?.chapters, activeChapter]);
+    if (isReadOnly || !book?.chapters?.length) return -1;
+    if (!activeTrack?.bookId || activeTrack.bookId !== book.bookId) return -1;
+    const index =
+      storeIndex ?? book.bookProgress?.currentChapterIndex ?? -1;
+    if (index < 0) return -1;
+    return Math.min(index, book.chapters.length - 1);
+  }, [isReadOnly, book, activeTrack?.bookId, storeIndex]);
 
   // Calculate initial scroll index to position active chapter at 3rd slot
   // For read-only mode, start at the top
@@ -57,17 +66,14 @@ const ChapterListScreen = () => {
   }, [activeIndex, isReadOnly]);
 
   const handleChapterSelect = useCallback(
-    async (chapterIndex: number, item: Chapter) => {
+    async (chapterIndex: number) => {
       if (!book?.bookId || !book.chapters) return;
 
       // In read-only mode, do nothing on press
       if (isReadOnly) return;
 
       // If tapping the active chapter, just dismiss
-      if (
-        item.url === activeChapter?.url &&
-        item.chapterNumber === activeChapter?.chapterNumber
-      ) {
+      if (chapterIndex === activeIndex) {
         router.back();
         return;
       }
@@ -79,17 +85,14 @@ const ChapterListScreen = () => {
         // Silently fail if footprint recording fails
       }
 
-      // Check if it's a single-file book
-      const isSingleFileBook =
-        book.chapters.length > 1 &&
-        book.chapters.every((c) => c.url === book.chapters[0].url);
-
-      if (isSingleFileBook) {
+      if (usesChapterQueue(book.chapters)) {
+        // Multi-file and clipped single-file books: one queue item per chapter
+        await TrackPlayer.skip(chapterIndex);
+      } else {
+        // Legacy single-file book: one queue item, absolute positions
         const selectedChapter = book.chapters[chapterIndex];
         const seekTime = (selectedChapter.startMs || 0) / 1000;
         await TrackPlayer.seekTo(seekTime);
-      } else {
-        await TrackPlayer.skip(chapterIndex);
       }
 
       await TrackPlayer.play();
@@ -97,7 +100,7 @@ const ChapterListScreen = () => {
       await updateBookChapterIndex(book.bookId, chapterIndex);
       router.back();
     },
-    [book, activeChapter, updateBookChapterIndex, router, isReadOnly],
+    [book, activeIndex, updateBookChapterIndex, router, isReadOnly],
   );
 
   const renderItem = useCallback(
@@ -105,10 +108,7 @@ const ChapterListScreen = () => {
       const isFirstChapter = index === 0;
       const isLastChapter = index === (book?.chapters?.length ?? 0) - 1;
       // Only show active highlight when not in read-only mode
-      const isActive =
-        !isReadOnly &&
-        activeChapter?.url === item.url &&
-        activeChapter?.chapterNumber === item.chapterNumber;
+      const isActive = !isReadOnly && index === activeIndex;
 
       const borderStyle = {
         borderBottomLeftRadius: isLastChapter ? 14 : 0,
@@ -140,7 +140,7 @@ const ChapterListScreen = () => {
 
       return (
         <PressableScale
-          onPress={() => handleChapterSelect(index, item)}
+          onPress={() => handleChapterSelect(index)}
           style={{
             ...styles.chapterItem,
             backgroundColor: isActive
@@ -182,7 +182,7 @@ const ChapterListScreen = () => {
     },
     [
       book?.chapters?.length,
-      activeChapter,
+      activeIndex,
       handleChapterSelect,
       isReadOnly,
     ],

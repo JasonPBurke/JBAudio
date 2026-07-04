@@ -7,13 +7,15 @@ import {
   useAnimatedReaction,
 } from 'react-native-reanimated';
 import { runOnJS } from 'react-native-worklets';
-import TrackPlayer from 'react-native-track-player';
+import TrackPlayer, { useActiveTrack } from 'react-native-track-player';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { fontSize } from '@/constants/tokens';
 import { utilsStyles } from '@/styles';
 import { useProgressReanimated } from '@/hooks/useProgressReanimated';
 import { useCurrentChapter } from '@/hooks/useCurrentChapterStable';
 import { useTheme } from '@/hooks/useTheme';
+import { useBookById } from '@/store/library';
+import { shouldUseClippedChapters } from '@/helpers/clippedChapters';
 import { recordSeekFootprint } from '@/db/footprintQueries';
 
 // Pre-defined styles to avoid inline object creation
@@ -60,6 +62,14 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
   // subscription instead of one per consumer.
   const currentChapter = useCurrentChapter();
 
+  // Under the clipped-chapters spike each chapter is its own queue item, so
+  // the native position is ALREADY chapter-relative — the chapter's absolute
+  // startMs must not be subtracted (that pinned the bar at 0 and made seeks
+  // land outside the clip window).
+  const activeTrack = useActiveTrack();
+  const book = useBookById(activeTrack?.bookId ?? '');
+  const isChapterRelative = shouldUseClippedChapters(book?.chapters);
+
   // Use shared values instead of refs for chapter info (worklet-compatible)
   const chapterStart = useSharedValue(0);
   const chapterDuration = useSharedValue(0);
@@ -67,7 +77,9 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
   // Update shared values when chapter changes (on JS thread)
   useEffect(() => {
     if (currentChapter) {
-      const start = (currentChapter.startMs ?? 0) / 1000;
+      const start = isChapterRelative
+        ? 0
+        : (currentChapter.startMs ?? 0) / 1000;
       const dur = currentChapter.chapterDuration ?? 0;
 
       chapterStart.value = start;
@@ -85,7 +97,7 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
       chapterStart.value = 0;
       chapterDuration.value = 0;
     }
-  }, [currentChapter, chapterStart, chapterDuration, position]);
+  }, [currentChapter, isChapterRelative, chapterStart, chapterDuration, position]);
 
 
   // State for time text displays - updated at reduced frequency

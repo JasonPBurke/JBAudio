@@ -1,0 +1,83 @@
+import type { Book, Chapter } from '@/types/Book';
+import { shouldUseClippedChapters } from '@/helpers/clippedChapters';
+import {
+  isSingleFileBook,
+  findChapterIndexByPosition,
+} from '@/helpers/singleFileBook';
+
+/**
+ * Chapter identity for playback UIs. Two modes exist:
+ *
+ * - Chapter-queue mode: queue index == chapter index and positions are
+ *   chapter-relative. This is how multi-file books have always behaved, and
+ *   how single-file books behave under the clipped-chapters spike (each
+ *   chapter is a clipped queue item).
+ * - Legacy single-file mode (spike off, or no usable chapter offsets): the
+ *   whole book is ONE queue item and positions are absolute, so the chapter
+ *   must be derived from the position.
+ *
+ * Never identify a chapter by URL — clipped queue items all share one URL.
+ */
+
+type ChapterLike = Pick<Chapter, 'url' | 'startMs'>;
+
+/**
+ * True when the queue index is the chapter index (chapter-queue mode).
+ */
+export function usesChapterQueue(
+  chapters: readonly ChapterLike[] | undefined,
+): boolean {
+  return !isSingleFileBook(chapters) || shouldUseClippedChapters(chapters);
+}
+
+/**
+ * Resolves the current chapter index for either mode. Returns undefined when
+ * it cannot be determined yet (no chapters, or queue index unknown in
+ * chapter-queue mode).
+ */
+export function resolveCurrentChapterIndex(
+  chapters: readonly ChapterLike[] | undefined,
+  queueIndex: number | null | undefined,
+  positionSeconds: number,
+): number | undefined {
+  if (!chapters || chapters.length === 0) return undefined;
+
+  if (usesChapterQueue(chapters)) {
+    if (typeof queueIndex !== 'number' || queueIndex < 0) return undefined;
+    return Math.min(queueIndex, chapters.length - 1);
+  }
+
+  return findChapterIndexByPosition(chapters, positionSeconds);
+}
+
+/**
+ * Remaining time in the book, in seconds.
+ * In chapter-queue mode `positionSeconds` is chapter-relative and
+ * `currentIndex` is the queue/chapter index; in legacy single-file mode
+ * `positionSeconds` is the absolute position and the index is ignored.
+ */
+export function calculateRemainingBookTime(
+  book: Book,
+  positionSeconds: number,
+  currentIndex: number | undefined,
+): number {
+  const chapters = book.chapters;
+
+  if (!chapters || chapters.length === 0 || !usesChapterQueue(chapters)) {
+    return Math.max(0, book.bookDuration - positionSeconds);
+  }
+
+  const idx =
+    typeof currentIndex === 'number' &&
+    currentIndex >= 0 &&
+    currentIndex < chapters.length
+      ? currentIndex
+      : 0;
+
+  let totalPlayed = positionSeconds;
+  for (let i = 0; i < idx; i++) {
+    totalPlayed += chapters[i]?.chapterDuration ?? 0;
+  }
+
+  return Math.max(0, book.bookDuration - totalPlayed);
+}

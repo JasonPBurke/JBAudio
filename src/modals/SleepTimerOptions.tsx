@@ -102,6 +102,8 @@ const SleepTimerOptions = ({
     });
 
     const updateMaxChapters = async () => {
+      // Clipped single-file books have one queue item per chapter, so they
+      // take the multi-file (else) path; this branch is legacy-only.
       const queue = await TrackPlayer.getQueue();
       const isSingleFile = queue.length === 1;
 

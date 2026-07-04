@@ -10,9 +10,10 @@ import {
 /**
  * True when a book should be loaded as clipped per-chapter queue items:
  * spike flag on, single file, and real chapter start offsets present.
+ * Accepts any chapter-shaped rows that carry `url` + `startMs`.
  */
 export function shouldUseClippedChapters(
-  chapters: Chapter[] | undefined,
+  chapters: readonly Pick<Chapter, 'url' | 'startMs'>[] | undefined,
 ): boolean {
   return (
     CLIPPED_CHAPTERS_SPIKE &&

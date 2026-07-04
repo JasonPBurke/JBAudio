@@ -11,8 +11,12 @@ import TrackPlayer, {
   Event,
   useActiveTrack,
 } from 'react-native-track-player';
-import { useBookById } from '@/store/library';
+import { useBookById, useLibraryStore } from '@/store/library';
 import { Chapter } from '@/types/Book';
+import {
+  usesChapterQueue,
+  resolveCurrentChapterIndex,
+} from '@/helpers/chapterPlayback';
 
 /**
  * Context for sharing a single useCurrentChapterStable subscription across
@@ -39,155 +43,120 @@ export const useCurrentChapter = (): Chapter | undefined => {
 };
 
 /**
- * A stable version of useCurrentChapter that minimizes re-renders.
+ * Returns the current chapter, re-rendering only when it actually changes.
  *
- * Key differences from the original useCurrentChapter:
- * 1. Uses event listeners instead of useProgress() polling
- * 2. Only triggers state updates when chapter actually changes
- * 3. Uses refs to track position without causing re-renders
- *
- * This hook will only cause a re-render when:
- * - The active track changes
- * - The book data changes
- * - The current chapter actually changes (for single-file books)
+ * Chapter identity (see helpers/chapterPlayback.ts):
+ * - Chapter-queue mode (multi-file books, and clipped single-file books under
+ *   the spike): current chapter = chapters[queue index]. The queue index
+ *   comes from the library store's playbackIndex, which service.js keeps
+ *   current via PlaybackActiveTrackChanged; on mount, before the store has an
+ *   entry, TrackPlayer.getActiveTrackIndex() fills the gap.
+ * - Legacy single-file mode (spike off / no chapter offsets): the book is one
+ *   queue item with absolute positions, so the chapter is derived from
+ *   progress/seek events. Never match chapters by URL — clipped queue items
+ *   all share one URL.
  */
 export const useCurrentChapterStable = () => {
   const activeTrack = useActiveTrack();
-  const book = useBookById(activeTrack?.bookId ?? '');
-  const [currentChapter, setCurrentChapter] = useState<Chapter | undefined>(
-    undefined
-  );
-  const currentChapterRef = useRef<Chapter | undefined>(undefined);
-  const positionRef = useRef<number>(0);
+  const bookId = activeTrack?.bookId ?? '';
+  const book = useBookById(bookId);
+  const chapters = book?.chapters;
 
-  // Determine if this is a single-file book (one audio file with multiple chapters)
-  const isSingleFileBook = useMemo(() => {
-    if (!book || !book.chapters || book.chapters.length <= 1) return false;
-    return book.chapters.every((c) => c.url === book.chapters[0].url);
-  }, [book]);
+  const chapterQueue = useMemo(() => usesChapterQueue(chapters), [chapters]);
 
-  // Memoize chapter finding logic
-  const findChapter = useCallback(
-    (position: number): Chapter | undefined => {
-      if (!book?.chapters) return undefined;
-
-      if (isSingleFileBook) {
-        // For single-file books, find chapter based on playback position
-        // Search in reverse to find the last chapter that started before current position
-        return [...book.chapters]
-          .reverse()
-          .find((ch) => (ch.startMs || 0) / 1000 <= position);
-      } else {
-        // For multi-file books, find chapter based on active track URL
-        return book.chapters.find((ch) => ch.url === activeTrack?.url);
-      }
-    },
-    [book, activeTrack?.url, isSingleFileBook]
+  // --- Chapter-queue mode: index straight from the store ---
+  const storeIndex = useLibraryStore(
+    useCallback(
+      (state) => (bookId ? state.playbackIndex[bookId] : undefined),
+      [bookId],
+    ),
   );
 
-  // Update chapter only if it actually changed
-  const updateChapterIfChanged = useCallback(
-    (chapter: Chapter | undefined) => {
-      const currentTitle = currentChapterRef.current?.chapterTitle;
-      const currentUrl = currentChapterRef.current?.url;
-      const newTitle = chapter?.chapterTitle;
-      const newUrl = chapter?.url;
-
-      // Only update state if the chapter actually changed
-      if (currentTitle !== newTitle || currentUrl !== newUrl) {
-        currentChapterRef.current = chapter;
-        setCurrentChapter(chapter);
-      }
-    },
-    []
-  );
+  // Mount fallback for a cold store (e.g. right after app start, before the
+  // service has processed its first track-changed event).
+  const [queueIndexFallback, setQueueIndexFallback] = useState<
+    number | undefined
+  >(undefined);
 
   useEffect(() => {
-    if (!book?.chapters) {
-      updateChapterIfChanged(undefined);
+    if (!chapterQueue || typeof storeIndex === 'number') return;
+
+    let mounted = true;
+    TrackPlayer.getActiveTrackIndex()
+      .then((index) => {
+        if (mounted && typeof index === 'number') {
+          setQueueIndexFallback(index);
+        }
+      })
+      .catch(() => {
+        // Player might not be initialized yet
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [chapterQueue, storeIndex, bookId]);
+
+  // --- Legacy single-file mode: index derived from playback position ---
+  const [positionIndex, setPositionIndex] = useState<number | undefined>(
+    undefined,
+  );
+  const positionIndexRef = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (chapterQueue || !chapters?.length) {
+      positionIndexRef.current = undefined;
+      setPositionIndex(undefined);
       return;
     }
 
-    // Shared logic to update chapter from current position
-    const updateFromPosition = async () => {
+    const applyPosition = (position: number) => {
+      const index = resolveCurrentChapterIndex(chapters, undefined, position);
+      if (index !== positionIndexRef.current) {
+        positionIndexRef.current = index;
+        setPositionIndex(index);
+      }
+    };
+
+    const updateFromProgress = async () => {
       try {
         const { position } = await TrackPlayer.getProgress();
-        positionRef.current = position;
-        updateChapterIfChanged(findChapter(position));
+        applyPosition(position);
       } catch {
         // Player might not be initialized yet
       }
     };
 
-    // Initialize chapter on mount
-    updateFromPosition();
+    // Initialize on mount
+    updateFromProgress();
 
-    // Listen for track changes to re-initialize chapter (helps after cold start)
-    const trackChangedSubscription = TrackPlayer.addEventListener(
-      Event.PlaybackActiveTrackChanged,
-      updateFromPosition
-    );
+    const subscriptions = [
+      // Chapter boundary detection while playing
+      TrackPlayer.addEventListener(
+        Event.PlaybackProgressUpdated,
+        ({ position }) => applyPosition(position),
+      ),
+      // Seeks and play/pause: refresh immediately
+      TrackPlayer.addEventListener(Event.PlaybackState, updateFromProgress),
+      // Re-initialize after cold start / queue swaps
+      TrackPlayer.addEventListener(
+        Event.PlaybackActiveTrackChanged,
+        updateFromProgress,
+      ),
+    ];
 
-    // For multi-file books, only track changes matter (handled by activeTrack dependency)
-    if (!isSingleFileBook) {
-      updateChapterIfChanged(findChapter(0));
-      return () => trackChangedSubscription.remove();
-    }
-
-    // For single-file books, listen to progress updates for chapter boundary detection
-    const progressSubscription = TrackPlayer.addEventListener(
-      Event.PlaybackProgressUpdated,
-      ({ position }) => {
-        positionRef.current = position;
-        updateChapterIfChanged(findChapter(position));
-      }
-    );
-
-    // Listen for seek/playback state changes to update chapter immediately
-    const seekSubscription = TrackPlayer.addEventListener(
-      Event.PlaybackState,
-      updateFromPosition
-    );
-
-    return () => {
-      trackChangedSubscription.remove();
-      progressSubscription.remove();
-      seekSubscription.remove();
-    };
-  }, [
-    book,
-    activeTrack?.url,
-    isSingleFileBook,
-    findChapter,
-    updateChapterIfChanged,
-  ]);
-
-  return currentChapter;
-};
-
-/**
- * Returns the current chapter's progress information as shared values
- * for use with Reanimated without causing React re-renders.
- */
-export const useCurrentChapterInfo = () => {
-  const activeTrack = useActiveTrack();
-  const book = useBookById(activeTrack?.bookId ?? '');
+    return () => subscriptions.forEach((sub) => sub.remove());
+  }, [chapterQueue, chapters]);
 
   return useMemo(() => {
-    if (!book?.chapters) {
-      return {
-        chapters: [] as Chapter[],
-        isSingleFileBook: false,
-      };
-    }
+    if (!chapters?.length) return undefined;
 
-    const isSingleFileBook =
-      book.chapters.length > 1 &&
-      book.chapters.every((c) => c.url === book.chapters[0].url);
+    const index = chapterQueue
+      ? typeof storeIndex === 'number'
+        ? storeIndex
+        : queueIndexFallback
+      : positionIndex;
 
-    return {
-      chapters: book.chapters,
-      isSingleFileBook,
-    };
-  }, [book]);
+    if (typeof index !== 'number' || index < 0) return undefined;
+    return chapters[Math.min(index, chapters.length - 1)];
+  }, [chapters, chapterQueue, storeIndex, queueIndexFallback, positionIndex]);
 };

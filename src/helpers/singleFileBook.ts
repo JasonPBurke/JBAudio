@@ -3,8 +3,11 @@ import { Chapter } from '@/types/Book';
 /**
  * Determines if a book is a single-file book (one audio file with multiple chapters).
  * Single-file books have all chapters pointing to the same URL.
+ * Accepts any chapter-shaped rows (e.g. DB projections) that carry `url`.
  */
-export function isSingleFileBook(chapters: Chapter[] | undefined): boolean {
+export function isSingleFileBook(
+  chapters: readonly Pick<Chapter, 'url'>[] | undefined,
+): boolean {
   if (!chapters || chapters.length <= 1) return false;
   return chapters.every((c) => c.url === chapters[0].url);
 }
@@ -15,7 +18,7 @@ export function isSingleFileBook(chapters: Chapter[] | undefined): boolean {
  * Returns 0 if no chapter is found.
  */
 export function findChapterIndexByPosition(
-  chapters: Chapter[],
+  chapters: readonly Pick<Chapter, 'startMs'>[],
   positionSeconds: number
 ): number {
   if (!chapters || chapters.length === 0) return 0;
@@ -129,7 +132,9 @@ export function getPreviousChapterStartSeconds(
  * Returns true if the book has multiple chapters with at least one having a non-zero startMs.
  * Used to decide whether to show chapter-level metadata on lock screen.
  */
-export function hasValidChapterData(chapters: Chapter[] | undefined): boolean {
+export function hasValidChapterData(
+  chapters: readonly Pick<Chapter, 'startMs'>[] | undefined,
+): boolean {
   if (!chapters || chapters.length <= 1) return false;
   return chapters.some((c) => (c.startMs || 0) > 0);
 }

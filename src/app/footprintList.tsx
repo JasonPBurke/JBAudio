@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CircleX } from 'lucide-react-native';
 import { useBookById } from '@/store/library';
 import { useTheme } from '@/hooks/useTheme';
+import { usesChapterQueue } from '@/helpers/chapterPlayback';
 import { withOpacity } from '@/helpers/colorUtils';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { FlashList } from '@shopify/flash-list';
@@ -87,19 +88,16 @@ const FootprintListScreen = () => {
       const targetChapter = book.chapters[footprint.chapterIndex];
       if (!targetChapter) return;
 
-      const isSingleFileBook =
-        book.chapters.length > 1 &&
-        book.chapters.every((c) => c.url === book.chapters[0].url);
-
-      if (isSingleFileBook) {
-        // Seek to chapter start + footprint position
+      if (usesChapterQueue(book.chapters)) {
+        // Multi-file and clipped single-file books: skip to the chapter's
+        // queue item, then seek within it (positions are chapter-relative)
+        await TrackPlayer.skip(footprint.chapterIndex);
+        await TrackPlayer.seekTo(footprint.positionMs / 1000);
+      } else {
+        // Legacy single-file book: seek to chapter start + footprint position
         const seekTime =
           ((targetChapter.startMs || 0) + footprint.positionMs) / 1000;
         await TrackPlayer.seekTo(seekTime);
-      } else {
-        // Skip to chapter, then seek within it
-        await TrackPlayer.skip(footprint.chapterIndex);
-        await TrackPlayer.seekTo(footprint.positionMs / 1000);
       }
 
       await TrackPlayer.play();
