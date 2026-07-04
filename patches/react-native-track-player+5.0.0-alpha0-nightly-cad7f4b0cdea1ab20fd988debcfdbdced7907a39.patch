@@ -1,20 +1,154 @@
+diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/kotlinaudio/models/AudioItem.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/kotlinaudio/models/AudioItem.kt
+index 5a1b2bf..55ce15b 100644
+--- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/kotlinaudio/models/AudioItem.kt
++++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/kotlinaudio/models/AudioItem.kt
+@@ -4,6 +4,7 @@ import android.net.Uri
+ import android.os.Bundle
+ import androidx.media3.common.MediaItem
+ import androidx.media3.common.MediaMetadata
++import androidx.media3.common.util.UnstableApi
+ 
+ open class AudioItem(
+     open var audioUrl: String,
+@@ -14,8 +15,14 @@ open class AudioItem(
+     open val artwork: String? = null,
+     open val duration: Long? = null,
+     open val options: AudioItemOptions? = null,
+-    open val mediaId: String? = null
++    open val mediaId: String? = null,
++    // Optional playback window (ms) — one chapter of a single-file book as
++    // its own timeline item. Applied via MediaItem.ClippingConfiguration
++    // (MediaFactory wraps the source in ClippingMediaSource).
++    open val clipStartMs: Long? = null,
++    open val clipEndMs: Long? = null
+ ) {
++    @androidx.annotation.OptIn(UnstableApi::class)
+     fun toMediaItem(): MediaItem {
+         val extras = Bundle().apply {
+             options?.headers?.let {
+@@ -35,13 +42,27 @@ open class AudioItem(
+             .setArtist(artist)
+             .setArtworkUri(Uri.parse(artwork))
+             .setExtras(extras)
++            .apply {
++                // Explicit duration lets controllers (AA queue) show item
++                // lengths without waiting for lazy source preparation —
++                // clipped windows otherwise refine their timeline later.
++                duration?.let { setDurationMs(it) }
++            }
+             .build()
+-        return MediaItem.Builder()
++        val builder = MediaItem.Builder()
+             .setMediaId(mediaId ?: audioUrl)
+             .setUri(audioUrl)
+             .setMediaMetadata(mediaMetadata)
+             .setTag(this)
+-            .build()
++        if (clipStartMs != null || clipEndMs != null) {
++            builder.setClippingConfiguration(
++                MediaItem.ClippingConfiguration.Builder().apply {
++                    clipStartMs?.let { setStartPositionMs(it) }
++                    clipEndMs?.let { setEndPositionMs(it) }
++                }.build()
++            )
++        }
++        return builder.build()
+     }
+ 
+     companion object {
+diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/kotlinaudio/players/components/MediaFactory.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/kotlinaudio/players/components/MediaFactory.kt
+index f8b9ca1..62298cb 100644
+--- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/kotlinaudio/players/components/MediaFactory.kt
++++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/kotlinaudio/players/components/MediaFactory.kt
+@@ -5,6 +5,7 @@ import android.net.Uri
+ import android.os.Build
+ import android.util.Log
+ import androidx.annotation.OptIn
++import androidx.media3.common.C
+ import androidx.media3.common.MediaItem
+ import androidx.media3.common.util.UnstableApi
+ import androidx.media3.datasource.DataSource
+@@ -20,6 +21,7 @@ import androidx.media3.exoplayer.drm.DrmSessionManagerProvider
+ import androidx.media3.exoplayer.hls.HlsMediaSource
+ import androidx.media3.exoplayer.smoothstreaming.DefaultSsChunkSource
+ import androidx.media3.exoplayer.smoothstreaming.SsMediaSource
++import androidx.media3.exoplayer.source.ClippingMediaSource
+ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+ import androidx.media3.exoplayer.source.MediaSource
+ import androidx.media3.exoplayer.source.ProgressiveMediaSource
+@@ -87,12 +89,28 @@ class MediaFactory (
+             }
+         }
+ 
+-        return when (resourceType) {
++        val source = when (resourceType) {
+             "dash" -> createDashSource(mediaItem, factory)
+             "hls" -> createHlsSource(mediaItem, factory)
+             "smoothstreaming" -> createSsSource(mediaItem, factory)
+             else -> createProgressiveSource(mediaItem, factory)
+         }
++        return maybeApplyClipping(mediaItem, source)
++    }
++
++    // This factory builds sources manually, so MediaItem.clippingConfiguration
++    // would be silently ignored (DefaultMediaSourceFactory normally applies
++    // it). Mirror that behavior: wrap in ClippingMediaSource when a clip
++    // window is set — used for per-chapter items of single-file audiobooks.
++    private fun maybeApplyClipping(mediaItem: MediaItem, source: MediaSource): MediaSource {
++        val clip = mediaItem.clippingConfiguration
++        if (clip.startPositionMs == 0L && clip.endPositionMs == C.TIME_END_OF_SOURCE) {
++            return source
++        }
++        return ClippingMediaSource.Builder(source)
++            .setStartPositionMs(clip.startPositionMs)
++            .setEndPositionMs(clip.endPositionMs)
++            .build()
+     }
+ 
+     private fun createDashSource(mediaItem: MediaItem, factory: DataSource.Factory?): MediaSource {
 diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/HeadlessJsMediaService.java b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/HeadlessJsMediaService.java
-index f2fd560..4a651ae 100644
+index f2fd560..97dd261 100644
 --- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/HeadlessJsMediaService.java
 +++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/HeadlessJsMediaService.java
-@@ -28,6 +28,7 @@
+@@ -28,8 +28,12 @@
   import com.facebook.react.ReactInstanceEventListener;
   import com.facebook.react.ReactNativeHost;
   import com.facebook.react.ReactApplication;
++ import android.os.Handler;
++ import android.os.Looper;
 + import java.lang.ref.WeakReference;
   import java.util.Set;
   import java.util.concurrent.CopyOnWriteArraySet;
++ import timber.log.Timber;
  
-@@ -50,21 +51,45 @@
+ /**
+   * Base class for running JS without a UI. Generally, you only need to override {@link
+@@ -50,21 +54,137 @@
     private final Set<Integer> mActiveTasks = new CopyOnWriteArraySet<>();
     public static @Nullable PowerManager.WakeLock sWakeLock;
  
 -   private boolean initialized = false;
++   // Lets MusicModule confirm the headless task from JS-driven calls (the
++   // service.js listener registration). One media service per process.
++   private static volatile WeakReference<HeadlessJsMediaService> sInstance =
++       new WeakReference<>(null);
++
++   /**
++    * Called when JS provably ran the playback service's listener registration
++    * (MusicModule.addListener for a service-only event). This is the reliable
++    * confirmation signal: RN 0.83 bridgeless never delivered
++    * onHeadlessJsTaskFinish in testing, and the ReactContext is non-null long
++    * before the bundle loads, so no native-side signal can be trusted.
++    */
++   public static void notifyHeadlessTaskConfirmedFromJs() {
++       HeadlessJsMediaService service = sInstance.get();
++       if (service != null) {
++           service.confirmHeadlessTask();
++       } else {
++           Timber.d("JS confirmed headless task but no service instance is alive");
++       }
++   }
++
 +   // The React context the headless task last started in. The React host can
 +   // be destroyed and recreated while this service keeps running (e.g. the
 +   // Activity is killed during background playback); a one-shot "initialized"
@@ -24,6 +158,30 @@ index f2fd560..4a651ae 100644
 +   // task after every runtime recreation.
 +   private WeakReference<ReactContext> lastTaskContext = new WeakReference<>(null);
 +   private boolean taskStartPending = false;
++   private long taskStartPendingSince = 0L;
++
++   // Dispatch-with-confirmation state. In bridgeless RN the ReactContext is
++   // non-null BEFORE the JS bundle has been evaluated (observed: context live
++   // 3 ms after reactHost.start(); bundle finished ~330 ms later), so a
++   // startHeadlessTask dispatched into that window is silently lost — the
++   // task was not registered yet. The only trustworthy "JS is really running"
++   // signal is the task's own completion callback (onHeadlessJsTaskFinish →
++   // confirmHeadlessTask). Until confirmed, a delayed check clears the
++   // dedupe state and retries the dispatch.
++   private boolean taskConfirmed = false;
++   private int taskDispatchGeneration = 0;
++   private int taskDispatchAttempts = 0;
++   private long lastDispatchAt = 0L;
++   private final Handler mainHandler = new Handler(Looper.getMainLooper());
++
++   private static final long TASK_CONFIRM_TIMEOUT_MS = 3_000L;
++   private static final int MAX_TASK_DISPATCH_ATTEMPTS = 5;
++   private static final long ATTEMPTS_RESET_COOLDOWN_MS = 60_000L;
++
++   // If a scheduled context creation hasn't produced a running task within
++   // this window, assume the attempt failed (headless boot crash, host error)
++   // and allow reconcileHeadlessTask to retry instead of staying bricked.
++   private static final long TASK_START_PENDING_TIMEOUT_MS = 15_000L;
  
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -40,6 +198,40 @@ index f2fd560..4a651ae 100644
     }
  
 +   /**
++    * True when the headless JS task has run in the current React context AND
++    * JS has confirmed it (task promise resolved). Before confirmation, events
++    * emitted to JS may land in a runtime with no listeners.
++    */
++   protected boolean isTaskStartedInCurrentContext() {
++       ReactContext current = getReactContext();
++       synchronized (this) {
++           return current != null && current == lastTaskContext.get() && taskConfirmed;
++       }
++   }
++
++   /**
++    * Called (on the UI thread) once JS has CONFIRMED the headless task ran
++    * (its promise resolved — listeners were registered in its synchronous
++    * section long before that). Subclasses use this to flush events buffered
++    * while no task was listening.
++    */
++   protected void onHeadlessTaskStarted() {}
++
++   /** Marks the current dispatch as confirmed by JS and notifies the subclass. */
++   protected void confirmHeadlessTask() {
++       boolean firstConfirm;
++       synchronized (this) {
++           firstConfirm = !taskConfirmed;
++           taskConfirmed = true;
++           taskDispatchAttempts = 0;
++       }
++       if (firstConfirm) {
++           Timber.d("headless task confirmed by JS");
++           mainHandler.post(this::onHeadlessTaskStarted);
++       }
++   }
++
++   /**
 +    * Starts the headless JS task unless it has already run in the current
 +    * React context. Safe to call often: in the steady state this is two
 +    * reference reads and a comparison. Must be called on the UI thread.
@@ -47,53 +239,248 @@ index f2fd560..4a651ae 100644
 +   protected void reconcileHeadlessTask() {
 +       ReactContext currentContext = getReactContext();
 +       synchronized (this) {
-+           if (currentContext != null && currentContext == lastTaskContext.get()) {
++           ReactContext last = lastTaskContext.get();
++           if (currentContext != null && currentContext == last) {
 +               return; // task already registered in this runtime
 +           }
++           Timber.d(
++               "reconcile: current=%s last=%s pending=%b",
++               currentContext == null ? "null" : Integer.toHexString(System.identityHashCode(currentContext)),
++               last == null ? "null" : Integer.toHexString(System.identityHashCode(last)),
++               taskStartPending);
 +           if (currentContext == null && taskStartPending) {
-+               return; // context creation already scheduled; task starts on init
++               long pendingForMs = System.currentTimeMillis() - taskStartPendingSince;
++               if (pendingForMs < TASK_START_PENDING_TIMEOUT_MS) {
++                   return; // context creation already scheduled; task starts on init
++               }
++               // The scheduled start never completed — clear and retry.
++               Timber.w("reconcile: task start pending for %d ms, retrying", pendingForMs);
++               taskStartPending = false;
 +           }
 +       }
 +       HeadlessJsTaskConfig taskConfig = getTaskConfig(null);
 +       if (taskConfig == null) {
 +           return;
 +       }
++       Timber.d("reconcile: starting headless task");
 +       startTask(taskConfig);
 +   }
 + 
     /**
      * Called from {@link #onStartCommand} to create a {@link HeadlessJsTaskConfig} for this intent.
      *
-@@ -121,6 +146,17 @@
+@@ -100,6 +220,7 @@
+      @Override
+      public void onCreate() {
+         super.onCreate();
++        sInstance = new WeakReference<>(this);
+      }
+ 
+      /**
+@@ -121,6 +242,39 @@
     }
   
     private void invokeStartTask(ReactContext reactContext, final HeadlessJsTaskConfig taskConfig) {
++     final int generation;
 +     synchronized (this) {
 +       if (lastTaskContext.get() == reactContext) {
 +         // Already started in this context (e.g. reconcileHeadlessTask ran
 +         // between context initialization and this listener firing). Starting
 +         // twice would register the playback service's listeners twice.
++         Timber.d("invokeStartTask: dedupe hit, task already started in this context");
 +         taskStartPending = false;
 +         return;
 +       }
++       if (taskDispatchAttempts >= MAX_TASK_DISPATCH_ATTEMPTS) {
++         // Not a permanent brick: a later trigger (button press, controller
++         // connect) may find JS in a better state, so allow a fresh burst of
++         // attempts after a cooldown.
++         if (System.currentTimeMillis() - lastDispatchAt < ATTEMPTS_RESET_COOLDOWN_MS) {
++           Timber.e("invokeStartTask: giving up after %d unconfirmed dispatches", taskDispatchAttempts);
++           taskStartPending = false;
++           return;
++         }
++         Timber.w("invokeStartTask: attempt budget reset after cooldown");
++         taskDispatchAttempts = 0;
++       }
 +       lastTaskContext = new WeakReference<>(reactContext);
 +       taskStartPending = false;
++       taskConfirmed = false;
++       taskDispatchAttempts++;
++       lastDispatchAt = System.currentTimeMillis();
++       generation = ++taskDispatchGeneration;
 +     }
++     Timber.d(
++         "invokeStartTask: dispatching task (attempt %d) in context %s",
++         taskDispatchAttempts,
++         Integer.toHexString(System.identityHashCode(reactContext)));
       final HeadlessJsTaskContext headlessJsTaskContext =
           HeadlessJsTaskContext.getInstance(reactContext);
       headlessJsTaskContext.addTaskEventListener(this);
-@@ -194,6 +230,9 @@
+@@ -129,6 +283,24 @@
+              () -> {
+                int taskId = headlessJsTaskContext.startTask(taskConfig);
+                mActiveTasks.add(taskId);
++               Timber.d("invokeStartTask: task %d dispatched to JS", taskId);
++               // A dispatch that lands before the JS bundle finished loading
++               // is silently dropped. If JS doesn't confirm in time, clear the
++               // dedupe state and retry.
++               mainHandler.postDelayed(
++                       () -> {
++                         synchronized (HeadlessJsMediaService.this) {
++                           if (taskConfirmed || generation != taskDispatchGeneration) {
++                             return;
++                           }
++                           Timber.w(
++                               "headless task dispatch not confirmed after %d ms (bundle not loaded yet?) — retrying",
++                               TASK_CONFIRM_TIMEOUT_MS);
++                           lastTaskContext = new WeakReference<>(null);
++                         }
++                         reconcileHeadlessTask();
++                       },
++                       TASK_CONFIRM_TIMEOUT_MS);
+              });
+    }
+  
+@@ -150,8 +322,13 @@
+    @Override
+    public void onHeadlessJsTaskStart(int taskId) {}
+ 
++   // The task promise resolving is the only trustworthy signal that the JS
++   // bundle was actually loaded when we dispatched. NOTE: MusicService
++   // overrides this without calling super (to keep RN from stopping the
++   // service) — its override MUST still call confirmHeadlessTask().
+    @Override
+    public void onHeadlessJsTaskFinish(int taskId) {
++     confirmHeadlessTask();
+      mActiveTasks.remove(taskId);
+      if (mActiveTasks.isEmpty()) {
+        stopSelf();
+@@ -194,19 +371,27 @@
  
  
      private void createReactContextAndScheduleTask(final HeadlessJsTaskConfig taskConfig) {
 +        synchronized (this) {
 +            taskStartPending = true;
++            taskStartPendingSince = System.currentTimeMillis();
 +        }
++        boolean bridgeless = DefaultNewArchitectureEntryPoint.getBridgelessEnabled();
++        Timber.d("createReactContextAndScheduleTask: bridgeless=%b", bridgeless);
  
-         if (DefaultNewArchitectureEntryPoint.getBridgelessEnabled()) { // new arch
+-        if (DefaultNewArchitectureEntryPoint.getBridgelessEnabled()) { // new arch
++        if (bridgeless) { // new arch
              final ReactHost reactHost = getReactHost();
+             reactHost.addReactInstanceEventListener(
+                     new ReactInstanceEventListener() {
+                         @Override
+                         public void onReactContextInitialized(@NonNull ReactContext reactContext) {
++                            Timber.d("onReactContextInitialized (bridgeless)");
+                             invokeStartTask(reactContext, taskConfig);
+                             reactHost.removeReactInstanceEventListener(this);
+                         }
+                     }
+             );
+             reactHost.start();
++            Timber.d("createReactContextAndScheduleTask: reactHost.start() returned");
+         } else { // old arch
+             final ReactInstanceManager reactInstanceManager =
+                     getReactNativeHost().getReactInstanceManager();
+@@ -215,6 +400,7 @@
+                     new ReactInstanceEventListener() {
+                         @Override
+                         public void onReactContextInitialized(@NonNull ReactContext reactContext) {
++                            Timber.d("onReactContextInitialized (old arch)");
+                             invokeStartTask(reactContext, taskConfig);
+                             reactInstanceManager.removeReactInstanceEventListener(this);
+                         }
+diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/Track.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/Track.kt
+index 6527258..718d728 100644
+--- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/Track.kt
++++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/Track.kt
+@@ -26,8 +26,21 @@ class Track
+     var headers: HashMap<String, String>? = null
+     val queueId: Long
+ 
++    // Optional playback window (ms) within the file — used to present one
++    // chapter of a single-file audiobook as its own queue item. Only updated
++    // when the bundle carries the keys, so partial metadata updates
++    // (updateMetadataForTrack) don't clear an existing clip.
++    var clipStartMs: Long? = null
++    var clipEndMs: Long? = null
++
+     override fun setMetadata(context: Context, bundle: Bundle?, ratingType: Int) {
+         super.setMetadata(context, bundle, ratingType)
++        if (bundle?.containsKey("clipStartMs") == true) {
++            clipStartMs = bundle.getDouble("clipStartMs").toLong()
++        }
++        if (bundle?.containsKey("clipEndMs") == true) {
++            clipEndMs = bundle.getDouble("clipEndMs").toLong()
++        }
+         originalItem.putAll(bundle)
+     }
+ 
+@@ -42,7 +55,9 @@ class Track
+             artwork = artwork.toString(),
+             duration = duration,
+             options = AudioItemOptions(headers, userAgent, resourceId),
+-            mediaId = mediaId
++            mediaId = mediaId,
++            clipStartMs = clipStartMs,
++            clipEndMs = clipEndMs
+         )
+     }
+ 
+diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/TrackAudioItem.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/TrackAudioItem.kt
+index d6e3483..bd02ddb 100644
+--- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/TrackAudioItem.kt
++++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/TrackAudioItem.kt
+@@ -14,5 +14,10 @@ data class TrackAudioItem(
+     override val artwork: String? = null,
+     override val duration: Long? = null,
+     override val options: AudioItemOptions? = null,
+-    override val mediaId: String? = null
+-): AudioItem(audioUrl, type, artist, title, albumTitle, artwork, duration, options, mediaId)
+\ No newline at end of file
++    override val mediaId: String? = null,
++    override val clipStartMs: Long? = null,
++    override val clipEndMs: Long? = null
++): AudioItem(
++    audioUrl, type, artist, title, albumTitle, artwork, duration, options, mediaId,
++    clipStartMs, clipEndMs
++)
+\ No newline at end of file
+diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
+index 13a6c60..4c529be 100644
+--- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
++++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
+@@ -31,6 +31,7 @@ import timber.log.Timber
+ import java.util.*
+ import javax.annotation.Nonnull
+ 
++import com.doublesymmetry.trackplayer.HeadlessJsMediaService
+ import com.doublesymmetry.trackplayer.NativeTrackPlayerSpec
+ 
+ 
+@@ -58,8 +59,15 @@ class MusicModule(reactContext: ReactApplicationContext) : NativeTrackPlayerSpec
+     }
+ 
+     override fun addListener(eventType: String) {
+-        // No implementation needed for TurboModule
+-        // This implements the abstract method required by NativeTrackPlayerSpec
++        // NativeEventEmitter calls this natively for every JS subscription.
++        // Only src/setup/service.js ever subscribes to remote-play-book, so
++        // this call is proof the headless playback service ran and its
++        // listeners exist — the reliable "JS ready" ack (RN 0.83 bridgeless
++        // never delivers onHeadlessJsTaskFinish, and the ReactContext is
++        // non-null long before the bundle loads).
++        if (eventType == "remote-play-book") {
++            HeadlessJsMediaService.notifyHeadlessTaskConfirmedFromJs()
++        }
+     }
+ 
+     override fun removeListeners(count: Double) {
 diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
-index b495b5a..5f00368 100644
+index b495b5a..fa58b97 100644
 --- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
 +++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
 @@ -46,14 +46,21 @@ import com.doublesymmetry.trackplayer.utils.BundleUtils.setRating
@@ -143,7 +530,30 @@ index b495b5a..5f00368 100644
          }
          return START_STICKY
      }
-@@ -305,14 +320,15 @@ class MusicService : HeadlessJsMediaService() {
+@@ -212,6 +227,22 @@ class MusicService : HeadlessJsMediaService() {
+         fakePlayer.release()
+         mediaSession.player = player.forwardingPlayer
+         observeEvents()
++        // Diagnostic: every timeline change makes AA rebuild the queue view
++        // (losing scroll position). Log cadence + reason to identify the
++        // trigger (SOURCE_UPDATE = lazy source preparation refining windows,
++        // e.g. ClippingMediaSource resolving durations).
++        player.exoPlayer.addListener(object : Player.Listener {
++            override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
++                // reason 0=PLAYLIST_CHANGED (items added/removed/replaced),
++                // 1=SOURCE_UPDATE (lazy preparation refining windows).
++                // currentIndex shows whether media3 knows the right active
++                // queue item while gearhead resets the list to the top.
++                Timber.d(
++                    "timeline changed: reason=$reason windows=${timeline.windowCount} " +
++                        "currentIndex=${player.exoPlayer.currentMediaItemIndex}"
++                )
++            }
++        })
+     }
+ 
+     @MainThread
+@@ -305,14 +336,15 @@ class MusicService : HeadlessJsMediaService() {
          sessionCommands = sessionCommandsBuilder.build()
          playerCommands = playerCommandsBuilder.build()
  
@@ -166,7 +576,7 @@ index b495b5a..5f00368 100644
                  sessionCommandsBuilder.build(),
                  playerCommands!!
              )
-@@ -343,6 +359,38 @@ class MusicService : HeadlessJsMediaService() {
+@@ -343,6 +375,38 @@ class MusicService : HeadlessJsMediaService() {
          }
      }
  
@@ -205,7 +615,7 @@ index b495b5a..5f00368 100644
      @MainThread
      fun add(track: Track) {
          add(listOf(track))
-@@ -350,18 +398,21 @@ class MusicService : HeadlessJsMediaService() {
+@@ -350,18 +414,21 @@ class MusicService : HeadlessJsMediaService() {
  
      @MainThread
      fun add(tracks: List<Track>) {
@@ -227,7 +637,7 @@ index b495b5a..5f00368 100644
          player.load(track.toAudioItem())
      }
  
-@@ -490,6 +541,8 @@ class MusicService : HeadlessJsMediaService() {
+@@ -490,6 +557,8 @@ class MusicService : HeadlessJsMediaService() {
      fun updateMetadataForTrack(index: Int, bundle: Bundle) {
          tracks[index].let { currentTrack ->
              currentTrack.setMetadata(reactContext, bundle, 0)
@@ -236,15 +646,52 @@ index b495b5a..5f00368 100644
  
              player.replaceItem(index, currentTrack.toAudioItem())
          }
-@@ -674,12 +727,18 @@ class MusicService : HeadlessJsMediaService() {
+@@ -671,15 +740,55 @@ class MusicService : HeadlessJsMediaService() {
+         return bundle
+     }
+ 
++    // User-intent events worth replaying once the headless task is up: losing
++    // one means a tapped book or pressed button silently does nothing (the AA
++    // "Getting your selection" spinner). PLAYBACK_RESUME is deliberately
++    // absent — onPlaybackResumption re-emits it on its own poll loop.
++    private val replayableEvents = setOf(
++        "remote-play-book",
++        MusicEvents.BUTTON_PLAY,
++        MusicEvents.BUTTON_PAUSE,
++        MusicEvents.BUTTON_PLAY_PAUSE,
++        MusicEvents.BUTTON_STOP,
++    )
++    private val pendingEmits = ArrayDeque<Pair<String, Bundle?>>()
++
++    override fun onHeadlessTaskStarted() {
++        val toFlush = synchronized(pendingEmits) {
++            val copy = ArrayList(pendingEmits)
++            pendingEmits.clear()
++            copy
++        }
++        toFlush.forEach { (event, data) ->
++            Timber.d("replaying buffered event: $event")
++            reactContext?.emitDeviceEvent(event, data?.let { Arguments.fromBundle(it) })
++        }
++    }
++
      @SuppressLint("VisibleForTests")
      @MainThread
      fun emit(event: String, data: Bundle? = null) {
-+        // Self-heal: if the React runtime died and was recreated, the event
-+        // listeners in service.js are gone. Reconciling here re-registers the
-+        // headless task; this event is still lost when the runtime is mid-
-+        // restart, but subsequent ones (e.g. the next button press) work.
++        // Self-heal: if the React runtime died and was recreated (or never
++        // booted — headless cold start), the event listeners in service.js
++        // are gone. Reconciling re-registers the headless task; user-intent
++        // events are buffered meanwhile and replayed from
++        // onHeadlessTaskStarted so the triggering press is not lost.
 +        reconcileHeadlessTask()
++        if (event in replayableEvents && !isTaskStartedInCurrentContext()) {
++            Timber.d("buffering $event until headless task starts (context=${if (reactContext == null) "null" else "stale"})")
++            synchronized(pendingEmits) {
++                pendingEmits.addLast(event to data)
++                while (pendingEmits.size > MAX_PENDING_EMITS) pendingEmits.removeFirst()
++            }
++            return
++        }
          reactContext?.emitDeviceEvent(event, data?.let { Arguments.fromBundle(it) })
      }
  
@@ -255,7 +702,7 @@ index b495b5a..5f00368 100644
          val payload = Arguments.createArray()
          data.forEach { payload.pushMap(Arguments.fromBundle(it)) }
  
-@@ -694,6 +753,12 @@ class MusicService : HeadlessJsMediaService() {
+@@ -694,6 +803,12 @@ class MusicService : HeadlessJsMediaService() {
      override fun onBind(intent: Intent?): IBinder? {
          val intentAction = intent?.action
          Timber.d("intentAction = $intentAction")
@@ -268,7 +715,16 @@ index b495b5a..5f00368 100644
          return if (intentAction != null) {
              super.onBind(intent)
          } else {
-@@ -792,9 +857,12 @@ class MusicService : HeadlessJsMediaService() {
+@@ -787,14 +902,20 @@ class MusicService : HeadlessJsMediaService() {
+ 
+     @MainThread
+     override fun onHeadlessJsTaskFinish(taskId: Int) {
+-        // This is empty so ReactNative doesn't kill this service
++        // Confirms to the dispatch-retry machinery that JS really ran the
++        // task. Deliberately no super call so ReactNative doesn't stop this
++        // service when the task's promise resolves.
++        confirmHeadlessTask()
+     }
  
      @MainThread
      override fun onDestroy() {
@@ -283,7 +739,7 @@ index b495b5a..5f00368 100644
              player.destroy()
          }
  
-@@ -862,6 +930,181 @@ class MusicService : HeadlessJsMediaService() {
+@@ -862,6 +983,181 @@ class MusicService : HeadlessJsMediaService() {
          val service = this@MusicService
      }
  
@@ -465,7 +921,7 @@ index b495b5a..5f00368 100644
      private inner class InnerMediaSessionCallback : MediaLibrarySession.Callback {
          // HACK: I'm sure most of the callbacks were not implemented correctly.
          // ATM I only care that andorid auto still functions.
-@@ -925,12 +1168,106 @@ class MusicService : HeadlessJsMediaService() {
+@@ -925,12 +1221,107 @@ class MusicService : HeadlessJsMediaService() {
              }
          }
  
@@ -551,6 +1007,7 @@ index b495b5a..5f00368 100644
 +            if (rawId != null && !isCategoryId(rawId)) {
 +                // Strip the browse-node prefix ("recent::<bookId>" → "<bookId>")
 +                val bookId = rawId.substringAfterLast(MEDIA_ID_SEPARATOR)
++                Timber.d("onAddMediaItems: emitting remote-play-book for $bookId")
 +                val bundle = Bundle().apply { putString("bookId", bookId) }
 +                emit("remote-play-book", bundle)
 +                return Futures.immediateFuture(emptyList())
@@ -572,7 +1029,7 @@ index b495b5a..5f00368 100644
              player.forwardingPlayer.let {
                  when (command.customAction) {
                      CustomCommandButton.JUMP_BACKWARD.customAction -> { it.seekBack() }
-@@ -955,14 +1292,43 @@ class MusicService : HeadlessJsMediaService() {
+@@ -955,14 +1346,43 @@ class MusicService : HeadlessJsMediaService() {
              )
          }
  
@@ -619,7 +1076,7 @@ index b495b5a..5f00368 100644
          }
  
          override fun onSetRating(
-@@ -1029,5 +1395,13 @@ class MusicService : HeadlessJsMediaService() {
+@@ -1029,5 +1449,16 @@ class MusicService : HeadlessJsMediaService() {
  
          const val DEFAULT_JUMP_INTERVAL = 15.0
          const val DEFAULT_STOP_FOREGROUND_GRACE_PERIOD = 5
@@ -631,5 +1088,32 @@ index b495b5a..5f00368 100644
 +        // How long onPlaybackResumption waits for JS to restore the queue
 +        // (covers a cold headless runtime boot + DB read + queue load).
 +        const val RESUMPTION_TIMEOUT_MS = 10_000L
++
++        // Bounded buffer of user-intent events awaiting headless task start.
++        const val MAX_PENDING_EMITS = 16
      }
  }
+diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/utils/CoilBitmapLoader.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/utils/CoilBitmapLoader.kt
+index d85e2c7..06f4e05 100644
+--- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/utils/CoilBitmapLoader.kt
++++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/utils/CoilBitmapLoader.kt
+@@ -15,6 +15,7 @@ import com.google.common.util.concurrent.ListenableFuture
+ import jp.wasabeef.transformers.coil.CropSquareTransformation
+ import kotlinx.coroutines.MainScope
+ import kotlinx.coroutines.guava.future
++import timber.log.Timber
+ import java.io.IOException
+ import javax.inject.Inject
+ 
+@@ -41,6 +42,11 @@ class CoilBitmapLoader @Inject constructor(
+     }
+ 
+     override fun loadBitmap(uri: Uri): ListenableFuture<Bitmap> = scope.future {
++        // Diagnostic: media3's legacy-session layer loads artwork per queue
++        // item and re-sets the queue as bitmaps resolve; a repeating stream
++        // of these logs while the AA queue is open means the queue-rebuild
++        // loop lives here (bitmap cache misses), not in the timeline.
++        Timber.d("loadBitmap: $uri")
+         var imageRequest = ImageRequest.Builder(context)
+             .data(uri)
+             .allowHardware(false)

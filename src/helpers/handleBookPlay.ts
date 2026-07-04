@@ -10,6 +10,10 @@ import {
   calculateAbsolutePosition,
   hasValidChapterData,
 } from '@/helpers/singleFileBook';
+import {
+  shouldUseClippedChapters,
+  buildClippedChapterTracks,
+} from '@/helpers/clippedChapters';
 
 export enum BookProgressState {
   NotStarted = 0,
@@ -62,11 +66,19 @@ const handleBookPlayInner = async (
   const isChangingBook = book.bookId !== activeBookId;
 
   const singleFile = isSingleFileBook(book.chapters);
+  // SPIKE (Bug B): clipped per-chapter queue — behaves like a multi-file book
+  const useClipped = shouldUseClippedChapters(book.chapters);
 
   if (isChangingBook) {
     await TrackPlayer.reset();
 
-    if (singleFile) {
+    if (useClipped) {
+      await TrackPlayer.add(buildClippedChapterTracks(book));
+      if (chapterIndex > 0) await TrackPlayer.skip(chapterIndex);
+      // DB progress for single-file books is already chapter-relative, and
+      // positions inside a clipped window are chapter-relative too.
+      await TrackPlayer.seekTo(chapterProgress);
+    } else if (singleFile) {
       // Single-file book: load only 1 track
       // Use chapter title/duration when valid chapter data exists
       const hasChapterData = hasValidChapterData(book.chapters);
@@ -116,7 +128,10 @@ const handleBookPlayInner = async (
     }
   } else {
     // Same book - just seek to the correct position
-    if (singleFile) {
+    if (useClipped) {
+      await TrackPlayer.skip(chapterIndex);
+      await TrackPlayer.seekTo(chapterProgress);
+    } else if (singleFile) {
       // Single-file book: seek to absolute position
       const absolutePosition = calculateAbsolutePosition(
         book.chapters,

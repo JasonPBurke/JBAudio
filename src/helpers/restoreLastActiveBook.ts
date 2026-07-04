@@ -10,6 +10,11 @@ import {
   calculateAbsolutePosition,
   hasValidChapterData,
 } from '@/helpers/singleFileBook';
+import {
+  shouldUseClippedChapters,
+  buildClippedChapterTracks,
+} from '@/helpers/clippedChapters';
+import type { Book } from '@/types/Book';
 
 /**
  * Loads the last active book into the TrackPlayer queue (paused) and seeks
@@ -40,7 +45,18 @@ export async function restoreLastActiveBook(): Promise<void> {
     const singleFile = isSingleFileBook(chapters);
     const progressInfo = await getChapterProgressInDB(bookInfo.bookId);
 
-    if (singleFile) {
+    if (shouldUseClippedChapters(chapters)) {
+      // SPIKE (Bug B): clipped per-chapter queue — restore like a multi-file book
+      await TrackPlayer.add(
+        buildClippedChapterTracks({ ...bookInfo, chapters } as unknown as Book),
+      );
+      const clampedIndex = Math.min(
+        progressInfo?.chapterIndex || 0,
+        chapters.length - 1,
+      );
+      if (clampedIndex > 0) await TrackPlayer.skip(clampedIndex);
+      await TrackPlayer.seekTo(progressInfo?.progress || 0);
+    } else if (singleFile) {
       // Single-file book: load only 1 track
       // Use chapter title/duration when valid chapter data exists
       const hasChapterData = hasValidChapterData(chapters);

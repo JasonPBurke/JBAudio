@@ -16,6 +16,7 @@ import {
 } from '@/helpers/remotePlayBook';
 import { ensurePlayerSetup } from '@/helpers/playerSetup';
 import { restoreLastActiveBook } from '@/helpers/restoreLastActiveBook';
+import { CLIPPED_CHAPTERS_SPIKE } from '@/constants/featureFlags';
 import { recordFootprint } from '@/db/footprintQueries';
 import {
   findChapterIndexByPosition,
@@ -29,6 +30,13 @@ import { useSleepTimerStore } from '@/setup/sleepTimer';
 
 const { setPlaybackIndex, setPlaybackProgress } =
   useLibraryStore.getState();
+
+// SPIKE (Bug B): with clipped per-chapter queues, single-file books flow
+// through the multi-file code paths below (queue index == chapter index,
+// positions are chapter-relative inside each clipped window), so the
+// isSingleFile special-casing must be bypassed while the spike is on.
+const treatAsSingleFile = (book) =>
+  !CLIPPED_CHAPTERS_SPIKE && (book?.isSingleFile ?? false);
 
 // Single-file book chapter tracking state (module-scope)
 let singleFileChapterState = {
@@ -94,13 +102,26 @@ useSleepTimerStore.subscribe(_evaluateShakeListenerState);
 useSettingsStore.subscribe(_evaluateShakeListenerState);
 _evaluateShakeListenerState();
 
+// Module-level: persists across headless task invocations within one JS
+// runtime. Native retries the task dispatch until JS confirms it ran (a
+// dispatch during bundle load is silently dropped), so a slow first run
+// could be dispatched twice — the guard keeps listeners from registering
+// twice in the same runtime.
+let serviceListenersRegistered = false;
+
 export default module.exports = async function () {
-  // Hydrate sleep timer store from DB so UI shows correct state immediately on start
-  try {
-    await sleepTimer.syncFromDB();
-  } catch {
-    // Non-critical — store will be populated on first progress tick
+  if (serviceListenersRegistered) {
+    console.log('[service] duplicate task start ignored (listeners already registered)');
+    return;
   }
+  serviceListenersRegistered = true;
+  console.log('[service] playback service task started');
+
+  // IMPORTANT: all addEventListener calls below must run in this function's
+  // SYNCHRONOUS section (no `await` above them). Native buffers user-intent
+  // events that arrive before the headless task starts and replays them
+  // immediately after task dispatch (MusicService.onHeadlessTaskStarted) —
+  // that replay is only received if the listeners are already registered.
 
   // Record footprint for remote play (lock screen, headphones, etc.)
   const recordRemotePlayFootprint = async () => {
@@ -157,7 +178,7 @@ export default module.exports = async function () {
     }
 
     const book = useLibraryStore.getState().books[activeTrack.bookId];
-    if (book?.isSingleFile && book.chapters && book.chapters.length > 1) {
+    if (treatAsSingleFile(book) && book.chapters && book.chapters.length > 1) {
       const { position } = await TrackPlayer.getProgress();
       const nextStart = getNextChapterStartSeconds(book.chapters, position);
 
@@ -184,7 +205,7 @@ export default module.exports = async function () {
     }
 
     const book = useLibraryStore.getState().books[activeTrack.bookId];
-    if (book?.isSingleFile && book.chapters && book.chapters.length > 1) {
+    if (treatAsSingleFile(book) && book.chapters && book.chapters.length > 1) {
       const { position } = await TrackPlayer.getProgress();
       const prevStart = getPreviousChapterStartSeconds(book.chapters, position);
       await TrackPlayer.seekTo(prevStart);
@@ -193,6 +214,7 @@ export default module.exports = async function () {
     }
   });
   TrackPlayer.addEventListener('remote-play-book', ({ bookId }) => {
+    console.log('[service] remote-play-book received:', bookId);
     // Handles headless runtimes too: sets up the player if the UI never did
     // and falls back to the DB when the library store is empty.
     handleRemotePlayBook(bookId);
@@ -240,7 +262,7 @@ export default module.exports = async function () {
 
       // Use isSingleFile from database (set at scan time) instead of queue.length
       // This eliminates the race condition where queue isn't ready after app restart
-      const isSingleFile = book?.isSingleFile ?? false;
+      const isSingleFile = treatAsSingleFile(book);
 
       if (
         isSingleFile &&
@@ -370,7 +392,7 @@ export default module.exports = async function () {
     const book = useLibraryStore.getState().books[trackToUpdate.bookId];
 
     // Use isSingleFile from database (set at scan time) instead of queue.length
-    const isSingleFile = book?.isSingleFile ?? false;
+    const isSingleFile = treatAsSingleFile(book);
 
     if (isSingleFile && book && book.chapters && book.chapters.length > 1) {
       // Single-file book with chapters: reset to beginning
@@ -427,7 +449,7 @@ export default module.exports = async function () {
 
       // Use isSingleFile from database (set at scan time) instead of queue.length
       // This eliminates the race condition where queue isn't ready after app restart
-      const isSingleFile = book?.isSingleFile ?? false;
+      const isSingleFile = treatAsSingleFile(book);
 
       if (
         isSingleFile &&
@@ -492,4 +514,12 @@ export default module.exports = async function () {
       await sleepTimer.onChapterChanged();
     },
   );
+
+  // Hydrate sleep timer store from DB so UI shows correct state on start.
+  // Runs AFTER listener registration — see the ordering note at the top.
+  try {
+    await sleepTimer.syncFromDB();
+  } catch {
+    // Non-critical — store will be populated on first progress tick
+  }
 };

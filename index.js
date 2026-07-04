@@ -7,5 +7,6 @@ import playbackService from './src/setup/service';
 // the app process has no UI — they never run, leaving the 'TrackPlayer'
 // headless task unregistered and all remote controls dead.
 TrackPlayer.registerPlaybackService(() => playbackService);
+console.log('[entry] index.js evaluated, playback service registered');
 
 require('expo-router/entry');
