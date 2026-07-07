@@ -64,6 +64,9 @@ export const FloatingPlayer = React.memo(() => {
 
   // Memoize the navigation callback
   const handlePress = useCallback(() => {
+    // Temporary [mount] diagnostics (Issue 2) — brackets press → player
+    // screen first commit; remove with the markers in src/app/player.tsx.
+    console.log(`[mount] FloatingPlayer press t=${performance.now().toFixed(1)}`);
     setPlayerNavIntent();
     router.navigate('/player');
   }, [router]);

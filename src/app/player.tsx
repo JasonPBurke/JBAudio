@@ -27,6 +27,26 @@ import { DismissIndicator } from '@/components/DismissIndicator';
 
 const FIXED_ARTWORK_HEIGHT = normalizeSize(375);
 
+// ─── Mount diagnostics (temporary — Issue 2, screen-open hang) ─────────────
+// React.Profiler is a no-op in production React builds, so this uses render-
+// order marker components instead: deltas between consecutive [mount] marks
+// approximate each sibling subtree's JS render cost; the render-start →
+// first-effect bracket captures the full commit. Remove together with the
+// [flood] logs in src/setup/service.js once findings are recorded.
+const MOUNT_DIAG = true;
+let mountRenderPass = 0;
+const mountLog = (msg: string) => {
+  if (MOUNT_DIAG) {
+    console.log(
+      `[mount] pass#${mountRenderPass} ${msg} t=${performance.now().toFixed(1)}`,
+    );
+  }
+};
+const Mark = ({ id }: { id: string }) => {
+  mountLog(id);
+  return null;
+};
+
 // Pre-defined styles to avoid inline object creation on each render
 const timeRemainingContainerStyle = { alignItems: 'center' as const };
 const loadingContainerStyle = { justifyContent: 'center' as const };
@@ -66,6 +86,13 @@ const Spacer = ({
  */
 const PlayerScreen = () => {
   const router = useRouter();
+
+  mountRenderPass++;
+  mountLog('PlayerScreen render start');
+  useEffect(() => {
+    mountLog('PlayerScreen mounted (first effect)');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Dismiss a ghost-mount caused by navigation state being restored across an
   // Activity recreation with no user-initiated navigation to /player. See
@@ -133,14 +160,17 @@ const PlayerScreen = () => {
   return (
     <CurrentChapterContext.Provider value={currentChapter}>
       <View style={styles.container}>
+        <Mark id='before MeshGradientBackground' />
         <MeshGradientBackground
           gradientColors={gradientColors}
           artworkColors={book?.artworkColors ?? null}
         />
         <View style={styles.dimOverlay} pointerEvents='none' />
         <View style={styles.overlayContainer}>
+          <Mark id='before DismissIndicator' />
           <DismissIndicator />
 
+          <Mark id='before PlayerArtwork' />
           {/* Memoized artwork component - only re-renders when artwork/width changes */}
           <PlayerArtwork
             artwork={book?.artwork}
@@ -151,6 +181,7 @@ const PlayerScreen = () => {
 
           <Spacer flex={1} maxHeight={normalizeSize(50)} />
 
+          <Mark id='before PlayerChaptersModal' />
           {/* Chapter trigger - navigates to chapter list screen */}
           <PlayerChaptersModal
             // darkestColor={withOpacity(gradientColors[3], 0.25)}
@@ -159,9 +190,11 @@ const PlayerScreen = () => {
 
           <Spacer flex={1.4} maxHeight={normalizeSize(70)} />
 
+          <Mark id='before PlayerProgressBar' />
           {/* Progress bar uses Reanimated shared values - no React re-renders */}
           <PlayerProgressBar />
 
+          <Mark id='before BookTimeRemaining' />
           <View style={timeRemainingContainerStyle}>
             {/* Time remaining updates every 5 seconds via event listener */}
             <BookTimeRemaining size={16} color={colors.textMuted} />
@@ -169,8 +202,10 @@ const PlayerScreen = () => {
 
           <Spacer flex={1} maxHeight={normalizeSize(50)} />
 
+          <Mark id='before PlayerControls' />
           {/* Memoized controls - uses Reanimated for button animations */}
           <PlayerControls />
+          <Mark id='after PlayerControls' />
         </View>
       </View>
     </CurrentChapterContext.Provider>

@@ -1,4 +1,5 @@
 import TrackPlayer, { Event, State } from 'react-native-track-player';
+import { AppState } from 'react-native';
 import RNShake from 'react-native-shake';
 import * as Haptics from 'expo-haptics';
 import { useLibraryStore } from '@/store/library';
@@ -56,6 +57,235 @@ async function savePeriodicProgress(bookId, progress) {
   if (now - lastProgressSaveTime < PROGRESS_SAVE_INTERVAL) return;
   lastProgressSaveTime = now;
   await updateChapterProgressInDB(bookId, progress);
+}
+
+// ─── Flood diagnostics (temporary — remove after the post-background stall
+// fix is device-verified) ──────────────────────────────────────────────────
+// Counters instead of per-event logs: a foreground burst can replay
+// thousands of queued events, and logging each one would itself load the
+// JS thread and distort the measurement. The received/handled delta is the
+// coalescing ratio.
+const FLOOD_DIAG = true;
+let floodReceived = 0;
+let floodHandled = 0;
+
+if (FLOOD_DIAG) {
+  AppState.addEventListener('change', (state) => {
+    console.log(
+      `[flood] appstate=${state} t=${Date.now()} received=${floodReceived} handled=${floodHandled}`,
+    );
+    if (state === 'active') {
+      const startReceived = floodReceived;
+      const startHandled = floodHandled;
+      setTimeout(() => {
+        console.log(
+          `[flood] 10s after active: received=${floodReceived - startReceived} handled=${floodHandled - startHandled}`,
+        );
+      }, 10000);
+    }
+  });
+}
+
+// ─── Progress-event coalescing ─────────────────────────────────────────────
+// Android throttles the JS thread during long background (Doze — see the
+// backup-timer machinery in sleepTimer.ts). Queued PlaybackProgressUpdated
+// events (1/s) then replay in a burst on foreground; without coalescing,
+// each runs the full handler below and an hour of backlog saturates the JS
+// thread for seconds (stale UI, unresponsive touches). Latest-wins is safe:
+// every write in the handler is final-state (chapter index, progress,
+// notification metadata), savePeriodicProgress is wall-clock throttled, and
+// sleepTimer.onProgressTick ignores position — it only needs a recent call.
+// At the normal 1 Hz cadence the pending slot is always empty when an event
+// arrives, so behavior is unchanged.
+let pendingProgressEvent = null;
+let progressHandlerRunning = false;
+
+function onProgressUpdatedCoalesced(event) {
+  pendingProgressEvent = event;
+  if (FLOOD_DIAG) floodReceived++;
+  if (progressHandlerRunning) return;
+  progressHandlerRunning = true;
+  (async () => {
+    try {
+      while (pendingProgressEvent) {
+        const ev = pendingProgressEvent;
+        pendingProgressEvent = null;
+        const t0 = FLOOD_DIAG ? Date.now() : 0;
+        await handleProgressUpdated(ev);
+        if (FLOOD_DIAG) {
+          floodHandled++;
+          console.log(
+            `[flood] handled #${floodHandled} (received ${floodReceived}) pos=${ev.position.toFixed(1)} in ${Date.now() - t0}ms`,
+          );
+        }
+      }
+    } finally {
+      progressHandlerRunning = false;
+    }
+  })();
+}
+
+// The 1 Hz handler only ever reads bookId off the track, and a queue index
+// can't map to a different bookId without the queue being rebuilt — which
+// fires PlaybackActiveTrackChanged (where this cache is invalidated). Caching
+// it removes a getTrack() bridge round-trip from every tick.
+let progressTrackCache = { index: -1, bookId: null };
+
+function invalidateProgressTrackCache() {
+  progressTrackCache = { index: -1, bookId: null };
+}
+
+// Extracted body of the PlaybackProgressUpdated listener; invoked only via
+// onProgressUpdatedCoalesced above.
+async function handleProgressUpdated({ position, duration, track }) {
+  //? event {"buffered": 107.232, "duration": 4626.991, "position": 0.526, "track": 3}
+  let bookId;
+  if (progressTrackCache.index === track && progressTrackCache.bookId) {
+    bookId = progressTrackCache.bookId;
+  } else {
+    const trackToUpdate = await TrackPlayer.getTrack(track);
+
+    // getTrack can return undefined mid-queue-transition (reset/book switch).
+    // Still tick the sleep timer so a duration timer isn't starved of its
+    // primary fire path during a transition.
+    if (!trackToUpdate?.bookId) {
+      await sleepTimer.onProgressTick(position);
+      return;
+    }
+    bookId = trackToUpdate.bookId;
+    progressTrackCache = { index: track, bookId };
+  }
+
+  // Get book data from library store - use isSingleFile from DB to avoid queue race condition
+  const book = useLibraryStore.getState().books[bookId];
+
+  // Use isSingleFile from database (set at scan time) instead of queue.length
+  // This eliminates the race condition where queue isn't ready after app restart
+  const isSingleFile = treatAsSingleFile(book);
+
+  if (
+    isSingleFile &&
+    book &&
+    book.chapters &&
+    book.chapters.length > 1
+  ) {
+    const chapters = book.chapters;
+    const currentChapterIndex = findChapterIndexByPosition(
+      chapters,
+      position,
+    );
+    const progressWithinChapter = calculateProgressWithinChapter(
+      chapters,
+      position,
+    );
+
+    // Update progress in store using progress within chapter
+    setPlaybackProgress(bookId, progressWithinChapter);
+
+    //! this was unstable and did not update the notification player w/chapter durations.
+    // // Update now playing metadata with chapter-relative position for lock screen
+    // // This makes the progress bar show chapter progress instead of full book progress
+    // if (hasValidChapterData(chapters)) {
+    //   const currentChapter = chapters[currentChapterIndex];
+    //   if (currentChapter) {
+    //     await TrackPlayer.updateNowPlayingMetadata({
+    //       elapsedTime: progressWithinChapter,
+    //       duration: currentChapter.chapterDuration,
+    //     });
+    //   }
+    // }
+
+    // Check if chapter changed
+    if (
+      singleFileChapterState.bookId !== bookId ||
+      singleFileChapterState.lastChapterIndex !== currentChapterIndex
+    ) {
+      const previousChapterIndex =
+        singleFileChapterState.bookId === bookId
+          ? singleFileChapterState.lastChapterIndex
+          : -1;
+      const wasChapterChange =
+        previousChapterIndex !== -1 &&
+        previousChapterIndex !== currentChapterIndex;
+
+      // Update state
+      singleFileChapterState.bookId = bookId;
+      singleFileChapterState.lastChapterIndex = currentChapterIndex;
+
+      // Update Zustand store for UI reactivity
+      setPlaybackIndex(bookId, currentChapterIndex);
+      // Update database for persistence - save BOTH chapterIndex AND progress atomically
+      // This ensures they're always in sync, even if app is force-closed
+      await updateChapterIndexInDB(bookId, currentChapterIndex);
+      await updateChapterProgressInDB(bookId, progressWithinChapter);
+
+      // Update track metadata for lock screen/notification
+      if (hasValidChapterData(chapters)) {
+        const currentChapter = chapters[currentChapterIndex];
+        if (currentChapter) {
+          await TrackPlayer.updateMetadataForTrack(track, {
+            title: currentChapter.chapterTitle,
+            duration: currentChapter.chapterDuration,
+            // Preserve existing metadata that shouldn't change
+            artwork: book.artwork,
+            artist: book.author,
+            album: book.bookTitle,
+          });
+        }
+      }
+
+      // Handle sleep timer chapter countdown on chapter change
+      if (wasChapterChange) {
+        // Under burst coalescing one handler run can span several chapter
+        // boundaries; a chapter-mode sleep timer must count each of them.
+        // Backward jumps keep the single-call semantics (a backward seek
+        // counted as one change before coalescing too). Capped defensively.
+        const forwardBoundaries = Math.min(
+          Math.max(currentChapterIndex - previousChapterIndex, 1),
+          50,
+        );
+        for (let i = 0; i < forwardBoundaries; i++) {
+          await sleepTimer.onChapterChanged();
+        }
+      }
+    }
+
+    // Periodic progress save (defense in depth for force-close scenarios)
+    await savePeriodicProgress(bookId, progressWithinChapter);
+
+    // Book end detection: check if position is near end of book.
+    // `duration` comes from the event payload — no getProgress() round-trip.
+    const END_THRESHOLD = 0.2; // .2 seconds before end to trigger
+    if (duration > 0 && position >= duration - END_THRESHOLD) {
+      // Mark book as finished
+      const bookModel = await getBookById(bookId);
+      if (bookModel) {
+        await bookModel.updateBookProgress(BookProgressState.Finished);
+      }
+
+      // Save final progress
+      await updateChapterProgressInDB(bookId, 0);
+      await updateChapterIndexInDB(bookId, 0);
+
+      // Reset to beginning and stop
+      await TrackPlayer.seekTo(0);
+      await TrackPlayer.pause();
+
+      // Reset chapter tracking state
+      singleFileChapterState.lastChapterIndex = 0;
+
+      return;
+    }
+  } else {
+    // Multi-file book OR single-chapter book - just update progress normally
+    setPlaybackProgress(bookId, position);
+    // Periodic save here too — without it, multi-file books persist progress
+    // only on pause/stop/track-change, so a process kill mid-chapter loses
+    // the whole chapter's position.
+    await savePeriodicProgress(bookId, position);
+  }
+
+  await sleepTimer.onProgressTick(position);
 }
 
 // Guard against spurious RemoteStop from Android MediaSession after Doze.
@@ -215,6 +445,8 @@ export default module.exports = async function () {
   });
   TrackPlayer.addEventListener('remote-play-book', ({ bookId }) => {
     console.log('[service] remote-play-book received:', bookId);
+    // Queue is about to be rebuilt — old index→bookId mappings are invalid.
+    invalidateProgressTrackCache();
     // Handles headless runtimes too: sets up the player if the UI never did
     // and falls back to the DB when the library store is empty.
     handleRemotePlayBook(bookId);
@@ -241,146 +473,12 @@ export default module.exports = async function () {
     }
   });
 
+  // Coalesced: see onProgressUpdatedCoalesced / handleProgressUpdated at
+  // module scope. Bursts of queued events after long background collapse to
+  // the newest event instead of replaying one handler run per queued second.
   TrackPlayer.addEventListener(
     Event.PlaybackProgressUpdated,
-    async ({ position, track }) => {
-      //? event {"buffered": 107.232, "duration": 4626.991, "position": 0.526, "track": 3}
-      const trackToUpdate = await TrackPlayer.getTrack(track);
-
-      // getTrack can return undefined mid-queue-transition (reset/book switch).
-      // Still tick the sleep timer so a duration timer isn't starved of its
-      // primary fire path during a transition.
-      if (!trackToUpdate?.bookId) {
-        await sleepTimer.onProgressTick(position);
-        return;
-      }
-
-      //? trackToUpdate ["title", "album", "url", "artwork", "bookId", "artist"]
-
-      // Get book data from library store - use isSingleFile from DB to avoid queue race condition
-      const book = useLibraryStore.getState().books[trackToUpdate.bookId];
-
-      // Use isSingleFile from database (set at scan time) instead of queue.length
-      // This eliminates the race condition where queue isn't ready after app restart
-      const isSingleFile = treatAsSingleFile(book);
-
-      if (
-        isSingleFile &&
-        book &&
-        book.chapters &&
-        book.chapters.length > 1
-      ) {
-        const chapters = book.chapters;
-        const currentChapterIndex = findChapterIndexByPosition(
-          chapters,
-          position,
-        );
-        const progressWithinChapter = calculateProgressWithinChapter(
-          chapters,
-          position,
-        );
-
-        // Update progress in store using progress within chapter
-        setPlaybackProgress(trackToUpdate.bookId, progressWithinChapter);
-
-        //! this was unstable and did not update the notification player w/chapter durations.
-        // // Update now playing metadata with chapter-relative position for lock screen
-        // // This makes the progress bar show chapter progress instead of full book progress
-        // if (hasValidChapterData(chapters)) {
-        //   const currentChapter = chapters[currentChapterIndex];
-        //   if (currentChapter) {
-        //     await TrackPlayer.updateNowPlayingMetadata({
-        //       elapsedTime: progressWithinChapter,
-        //       duration: currentChapter.chapterDuration,
-        //     });
-        //   }
-        // }
-
-        // Check if chapter changed
-        if (
-          singleFileChapterState.bookId !== trackToUpdate.bookId ||
-          singleFileChapterState.lastChapterIndex !== currentChapterIndex
-        ) {
-          const wasChapterChange =
-            singleFileChapterState.bookId === trackToUpdate.bookId &&
-            singleFileChapterState.lastChapterIndex !== -1 &&
-            singleFileChapterState.lastChapterIndex !== currentChapterIndex;
-
-          // Update state
-          singleFileChapterState.bookId = trackToUpdate.bookId;
-          singleFileChapterState.lastChapterIndex = currentChapterIndex;
-
-          // Update Zustand store for UI reactivity
-          setPlaybackIndex(trackToUpdate.bookId, currentChapterIndex);
-          // Update database for persistence - save BOTH chapterIndex AND progress atomically
-          // This ensures they're always in sync, even if app is force-closed
-          await updateChapterIndexInDB(
-            trackToUpdate.bookId,
-            currentChapterIndex,
-          );
-          await updateChapterProgressInDB(
-            trackToUpdate.bookId,
-            progressWithinChapter,
-          );
-
-          // Update track metadata for lock screen/notification
-          if (hasValidChapterData(chapters)) {
-            const currentChapter = chapters[currentChapterIndex];
-            if (currentChapter) {
-              await TrackPlayer.updateMetadataForTrack(track, {
-                title: currentChapter.chapterTitle,
-                duration: currentChapter.chapterDuration,
-                // Preserve existing metadata that shouldn't change
-                artwork: book.artwork,
-                artist: book.author,
-                album: book.bookTitle,
-              });
-            }
-          }
-
-          // Handle sleep timer chapter countdown on chapter change
-          if (wasChapterChange) {
-            await sleepTimer.onChapterChanged();
-          }
-        }
-
-        // Periodic progress save (defense in depth for force-close scenarios)
-        await savePeriodicProgress(trackToUpdate.bookId, progressWithinChapter);
-
-        // Book end detection: check if position is near end of book
-        const { duration } = await TrackPlayer.getProgress();
-        const END_THRESHOLD = 0.2; // .2 seconds before end to trigger
-        if (duration > 0 && position >= duration - END_THRESHOLD) {
-          // Mark book as finished
-          const bookModel = await getBookById(trackToUpdate.bookId);
-          if (bookModel) {
-            await bookModel.updateBookProgress(BookProgressState.Finished);
-          }
-
-          // Save final progress
-          await updateChapterProgressInDB(trackToUpdate.bookId, 0);
-          await updateChapterIndexInDB(trackToUpdate.bookId, 0);
-
-          // Reset to beginning and stop
-          await TrackPlayer.seekTo(0);
-          await TrackPlayer.pause();
-
-          // Reset chapter tracking state
-          singleFileChapterState.lastChapterIndex = 0;
-
-          return;
-        }
-      } else {
-        // Multi-file book OR single-chapter book - just update progress normally
-        setPlaybackProgress(trackToUpdate.bookId, position);
-        // Periodic save here too — without it, multi-file books persist progress
-        // only on pause/stop/track-change, so a process kill mid-chapter loses
-        // the whole chapter's position.
-        await savePeriodicProgress(trackToUpdate.bookId, position);
-      }
-
-      await sleepTimer.onProgressTick(position);
-    },
+    onProgressUpdatedCoalesced,
   );
 
   TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async (event) => {
@@ -491,6 +589,10 @@ export default module.exports = async function () {
   TrackPlayer.addEventListener(
     Event.PlaybackActiveTrackChanged,
     async (event) => {
+      // Track or queue changed (index can be undefined mid-reset) — either
+      // way the progress handler's index→bookId cache may be stale.
+      invalidateProgressTrackCache();
+
       // CRITICAL FIX: Only process valid track indices (>= 0)
       // The event.index can be undefined during queue reset, which would corrupt chapter index
       if (typeof event.index !== 'number' || event.index < 0) return;

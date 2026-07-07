@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import TrackPlayer, {
   State,
+  isPlaying,
   useIsPlaying,
   useActiveTrack,
 } from 'react-native-track-player';
@@ -112,7 +113,20 @@ export function PlayPauseButton({
   const pauseButtonScale = useSharedValue(playing ? 1 : 0);
 
   const onButtonPress = async () => {
-    if (playing) {
+    // `playing` from useIsPlaying() is event-derived and can be stale after
+    // extended background (queued events deliver late) — a press during that
+    // window would run the wrong branch. Fetch the actual state instead.
+    let actuallyPlaying = playing;
+    try {
+      const fresh = await isPlaying();
+      if (fresh.playing !== undefined) {
+        actuallyPlaying = fresh.playing;
+      }
+    } catch {
+      // Bridge fetch failed — fall back to the hook value.
+    }
+
+    if (actuallyPlaying) {
       playButtonScale.value = withTiming(1, { duration: 200 });
       pauseButtonScale.value = withTiming(0, { duration: 200 });
       await TrackPlayer.pause();
