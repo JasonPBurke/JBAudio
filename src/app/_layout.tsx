@@ -20,11 +20,16 @@ import { useThemeStore } from '@/store/themeStore';
 import { useLibraryStore } from '@/store/library';
 import { useUIReadyStore } from '@/store/uiReadyStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
+import { useAppStateStore } from '@/store/appState';
 import { useTheme } from '@/hooks/useTheme';
 import { runTrialExpiredCleanup } from '@/helpers/trialCleanup';
 import * as Sentry from '@sentry/react-native';
 import Purchases, { LOG_LEVEL } from 'react-native-purchases';
 import { AppState, AppStateStatus } from 'react-native';
+
+// Temporary resume-path diagnostics ([fg] logs). Remove once the foreground
+// stall is characterized and fixed.
+const RESUME_DIAG = true;
 
 Sentry.init({
   dsn: 'https://f560ec15a66fbab84326dc1d343ea729@o4510664873541632.ingest.us.sentry.io/4510664874590208',
@@ -132,16 +137,79 @@ const App = () => {
   const [isBackground, setIsBackground] = useState(false);
 
   useEffect(() => {
+    // Mount-time reconcile probe. On an Activity recreate (e.g. swipe-from-
+    // recents while a foreground service keeps the process alive), the JS
+    // runtime — and the appState store — survive, but the React tree is
+    // rebuilt. By the time this listener registers, AppState.currentState is
+    // usually already 'active', so NO 'change' event fires to correct a stale
+    // isActive left over from backgrounding. This log captures currentState vs
+    // the store's isActive at registration to prove that gap. Remove with
+    // RESUME_DIAG.
+    if (RESUME_DIAG) {
+      console.log(
+        `[as] mount currentState=${AppState.currentState} ` +
+          `storeActive=${useAppStateStore.getState().isActive} t=${Date.now()}`,
+      );
+    }
+
+    // FIX: reconcile the foreground flag from the authoritative currentState on
+    // every (re)mount. On an Activity recreate (swipe-from-recents while a
+    // foreground service keeps the process alive), no 'change' event fires —
+    // currentState is already 'active' when this listener registers — so
+    // without this the store keeps the stale `false` from backgrounding and the
+    // dormancy guards freeze the visible screen. Using `!== 'background'`
+    // (rather than `=== 'active'`) keeps a fresh cold start safe if
+    // currentState is briefly reported as 'unknown'. The store default is
+    // already `true`, so this only ever matters after a background→recreate.
+    useAppStateStore
+      .getState()
+      .setActive(AppState.currentState !== 'background');
+
     const subscription = AppState.addEventListener(
       'change',
       (nextAppState: AppStateStatus) => {
+        // Temporary raw-transition diagnostic ([as] logs). Unlike the [fg]
+        // logs (which only fire on active transitions), this records EVERY
+        // AppState change — including the inactive/background events in the
+        // keyguard-wake burst — plus the exact isActive/isBackground we write.
+        // This tells us whether the dormant state is reported as 'inactive' or
+        // 'background', which decides the freeze fix. Remove with RESUME_DIAG.
+        if (RESUME_DIAG) {
+          console.log(
+            `[as] ${appState.current}->${nextAppState} ` +
+              `isActive=${nextAppState === 'active'} ` +
+              `isBg=${nextAppState === 'background'} t=${Date.now()}`,
+          );
+        }
         // Only refresh when coming back to active state from background
         if (
           appState.current.match(/inactive|background/) &&
           nextAppState === 'active'
         ) {
-          initSubscription();
+          // Temporary resume-path instrumentation (remove with RESUME_DIAG).
+          // NOTE: initSubscription() is deliberately NOT deferred yet — we
+          // want to measure its cost in the resume frame first. If the [fg]
+          // logs show it dominates the ~1.75s stall, the fix is to move it
+          // behind InteractionManager.runAfterInteractions().
+          if (RESUME_DIAG) {
+            const t0 = performance.now();
+            console.log(`[fg] active start t=${t0.toFixed(1)}`);
+            initSubscription();
+            requestAnimationFrame(() =>
+              console.log(
+                `[fg] first frame after active in ${(
+                  performance.now() - t0
+                ).toFixed(1)}ms`,
+              ),
+            );
+          } else {
+            initSubscription();
+          }
         }
+        // Single source of truth for foreground state — consumers gate their
+        // per-tick work on this so the mounted-but-invisible player screen
+        // goes dormant. See src/store/appState.ts.
+        useAppStateStore.getState().setActive(nextAppState === 'active');
         setIsBackground(nextAppState === 'background');
         appState.current = nextAppState;
       },

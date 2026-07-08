@@ -65,7 +65,13 @@ async function savePeriodicProgress(bookId, progress) {
 // thousands of queued events, and logging each one would itself load the
 // JS thread and distort the measurement. The received/handled delta is the
 // coalescing ratio.
-const FLOOD_DIAG = true;
+//
+// Disabled: an hour-long screen-off capture proved no backlog ever forms
+// (received == handled throughout), so the flood hypothesis is refuted. The
+// coalescer below is KEPT as a CPU/battery optimization (it removes a
+// getTrack + getProgress bridge round-trip per tick), independent of this
+// flag — this only controls the (now-silenced) per-event logging.
+const FLOOD_DIAG = false;
 let floodReceived = 0;
 let floodHandled = 0;
 

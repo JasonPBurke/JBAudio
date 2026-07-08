@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useSharedValue, SharedValue } from 'react-native-reanimated';
 import TrackPlayer, { Event, Progress } from 'react-native-track-player';
+import { useAppStateStore } from '@/store/appState';
 
 export type ProgressReanimated = {
   position: SharedValue<number>;
@@ -42,6 +43,11 @@ export const useProgressReanimated = (): ProgressReanimated => {
     const progressSubscription = TrackPlayer.addEventListener(
       Event.PlaybackProgressUpdated,
       (event) => {
+        // Dormant while backgrounded: the screen is invisible, and freezing
+        // the shared values here also stops PlayerProgressBar's per-second
+        // useAnimatedReaction cascade. Self-heals on the next tick after
+        // resume. See src/store/appState.ts.
+        if (!useAppStateStore.getState().isActive) return;
         position.value = event.position;
         duration.value = event.duration;
         buffered.value = event.buffered;
@@ -52,6 +58,7 @@ export const useProgressReanimated = (): ProgressReanimated => {
     const trackChangedSubscription = TrackPlayer.addEventListener(
       Event.PlaybackActiveTrackChanged,
       async () => {
+        if (!useAppStateStore.getState().isActive) return;
         try {
           const progress: Progress = await TrackPlayer.getProgress();
           position.value = progress.position;
@@ -67,6 +74,7 @@ export const useProgressReanimated = (): ProgressReanimated => {
     const seekSubscription = TrackPlayer.addEventListener(
       Event.PlaybackState,
       async () => {
+        if (!useAppStateStore.getState().isActive) return;
         try {
           const progress: Progress = await TrackPlayer.getProgress();
           position.value = progress.position;

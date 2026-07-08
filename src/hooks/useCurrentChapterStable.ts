@@ -12,6 +12,7 @@ import TrackPlayer, {
   useActiveTrack,
 } from 'react-native-track-player';
 import { useBookById, useLibraryStore } from '@/store/library';
+import { useAppStateStore } from '@/store/appState';
 import { Chapter } from '@/types/Book';
 import {
   usesChapterQueue,
@@ -110,6 +111,9 @@ export const useCurrentChapterStable = () => {
     }
 
     const applyPosition = (position: number) => {
+      // Dormant while backgrounded — no chapter re-derivation / re-render for
+      // an invisible screen. Self-heals on the next event after resume.
+      if (!useAppStateStore.getState().isActive) return;
       const index = resolveCurrentChapterIndex(chapters, undefined, position);
       if (index !== positionIndexRef.current) {
         positionIndexRef.current = index;
@@ -118,6 +122,7 @@ export const useCurrentChapterStable = () => {
     };
 
     const updateFromProgress = async () => {
+      if (!useAppStateStore.getState().isActive) return;
       try {
         const { position } = await TrackPlayer.getProgress();
         applyPosition(position);

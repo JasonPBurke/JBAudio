@@ -7,8 +7,10 @@ import {
 } from 'react-native-track-player';
 import { usePlayerStateStore } from '@/store/playerState';
 
-// Temporary — remove with the [flood] diagnostics in src/setup/service.js.
-const FLOOD_DIAG = true;
+// Temporary resume-path diagnostics ([fg] logs). Low-noise: these fire on
+// play/pause transitions and on foreground, not per-second. Remove with the
+// RESUME_DIAG flags in _layout.tsx / PlayerControls.tsx.
+const RESUME_DIAG = true;
 
 /**
  * This component syncs TrackPlayer state to our Zustand store.
@@ -26,8 +28,8 @@ export const PlayerStateSync = () => {
   const setActiveBookId = usePlayerStateStore((s) => s.setActiveBookId);
 
   useEffect(() => {
-    if (FLOOD_DIAG) {
-      console.log(`[flood] playing=${playing} t=${Date.now()}`);
+    if (RESUME_DIAG) {
+      console.log(`[fg] event playing=${playing} t=${Date.now()}`);
     }
     setIsPlaying(playing ?? false);
   }, [playing, setIsPlaying]);
@@ -45,9 +47,9 @@ export const PlayerStateSync = () => {
       if (state !== 'active') return;
       isPlaying()
         .then(({ playing: fresh }) => {
-          if (FLOOD_DIAG) {
+          if (RESUME_DIAG) {
             console.log(
-              `[flood] foreground refresh playing=${fresh} t=${Date.now()}`,
+              `[fg] refresh playing=${fresh} t=${Date.now()}`,
             );
           }
           if (fresh !== undefined) {

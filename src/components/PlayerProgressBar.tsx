@@ -15,6 +15,7 @@ import { useProgressReanimated } from '@/hooks/useProgressReanimated';
 import { useCurrentChapter } from '@/hooks/useCurrentChapterStable';
 import { useTheme } from '@/hooks/useTheme';
 import { useBookById } from '@/store/library';
+import { useAppStateStore } from '@/store/appState';
 import { shouldUseClippedChapters } from '@/helpers/clippedChapters';
 import { recordSeekFootprint } from '@/db/footprintQueries';
 
@@ -135,6 +136,10 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
   // Callback to update time display text (runs on JS thread)
   const updateTimeDisplay = useCallback(
     (pos: number, chapStart: number, chapDur: number, totalDur: number) => {
+      // Dormant while backgrounded — belt-and-suspenders with the
+      // useProgressReanimated guard (position.value freezes there, so this
+      // reaction usually won't fire anyway). Self-heals on resume.
+      if (!useAppStateStore.getState().isActive) return;
       const effectiveDur = chapDur > 0 ? chapDur : totalDur;
       const chapterPos = Math.max(0, pos - chapStart);
       const remaining = Math.max(0, effectiveDur - chapterPos);
