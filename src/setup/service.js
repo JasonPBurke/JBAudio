@@ -1,5 +1,4 @@
 import TrackPlayer, { Event, State } from 'react-native-track-player';
-import { AppState } from 'react-native';
 import RNShake from 'react-native-shake';
 import * as Haptics from 'expo-haptics';
 import { useLibraryStore } from '@/store/library';
@@ -59,39 +58,6 @@ async function savePeriodicProgress(bookId, progress) {
   await updateChapterProgressInDB(bookId, progress);
 }
 
-// ─── Flood diagnostics (temporary — remove after the post-background stall
-// fix is device-verified) ──────────────────────────────────────────────────
-// Counters instead of per-event logs: a foreground burst can replay
-// thousands of queued events, and logging each one would itself load the
-// JS thread and distort the measurement. The received/handled delta is the
-// coalescing ratio.
-//
-// Disabled: an hour-long screen-off capture proved no backlog ever forms
-// (received == handled throughout), so the flood hypothesis is refuted. The
-// coalescer below is KEPT as a CPU/battery optimization (it removes a
-// getTrack + getProgress bridge round-trip per tick), independent of this
-// flag — this only controls the (now-silenced) per-event logging.
-const FLOOD_DIAG = false;
-let floodReceived = 0;
-let floodHandled = 0;
-
-if (FLOOD_DIAG) {
-  AppState.addEventListener('change', (state) => {
-    console.log(
-      `[flood] appstate=${state} t=${Date.now()} received=${floodReceived} handled=${floodHandled}`,
-    );
-    if (state === 'active') {
-      const startReceived = floodReceived;
-      const startHandled = floodHandled;
-      setTimeout(() => {
-        console.log(
-          `[flood] 10s after active: received=${floodReceived - startReceived} handled=${floodHandled - startHandled}`,
-        );
-      }, 10000);
-    }
-  });
-}
-
 // ─── Progress-event coalescing ─────────────────────────────────────────────
 // Android throttles the JS thread during long background (Doze — see the
 // backup-timer machinery in sleepTimer.ts). Queued PlaybackProgressUpdated
@@ -108,7 +74,6 @@ let progressHandlerRunning = false;
 
 function onProgressUpdatedCoalesced(event) {
   pendingProgressEvent = event;
-  if (FLOOD_DIAG) floodReceived++;
   if (progressHandlerRunning) return;
   progressHandlerRunning = true;
   (async () => {
@@ -116,14 +81,7 @@ function onProgressUpdatedCoalesced(event) {
       while (pendingProgressEvent) {
         const ev = pendingProgressEvent;
         pendingProgressEvent = null;
-        const t0 = FLOOD_DIAG ? Date.now() : 0;
         await handleProgressUpdated(ev);
-        if (FLOOD_DIAG) {
-          floodHandled++;
-          console.log(
-            `[flood] handled #${floodHandled} (received ${floodReceived}) pos=${ev.position.toFixed(1)} in ${Date.now() - t0}ms`,
-          );
-        }
       }
     } finally {
       progressHandlerRunning = false;

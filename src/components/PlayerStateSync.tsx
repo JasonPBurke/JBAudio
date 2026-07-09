@@ -7,11 +7,6 @@ import {
 } from 'react-native-track-player';
 import { usePlayerStateStore } from '@/store/playerState';
 
-// Temporary resume-path diagnostics ([fg] logs). Low-noise: these fire on
-// play/pause transitions and on foreground, not per-second. Remove with the
-// RESUME_DIAG flags in _layout.tsx / PlayerControls.tsx.
-const RESUME_DIAG = true;
-
 /**
  * This component syncs TrackPlayer state to our Zustand store.
  * It should be rendered ONCE at the app root level.
@@ -28,9 +23,6 @@ export const PlayerStateSync = () => {
   const setActiveBookId = usePlayerStateStore((s) => s.setActiveBookId);
 
   useEffect(() => {
-    if (RESUME_DIAG) {
-      console.log(`[fg] event playing=${playing} t=${Date.now()}`);
-    }
     setIsPlaying(playing ?? false);
   }, [playing, setIsPlaying]);
 
@@ -47,11 +39,6 @@ export const PlayerStateSync = () => {
       if (state !== 'active') return;
       isPlaying()
         .then(({ playing: fresh }) => {
-          if (RESUME_DIAG) {
-            console.log(
-              `[fg] refresh playing=${fresh} t=${Date.now()}`,
-            );
-          }
           if (fresh !== undefined) {
             setIsPlaying(fresh);
           }

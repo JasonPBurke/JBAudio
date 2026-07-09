@@ -62,9 +62,6 @@ import {
   getPreviousChapterStartSeconds,
 } from '@/helpers/singleFileBook';
 
-// Temporary press-latency diagnostics ([press] logs). Remove with RESUME_DIAG.
-const RESUME_DIAG = true;
-
 type PlayerControlsProps = {
   style?: ViewStyle;
 };
@@ -124,9 +121,6 @@ export function PlayPauseButton({
   // engine's PlaybackState event reconciles the store back to truth via
   // PlayerStateSync a beat later (and corrects us if the command failed).
   const onButtonPress = () => {
-    if (RESUME_DIAG) {
-      console.log(`[press] entry t=${performance.now().toFixed(1)}`);
-    }
     const intent = !playing; // true => start playing
     usePlayerStateStore.getState().setIsPlaying(intent);
 
