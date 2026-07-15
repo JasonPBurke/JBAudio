@@ -40,6 +40,14 @@ export interface Spec extends TurboModule {
    */
   analyzeBatchNoCover(batchId: string, paths: string[]): Promise<number>;
 
+  /**
+   * The process's Java-heap limit (Runtime.maxMemory()) in bytes. Constant
+   * for the life of the process. Used to budget memory-hungry playback
+   * structures (clipped-chapter queues) against the device's actual limit,
+   * including the largeHeap manifest setting.
+   */
+  getMaxHeapBytes(): number;
+
   /** RN-required stubs for any module that emits DeviceEventEmitter events. */
   addListener(eventName: string): void;
   removeListeners(count: number): void;

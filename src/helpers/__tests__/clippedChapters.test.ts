@@ -1,7 +1,9 @@
 import {
   buildClippedChapterTracks,
   shouldUseClippedChapters,
+  estimateClippedTransitionPeakBytes,
 } from '../clippedChapters';
+import { getHeapLimitBytes } from '@/helpers/deviceHeap';
 import type { Book, Chapter } from '@/types/Book';
 
 jest.mock('@/constants/images', () => ({
@@ -11,6 +13,12 @@ jest.mock('@/constants/images', () => ({
 jest.mock('@/constants/featureFlags', () => ({
   CLIPPED_CHAPTERS_SPIKE: true,
 }));
+
+jest.mock('@/helpers/deviceHeap', () => ({
+  getHeapLimitBytes: jest.fn(() => 512 * 1024 * 1024),
+}));
+
+const mockHeapLimit = getHeapLimitBytes as jest.Mock;
 
 const chapter = (
   title: string,
@@ -62,6 +70,56 @@ describe('shouldUseClippedChapters', () => {
   it('is false for undefined or single-chapter lists', () => {
     expect(shouldUseClippedChapters(undefined)).toBe(false);
     expect(shouldUseClippedChapters([chapter('Only', 0, 60)])).toBe(false);
+  });
+});
+
+/**
+ * Memory gate: each clipped queue item is its own ProgressiveMediaSource, and
+ * ExoPlayer's Mp4Extractor materializes the full sample table (~24 B per AAC
+ * frame) per prepared period. At a chapter transition two periods coexist, so
+ * an oversized book OOMs at every chapter boundary (device-verified with a
+ * 28.7 h 44.1 kHz m4b on a 256 MiB heap). Such books must fall back to the
+ * legacy single-track path.
+ */
+describe('shouldUseClippedChapters memory gate', () => {
+  // Builds a single-file book whose chapters sum to `hours` of audio.
+  const longBook = (hours: number): Chapter[] => {
+    const half = (hours * 3600) / 2;
+    return [chapter('Ch 1', 0, half), chapter('Ch 2', half * 1000, half)];
+  };
+
+  beforeEach(() => {
+    mockHeapLimit.mockReturnValue(512 * 1024 * 1024);
+  });
+
+  it('keeps a ~29h book (Book 7 case) clipped on a 512 MiB heap', () => {
+    expect(shouldUseClippedChapters(longBook(29))).toBe(true);
+  });
+
+  it('falls back to legacy single-track for a 40h book on a 512 MiB heap', () => {
+    expect(shouldUseClippedChapters(longBook(40))).toBe(false);
+  });
+
+  it('falls back for a ~29h book on a 256 MiB heap (no largeHeap)', () => {
+    mockHeapLimit.mockReturnValue(256 * 1024 * 1024);
+    expect(shouldUseClippedChapters(longBook(29))).toBe(false);
+  });
+
+  it('estimates peak bytes proportionally to total chapter duration', () => {
+    const oneHour = estimateClippedTransitionPeakBytes(longBook(1));
+    const twoHours = estimateClippedTransitionPeakBytes(longBook(2));
+    expect(twoHours).toBeCloseTo(oneHour * 2, 0);
+  });
+
+  it('estimates the device-verified Book 7 case (28.68h) at ~213 MB', () => {
+    // 103,238 s of 44.1 kHz AAC measured at ~107 MB of sample tables per
+    // period on device; the transition peak is two periods.
+    const estimate = estimateClippedTransitionPeakBytes([
+      chapter('Ch 1', 0, 51619),
+      chapter('Ch 2', 51_619_000, 51619),
+    ]);
+    expect(estimate).toBeGreaterThan(200 * 1024 * 1024);
+    expect(estimate).toBeLessThan(230 * 1024 * 1024);
   });
 });
 

@@ -69,6 +69,9 @@ class NativeMediaInfoModule(
         }
     }
 
+    @ReactMethod(isBlockingSynchronousMethod = true)
+    fun getMaxHeapBytes(): Double = Runtime.getRuntime().maxMemory().toDouble()
+
     // RN requires these stubs on any module that emits events via DeviceEventEmitter.
     @ReactMethod fun addListener(eventName: String) {}
     @ReactMethod fun removeListeners(count: Double) {}

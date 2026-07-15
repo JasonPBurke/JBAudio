@@ -19,7 +19,11 @@ import {
  * Never identify a chapter by URL — clipped queue items all share one URL.
  */
 
-type ChapterLike = Pick<Chapter, 'url' | 'startMs'>;
+// chapterDuration feeds the memory gate in shouldUseClippedChapters — a
+// projection that omits it would let oversized books slip past the gate here
+// while queue builders (with full chapters) reject them, splitting the
+// queue-shape decision.
+type ChapterLike = Pick<Chapter, 'url' | 'startMs' | 'chapterDuration'>;
 
 /**
  * True when the queue index is the chapter index (chapter-queue mode).

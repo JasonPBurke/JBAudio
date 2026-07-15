@@ -11,6 +11,10 @@ const MAX_FOOTPRINTS_PER_BOOK = 10;
 type ChapterData = {
   startMs: number;
   url: string;
+  // Required by usesChapterQueue's memory gate (see ChapterLike in
+  // chapterPlayback.ts) — omitting it would make this file's queue-shape
+  // verdict diverge from the queue builders' for oversized books.
+  chapterDuration: number;
 };
 
 /**
@@ -40,6 +44,7 @@ export async function getCurrentChapterInfo(
       .map((c: Chapter) => ({
         startMs: (c as any).startMs ?? 0,
         url: c.url,
+        chapterDuration: c.chapterDuration ?? 0,
       }))
       .sort((a: ChapterData, b: ChapterData) => a.startMs - b.startMs);
 
@@ -119,6 +124,7 @@ export async function recordSeekFootprint(
       .map((c: Chapter) => ({
         startMs: (c as any).startMs ?? 0,
         url: c.url,
+        chapterDuration: c.chapterDuration ?? 0,
       }))
       .sort((a: ChapterData, b: ChapterData) => a.startMs - b.startMs);
 

@@ -16,7 +16,7 @@ import {
 } from '@/helpers/remotePlayBook';
 import { ensurePlayerSetup } from '@/helpers/playerSetup';
 import { restoreLastActiveBook } from '@/helpers/restoreLastActiveBook';
-import { CLIPPED_CHAPTERS_SPIKE } from '@/constants/featureFlags';
+import { shouldUseClippedChapters } from '@/helpers/clippedChapters';
 import { recordFootprint } from '@/db/footprintQueries';
 import {
   findChapterIndexByPosition,
@@ -34,9 +34,12 @@ const { setPlaybackIndex, setPlaybackProgress } =
 // SPIKE (Bug B): with clipped per-chapter queues, single-file books flow
 // through the multi-file code paths below (queue index == chapter index,
 // positions are chapter-relative inside each clipped window), so the
-// isSingleFile special-casing must be bypassed while the spike is on.
+// isSingleFile special-casing must be bypassed for them. Books that the
+// memory gate excludes from clipping (oversized sample tables — see
+// shouldUseClippedChapters) load as ONE legacy track and need the
+// single-file handling, exactly like when the spike is off.
 const treatAsSingleFile = (book) =>
-  !CLIPPED_CHAPTERS_SPIKE && (book?.isSingleFile ?? false);
+  (book?.isSingleFile ?? false) && !shouldUseClippedChapters(book?.chapters);
 
 // Single-file book chapter tracking state (module-scope)
 let singleFileChapterState = {

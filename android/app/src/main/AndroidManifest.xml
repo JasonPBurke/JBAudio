@@ -14,7 +14,12 @@
       <data android:scheme="https"/>
     </intent>
   </queries>
-  <application android:name=".MainApplication" android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:allowBackup="false" android:theme="@style/AppTheme" android:supportsRtl="true">
+  <!-- largeHeap: ExoPlayer materializes an m4b's full MP4 sample table per prepared
+       clipped-chapter queue item (~24 B/frame; ~107 MB for a 29 h 44.1 kHz book, ×2 at
+       chapter transitions) — the default 256 MiB heap OOMs at every chapter boundary.
+       Books too big even for the large heap fall back to a single-track queue
+       (see shouldUseClippedChapters). -->
+  <application android:name=".MainApplication" android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:allowBackup="false" android:largeHeap="true" android:theme="@style/AppTheme" android:supportsRtl="true">
     <meta-data android:name="expo.modules.updates.ENABLED" android:value="false"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH" android:value="ALWAYS"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_LAUNCH_WAIT_MS" android:value="0"/>
