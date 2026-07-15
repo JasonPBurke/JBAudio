@@ -1,5 +1,10 @@
 import { useEffect } from 'react';
-import { useActiveTrack, useIsPlaying } from 'react-native-track-player';
+import { AppState } from 'react-native';
+import {
+  isPlaying,
+  useActiveTrack,
+  useIsPlaying,
+} from 'react-native-track-player';
 import { usePlayerStateStore } from '@/store/playerState';
 
 /**
@@ -24,6 +29,26 @@ export const PlayerStateSync = () => {
   useEffect(() => {
     setActiveBookId(activeTrack?.bookId ?? null);
   }, [activeTrack?.bookId, setActiveBookId]);
+
+  // useIsPlaying() is purely event-derived, so after extended background the
+  // store mirrors whatever the last delivered event said until the backlog
+  // drains. On foreground, fetch the authoritative state directly so store
+  // consumers are correct immediately.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      isPlaying()
+        .then(({ playing: fresh }) => {
+          if (fresh !== undefined) {
+            setIsPlaying(fresh);
+          }
+        })
+        .catch(() => {
+          // Non-critical — the event-derived sync above will catch up.
+        });
+    });
+    return () => sub.remove();
+  }, [setIsPlaying]);
 
   return null; // This is a sync component, renders nothing
 };

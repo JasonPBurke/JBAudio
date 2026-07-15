@@ -10,6 +10,7 @@ import TrackPlayer, {
   Event,
 } from 'react-native-track-player';
 import { useBookById } from '@/store/library';
+import { useAppStateStore } from '@/store/appState';
 import { formatSecondsToHoursMinutes } from '@/helpers/miscellaneous';
 import { calculateRemainingBookTime } from '@/helpers/chapterPlayback';
 import { useLastActiveTrack } from '@/hooks/useLastActiveTrack';
@@ -73,6 +74,9 @@ const BookTimeRemainingInner = React.memo(
       const subscription = TrackPlayer.addEventListener(
         Event.PlaybackProgressUpdated,
         ({ position }) => {
+          // Dormant while backgrounded — this bar (in both the player screen
+          // and the FloatingPlayer) is invisible, so skip the recompute/render.
+          if (!useAppStateStore.getState().isActive) return;
           // Only update every 5 seconds to reduce re-renders
           const currentBucket = Math.floor(position / 5);
           if (currentBucket !== lastUpdateRef.current) {

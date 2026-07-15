@@ -52,7 +52,7 @@ import { getBookById } from '@/db/bookQueries';
 import { BookProgressState } from '@/helpers/handleBookPlay';
 import database from '@/db';
 import { useObserveSettings } from '@/hooks/useObserveSettings';
-import { useIsPlayerPlaying } from '@/store/playerState';
+import { useIsPlayerPlaying, usePlayerStateStore } from '@/store/playerState';
 import { useSleepTimer } from '@/hooks/useSleepTimer';
 import * as sleepTimer from '@/setup/sleepTimer';
 import { useBookById } from '@/store/library';
@@ -107,40 +107,51 @@ export function PlayPauseButton({
   left = 10,
 }: PlayerButtonProps) {
   const { colors: themeColors } = useTheme();
-  const { playing } = useIsPlaying();
+  // Icon source is the store, not RNTP's event-only useIsPlaying(). The store
+  // is force-refreshed on foreground (PlayerStateSync), so the icon is correct
+  // on resume instead of showing a stale glyph until events re-deliver.
+  const playing = useIsPlayerPlaying();
   const playButtonScale = useSharedValue(playing ? 0 : 1);
   const pauseButtonScale = useSharedValue(playing ? 1 : 0);
 
-  const onButtonPress = async () => {
-    if (playing) {
-      playButtonScale.value = withTiming(1, { duration: 200 });
-      pauseButtonScale.value = withTiming(0, { duration: 200 });
-      await TrackPlayer.pause();
-    } else {
-      // Record footprint before playing
-      try {
-        const activeTrack = await TrackPlayer.getActiveTrack();
-        if (activeTrack?.bookId) {
-          await recordFootprint(activeTrack.bookId, 'play');
-        }
-      } catch {
-        // Silently fail if footprint recording fails
-      }
+  // Optimistic-with-reconcile: act on the user's intent (the opposite of what
+  // they see) instantly. We flip the store immediately — the crossfade effect
+  // below animates the icon — and fire the command without awaiting anything,
+  // so the press never waits on a slow bridge (e.g. right after resume). The
+  // engine's PlaybackState event reconciles the store back to truth via
+  // PlayerStateSync a beat later (and corrects us if the command failed).
+  const onButtonPress = () => {
+    const intent = !playing; // true => start playing
+    usePlayerStateStore.getState().setIsPlaying(intent);
 
-      playButtonScale.value = withTiming(0, { duration: 200 });
-      pauseButtonScale.value = withTiming(1, { duration: 200 });
-      // QoL: seekBy(-1) rewinds 1s on resume so you re-hear the last bit.
-      // Disabled: causes play-then-pause after extended background because the seek
-      // triggers state transitions that race with play(). Re-enable once TrackPlayer
-      // alpha stabilizes. See: Fix 4 in sleep timer / play-pause bug plan.
-      await TrackPlayer.seekBy(-1);
-      await TrackPlayer.play();
+    if (intent) {
+      (async () => {
+        try {
+          const activeTrack = await TrackPlayer.getActiveTrack();
+          if (activeTrack?.bookId) {
+            await recordFootprint(activeTrack.bookId, 'play');
+          }
+        } catch {
+          // Silently fail if footprint recording fails
+        }
+        // QoL: seekBy(-1) rewinds 1s on resume. Kept per product decision even
+        // though it can cause a play-then-pause bounce after extended
+        // background (the seek races play() on the TrackPlayer alpha).
+        await TrackPlayer.seekBy(-1);
+        await TrackPlayer.play();
+      })();
+    } else {
+      TrackPlayer.pause();
     }
   };
 
+  // Reconcile: animate the crossfade whenever the store's playing state
+  // changes — whether from our optimistic write above or from the engine's
+  // event landing in PlayerStateSync. Using withTiming here (not an instant
+  // assignment) means external state changes animate smoothly too.
   useEffect(() => {
-    playButtonScale.value = playing ? 0 : 1;
-    pauseButtonScale.value = playing ? 1 : 0;
+    playButtonScale.value = withTiming(playing ? 0 : 1, { duration: 200 });
+    pauseButtonScale.value = withTiming(playing ? 1 : 0, { duration: 200 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing]);
 

@@ -20,6 +20,7 @@ import { useThemeStore } from '@/store/themeStore';
 import { useLibraryStore } from '@/store/library';
 import { useUIReadyStore } from '@/store/uiReadyStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
+import { useAppStateStore } from '@/store/appState';
 import { useTheme } from '@/hooks/useTheme';
 import { runTrialExpiredCleanup } from '@/helpers/trialCleanup';
 import * as Sentry from '@sentry/react-native';
@@ -132,16 +133,36 @@ const App = () => {
   const [isBackground, setIsBackground] = useState(false);
 
   useEffect(() => {
+    // Reconcile the foreground flag from the authoritative currentState on
+    // every (re)mount. On an Activity recreate (e.g. swipe-from-recents while a
+    // foreground service keeps the process alive), the JS runtime — and the
+    // appState store — survive, but the React tree is rebuilt and no 'change'
+    // event fires (currentState is already 'active' when this listener
+    // registers). Without this, the store keeps the stale `false` left over
+    // from backgrounding and the dormancy guards freeze the visible screen.
+    // `!== 'background'` (not `=== 'active'`) keeps a fresh cold start safe if
+    // currentState is briefly reported as 'unknown'.
+    useAppStateStore
+      .getState()
+      .setActive(AppState.currentState !== 'background');
+
     const subscription = AppState.addEventListener(
       'change',
       (nextAppState: AppStateStatus) => {
-        // Only refresh when coming back to active state from background
+        // Refresh trial/subscription status when returning from background.
         if (
           appState.current.match(/inactive|background/) &&
           nextAppState === 'active'
         ) {
           initSubscription();
         }
+        // Single source of truth for foreground state — consumers gate their
+        // per-tick work on this so the mounted-but-invisible player screen goes
+        // dormant (see src/store/appState.ts). Go dormant ONLY on a confirmed
+        // 'background' event; treat a transient 'inactive' as still-active so a
+        // trailing 'inactive' in a wake burst can't leave the flag stuck false
+        // and freeze the screen.
+        useAppStateStore.getState().setActive(nextAppState !== 'background');
         setIsBackground(nextAppState === 'background');
         appState.current = nextAppState;
       },
