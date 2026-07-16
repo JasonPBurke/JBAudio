@@ -7,7 +7,7 @@ import {
   updateChapterProgressInDB,
   updateChapterIndexInDB,
 } from '@/db/chapterQueries';
-import { getBookById } from '@/db/bookQueries';
+import { getBookById, stampLastPlayed } from '@/db/bookQueries';
 import { BookProgressState } from '@/helpers/handleBookPlay';
 import { handleRemotePlayPause } from '@/helpers/remotePlayPause';
 import {
@@ -326,6 +326,7 @@ export default module.exports = async function () {
     try {
       const activeTrack = await TrackPlayer.getActiveTrack();
       if (activeTrack?.bookId) {
+        await stampLastPlayed(activeTrack.bookId);
         await recordFootprint(activeTrack.bookId, 'play');
       }
     } catch {

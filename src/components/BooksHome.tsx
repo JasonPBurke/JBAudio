@@ -17,6 +17,11 @@ import { Book, Author } from '@/types/Book';
 import { useTheme } from '@/hooks/useTheme';
 import { useSettingsStore } from '@/store/settingsStore';
 import { compareBookTitles } from '@/helpers/miscellaneous';
+import {
+  LibraryRecencyMode,
+  RECENCY_KEY_FOR_MODE,
+  sortBooksByRecency,
+} from '@/helpers/bookRecency';
 import { fontSize, screenPadding } from '@/constants/tokens';
 import { utilsStyles } from '@/styles';
 
@@ -28,10 +33,17 @@ type PendingScroll = {
 export type BookListProps = Partial<FlashListProps<Book>> & {
   authors?: Author[];
   books?: Book[];
+  recencyMode?: LibraryRecencyMode;
   setActiveGridSection: React.Dispatch<React.SetStateAction<string | null>>;
   activeGridSection: string | null;
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   ListHeaderComponent?: React.ReactElement;
+};
+
+const RECENTS_TITLE: Record<'played' | 'finished' | 'added', string> = {
+  played: 'Recently Played',
+  finished: 'Recently Finished',
+  added: 'Recently Added',
 };
 
 type FlatListItem =
@@ -47,6 +59,7 @@ type FlatListItem =
 
 const BooksHome = ({
   authors = [],
+  recencyMode = null,
   setActiveGridSection,
   activeGridSection,
   onScroll,
@@ -81,8 +94,17 @@ const BooksHome = ({
     });
   }, [authors]);
 
-  const recentlyAddedBooks = useMemo(() => {
+  // "Recently Added" by default; on the Started/Finished tabs the row
+  // becomes "Recently Played"/"Recently Finished" ordered by the matching
+  // timestamp (most recent first).
+  const recentBooks = useMemo(() => {
     const allBooks = sortedAuthors.flatMap((author) => author.books);
+    if (recencyMode) {
+      return sortBooksByRecency(
+        allBooks,
+        RECENCY_KEY_FOR_MODE[recencyMode],
+      ).slice(0, 25);
+    }
     // Optimized: avoid creating Date objects when ctime is already a number
     allBooks.sort((a, b) => {
       const timeA =
@@ -96,23 +118,22 @@ const BooksHome = ({
       return timeB - timeA;
     });
     return allBooks.slice(0, 25);
-  }, [sortedAuthors]);
+  }, [sortedAuthors, recencyMode]);
 
   // Build flat data array for the single FlashList
   const flatData: FlatListItem[] = useMemo(() => {
-    if (recentlyAddedBooks.length === 0 && sortedAuthors.length === 0)
-      return [];
+    if (recentBooks.length === 0 && sortedAuthors.length === 0) return [];
     const items: FlatListItem[] = [];
 
-    // Recently Added section
-    if (recentlyAddedBooks.length > 0) {
+    // Recents section (Recently Added/Played/Finished depending on tab)
+    if (recentBooks.length > 0) {
       items.push({
         type: 'sectionHeader',
         sectionId: 'recentlyAdded',
-        title: 'Recently Added',
+        title: RECENTS_TITLE[recencyMode ?? 'added'],
       });
       if (activeGridSection === 'recentlyAdded') {
-        for (const book of recentlyAddedBooks) {
+        for (const book of recentBooks) {
           if (book.bookId)
             items.push({ type: 'book', bookId: book.bookId });
         }
@@ -120,7 +141,7 @@ const BooksHome = ({
         items.push({
           type: 'horizontalRow',
           sectionId: 'recentlyAdded',
-          books: recentlyAddedBooks,
+          books: recentBooks,
           preserveOrder: true,
         });
       }
@@ -151,7 +172,7 @@ const BooksHome = ({
     }
 
     return items;
-  }, [activeGridSection, recentlyAddedBooks, sortedAuthors]);
+  }, [activeGridSection, recentBooks, recencyMode, sortedAuthors]);
 
   const handleSectionPress = useCallback(
     (sectionId: string, _index: number, pageY: number) => {

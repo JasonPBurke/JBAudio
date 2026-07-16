@@ -107,6 +107,20 @@ export const getBookById = async (bookId: string): Promise<Book | null> => {
   }
 };
 
+/**
+ * Stamp the book's last_played_at to now. Called on every playback start
+ * (in-app, floating player, notification, Android Auto) to drive
+ * most-recently-played ordering in the library. Fire-and-forget safe.
+ */
+export async function stampLastPlayed(bookId: string): Promise<void> {
+  try {
+    const book = await database.get<Book>('books').find(bookId);
+    await book.stampLastPlayed();
+  } catch (error) {
+    console.error(`stampLastPlayed: failed for ${bookId}`, error);
+  }
+}
+
 export async function updateBookArtwork(
   bookId: string,
   artworkUri: string,

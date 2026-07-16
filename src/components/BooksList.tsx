@@ -15,27 +15,37 @@ import { memo, useCallback, useMemo } from 'react';
 import { useTheme } from '@/hooks/useTheme';
 import React from 'react';
 import { compareBookTitles } from '@/helpers/miscellaneous';
+import {
+  LibraryRecencyMode,
+  RECENCY_KEY_FOR_MODE,
+  sortBooksByRecency,
+} from '@/helpers/bookRecency';
 
 export type BookListProps = Partial<FlashListProps<string>> & {
   authors: Author[];
+  recencyMode?: LibraryRecencyMode;
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   ListHeaderComponent?: React.ReactElement;
 };
 
 const BooksList = ({
   authors,
+  recencyMode = null,
   onScroll,
   ListHeaderComponent,
 }: BookListProps) => {
   const { colors: themeColors } = useTheme();
   const bookIds = useMemo(() => {
-    // BooksList is only used standalone — sort all books by title regardless of author
-    return authors
-      .flatMap((author) => author.books)
-      .sort((a, b) => compareBookTitles(a.bookTitle, b.bookTitle))
+    // BooksList is only used standalone — flatten all authors' books.
+    // Started/Finished tabs order most-recent-first; otherwise by title.
+    const allBooks = authors.flatMap((author) => author.books);
+    const sorted = recencyMode
+      ? sortBooksByRecency(allBooks, RECENCY_KEY_FOR_MODE[recencyMode])
+      : allBooks.sort((a, b) => compareBookTitles(a.bookTitle, b.bookTitle));
+    return sorted
       .map((book) => book.bookId)
       .filter((bookId): bookId is string => !!bookId);
-  }, [authors]);
+  }, [authors, recencyMode]);
 
   const renderBookItem = useCallback(
     ({ item: bookId }: { item: string }) => (

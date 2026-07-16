@@ -20,6 +20,7 @@ import { Chapter } from '@/types/Book';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { FlashList } from '@shopify/flash-list';
 import { recordFootprint } from '@/db/footprintQueries';
+import { stampLastPlayed } from '@/db/bookQueries';
 
 const ChapterListScreen = () => {
   const router = useRouter();
@@ -80,6 +81,7 @@ const ChapterListScreen = () => {
 
       // Record footprint before chapter change
       try {
+        void stampLastPlayed(book.bookId);
         await recordFootprint(book.bookId, 'chapter_change');
       } catch {
         // Silently fail if footprint recording fails

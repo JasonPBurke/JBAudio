@@ -54,6 +54,8 @@ export default class Book extends Model {
     | null;
   @field('is_single_file') isSingleFile!: boolean | null;
   @text('selected_accent_color_type') selectedAccentColorType!: string | null;
+  @date('last_played_at') lastPlayedAt!: Date | null;
+  @date('finished_at') finishedAt!: Date | null;
 
   @relation('authors', 'author_id') author!: Author;
   @children('chapters') chapters!: Chapter[];
@@ -71,8 +73,18 @@ export default class Book extends Model {
   }
 
   @writer async updateBookProgress(progress: number) {
+    // 2 = Finished (BookProgressState lives in handleBookPlay.ts; importing
+    // it here would create a model -> helper -> model import cycle)
+    const FINISHED = 2;
     await this.update((book) => {
+      book.finishedAt = progress === FINISHED ? new Date() : null;
       book.bookProgressValue = progress;
+    });
+  }
+
+  @writer async stampLastPlayed() {
+    await this.update((book) => {
+      book.lastPlayedAt = new Date();
     });
   }
 

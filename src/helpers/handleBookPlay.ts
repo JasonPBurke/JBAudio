@@ -1,7 +1,7 @@
 import { unknownBookImageUri } from '@/constants/images';
 import { getChapterProgressInDB } from '@/db/chapterQueries';
 import { Book } from '@/types/Book';
-import { getBookById } from '@/db/bookQueries';
+import { getBookById, stampLastPlayed } from '@/db/bookQueries';
 import TrackPlayer, { Track } from 'react-native-track-player';
 import { updateLastActiveBook } from '@/db/settingsQueries';
 import { awaitPlayerReady } from '@/helpers/awaitPlayerReady';
@@ -35,6 +35,9 @@ const handleBookPlayInner = async (
   if (!book.chapters || book.chapters.length === 0) return;
 
   await awaitPlayerReady();
+
+  // Most-recently-played ordering for the library's Started tab
+  if (book.bookId) void stampLastPlayed(book.bookId);
 
   // If the book has not been started, update its progress value in the DB
   if (book.bookProgressValue === BookProgressState.NotStarted) {

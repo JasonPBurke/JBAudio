@@ -17,6 +17,11 @@ import { BookGridItem } from './BookGridItem';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useTheme } from '@/hooks/useTheme';
 import { compareBookTitles } from '@/helpers/miscellaneous';
+import {
+  LibraryRecencyMode,
+  RECENCY_KEY_FOR_MODE,
+  sortBooksByRecency,
+} from '@/helpers/bookRecency';
 import React from 'react';
 
 const styles = StyleSheet.create({
@@ -42,6 +47,7 @@ export type BookGridProps = Partial<FlashListProps<string>> & {
   standAlone?: boolean;
   flowDirection: 'row' | 'column';
   preserveOrder?: boolean;
+  recencyMode?: LibraryRecencyMode;
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   ListHeaderComponent?: React.ReactElement;
 };
@@ -52,6 +58,7 @@ const BooksGrid = ({
   standAlone,
   flowDirection,
   preserveOrder,
+  recencyMode = null,
   onScroll,
   ListHeaderComponent,
 }: BookGridProps) => {
@@ -81,11 +88,16 @@ const BooksGrid = ({
     }
     if (authors) {
       // Standalone view: sort all books by title regardless of author
+      // (or most-recent-first on the Started/Finished tabs)
       // Embedded view (BooksHome): sort within each author group
       if (standAlone) {
-        return authors
-          .flatMap((author) => author.books)
-          .sort((a, b) => compareBookTitles(a.bookTitle, b.bookTitle))
+        const allBooks = authors.flatMap((author) => author.books);
+        const sorted = recencyMode
+          ? sortBooksByRecency(allBooks, RECENCY_KEY_FOR_MODE[recencyMode])
+          : allBooks.sort((a, b) =>
+              compareBookTitles(a.bookTitle, b.bookTitle),
+            );
+        return sorted
           .map((book) => book.bookId)
           .filter((bookId): bookId is string => !!bookId);
       }
@@ -98,7 +110,7 @@ const BooksGrid = ({
         .filter((bookId): bookId is string => !!bookId);
     }
     return [];
-  }, [authors, books, preserveOrder, standAlone]);
+  }, [authors, books, preserveOrder, recencyMode, standAlone]);
 
   const renderBookItem = useCallback(
     ({ item: bookId }: { item: string }) => (

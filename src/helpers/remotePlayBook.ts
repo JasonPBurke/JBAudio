@@ -7,6 +7,7 @@ import { ensurePlayerSetup } from '@/helpers/playerSetup';
 import {
   getBookWithChaptersForRestoration,
   getBookProgressValue,
+  stampLastPlayed,
 } from '@/db/bookQueries';
 
 // True while a remote-initiated book switch is loading its queue. Android
@@ -27,6 +28,7 @@ export async function handleRemotePlayBook(bookId: string): Promise<void> {
 
   const { activeBookId, setActiveBookId } = useQueueStore.getState();
   if (activeBookId === bookId) {
+    void stampLastPlayed(bookId);
     await TrackPlayer.play();
     return;
   }

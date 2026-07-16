@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 27,
+  version: 28,
   tables: [
     tableSchema({
       name: 'authors',
@@ -92,6 +92,16 @@ export default appSchema({
         {
           name: 'selected_accent_color_type',
           type: 'string',
+          isOptional: true,
+        },
+        {
+          name: 'last_played_at',
+          type: 'number',
+          isOptional: true,
+        },
+        {
+          name: 'finished_at',
+          type: 'number',
           isOptional: true,
         },
       ],

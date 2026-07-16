@@ -7,6 +7,26 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      toVersion: 28,
+      steps: [
+        addColumns({
+          table: 'books',
+          columns: [
+            {
+              name: 'last_played_at',
+              type: 'number',
+              isOptional: true,
+            },
+            {
+              name: 'finished_at',
+              type: 'number',
+              isOptional: true,
+            },
+          ],
+        }),
+      ],
+    },
+    {
       toVersion: 27,
       steps: [
         addColumns({

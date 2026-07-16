@@ -5,7 +5,7 @@ import BooksHome from '@/components/BooksHome';
 import BooksGrid from '@/components/BooksGrid';
 import SearchBar, { SEARCH_BAR_HEIGHT } from '@/components/SearchBar';
 import { defaultStyles } from '@/styles';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTheme } from '@/hooks/useTheme';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,12 +16,18 @@ import { useUIReadyStore } from '@/store/uiReadyStore';
 import { FloatingPlayer } from '@/components/FloatingPlayer';
 import { CustomTabs } from '@/components/TabScreen';
 import { BookProgressState } from '@/helpers/handleBookPlay';
+import { LibraryRecencyMode } from '@/helpers/bookRecency';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import * as Sentry from '@sentry/react-native';
 
 // Normalize text for search matching (move outside component to avoid recreation)
 const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/gi, '');
+
+const storeHasStartedBook = () =>
+  Object.values(useLibraryStore.getState().books).some(
+    (book) => book.bookProgressValue === BookProgressState.Started,
+  );
 
 const LibraryScreen = ({ navigation }: any) => {
   const { colors: themeColors } = useTheme();
@@ -30,9 +36,24 @@ const LibraryScreen = ({ navigation }: any) => {
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
   const { onScroll, isVisible } = useScrollDirection();
-  const [selectedTab, setSelectedTab] = useState<CustomTabs>(
-    CustomTabs.Unplayed,
+  // Default tab: land on Started when a book is in progress so a returning
+  // listener sees their current book without a tab tap. Decided once per app
+  // launch — never auto-switched after the user picks a tab themselves.
+  const [selectedTab, setSelectedTabState] = useState<CustomTabs>(() =>
+    storeHasStartedBook() ? CustomTabs.Started : CustomTabs.Unplayed,
   );
+  // The library store hydrates asynchronously on cold start; if it was still
+  // empty when the initializer above ran, apply the default once data arrives
+  // (unless the user has already tapped a tab).
+  const defaultTabAppliedRef = useRef(
+    Object.keys(useLibraryStore.getState().books).length > 0,
+  );
+  const userChangedTabRef = useRef(false);
+
+  const setSelectedTab = useCallback((tab: CustomTabs) => {
+    userChangedTabRef.current = true;
+    setSelectedTabState(tab);
+  }, []);
 
   const [activeGridSection, setActiveGridSection] = useState<string | null>(
     null, // null for horizontal on load, 'recentlyAdded' for expanded on load
@@ -50,6 +71,24 @@ const LibraryScreen = ({ navigation }: any) => {
   // Note: Library store init is handled in _layout.tsx to ensure it runs before useSetupTrackPlayer
 
   const allAuthors = useLibraryStore((state) => state.authors);
+
+  useEffect(() => {
+    if (defaultTabAppliedRef.current || userChangedTabRef.current) return;
+    if (allAuthors.length === 0) return;
+    defaultTabAppliedRef.current = true;
+    if (storeHasStartedBook()) {
+      setSelectedTabState(CustomTabs.Started);
+    }
+  }, [allAuthors]);
+
+  // Started/Finished tabs order books most-recent-first; other tabs keep
+  // their existing title/date-added ordering.
+  const recencyMode: LibraryRecencyMode =
+    selectedTab === CustomTabs.Started
+      ? 'played'
+      : selectedTab === CustomTabs.Finished
+        ? 'finished'
+        : null;
 
   // Step 1: Apply search filter to all authors (if search is active)
   const searchFilteredAuthors = useMemo(() => {
@@ -176,6 +215,7 @@ const LibraryScreen = ({ navigation }: any) => {
           {toggleView === 0 && (
             <BooksHome
               authors={tabFilteredLibrary}
+              recencyMode={recencyMode}
               setActiveGridSection={setActiveGridSection}
               activeGridSection={activeGridSection}
               onScroll={onScroll}
@@ -185,6 +225,7 @@ const LibraryScreen = ({ navigation }: any) => {
           {toggleView === 1 && (
             <BooksList
               authors={tabFilteredLibrary}
+              recencyMode={recencyMode}
               onScroll={onScroll}
               ListHeaderComponent={ListSpacer}
             />
@@ -192,6 +233,7 @@ const LibraryScreen = ({ navigation }: any) => {
           {toggleView === 2 && (
             <BooksGrid
               authors={tabFilteredLibrary}
+              recencyMode={recencyMode}
               standAlone={true}
               flowDirection='column'
               onScroll={onScroll}

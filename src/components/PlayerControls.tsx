@@ -44,7 +44,7 @@ import SleepTimerOptions from '../modals/SleepTimerOptions';
 import CountdownTimer from './CountdownTimer';
 import AnimatedZZZ from './animations/AnimatedZZZ';
 import { recordFootprint } from '@/db/footprintQueries';
-import { getBookById } from '@/db/bookQueries';
+import { getBookById, stampLastPlayed } from '@/db/bookQueries';
 import { BookProgressState } from '@/helpers/handleBookPlay';
 import database from '@/db';
 import { useObserveSettings } from '@/hooks/useObserveSettings';
@@ -126,6 +126,7 @@ export function PlayPauseButton({
         try {
           const activeTrack = await TrackPlayer.getActiveTrack();
           if (activeTrack?.bookId) {
+            await stampLastPlayed(activeTrack.bookId);
             await recordFootprint(activeTrack.bookId, 'play');
           }
         } catch {

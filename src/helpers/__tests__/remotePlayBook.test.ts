@@ -32,6 +32,7 @@ jest.mock('@/store/library', () => ({
 jest.mock('@/db/bookQueries', () => ({
   getBookWithChaptersForRestoration: jest.fn().mockResolvedValue(null),
   getBookProgressValue: jest.fn().mockResolvedValue(0),
+  stampLastPlayed: jest.fn().mockResolvedValue(undefined),
 }));
 
 const mockBooks = (books: Record<string, unknown>) =>

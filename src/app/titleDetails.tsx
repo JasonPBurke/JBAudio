@@ -49,7 +49,7 @@ import {
 } from '@/helpers/handleBookPlay';
 import { removeAutoChapters } from '@/helpers/autoChapterGenerator';
 import { recordFootprint } from '@/db/footprintQueries';
-import { getBookById } from '@/db/bookQueries';
+import { getBookById, stampLastPlayed } from '@/db/bookQueries';
 import MeshGradientBackground from '@/components/MeshGradientBackground';
 import { normalizeSize } from '@/helpers/normalizeSize';
 import { consumeTitleDetailsNavIntent } from '@/store/titleDetailsNavIntent';
@@ -228,6 +228,7 @@ const TitleDetails = () => {
       try {
         const activeTrack = await TrackPlayer.getActiveTrack();
         if (activeTrack?.bookId === book.bookId) {
+          await stampLastPlayed(activeTrack.bookId);
           await recordFootprint(activeTrack.bookId, 'play');
         }
       } catch {

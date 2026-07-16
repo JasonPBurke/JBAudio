@@ -34,6 +34,8 @@ const mockAuthors: Author[] = [
         chapters: [],
         bookProgress: { currentChapterIndex: 0, currentChapterProgress: 0 },
         bookProgressValue: 0,
+        lastPlayedAt: null,
+        finishedAt: null,
         isSingleFile: false,
         metadata: {
           ctime: 1700000000000,
@@ -61,6 +63,8 @@ const mockAuthors: Author[] = [
         chapters: [],
         bookProgress: { currentChapterIndex: 0, currentChapterProgress: 0 },
         bookProgressValue: 0,
+        lastPlayedAt: null,
+        finishedAt: null,
         isSingleFile: false,
         metadata: {
           ctime: 1710000000000,
