@@ -1,5 +1,6 @@
 import TrackPlayer, {
   AndroidAudioContentType,
+  AppKilledPlaybackBehavior,
   Capability,
   RepeatMode,
 } from 'react-native-track-player';
@@ -27,6 +28,13 @@ export const setupPlayerCore = async () => {
   });
 
   await TrackPlayer.updateOptions({
+    android: {
+      // Swipe-away from recents while playing keeps playing (explicit default).
+      appKilledPlaybackBehavior: AppKilledPlaybackBehavior.ContinuePlayback,
+      // Demote the foreground service immediately on pause so the app leaves
+      // Android's "Active apps" list; the notification persists for resume.
+      stopForegroundGracePeriod: 0,
+    },
     progressUpdateEventInterval: 1,
     forwardJumpInterval: skipForward,
     backwardJumpInterval: skipBack,

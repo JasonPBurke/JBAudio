@@ -27,5 +27,7 @@ export async function handleRemotePlayPause(
       // Non-fatal — playback must proceed even if the callback fails
     }
   }
+  // QoL: repeat 1s of audio on resume, matching the in-app play button.
+  await TrackPlayer.seekBy(-1);
   await TrackPlayer.play();
 }

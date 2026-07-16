@@ -131,9 +131,7 @@ export function PlayPauseButton({
         } catch {
           // Silently fail if footprint recording fails
         }
-        // QoL: seekBy(-1) rewinds 1s on resume. Kept per product decision even
-        // though it can cause a play-then-pause bounce after extended
-        // background (the seek races play() on the TrackPlayer alpha).
+        // QoL: repeat 1s of audio on resume.
         await TrackPlayer.seekBy(-1);
         await TrackPlayer.play();
       })();

@@ -339,6 +339,13 @@ export default module.exports = async function () {
     // for the wrong book) while remote-play-book is still loading the new one.
     if (isBookSwitchInProgress()) return;
     await recordRemotePlayFootprint();
+    // QoL: repeat 1s of audio on resume, matching the in-app play button.
+    // State-guarded because AA can send redundant play() commands while
+    // already playing — rewinding then would cause an audible skip-back.
+    const { state } = await TrackPlayer.getPlaybackState();
+    if (state !== State.Playing && state !== State.Buffering) {
+      await TrackPlayer.seekBy(-1);
+    }
     await TrackPlayer.play();
   });
   TrackPlayer.addEventListener(Event.RemotePause, () => {

@@ -7,6 +7,7 @@ jest.mock('react-native-track-player', () => ({
     getPlaybackState: jest.fn(),
     play: jest.fn().mockResolvedValue(undefined),
     pause: jest.fn().mockResolvedValue(undefined),
+    seekBy: jest.fn().mockResolvedValue(undefined),
   },
   State: {
     None: 'none',
@@ -24,6 +25,7 @@ jest.mock('react-native-track-player', () => ({
 const mockGetPlaybackState = TrackPlayer.getPlaybackState as jest.Mock;
 const mockPlay = TrackPlayer.play as jest.Mock;
 const mockPause = TrackPlayer.pause as jest.Mock;
+const mockSeekBy = TrackPlayer.seekBy as jest.Mock;
 
 const setState = (state: State) =>
   mockGetPlaybackState.mockResolvedValue({ state });
@@ -101,5 +103,29 @@ describe('handleRemotePlayPause', () => {
     await handleRemotePlayPause(onPlay);
 
     expect(mockPlay).toHaveBeenCalledTimes(1);
+  });
+
+  it('rewinds 1s before resuming, matching the in-app play button', async () => {
+    setState(State.Paused);
+    const calls: string[] = [];
+    mockSeekBy.mockImplementation(async () => {
+      calls.push('seekBy');
+    });
+    mockPlay.mockImplementation(async () => {
+      calls.push('play');
+    });
+
+    await handleRemotePlayPause();
+
+    expect(mockSeekBy).toHaveBeenCalledWith(-1);
+    expect(calls).toEqual(['seekBy', 'play']);
+  });
+
+  it('does not rewind when pausing', async () => {
+    setState(State.Playing);
+
+    await handleRemotePlayPause();
+
+    expect(mockSeekBy).not.toHaveBeenCalled();
   });
 });
