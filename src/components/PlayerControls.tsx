@@ -14,11 +14,7 @@ import {
   ViewStyle,
   Pressable,
 } from 'react-native';
-import TrackPlayer, {
-  State,
-  useIsPlaying,
-  useActiveTrack,
-} from 'react-native-track-player';
+import TrackPlayer, { useActiveTrack } from 'react-native-track-player';
 import {
   Play,
   Pause,
@@ -61,6 +57,7 @@ import {
   getNextChapterStartSeconds,
   getPreviousChapterStartSeconds,
 } from '@/helpers/singleFileBook';
+import { seekBack, seekForward } from '@/helpers/relativeSeek';
 
 type PlayerControlsProps = {
   style?: ViewStyle;
@@ -218,7 +215,6 @@ export function SeekBackButton({
   const seekDuration = useSettingsStore((s) => s.skipBackDuration);
   const rotation = useSharedValue(0);
   const iconColor = color ?? colors.icon;
-  const { playing } = useIsPlaying();
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -233,42 +229,10 @@ export function SeekBackButton({
       withTiming(0, { duration: 100 }),
     );
 
-    const wasPlaying = playing;
-
-    const currentTrackIndex = await TrackPlayer.getActiveTrackIndex();
-    const currentPosition = await TrackPlayer.getProgress().then(
-      (progress) => progress.position,
-    );
-    const newPosition = currentPosition - seekDuration;
-
-    // Check if single-file book. NOTE: under the clipped-chapters spike,
-    // single-file books load as one queue item PER chapter, so queue.length
-    // === 1 is false and they correctly flow through the multi-file paths in
-    // this file; these single-file branches only serve legacy mode.
-    const queue = await TrackPlayer.getQueue();
-    const isSingleFile = queue.length === 1;
-
-    if (newPosition < 0) {
-      if (isSingleFile || currentTrackIndex === 0) {
-        // Single-file book or first track: clamp to start
-        await TrackPlayer.seekTo(0);
-      } else {
-        // Multi-file book: skip to previous track and seek to appropriate position
-        await TrackPlayer.skipToPrevious();
-        const { duration } = await TrackPlayer.getProgress();
-        await TrackPlayer.seekTo(duration + newPosition);
-      }
-    } else {
-      await TrackPlayer.seekTo(newPosition);
-    }
-
-    // Guard: restore play state if seek caused an unexpected pause
-    if (wasPlaying) {
-      const { state } = await TrackPlayer.getPlaybackState();
-      if (state !== State.Playing && state !== State.Buffering) {
-        await TrackPlayer.play();
-      }
-    }
+    // Shared with the RemoteJumpBackward handler in setup/service.js so the
+    // in-app button, notification and Android Auto all cross chapter
+    // boundaries identically.
+    await seekBack(seekDuration);
   };
 
   return (
@@ -307,7 +271,6 @@ export function SeekForwardButton({
 }: PlayerButtonProps) {
   const seekDuration = useSettingsStore((s) => s.skipForwardDuration);
   const rotation = useSharedValue(0);
-  const { playing } = useIsPlaying();
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -322,55 +285,10 @@ export function SeekForwardButton({
       withTiming(0, { duration: 100 }),
     );
 
-    const wasPlaying = playing;
-
-    const currentTrackIndex = await TrackPlayer.getActiveTrackIndex();
-    const queue = await TrackPlayer.getQueue();
-    const { position, duration } = await TrackPlayer.getProgress();
-    const newPosition = position + seekDuration;
-
-    // Check if single-file book
-    const isSingleFile = queue.length === 1;
-
-    if (newPosition > duration) {
-      if (
-        isSingleFile ||
-        (currentTrackIndex !== undefined &&
-          currentTrackIndex === queue.length - 1)
-      ) {
-        // Single-file book or last track: mark as finished, reset and stop
-        const activeTrack = await TrackPlayer.getActiveTrack();
-        if (activeTrack?.bookId) {
-          const bookModel = await getBookById(activeTrack.bookId);
-          if (bookModel) {
-            await bookModel.updateBookProgress(BookProgressState.Finished);
-          }
-        }
-        if (isSingleFile) {
-          await TrackPlayer.seekTo(0);
-        } else {
-          await TrackPlayer.skip(0);
-          await TrackPlayer.seekTo(0);
-        }
-        await TrackPlayer.pause();
-      } else {
-        // Multi-file book: skip to next track and seek to appropriate position
-        const seekToTime = newPosition - duration;
-        await TrackPlayer.skipToNext();
-        await TrackPlayer.seekTo(seekToTime);
-      }
-    } else {
-      await TrackPlayer.seekTo(position + seekDuration);
-    }
-
-    // Guard: restore play state if seek caused an unexpected pause
-    // Skip if we just intentionally paused (book finished)
-    if (wasPlaying && !(newPosition > duration)) {
-      const { state } = await TrackPlayer.getPlaybackState();
-      if (state !== State.Playing && state !== State.Buffering) {
-        await TrackPlayer.play();
-      }
-    }
+    // Shared with the RemoteJumpForward handler in setup/service.js so the
+    // in-app button, notification and Android Auto all cross chapter
+    // boundaries identically.
+    await seekForward(seekDuration);
   };
 
   return (

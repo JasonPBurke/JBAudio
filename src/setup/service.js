@@ -25,6 +25,7 @@ import {
   getNextChapterStartSeconds,
   getPreviousChapterStartSeconds,
 } from '@/helpers/singleFileBook';
+import { seekBack, seekForward } from '@/helpers/relativeSeek';
 import * as sleepTimer from '@/setup/sleepTimer';
 import { useSleepTimerStore } from '@/setup/sleepTimer';
 
@@ -359,13 +360,16 @@ export default module.exports = async function () {
   TrackPlayer.addEventListener(Event.RemoteSeek, ({ position }) => {
     TrackPlayer.seekTo(position);
   });
+  // seekBack/seekForward (not native seekBy, which clamps within the current
+  // queue item) so jumps from the notification / Android Auto cross chapter
+  // boundaries exactly like the in-app buttons.
   TrackPlayer.addEventListener(Event.RemoteJumpForward, () => {
     const { skipForwardDuration } = useSettingsStore.getState();
-    TrackPlayer.seekBy(skipForwardDuration);
+    seekForward(skipForwardDuration);
   });
   TrackPlayer.addEventListener(Event.RemoteJumpBackward, () => {
     const { skipBackDuration } = useSettingsStore.getState();
-    TrackPlayer.seekBy(-skipBackDuration);
+    seekBack(skipBackDuration);
   });
   TrackPlayer.addEventListener(Event.RemoteNext, async () => {
     const activeTrack = await TrackPlayer.getActiveTrack();
