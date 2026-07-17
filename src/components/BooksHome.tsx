@@ -25,11 +25,6 @@ import {
 import { fontSize, screenPadding } from '@/constants/tokens';
 import { utilsStyles } from '@/styles';
 
-type PendingScroll = {
-  sectionId: string;
-  relativeY: number;
-} | null;
-
 export type BookListProps = Partial<FlashListProps<Book>> & {
   authors?: Author[];
   books?: Book[];
@@ -68,10 +63,7 @@ const BooksHome = ({
   const { colors: themeColors } = useTheme();
   const listRef =
     useRef<React.ComponentRef<typeof FlashList<FlatListItem>>>(null);
-  const listContainerRef = useRef<View>(null);
-  const pendingScrollRef = useRef<PendingScroll>(null);
   const CONTAINER_PADDING_TOP = 8;
-  const SECTION_HEADER_PADDING_TOP = 4;
 
   const numColumns = useSettingsStore((state) => state.numColumns);
   const { width: screenWidth } = Dimensions.get('window');
@@ -174,50 +166,24 @@ const BooksHome = ({
     return items;
   }, [activeGridSection, recentBooks, recencyMode, sortedAuthors]);
 
+  // Toggle the section and let FlashList v2's maintainVisibleContentPosition
+  // (on by default) hold the header in place. This keeps the header anchored in
+  // every case EXCEPT one: tapping section B while a section A above it is open
+  // AND still partly visible — MVCP anchors the topmost visible item, which lives
+  // inside the collapsing A, so B rides it up off the top. That outlier is left as
+  // a known, accepted drift: an explicit scrollToIndex pin fixed it but fought
+  // MVCP's re-anchor and produced a ~1s double-motion flash, and disabling MVCP to
+  // avoid the fight regressed the (common) off-screen case into a flicker. Bare
+  // MVCP is the cleanest trade — see git history for the pin/disable experiments.
   const handleSectionPress = useCallback(
-    (sectionId: string, _index: number, pageY: number) => {
-      listContainerRef.current?.measureInWindow((_x, listTopY) => {
-        const relativeY = pageY - listTopY;
-        pendingScrollRef.current = { sectionId, relativeY };
-
-        setActiveGridSection((prev) => {
-          const newValue = prev === sectionId ? null : sectionId;
-
-          requestAnimationFrame(() => {
-            setTimeout(() => {
-              if (!pendingScrollRef.current || !listRef.current) return;
-              const targetId = pendingScrollRef.current.sectionId;
-              const newFlatData = listRef.current.props.data;
-              if (!newFlatData) return;
-              const headerIndex = newFlatData.findIndex(
-                (item) =>
-                  item.type === 'sectionHeader' &&
-                  item.sectionId === targetId,
-              );
-              if (headerIndex >= 0) {
-                listRef.current.scrollToIndex({
-                  index: headerIndex,
-                  animated: false,
-                  viewOffset:
-                    -pendingScrollRef.current.relativeY +
-                    CONTAINER_PADDING_TOP +
-                    SECTION_HEADER_PADDING_TOP +
-                    8, //TODO: fix this hacky patch
-                });
-              }
-              pendingScrollRef.current = null;
-            }, 50);
-          });
-
-          return newValue;
-        });
-      });
+    (sectionId: string) => {
+      setActiveGridSection((prev) => (prev === sectionId ? null : sectionId));
     },
     [setActiveGridSection],
   );
 
   const renderItem = useCallback(
-    ({ item, index }: { item: FlatListItem; index: number }) => {
+    ({ item }: { item: FlatListItem }) => {
       switch (item.type) {
         case 'sectionHeader':
           return (
@@ -226,7 +192,6 @@ const BooksHome = ({
                 title={item.title}
                 sectionId={item.sectionId}
                 isActive={activeGridSection === item.sectionId}
-                index={index}
                 onSectionPress={handleSectionPress}
               />
             </View>
@@ -288,7 +253,6 @@ const BooksHome = ({
 
   return (
     <View
-      ref={listContainerRef}
       style={{
         flex: 1,
         paddingTop: CONTAINER_PADDING_TOP,
@@ -331,27 +295,18 @@ const SectionHeader = memo(
     title,
     sectionId,
     isActive,
-    index,
     onSectionPress,
   }: {
     title: string;
     sectionId: string;
     isActive: boolean;
-    index: number;
-    onSectionPress: (
-      sectionId: string,
-      index: number,
-      pageY: number,
-    ) => void;
+    onSectionPress: (sectionId: string) => void;
   }) => {
-    const headerRef = useRef<View>(null);
     const { colors: themeColors } = useTheme();
 
     const handlePress = useCallback(() => {
-      headerRef.current?.measureInWindow((_x, y) => {
-        onSectionPress(sectionId, index, y);
-      });
-    }, [sectionId, index, onSectionPress]);
+      onSectionPress(sectionId);
+    }, [sectionId, onSectionPress]);
 
     const chevronWrapperStyle = useMemo(
       () => [styles.chevronBase, isActive && styles.chevronRotated],
@@ -360,7 +315,6 @@ const SectionHeader = memo(
 
     return (
       <Pressable
-        ref={headerRef}
         style={styles.sectionHeaderPressable}
         android_ripple={{ color: themeColors.dividerAlpha16 }}
         onPress={handlePress}
