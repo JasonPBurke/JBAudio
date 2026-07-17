@@ -6,7 +6,10 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY": "goog_zFaTAcSCKFBNGsdvOyoiFnkglwz"
+      }
     },
     "preview": {
       "distribution": "internal",
@@ -15,7 +18,8 @@
         "gradleCommand": ":app:assembleRelease -PreactNativeArchitectures=arm64-v8a"
       },
       "env": {
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY": "goog_zFaTAcSCKFBNGsdvOyoiFnkglwz"
       }
     },
     "production": {
@@ -30,6 +34,9 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY": "goog_zFaTAcSCKFBNGsdvOyoiFnkglwz"
       }
     }
   },
