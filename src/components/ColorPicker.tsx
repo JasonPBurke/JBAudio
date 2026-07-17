@@ -5,8 +5,8 @@ import { useSharedValue } from 'react-native-reanimated';
 import type { ColorFormatsObject } from 'reanimated-color-picker';
 import ColorPicker, {
   OpacitySlider,
+  BrightnessSlider,
   Panel5,
-  PreviewText,
   InputWidget,
   Preview,
 } from 'reanimated-color-picker';
@@ -85,8 +85,8 @@ export function ColorPickerModal({
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={handleDismiss}
-          accessibilityLabel="Close color picker"
-          accessibilityRole="button"
+          accessibilityLabel='Close color picker'
+          accessibilityRole='button'
         >
           {/* Backdrop hit area - tapping here dismisses without saving */}
         </Pressable>
@@ -197,6 +197,11 @@ function PrimaryColorPicker({
       >
         <Panel5 style={[colorPickerStyle.panelStyle]} />
         {/* <OpacitySlider style={colorPickerStyle.sliderStyle} adaptSpectrum /> */}
+        <BrightnessSlider
+          adaptSpectrum
+          boundedThumb={true}
+          thumbShape='rect'
+        />
         <InputWidget formats={['HEX']} />
         <Preview />
       </ColorPicker>
@@ -259,11 +264,13 @@ const colorPickerStyle = StyleSheet.create({
   },
   colorPickerTitle: {
     fontSize: 18,
-    fontFamily: 'Rubik', fontWeight: '600',
+    fontFamily: 'Rubik',
+    fontWeight: '600',
   },
   colorPickerCloseButton: {
     fontSize: 16,
-    fontFamily: 'Rubik', fontWeight: '600',
+    fontFamily: 'Rubik',
+    fontWeight: '600',
   },
   statusContainer: {
     marginBottom: 12,
@@ -282,6 +289,7 @@ const colorPickerStyle = StyleSheet.create({
   },
   resetButtonText: {
     fontSize: 14,
-    fontFamily: 'Rubik', fontWeight: '600',
+    fontFamily: 'Rubik',
+    fontWeight: '600',
   },
 });

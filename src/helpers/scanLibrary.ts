@@ -743,7 +743,7 @@ async function saveArtworkToFile(
       800,
       800,
       'WEBP',
-      80,
+      80, //? COULD MAKE THIS A USER OPTION??
       0,
       undefined,
       false,
@@ -929,7 +929,9 @@ async function removeMissingFiles(
     .get<AuthorModel>('authors')
     .query()
     .fetch();
-  const orphanedAuthors = allAuthors.filter((a) => !liveAuthorIds.has(a.id));
+  const orphanedAuthors = allAuthors.filter(
+    (a) => !liveAuthorIds.has(a.id),
+  );
 
   const removeCount =
     chaptersToRemove.length + orphanedBooks.length + orphanedAuthors.length;
@@ -1017,7 +1019,10 @@ export async function scanLibrary(): Promise<void> {
         'skipping removeMissingFiles to avoid deleting all DB chapters.',
     );
   } else {
-    await removeMissingFiles(allFiles, libraryEntries.map(libraryRootAbsPath));
+    await removeMissingFiles(
+      allFiles,
+      libraryEntries.map(libraryRootAbsPath),
+    );
   }
 
   await setLastScanAt(Date.now());
