@@ -51,6 +51,16 @@ Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.WARN);
 const revenueCatApiKey = process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY;
 if (revenueCatApiKey) {
   Purchases.configure({ apiKey: revenueCatApiKey });
+} else {
+  // Missing key = RevenueCat never configures, so getCustomerInfo() throws and
+  // every user falls back to non-pro. This happens silently when the build-time
+  // env var isn't injected (e.g. a build profile without the key in eas.json, or
+  // an EAS `secret` var that isn't available to `--local` builds). Surface it
+  // loudly so "premium is locked" is a one-line diagnosis next time.
+  const msg =
+    'RevenueCat NOT configured: EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY is missing at build time. All users will be treated as non-pro.';
+  console.error(msg);
+  Sentry.captureMessage(msg, 'error');
 }
 
 SplashScreen.preventAutoHideAsync();
