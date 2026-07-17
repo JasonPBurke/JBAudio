@@ -77,6 +77,7 @@ const BooksHorizontal = ({
         drawDistance={100}
         horizontal={true}
         showsHorizontalScrollIndicator={false}
+        maintainVisibleContentPosition={{ disabled: true }}
         ListEmptyComponent={
           <View>
             <Text style={utilsStyles.emptyComponent}>No books found</Text>
