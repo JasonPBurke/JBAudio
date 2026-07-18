@@ -55,8 +55,20 @@ const LibraryScreen = ({ navigation }: any) => {
     setSelectedTabState(tab);
   }, []);
 
-  const [activeGridSection, setActiveGridSection] = useState<string | null>(
-    null, // null for horizontal on load, 'recentlyAdded' for expanded on load
+  // Set of expanded section ids — any number of sections may be open at once.
+  // Empty on load = every section starts as a horizontal row. Session-only.
+  //
+  // NOTE (future): the IDEAL UX is a single open section at a time (auto-collapse
+  // the previous one). We deliberately allow unlimited-open instead because
+  // single-open triggers the FlashList v2 "case 3" jump/flash — collapsing a
+  // still-visible section above the pressed header lets it drift up off-screen, and
+  // every workaround (scrollToIndex pin, disabling MVCP, capping at 2 with
+  // oldest/highest eviction) reintroduced a flash or flicker. Unlimited-open sidesteps
+  // it entirely (expanding never collapses anything). If a clean fix for the case-3
+  // jump is ever found, revert this to single-open. See memory
+  // flashlist-2.3.2-mvcp-header-anchor.
+  const [activeGridSections, setActiveGridSections] = useState<Set<string>>(
+    () => new Set(),
   );
 
   useScanExternalFileSystem();
@@ -216,8 +228,8 @@ const LibraryScreen = ({ navigation }: any) => {
             <BooksHome
               authors={tabFilteredLibrary}
               recencyMode={recencyMode}
-              setActiveGridSection={setActiveGridSection}
-              activeGridSection={activeGridSection}
+              setActiveGridSections={setActiveGridSections}
+              activeGridSections={activeGridSections}
               onScroll={onScroll}
               ListHeaderComponent={ListSpacer}
             />

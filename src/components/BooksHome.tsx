@@ -29,8 +29,8 @@ export type BookListProps = Partial<FlashListProps<Book>> & {
   authors?: Author[];
   books?: Book[];
   recencyMode?: LibraryRecencyMode;
-  setActiveGridSection: React.Dispatch<React.SetStateAction<string | null>>;
-  activeGridSection: string | null;
+  setActiveGridSections: React.Dispatch<React.SetStateAction<Set<string>>>;
+  activeGridSections: Set<string>;
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   ListHeaderComponent?: React.ReactElement;
 };
@@ -50,13 +50,13 @@ type FlatListItem =
       authors?: Author[];
       preserveOrder?: boolean;
     }
-  | { type: 'book'; bookId: string };
+  | { type: 'book'; bookId: string; sectionId: string };
 
 const BooksHome = ({
   authors = [],
   recencyMode = null,
-  setActiveGridSection,
-  activeGridSection,
+  setActiveGridSections,
+  activeGridSections,
   onScroll,
   ListHeaderComponent,
 }: BookListProps) => {
@@ -124,10 +124,14 @@ const BooksHome = ({
         sectionId: 'recentlyAdded',
         title: RECENTS_TITLE[recencyMode ?? 'added'],
       });
-      if (activeGridSection === 'recentlyAdded') {
+      if (activeGridSections.has('recentlyAdded')) {
         for (const book of recentBooks) {
           if (book.bookId)
-            items.push({ type: 'book', bookId: book.bookId });
+            items.push({
+              type: 'book',
+              bookId: book.bookId,
+              sectionId: 'recentlyAdded',
+            });
         }
       } else {
         items.push({
@@ -146,13 +150,17 @@ const BooksHome = ({
         sectionId: author.name,
         title: author.name,
       });
-      if (activeGridSection === author.name) {
+      if (activeGridSections.has(author.name)) {
         const sortedBooks = [...author.books].sort((a, b) =>
           compareBookTitles(a.bookTitle, b.bookTitle),
         );
         for (const book of sortedBooks) {
           if (book.bookId)
-            items.push({ type: 'book', bookId: book.bookId });
+            items.push({
+              type: 'book',
+              bookId: book.bookId,
+              sectionId: author.name,
+            });
         }
       } else {
         items.push({
@@ -164,22 +172,33 @@ const BooksHome = ({
     }
 
     return items;
-  }, [activeGridSection, recentBooks, recencyMode, sortedAuthors]);
+  }, [activeGridSections, recentBooks, recencyMode, sortedAuthors]);
 
-  // Toggle the section and let FlashList v2's maintainVisibleContentPosition
-  // (on by default) hold the header in place. This keeps the header anchored in
-  // every case EXCEPT one: tapping section B while a section A above it is open
-  // AND still partly visible — MVCP anchors the topmost visible item, which lives
-  // inside the collapsing A, so B rides it up off the top. That outlier is left as
-  // a known, accepted drift: an explicit scrollToIndex pin fixed it but fought
-  // MVCP's re-anchor and produced a ~1s double-motion flash, and disabling MVCP to
-  // avoid the fight regressed the (common) off-screen case into a flicker. Bare
-  // MVCP is the cleanest trade — see git history for the pin/disable experiments.
+  // Toggle the pressed section in/out of the expanded set. Any number of sections
+  // may be open at once, and expanding one NEVER collapses another. That is the
+  // whole point: it sidesteps the FlashList v2 "case 3" jump/flash, where
+  // collapsing a still-visible section above the pressed header lets MVCP re-anchor
+  // and drift the header up off-screen. With unlimited-open nothing is ever removed
+  // above the pressed header, so there is nothing to drift.
+  //
+  // NOTE (future): single-open (auto-collapse the previous section) is the nicer UX
+  // and would be preferred IF the case-3 jump/flash can be eliminated. Every attempt
+  // so far reintroduced it (scrollToIndex pin, MVCP disable, cap-at-2 with
+  // oldest/highest eviction). If that jump is ever solved, switch this back to a
+  // single-open toggle. See memory flashlist-2.3.2-mvcp-header-anchor.
   const handleSectionPress = useCallback(
     (sectionId: string) => {
-      setActiveGridSection((prev) => (prev === sectionId ? null : sectionId));
+      setActiveGridSections((prev) => {
+        const next = new Set(prev);
+        if (next.has(sectionId)) {
+          next.delete(sectionId);
+        } else {
+          next.add(sectionId);
+        }
+        return next;
+      });
     },
-    [setActiveGridSection],
+    [setActiveGridSections],
   );
 
   const renderItem = useCallback(
@@ -191,7 +210,7 @@ const BooksHome = ({
               <SectionHeader
                 title={item.title}
                 sectionId={item.sectionId}
-                isActive={activeGridSection === item.sectionId}
+                isActive={activeGridSections.has(item.sectionId)}
                 onSectionPress={handleSectionPress}
               />
             </View>
@@ -221,7 +240,7 @@ const BooksHome = ({
           return null;
       }
     },
-    [activeGridSection, handleSectionPress, numColumns, itemWidth],
+    [activeGridSections, handleSectionPress, numColumns, itemWidth],
   );
 
   const keyExtractor = useCallback((item: FlatListItem) => {
@@ -231,7 +250,7 @@ const BooksHome = ({
       case 'horizontalRow':
         return `row-${item.sectionId}`;
       case 'book':
-        return item.bookId;
+        return `${item.sectionId}-${item.bookId}`;
     }
   }, []);
 
