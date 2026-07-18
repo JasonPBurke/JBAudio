@@ -1,5 +1,3 @@
-'use no memo'; // Uses Reanimated scroll handler
-
 import BooksList from '@/components/BooksList';
 import BooksHome from '@/components/BooksHome';
 import BooksGrid from '@/components/BooksGrid';

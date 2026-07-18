@@ -1,5 +1,3 @@
-'use no memo'; // Receives Reanimated scroll handler
-
 import {
   Text,
   View,

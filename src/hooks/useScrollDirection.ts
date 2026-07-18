@@ -1,5 +1,3 @@
-'use no memo'; // SharedValue updates from scroll events
-
 import { useCallback, useRef } from 'react';
 import {
   useSharedValue,
@@ -42,15 +40,17 @@ export function useScrollDirection(): UseScrollDirectionReturn {
 
         if (direction.current !== newDirection) {
           direction.current = newDirection;
-          isVisible.value = withTiming(newDirection === 'up' ? 1 : 0, {
-            duration: ANIMATION_DURATION,
-          });
+          isVisible.set(
+            withTiming(newDirection === 'up' ? 1 : 0, {
+              duration: ANIMATION_DURATION,
+            }),
+          );
         }
       }
 
       // Always show when at the top
-      if (currentY <= 0 && isVisible.value !== 1) {
-        isVisible.value = withTiming(1, { duration: ANIMATION_DURATION });
+      if (currentY <= 0 && isVisible.get() !== 1) {
+        isVisible.set(withTiming(1, { duration: ANIMATION_DURATION }));
         direction.current = 'idle';
       }
 

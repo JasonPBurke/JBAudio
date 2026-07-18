@@ -1,5 +1,3 @@
-'use no memo'; // Reanimated worklets are incompatible with React Compiler
-
 import {
   TextInput,
   TouchableOpacity,

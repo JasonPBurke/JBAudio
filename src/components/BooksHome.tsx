@@ -1,4 +1,3 @@
-'use no memo'; // Receives Reanimated scroll handler
 import React, { memo, useCallback, useMemo, useRef } from 'react';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import {

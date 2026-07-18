@@ -1,5 +1,3 @@
-'use no memo'; // Receives Reanimated scroll handler
-
 import { FlashList, FlashListProps } from '@shopify/flash-list';
 import { useCallback, memo, useMemo } from 'react';
 import {
