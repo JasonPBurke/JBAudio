@@ -132,7 +132,7 @@ const FootprintListScreen = () => {
           onPress={() => handleFootprintSelect(item)}
           style={{
             ...styles.footprintItem,
-            backgroundColor: themeColors.chapterInactive,
+            backgroundColor: 'transparent',
             ...borderStyle,
           }}
         >

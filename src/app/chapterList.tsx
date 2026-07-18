@@ -147,7 +147,7 @@ const ChapterListScreen = () => {
             ...styles.chapterItem,
             backgroundColor: isActive
               ? themeColors.chapterActive
-              : themeColors.chapterInactive,
+              : 'transparent',
             ...borderStyle,
           }}
         >
