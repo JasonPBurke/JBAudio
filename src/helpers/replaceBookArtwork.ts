@@ -3,8 +3,8 @@ import * as RNFS from '@dr.pogodin/react-native-fs';
 
 import { updateBookArtwork } from '@/db/bookQueries';
 
+import { artworkFilename } from './artworkIdentity';
 import { extractImageColors } from './imageColorExtractor';
-import { sanitizeForFilename } from './scanLibrary';
 
 /**
  * Downloads an image from a URL, resizes it, saves it as the book's artwork,
@@ -17,9 +17,9 @@ export async function replaceBookArtwork(
   author: string,
 ): Promise<void> {
   const artworkDir = `${RNFS.DocumentDirectoryPath}/artwork`;
-  const safeAuthor = sanitizeForFilename(author);
-  const safeTitle = sanitizeForFilename(bookTitle);
-  const filename = `${safeAuthor}_${safeTitle}.webp`;
+  // Keyed by DB record id so two books sharing author+title (e.g. different
+  // narrators) never overwrite each other's cover.
+  const filename = artworkFilename(author, bookTitle, bookId);
   const finalPath = `${artworkDir}/${filename}`;
   const tempPath = `${RNFS.CachesDirectoryPath}/cover_download_${Date.now()}.tmp`;
 

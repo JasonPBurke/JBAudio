@@ -34,6 +34,7 @@ import {
   generateAutoChapters,
   shouldGenerateAutoChapters,
 } from './autoChapterGenerator';
+import { artworkFilename, coverExtractionKey } from './artworkIdentity';
 
 const DEFAULT_BOOK_ARTWORK_COLORS: ArtworkColors = {
   // average: null, // DEPRECATED: Removed from color extraction
@@ -320,19 +321,21 @@ async function forEachWithPool<T>(
   await Promise.all(workers);
 }
 
-// Track which books already have cover art extracted (author::title -> true)
+// Track which books already have cover art extracted (dir::author::title).
+// Keyed per-directory to match book grouping: the same author+title in a
+// different directory is a separate copy that needs its own extraction.
 const booksWithCoverExtracted = new Set<string>();
 
 /**
  * Checks if a chapter for this file needs cover extraction.
  * Returns true if any chapter belongs to a book we haven't seen yet.
  */
-function needsCoverForFile(chapters: ScannedChapter[]): boolean {
+function needsCoverForFile(chapters: ScannedChapter[], dir: string): boolean {
   for (const chapter of chapters) {
     const bookTitle = chapter.bookTitle;
     if (!bookTitle) continue;
 
-    const bookKey = `${chapter.author}::${bookTitle}`;
+    const bookKey = coverExtractionKey(dir, chapter.author, bookTitle);
     if (!booksWithCoverExtracted.has(bookKey)) {
       booksWithCoverExtracted.add(bookKey);
       return true;
@@ -386,7 +389,7 @@ async function processDirectoryFiles(
           metadata = buildChaptersFromMetadata(filePath, extracted);
         }
 
-        if (needsCoverForFile(metadata)) {
+        if (needsCoverForFile(metadata, dir)) {
           metadata = await extractMetadata(filePath, false);
         }
 
@@ -657,13 +660,6 @@ async function extractMetadata(
 }
 
 /**
- * Sanitizes a string for use in a filename by replacing non-alphanumeric characters.
- */
-export function sanitizeForFilename(str: string): string {
-  return str.replace(/[^a-zA-Z0-9]/g, '_');
-}
-
-/**
  * Detects image format from base64 data.
  * Returns the appropriate file extension and whether the JPEG needs repair.
  */
@@ -720,10 +716,9 @@ async function saveArtworkToFile(
   base64Artwork: string,
   bookTitle: string,
   author: string,
+  bookUniqueKey: string,
 ): Promise<ArtworkResult> {
-  const safeBookTitle = sanitizeForFilename(bookTitle);
-  const safeAuthor = sanitizeForFilename(author);
-  const filename = `${safeAuthor}_${safeBookTitle}.webp`;
+  const filename = artworkFilename(author, bookTitle, bookUniqueKey);
 
   const artworkDir = `${RNFS.DocumentDirectoryPath}/artwork`;
   const finalImagePath = `${artworkDir}/${filename}`;
@@ -829,6 +824,9 @@ async function extractArtworkForBook(book: Book): Promise<Book> {
       cleanedBase64,
       book.bookTitle,
       book.author,
+      // First chapter's file path: unique per copy even when two books share
+      // author+title (e.g. same title, different narrators).
+      book.bookId,
     );
 
     // Extract colors from saved file to reduce memory pressure
