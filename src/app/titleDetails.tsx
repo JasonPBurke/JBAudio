@@ -113,8 +113,31 @@ const TitleDetails = () => {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const gradientColors = useMemo(
+    () =>
+      selectGradientColors(book?.artworkColors ?? null, [
+        themeColors.background,
+        themeColors.primary,
+        themeColors.primary,
+        themeColors.background,
+      ] as const),
+    [book?.artworkColors, themeColors.background, themeColors.primary],
+  );
+
+  // Position 4 color (darkest) - used for contrast checking
+  const position4Color = gradientColors[3];
+
+  // Calculate readable label color for Author/ReadBy text
+  const labelColor = useMemo(
+    () =>
+      ensureReadable(
+        book?.artworkColors?.muted || themeColors.textMuted,
+        position4Color,
+      ),
+    [book?.artworkColors, themeColors.textMuted, position4Color],
+  );
 
   if (!book) {
     // Optional: Render a loading state or return null
@@ -129,30 +152,6 @@ const TitleDetails = () => {
 
   const imgHeight = book.artworkHeight;
   const imgWidth = book.artworkWidth;
-
-  const gradientColors = useMemo(
-    () =>
-      selectGradientColors(book.artworkColors, [
-        themeColors.background,
-        themeColors.primary,
-        themeColors.primary,
-        themeColors.background,
-      ] as const),
-    [book.artworkColors, themeColors.background, themeColors.primary],
-  );
-
-  // Position 4 color (darkest) - used for contrast checking
-  const position4Color = gradientColors[3];
-
-  // Calculate readable label color for Author/ReadBy text
-  const labelColor = useMemo(
-    () =>
-      ensureReadable(
-        book.artworkColors?.muted || themeColors.textMuted,
-        position4Color,
-      ),
-    [book.artworkColors, themeColors.textMuted, position4Color],
-  );
 
   const handleChapterPress = () => {
     router.push(`/chapterList?bookId=${bookId}&readOnly=true`);

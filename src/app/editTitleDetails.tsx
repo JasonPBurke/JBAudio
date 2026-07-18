@@ -23,7 +23,7 @@ import { updateBookDetails } from '@/db/bookQueries';
 import { ImagePlus } from 'lucide-react-native';
 import { normalizeSize } from '@/helpers/normalizeSize';
 
-const editTitleDetails = () => {
+const EditTitleDetails = () => {
   const { colors: themeColors } = useTheme();
   const { top, bottom } = useSafeAreaInsets();
   const { bookId } = useLocalSearchParams<{
@@ -340,7 +340,7 @@ const editTitleDetails = () => {
   );
 };
 
-export default editTitleDetails;
+export default EditTitleDetails;
 
 const styles = StyleSheet.create({
   container: {

@@ -39,16 +39,14 @@ export const BookListItem = memo(function BookListItem({
   // Fetch the full book object only when needed for actions like playback.
   const fullBook = useBookById(bookId);
 
-  // If data isn't ready or the book was deleted, render nothing.
-  if (!bookId || !bookData || !fullBook) {
-    return null;
-  }
-
-  const { author, bookTitle, artwork } = bookData;
-
   const { setActiveBookId, activeBookId } = useQueueStore();
   const isActiveBook = useIsBookActive(bookId);
   const isActiveAndPlaying = useIsBookActiveAndPlaying(bookId);
+
+  // Null-safe reads so all hooks can run before the not-ready guard below.
+  const author = bookData?.author;
+  const bookTitle = bookData?.bookTitle;
+  const artwork = bookData?.artwork;
 
   const handlePress = useCallback(() => {
     setTitleDetailsNavIntent();
@@ -84,6 +82,12 @@ export const BookListItem = memo(function BookListItem({
       setActiveBookId,
     );
   }, [fullBook, isActiveBook, activeBookId, setActiveBookId, bookId]);
+
+  // If data isn't ready or the book was deleted, render nothing.
+  // Must stay below every hook so the hook order is render-stable.
+  if (!bookId || !bookData || !fullBook) {
+    return null;
+  }
 
   return (
     <Pressable

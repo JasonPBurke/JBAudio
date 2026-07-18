@@ -152,16 +152,16 @@ export const BookGridItem = memo(function BookGridItem({
   const bookData = useBookDisplayData(bookId);
   const fullBook = useBookById(bookId);
 
-  if (!bookId || !bookData || !fullBook) return null;
+  const isActiveBook = useIsBookActive(bookId);
 
-  const { author, bookTitle, artwork, artworkHeight, artworkWidth } =
-    bookData;
+  // Null-safe reads so all hooks can run before the not-ready guard below.
+  const author = bookData?.author;
+  const bookTitle = bookData?.bookTitle;
+  const artwork = bookData?.artwork;
 
   // Fallback dimensions for when artwork extraction fails (default image is 500x500)
-  const safeArtworkWidth = artworkWidth ?? 500;
-  const safeArtworkHeight = artworkHeight ?? 500;
-
-  const isActiveBook = useIsBookActive(bookId);
+  const safeArtworkWidth = bookData?.artworkWidth ?? 500;
+  const safeArtworkHeight = bookData?.artworkHeight ?? 500;
 
   const handlePress = useCallback(() => {
     setTitleDetailsNavIntent();
@@ -249,6 +249,10 @@ export const BookGridItem = memo(function BookGridItem({
       bookInfoWidth: isRow ? aspectRatio * 150 - 10 : itemWidth,
     };
   }, [isRow, itemWidth, safeArtworkWidth, safeArtworkHeight]);
+
+  // If data isn't ready or the book was deleted, render nothing.
+  // Must stay below every hook so the hook order is render-stable.
+  if (!bookId || !bookData || !fullBook) return null;
 
   return (
     <PressableScale
