@@ -1,7 +1,6 @@
 {
 	"extends": "expo/tsconfig.base",
 	"compilerOptions": {
-		"ignoreDeprecations": "6.0",
 		"strict": true,
 		"target": "ES6",
 		"module": "esnext",
@@ -19,7 +18,6 @@
 		"experimentalDecorators": true,
 		"skipLibCheck": true,
 		"resolveJsonModule": true,
-		"baseUrl": ".",
 		"paths": {
 			"@/*": [
 				"./src/*"

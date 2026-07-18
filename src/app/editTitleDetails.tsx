@@ -1,4 +1,5 @@
 import {
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,7 +12,6 @@ import {
 import { useTheme } from '@/hooks/useTheme';
 import { withOpacity } from '@/helpers/colorUtils';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useBehavior } from '@/hooks/useBehavior';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import FastImage from '@d11/react-native-fast-image';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -26,7 +26,6 @@ import { normalizeSize } from '@/helpers/normalizeSize';
 const editTitleDetails = () => {
   const { colors: themeColors } = useTheme();
   const { top, bottom } = useSafeAreaInsets();
-  const behavior = useBehavior();
   const { bookId } = useLocalSearchParams<{
     bookId: string;
   }>();
@@ -97,7 +96,14 @@ const editTitleDetails = () => {
   }
 
   return (
-    <KeyboardAvoidingView behavior={behavior} style={{ flex: 1 }}>
+    // Android keyboard avoidance is handled natively by adjustPan
+    // (softwareKeyboardLayoutMode: 'pan'); enabling KAV there too
+    // double-shifts the focused field above the keyboard.
+    <KeyboardAvoidingView
+      behavior='padding'
+      enabled={Platform.OS === 'ios'}
+      style={{ flex: 1 }}
+    >
       <ScrollView
         showsVerticalScrollIndicator={false}
         style={[
