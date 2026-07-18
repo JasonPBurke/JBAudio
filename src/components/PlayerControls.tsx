@@ -148,8 +148,7 @@ export function PlayPauseButton({
   useEffect(() => {
     playButtonScale.value = withTiming(playing ? 0 : 1, { duration: 200 });
     pauseButtonScale.value = withTiming(playing ? 1 : 0, { duration: 200 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playing]);
+  }, [playing, playButtonScale, pauseButtonScale]);
 
   const animatedPlayButtonStyle = useAnimatedStyle(() => {
     return {
@@ -477,8 +476,7 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
       countdownOpacity.value = withTiming(0, { duration: 300 });
       countdownScale.value = withTiming(0.2, { duration: 300 });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uiActive]);
+  }, [uiActive, countdownOpacity, countdownScale]);
 
   const animatedCountdownStyle = useAnimatedStyle(() => ({
     opacity: countdownOpacity.value,

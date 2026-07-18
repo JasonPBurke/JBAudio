@@ -235,7 +235,7 @@ const FeatureList = ({
   return (
     <View style={styles.featureListContainer}>
       <Text style={[styles.featureListTitle, { color: colors.text }]}>
-        What's Included in Pro
+        What&apos;s Included in Pro
       </Text>
 
       {PRO_FEATURES.map((feature, index) => (

@@ -247,8 +247,8 @@ const LibrarySettingsScreen = () => {
                 { color: themeColors.textMuted },
               ]}
             >
-              Automatically create chapter markers for audiobooks that don't
-              have embedded chapter data
+              Automatically create chapter markers for audiobooks that
+              don&apos;t have embedded chapter data
             </Text>
             <CompactSettingsRow
               label='Enable Auto-Chapters'

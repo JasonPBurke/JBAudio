@@ -27,10 +27,15 @@ export function BookDurationRow({
   textColor,
   style,
 }: BookDurationRowProps) {
+  // Opt out of React Compiler: the getState() read below is an intentional
+  // unsubscribed read of live progress during render — memoizing this
+  // component would freeze the progress row at a stale value.
+  'use no memo';
   const { colors: themeColors } = useTheme();
 
   // Read live playback values imperatively — no subscription, no re-renders.
   // Values refresh whenever the parent re-renders (e.g. on play/pause).
+  // eslint-disable-next-line react-compiler/react-compiler -- unsubscribed read by design; component opts out via 'use no memo' above
   const { playbackProgress, playbackIndex } = useLibraryStore.getState();
   const progress = computeBookProgress(book, {
     liveProgress: playbackProgress[book.bookId],

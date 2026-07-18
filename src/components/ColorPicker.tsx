@@ -46,7 +46,7 @@ export function ColorPickerModal({
 
   const onColorChange = (color: ColorFormatsObject) => {
     'worklet';
-    currentColor.value = color.hex;
+    currentColor.set(color.hex);
   };
 
   const onColorPick = (color: ColorFormatsObject) => {

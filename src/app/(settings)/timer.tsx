@@ -93,7 +93,7 @@ const TimerSettingsScreen = () => {
 
   const toggleShakeToReset = async () => {
     const newValue = !shakeToResetEnabled;
-    shakeEnabledValue.value = newValue ? 1 : 0;
+    shakeEnabledValue.set(newValue ? 1 : 0);
     await setShakeToResetEnabled(newValue);
   };
 

@@ -29,6 +29,9 @@ const storeHasStartedBook = () =>
     (book) => book.bookProgressValue === BookProgressState.Started,
   );
 
+const storeHasBooks = () =>
+  Object.keys(useLibraryStore.getState().books).length > 0;
+
 const LibraryScreen = ({ navigation }: any) => {
   const { colors: themeColors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -45,9 +48,7 @@ const LibraryScreen = ({ navigation }: any) => {
   // The library store hydrates asynchronously on cold start; if it was still
   // empty when the initializer above ran, apply the default once data arrives
   // (unless the user has already tapped a tab).
-  const defaultTabAppliedRef = useRef(
-    Object.keys(useLibraryStore.getState().books).length > 0,
-  );
+  const defaultTabAppliedRef = useRef(storeHasBooks());
   const userChangedTabRef = useRef(false);
 
   const setSelectedTab = useCallback((tab: CustomTabs) => {

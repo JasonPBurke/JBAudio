@@ -310,7 +310,7 @@ const BooksHome = ({
 };
 
 const SectionHeader = memo(
-  ({
+  function SectionHeader({
     title,
     sectionId,
     isActive,
@@ -320,7 +320,7 @@ const SectionHeader = memo(
     sectionId: string;
     isActive: boolean;
     onSectionPress: (sectionId: string) => void;
-  }) => {
+  }) {
     const { colors: themeColors } = useTheme();
 
     const handlePress = useCallback(() => {

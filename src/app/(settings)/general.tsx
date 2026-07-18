@@ -59,7 +59,7 @@ const GeneralSettingsScreen = () => {
       return;
     }
     const newValue = !autoAccentEnabled;
-    autoAccentToggleValue.value = newValue ? 1 : 0;
+    autoAccentToggleValue.set(newValue ? 1 : 0);
     await setAutoAccentEnabled(newValue);
   };
 
