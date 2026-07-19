@@ -26,6 +26,10 @@ import {
   getPreviousChapterStartSeconds,
 } from '@/helpers/singleFileBook';
 import { seekBack, seekForward } from '@/helpers/relativeSeek';
+import {
+  recordRemoteSeekFootprint,
+  recordRemoteChapterChangeFootprint,
+} from '@/helpers/remoteFootprints';
 import * as sleepTimer from '@/setup/sleepTimer';
 import { useSleepTimerStore } from '@/setup/sleepTimer';
 
@@ -40,7 +44,8 @@ const { setPlaybackIndex, setPlaybackProgress } =
 // shouldUseClippedChapters) load as ONE legacy track and need the
 // single-file handling, exactly like when the spike is off.
 const treatAsSingleFile = (book) =>
-  (book?.isSingleFile ?? false) && !shouldUseClippedChapters(book?.chapters);
+  (book?.isSingleFile ?? false) &&
+  !shouldUseClippedChapters(book?.chapters);
 
 // Single-file book chapter tracking state (module-scope)
 let singleFileChapterState = {
@@ -131,12 +136,7 @@ async function handleProgressUpdated({ position, duration, track }) {
   // This eliminates the race condition where queue isn't ready after app restart
   const isSingleFile = treatAsSingleFile(book);
 
-  if (
-    isSingleFile &&
-    book &&
-    book.chapters &&
-    book.chapters.length > 1
-  ) {
+  if (isSingleFile && book && book.chapters && book.chapters.length > 1) {
     const chapters = book.chapters;
     const currentChapterIndex = findChapterIndexByPosition(
       chapters,
@@ -149,19 +149,6 @@ async function handleProgressUpdated({ position, duration, track }) {
 
     // Update progress in store using progress within chapter
     setPlaybackProgress(bookId, progressWithinChapter);
-
-    //! this was unstable and did not update the notification player w/chapter durations.
-    // // Update now playing metadata with chapter-relative position for lock screen
-    // // This makes the progress bar show chapter progress instead of full book progress
-    // if (hasValidChapterData(chapters)) {
-    //   const currentChapter = chapters[currentChapterIndex];
-    //   if (currentChapter) {
-    //     await TrackPlayer.updateNowPlayingMetadata({
-    //       elapsedTime: progressWithinChapter,
-    //       duration: currentChapter.chapterDuration,
-    //     });
-    //   }
-    // }
 
     // Check if chapter changed
     if (
@@ -284,9 +271,9 @@ function _evaluateShakeListenerState() {
     _shakeSubscription = RNShake.addListener(() => {
       sleepTimer.resetFromShake().then((didReset) => {
         if (didReset) {
-          Haptics.impactAsync(
-            Haptics.ImpactFeedbackStyle.Medium,
-          ).catch(() => {});
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(
+            () => {},
+          );
         }
       });
     });
@@ -309,7 +296,9 @@ let serviceListenersRegistered = false;
 
 export default module.exports = async function () {
   if (serviceListenersRegistered) {
-    console.log('[service] duplicate task start ignored (listeners already registered)');
+    console.log(
+      '[service] duplicate task start ignored (listeners already registered)',
+    );
     return;
   }
   serviceListenersRegistered = true;
@@ -365,7 +354,10 @@ export default module.exports = async function () {
     }
     TrackPlayer.stop();
   });
-  TrackPlayer.addEventListener(Event.RemoteSeek, ({ position }) => {
+  TrackPlayer.addEventListener(Event.RemoteSeek, async ({ position }) => {
+    // Notification / AA seek-bar drag: mirror the in-app seek bar's
+    // footprint. Awaited first so it captures the pre-seek position.
+    await recordRemoteSeekFootprint();
     TrackPlayer.seekTo(position);
   });
   // seekBack/seekForward (not native seekBy, which clamps within the current
@@ -386,8 +378,16 @@ export default module.exports = async function () {
       return;
     }
 
+    // Chapter-skip from notification / AA: mirror the in-app chapter list's
+    // footprint. Awaited before the seek/skip to capture the pre-press spot.
+    await recordRemoteChapterChangeFootprint(activeTrack.bookId);
+
     const book = useLibraryStore.getState().books[activeTrack.bookId];
-    if (treatAsSingleFile(book) && book.chapters && book.chapters.length > 1) {
+    if (
+      treatAsSingleFile(book) &&
+      book.chapters &&
+      book.chapters.length > 1
+    ) {
       const { position } = await TrackPlayer.getProgress();
       const nextStart = getNextChapterStartSeconds(book.chapters, position);
 
@@ -413,10 +413,20 @@ export default module.exports = async function () {
       return;
     }
 
+    // Same footprint mirroring as RemoteNext above.
+    await recordRemoteChapterChangeFootprint(activeTrack.bookId);
+
     const book = useLibraryStore.getState().books[activeTrack.bookId];
-    if (treatAsSingleFile(book) && book.chapters && book.chapters.length > 1) {
+    if (
+      treatAsSingleFile(book) &&
+      book.chapters &&
+      book.chapters.length > 1
+    ) {
       const { position } = await TrackPlayer.getProgress();
-      const prevStart = getPreviousChapterStartSeconds(book.chapters, position);
+      const prevStart = getPreviousChapterStartSeconds(
+        book.chapters,
+        position,
+      );
       await TrackPlayer.seekTo(prevStart);
     } else {
       await TrackPlayer.skipToPrevious();
