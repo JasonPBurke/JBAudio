@@ -53,11 +53,9 @@ import { useSleepTimer } from '@/hooks/useSleepTimer';
 import * as sleepTimer from '@/setup/sleepTimer';
 import { useBookById } from '@/store/library';
 import { useSettingsStore } from '@/store/settingsStore';
-import {
-  getNextChapterStartSeconds,
-  getPreviousChapterStartSeconds,
-} from '@/helpers/singleFileBook';
+import { getNextChapterStartSeconds } from '@/helpers/singleFileBook';
 import { seekBack, seekForward } from '@/helpers/relativeSeek';
+import { skipToPreviousChapter } from '@/helpers/chapterSkip';
 
 type PlayerControlsProps = {
   style?: ViewStyle;
@@ -317,23 +315,11 @@ export function SeekForwardButton({
 }
 
 export function SkipToPreviousButton({ iconSize = 30 }: PlayerButtonProps) {
-  const activeTrack = useActiveTrack();
-  const book = useBookById(activeTrack?.bookId ?? '');
-
   const handlePress = async () => {
-    const queue = await TrackPlayer.getQueue();
-    const isSingleFile = queue.length === 1;
-
-    if (isSingleFile && book?.chapters && book.chapters.length > 1) {
-      const { position } = await TrackPlayer.getProgress();
-      const prevStart = getPreviousChapterStartSeconds(
-        book.chapters,
-        position,
-      );
-      await TrackPlayer.seekTo(prevStart);
-    } else {
-      await TrackPlayer.skipToPrevious();
-    }
+    // Shared with the RemotePrevious handler in setup/service.js: >15s into
+    // a chapter restarts it, within the first 15s goes to the previous
+    // chapter — notification, Android Auto and in-app behave identically.
+    await skipToPreviousChapter();
   };
 
   return (

@@ -23,9 +23,9 @@ import {
   calculateProgressWithinChapter,
   hasValidChapterData,
   getNextChapterStartSeconds,
-  getPreviousChapterStartSeconds,
 } from '@/helpers/singleFileBook';
 import { seekBack, seekForward } from '@/helpers/relativeSeek';
+import { skipToPreviousChapter } from '@/helpers/chapterSkip';
 import {
   recordRemoteSeekFootprint,
   recordRemoteChapterChangeFootprint,
@@ -408,29 +408,20 @@ export default module.exports = async function () {
   });
   TrackPlayer.addEventListener(Event.RemotePrevious, async () => {
     const activeTrack = await TrackPlayer.getActiveTrack();
-    if (!activeTrack?.bookId) {
-      await TrackPlayer.skipToPrevious();
-      return;
-    }
+    const bookId = activeTrack?.bookId;
 
-    // Same footprint mirroring as RemoteNext above.
-    await recordRemoteChapterChangeFootprint(activeTrack.bookId);
-
-    const book = useLibraryStore.getState().books[activeTrack.bookId];
-    if (
-      treatAsSingleFile(book) &&
-      book.chapters &&
-      book.chapters.length > 1
-    ) {
-      const { position } = await TrackPlayer.getProgress();
-      const prevStart = getPreviousChapterStartSeconds(
-        book.chapters,
-        position,
-      );
-      await TrackPlayer.seekTo(prevStart);
-    } else {
-      await TrackPlayer.skipToPrevious();
-    }
+    // Shared with the in-app SkipToPreviousButton: >15s into a chapter
+    // restarts it, within the first 15s goes to the previous chapter. The
+    // callback mirrors RemoteNext's footprint (awaited pre-seek), labeled
+    // by which action the press resolved to.
+    await skipToPreviousChapter(async (kind) => {
+      if (bookId) {
+        await recordRemoteChapterChangeFootprint(
+          bookId,
+          kind === 'restart' ? 'chapter_restart' : 'chapter_change',
+        );
+      }
+    });
   });
   TrackPlayer.addEventListener('remote-play-book', ({ bookId }) => {
     console.log('[service] remote-play-book received:', bookId);

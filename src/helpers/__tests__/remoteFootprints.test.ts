@@ -83,6 +83,15 @@ describe('recordRemoteChapterChangeFootprint', () => {
     expect(mockGetActiveTrack).not.toHaveBeenCalled();
   });
 
+  it('records a chapter_restart footprint when that trigger is passed', async () => {
+    await recordRemoteChapterChangeFootprint('book-2', 'chapter_restart');
+
+    expect(mockRecordFootprint).toHaveBeenCalledWith(
+      'book-2',
+      'chapter_restart',
+    );
+  });
+
   it('falls back to the active track when no bookId is given', async () => {
     await recordRemoteChapterChangeFootprint();
 

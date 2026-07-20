@@ -7,6 +7,7 @@ export type FootprintTrigger =
   | 'play'
   | 'seek'
   | 'chapter_change'
+  | 'chapter_restart'
   | 'timer_activation';
 
 export default class Footprint extends Model {

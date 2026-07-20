@@ -25,12 +25,13 @@ import {
 } from '@/db/footprintQueries';
 import { useRequiresPro } from '@/hooks/useRequiresPro';
 import ProFeaturePopup from '@/modals/ProFeaturePopup';
+import { FootprintTrigger } from '@/db/models/Footprint';
 
 type FootprintItem = {
   id: string;
   chapterIndex: number;
   positionMs: number;
-  triggerType: 'play' | 'seek' | 'chapter_change' | 'timer_activation';
+  triggerType: FootprintTrigger;
   createdAt: number;
 };
 

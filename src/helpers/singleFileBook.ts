@@ -110,21 +110,45 @@ export function getNextChapterStartSeconds(
   return null;
 }
 
+export type PreviousPressKind = 'restart' | 'previous';
+
+export type PreviousPressTarget = {
+  targetSeconds: number;
+  kind: PreviousPressKind;
+};
+
 /**
- * Returns the start position (in seconds) of the previous chapter, or 0 if at the first chapter.
- * Used by both in-app and lock screen skip-previous buttons for single-file books.
+ * Seek target (in seconds) for a skip-to-previous press in a single-file book.
+ * More than `thresholdSeconds` into the current chapter restarts that chapter
+ * (kind 'restart'); at or under the threshold it goes to the previous
+ * chapter's start (kind 'previous'; book start when already in the first
+ * chapter). The kind drives footprint labeling ('Chapter restart' vs
+ * 'Chapter changed').
+ * Shared by the RemotePrevious handler and the in-app skip-previous button
+ * via skipToPreviousChapter() in chapterSkip.ts.
  */
-export function getPreviousChapterStartSeconds(
-  chapters: Chapter[],
+export function getPreviousPressTarget(
+  chapters: readonly Pick<Chapter, 'startMs'>[],
   positionSeconds: number,
-): number {
-  if (!chapters || chapters.length <= 1) return 0;
+  thresholdSeconds: number,
+): PreviousPressTarget {
+  if (!chapters || chapters.length <= 1) {
+    return { targetSeconds: 0, kind: 'restart' };
+  }
 
   const currentIndex = findChapterIndexByPosition(chapters, positionSeconds);
-  if (currentIndex > 0) {
-    return (chapters[currentIndex - 1].startMs || 0) / 1000;
+  const currentStartSeconds = (chapters[currentIndex].startMs || 0) / 1000;
+
+  if (positionSeconds - currentStartSeconds > thresholdSeconds) {
+    return { targetSeconds: currentStartSeconds, kind: 'restart' };
   }
-  return 0;
+  if (currentIndex > 0) {
+    return {
+      targetSeconds: (chapters[currentIndex - 1].startMs || 0) / 1000,
+      kind: 'previous',
+    };
+  }
+  return { targetSeconds: 0, kind: 'previous' };
 }
 
 /**

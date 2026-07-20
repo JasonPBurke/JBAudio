@@ -173,6 +173,7 @@ export const TRIGGER_LABELS: Record<FootprintTrigger, string> = {
   play: 'Play pressed',
   seek: 'Seeked from',
   chapter_change: 'Chapter changed',
+  chapter_restart: 'Chapter restart',
   timer_activation: 'Timer started at',
 };
 

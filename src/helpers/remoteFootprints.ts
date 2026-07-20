@@ -3,6 +3,7 @@ import {
   recordFootprint,
   recordSeekFootprint,
 } from '@/db/footprintQueries';
+import { FootprintTrigger } from '@/db/models/Footprint';
 
 /**
  * Footprint recording for remote controls (notification player, Android
@@ -38,12 +39,16 @@ export async function recordRemoteSeekFootprint(): Promise<void> {
 
 export async function recordRemoteChapterChangeFootprint(
   bookId?: string,
+  trigger: Extract<
+    FootprintTrigger,
+    'chapter_change' | 'chapter_restart'
+  > = 'chapter_change',
 ): Promise<void> {
   try {
     const id =
       bookId ?? (await TrackPlayer.getActiveTrack())?.bookId;
     if (id) {
-      await recordFootprint(id, 'chapter_change');
+      await recordFootprint(id, trigger);
     }
   } catch {
     // Silently fail if footprint recording fails
