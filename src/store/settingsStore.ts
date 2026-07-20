@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import TrackPlayer, { Capability } from 'react-native-track-player';
+import { applyPlayerOptions } from '@/helpers/playerSetup';
 import {
   getNumColumns,
   setNumColumns as setNumColumnsInDB,
@@ -54,52 +54,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setSkipBackDuration: async (value: number) => {
     set({ skipBackDuration: value });
     await updateSkipBackDuration(value);
-    await TrackPlayer.updateOptions({
-      progressUpdateEventInterval: 1,
-      backwardJumpInterval: value,
-      forwardJumpInterval: get().skipForwardDuration,
-      capabilities: [
-        Capability.Play,
-        Capability.Pause,
-        Capability.JumpForward,
-        Capability.JumpBackward,
-        Capability.SkipToNext,
-        Capability.SkipToPrevious,
-        Capability.SeekTo,
-        Capability.Stop,
-      ],
-      notificationCapabilities: [
-        Capability.Play,
-        Capability.JumpForward,
-        Capability.JumpBackward,
-        Capability.Stop,
-      ],
-    });
+    await applyPlayerOptions(value, get().skipForwardDuration);
   },
   setSkipForwardDuration: async (value: number) => {
     set({ skipForwardDuration: value });
     await updateSkipForwardDuration(value);
-    await TrackPlayer.updateOptions({
-      progressUpdateEventInterval: 1,
-      forwardJumpInterval: value,
-      backwardJumpInterval: get().skipBackDuration,
-      capabilities: [
-        Capability.Play,
-        Capability.Pause,
-        Capability.JumpForward,
-        Capability.JumpBackward,
-        Capability.SkipToNext,
-        Capability.SkipToPrevious,
-        Capability.SeekTo,
-        Capability.Stop,
-      ],
-      notificationCapabilities: [
-        Capability.Play,
-        Capability.JumpForward,
-        Capability.JumpBackward,
-        Capability.Stop,
-      ],
-    });
+    await applyPlayerOptions(get().skipBackDuration, value);
   },
   setShakeToResetEnabled: async (enabled: boolean) => {
     set({ shakeToResetEnabled: enabled });

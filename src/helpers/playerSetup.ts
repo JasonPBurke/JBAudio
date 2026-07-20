@@ -11,22 +11,15 @@ import {
 import { useQueueStore } from '@/store/queue';
 
 /**
- * Core TrackPlayer initialization (native player + options). Shared by the
- * UI path (useSetupTrackPlayer) and the headless path (ensurePlayerSetup).
- * Throws if the native player is already initialized — callers catch that.
+ * The single source of truth for TrackPlayer options. updateOptions REPLACES
+ * capability arrays (and resets omitted android options) rather than merging,
+ * so every caller must pass the complete set — never a hand-copied subset.
+ * Used at setup and whenever the jump intervals change in settings.
  */
-export const setupPlayerCore = async () => {
-  const [skipBack, skipForward] = await Promise.all([
-    getSkipBackDuration(),
-    getSkipForwardDuration(),
-  ]);
-
-  await TrackPlayer.setupPlayer({
-    autoHandleInterruptions: true,
-    androidAudioContentType: AndroidAudioContentType.Speech,
-    maxCacheSize: 1024 * 5,
-  });
-
+export const applyPlayerOptions = async (
+  skipBack: number,
+  skipForward: number,
+) => {
   await TrackPlayer.updateOptions({
     android: {
       // Swipe-away from recents while playing keeps playing (explicit default).
@@ -61,6 +54,26 @@ export const setupPlayerCore = async () => {
       // Capability.Pause,
     ],
   });
+};
+
+/**
+ * Core TrackPlayer initialization (native player + options). Shared by the
+ * UI path (useSetupTrackPlayer) and the headless path (ensurePlayerSetup).
+ * Throws if the native player is already initialized — callers catch that.
+ */
+export const setupPlayerCore = async () => {
+  const [skipBack, skipForward] = await Promise.all([
+    getSkipBackDuration(),
+    getSkipForwardDuration(),
+  ]);
+
+  await TrackPlayer.setupPlayer({
+    autoHandleInterruptions: true,
+    androidAudioContentType: AndroidAudioContentType.Speech,
+    maxCacheSize: 1024 * 5,
+  });
+
+  await applyPlayerOptions(skipBack, skipForward);
 
   await TrackPlayer.setRepeatMode(RepeatMode.Off);
 };
