@@ -7,6 +7,38 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      // Separate from v29: test devices already migrated to 29, and
+      // WatermelonDB never re-runs an applied step.
+      toVersion: 30,
+      steps: [
+        addColumns({
+          table: 'settings',
+          columns: [
+            {
+              name: 'last_non_default_rate',
+              type: 'number',
+              isOptional: true,
+            },
+          ],
+        }),
+      ],
+    },
+    {
+      toVersion: 29,
+      steps: [
+        addColumns({
+          table: 'settings',
+          columns: [
+            {
+              name: 'playback_rate',
+              type: 'number',
+              isOptional: true,
+            },
+          ],
+        }),
+      ],
+    },
+    {
       toVersion: 28,
       steps: [
         addColumns({

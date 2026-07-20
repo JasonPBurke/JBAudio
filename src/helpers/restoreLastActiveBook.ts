@@ -14,6 +14,7 @@ import {
   shouldUseClippedChapters,
   buildClippedChapterTracks,
 } from '@/helpers/clippedChapters';
+import { applyPersistedPlaybackRate } from '@/helpers/applyPlaybackRate';
 import type { Book } from '@/types/Book';
 
 /**
@@ -181,6 +182,9 @@ export async function restoreLastActiveBook(): Promise<void> {
         });
       }
     }
+
+    // reset() above dropped the rate back to 1× — restore it
+    await applyPersistedPlaybackRate();
   }
   // Always update the active book in our own state
   useQueueStore.getState().setActiveBookId(bookInfo.bookId);

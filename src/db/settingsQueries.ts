@@ -405,6 +405,40 @@ export async function updateSkipForwardDuration(value: number): Promise<void> {
   });
 }
 
+export async function getPlaybackRate(): Promise<number> {
+  const settingsCollection = database.collections.get<Settings>('settings');
+  const settingsRecord = await settingsCollection.query().fetch();
+
+  if (settingsRecord.length > 0) {
+    return settingsRecord[0].playbackRate ?? 1.0;
+  }
+  return 1.0;
+}
+
+export async function updatePlaybackRate(value: number): Promise<void> {
+  return updateSetting((record) => {
+    record.playbackRate = value;
+  });
+}
+
+export async function getLastNonDefaultRate(): Promise<number | null> {
+  const settingsCollection = database.collections.get<Settings>('settings');
+  const settingsRecord = await settingsCollection.query().fetch();
+
+  if (settingsRecord.length > 0) {
+    return settingsRecord[0].lastNonDefaultRate;
+  }
+  return null;
+}
+
+export async function updateLastNonDefaultRate(
+  value: number,
+): Promise<void> {
+  return updateSetting((record) => {
+    record.lastNonDefaultRate = value;
+  });
+}
+
 export async function getAutoChapterInterval(): Promise<number | null> {
   const settingsCollection = database.collections.get<Settings>('settings');
   const settingsRecord = await settingsCollection.query().fetch();

@@ -16,6 +16,7 @@ import { useCurrentChapter } from '@/hooks/useCurrentChapterStable';
 import { useTheme } from '@/hooks/useTheme';
 import { useBookById } from '@/store/library';
 import { useAppStateStore } from '@/store/appState';
+import { useSettingsStore } from '@/store/settingsStore';
 import { shouldUseClippedChapters } from '@/helpers/clippedChapters';
 import { recordSeekFootprint } from '@/db/footprintQueries';
 
@@ -40,6 +41,14 @@ const bubbleContainerStyle = {
 export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
   // Get theme colors
   const { colors: themeColors } = useTheme();
+
+  // All time TEXT here is wall-clock listening time at the current speed
+  // (content seconds / rate); seek math stays in content time. Per-tick
+  // callbacks read getState() — the useAnimatedReaction below registers
+  // with [] deps, so a subscribed value captured in its closure would go
+  // stale. This subscription exists only to refresh the text when the
+  // rate changes while paused (via the chapter-effect deps).
+  const playbackRate = useSettingsStore((s) => s.playbackRate);
 
   // Memoized slider theme - responsive to theme changes
   const sliderTheme = useMemo(
@@ -91,14 +100,16 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
       if (dur > 0) {
         const chapterPos = Math.max(0, position.value - start);
         const remaining = Math.max(0, dur - chapterPos);
-        setTrackElapsedTime(formatSecondsToMinutes(chapterPos));
-        setTrackRemainingTime('-' + formatSecondsToMinutes(remaining));
+        setTrackElapsedTime(formatSecondsToMinutes(chapterPos / playbackRate));
+        setTrackRemainingTime(
+          '-' + formatSecondsToMinutes(remaining / playbackRate),
+        );
       }
     } else {
       chapterStart.value = 0;
       chapterDuration.value = 0;
     }
-  }, [currentChapter, isChapterRelative, chapterStart, chapterDuration, position]);
+  }, [currentChapter, isChapterRelative, chapterStart, chapterDuration, position, playbackRate]);
 
 
   // State for time text displays - updated at reduced frequency
@@ -140,12 +151,13 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
       // useProgressReanimated guard (position.value freezes there, so this
       // reaction usually won't fire anyway). Self-heals on resume.
       if (!useAppStateStore.getState().isActive) return;
+      const rate = useSettingsStore.getState().playbackRate;
       const effectiveDur = chapDur > 0 ? chapDur : totalDur;
       const chapterPos = Math.max(0, pos - chapStart);
       const remaining = Math.max(0, effectiveDur - chapterPos);
 
-      setTrackElapsedTime(formatSecondsToMinutes(chapterPos));
-      setTrackRemainingTime('-' + formatSecondsToMinutes(remaining));
+      setTrackElapsedTime(formatSecondsToMinutes(chapterPos / rate));
+      setTrackRemainingTime('-' + formatSecondsToMinutes(remaining / rate));
     },
     [],
   );
@@ -198,10 +210,11 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
       await TrackPlayer.seekTo(seekPosition);
 
       // Update time display immediately after seek
+      const rate = useSettingsStore.getState().playbackRate;
       const chapterPos = value * chapDur;
-      setTrackElapsedTime(formatSecondsToMinutes(chapterPos));
+      setTrackElapsedTime(formatSecondsToMinutes(chapterPos / rate));
       setTrackRemainingTime(
-        '-' + formatSecondsToMinutes(chapDur - chapterPos),
+        '-' + formatSecondsToMinutes((chapDur - chapterPos) / rate),
       );
     },
     [chapterStart, chapterDuration, duration, isSliding],
@@ -220,7 +233,8 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
 
       const chapDur =
         chapterDuration.value > 0 ? chapterDuration.value : duration.value;
-      setBubbleElapsedTime(formatSecondsToMinutes(value * chapDur));
+      const rate = useSettingsStore.getState().playbackRate;
+      setBubbleElapsedTime(formatSecondsToMinutes((value * chapDur) / rate));
     },
     [chapterDuration, duration, slidingProgress],
   );

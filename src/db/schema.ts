@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 28,
+  version: 30,
   tables: [
     tableSchema({
       name: 'authors',
@@ -224,6 +224,16 @@ export default appSchema({
         },
         {
           name: 'last_scan_at',
+          type: 'number',
+          isOptional: true,
+        },
+        {
+          name: 'playback_rate',
+          type: 'number',
+          isOptional: true,
+        },
+        {
+          name: 'last_non_default_rate',
           type: 'number',
           isOptional: true,
         },

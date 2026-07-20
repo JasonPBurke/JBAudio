@@ -14,6 +14,7 @@ import {
   shouldUseClippedChapters,
   buildClippedChapterTracks,
 } from '@/helpers/clippedChapters';
+import { applyPersistedPlaybackRate } from '@/helpers/applyPlaybackRate';
 
 export enum BookProgressState {
   NotStarted = 0,
@@ -121,6 +122,9 @@ const handleBookPlayInner = async (
       await TrackPlayer.skip(chapterIndex);
       await TrackPlayer.seekTo(chapterProgress);
     }
+
+    // reset() above dropped the rate back to 1× — restore before playing
+    await applyPersistedPlaybackRate();
 
     await TrackPlayer.play();
     await TrackPlayer.setVolume(1);

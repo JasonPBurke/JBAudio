@@ -11,7 +11,9 @@ import TrackPlayer, {
 } from 'react-native-track-player';
 import { useBookById } from '@/store/library';
 import { useAppStateStore } from '@/store/appState';
+import { useSettingsStore } from '@/store/settingsStore';
 import { formatSecondsToHoursMinutes } from '@/helpers/miscellaneous';
+import { formatRate } from '@/helpers/playbackRate';
 import { calculateRemainingBookTime } from '@/helpers/chapterPlayback';
 import { useLastActiveTrack } from '@/hooks/useLastActiveTrack';
 import { colors } from '@/constants/tokens';
@@ -42,6 +44,7 @@ const BookTimeRemainingInner = React.memo(
   }) => {
     const [remainingText, setRemainingText] = useState('');
     const lastUpdateRef = useRef(0);
+    const rate = useSettingsStore((s) => s.playbackRate);
 
     const calculateRemaining = useCallback(
       (position: number) => {
@@ -50,9 +53,10 @@ const BookTimeRemainingInner = React.memo(
           position,
           currentIndex,
         );
-        return formatSecondsToHoursMinutes(remaining);
+        // Wall-clock listening time at the current playback speed
+        return formatSecondsToHoursMinutes(remaining / rate);
       },
-      [book, currentIndex],
+      [book, currentIndex, rate],
     );
 
     // Initial calculation and event-based updates
@@ -100,6 +104,7 @@ const BookTimeRemainingInner = React.memo(
         }}
       >
         {remainingText} left
+        {rate !== 1 ? ` (${formatRate(rate)})` : ''}
       </Text>
     );
   },

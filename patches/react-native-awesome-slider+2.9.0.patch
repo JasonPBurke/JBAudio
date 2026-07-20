@@ -1,0 +1,15 @@
+diff --git a/node_modules/react-native-awesome-slider/src/slider.tsx b/node_modules/react-native-awesome-slider/src/slider.tsx
+index 697be51..38956db 100644
+--- a/node_modules/react-native-awesome-slider/src/slider.tsx
++++ b/node_modules/react-native-awesome-slider/src/slider.tsx
+@@ -892,6 +892,10 @@ export const Slider: FC<AwesomeSliderProps> = memo(function Slider({
+           }
+         })
+         .onFinalize(() => {
++          // Mirror the pan gesture: without this, a tap leaves
++          // isScrubbingInner stuck true and the progress->thumb sync
++          // reactions ignore external progress updates until the next pan.
++          isScrubbingInner.value = false;
+           if (isScrubbing) {
+             isScrubbing.value = false;
+           }

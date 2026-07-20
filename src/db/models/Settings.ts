@@ -35,6 +35,8 @@ export default class Settings extends Model {
   @field('auto_accent_enabled') autoAccentEnabled!: boolean | null;
   @field('shake_to_reset_enabled') shakeToResetEnabled!: boolean | null;
   @field('last_scan_at') lastScanAt!: number | null;
+  @field('playback_rate') playbackRate!: number | null;
+  @field('last_non_default_rate') lastNonDefaultRate!: number | null;
 
   // Canonical accessor: returns the full library folder entries (path + SAF tree URI).
   // Performs a one-shot migration from the legacy `string[]` shape — if detected, the
