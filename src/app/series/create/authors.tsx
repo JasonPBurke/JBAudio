@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useMemo } from 'react';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Check } from 'lucide-react-native';
@@ -9,6 +9,7 @@ import { useLibraryStore } from '@/store/library';
 import { useSeriesDraftStore } from '@/store/seriesDraftStore';
 import { fontSize, screenPadding } from '@/constants/tokens';
 import { withOpacity } from '@/helpers/colorUtils';
+import { seriesAuthorStepIssues } from '@/helpers/seriesValidation';
 
 export default function SeriesCreateAuthors() {
   const { colors: themeColors } = useTheme();
@@ -21,7 +22,8 @@ export default function SeriesCreateAuthors() {
   const resetForCreate = useSeriesDraftStore((s) => s.resetForCreate);
   const mode = useSeriesDraftStore((s) => s.mode);
 
-  const canProceed = selected.length > 0;
+  const issues = useMemo(() => seriesAuthorStepIssues(selected), [selected]);
+  const canProceed = issues.length === 0;
 
   // In edit mode this screen is the start of the "Add books" sub-flow, so
   // leaving must NOT wipe the edit draft — just pop back to the edit screen.
@@ -29,6 +31,16 @@ export default function SeriesCreateAuthors() {
     if (mode === 'create') resetForCreate();
     router.back();
   }, [mode, resetForCreate, router]);
+
+  // The button stays visually inactive but remains pressable: a greyed-out
+  // button that does nothing gives the user no way to find out what's missing.
+  const handleNext = useCallback(() => {
+    if (issues.length > 0) {
+      Alert.alert("Can't continue", issues.join('\n'));
+      return;
+    }
+    router.navigate('/series/create/books' as any);
+  }, [issues, router]);
 
   const renderItem = useCallback(
     ({ item }: { item: { name: string } }) => {
@@ -108,8 +120,7 @@ export default function SeriesCreateAuthors() {
           </Text>
         </Pressable>
         <Pressable
-          onPress={() => router.navigate('/series/create/books' as any)}
-          disabled={!canProceed}
+          onPress={handleNext}
           style={[
             styles.nextButton,
             {
