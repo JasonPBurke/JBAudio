@@ -1,11 +1,7 @@
 import TabButtons, { TabButtonsType } from '@/components/TabButtons';
+import { CustomTabs } from '@/types/CustomTabs';
 
-export enum CustomTabs {
-  Unplayed,
-  Started,
-  Finished,
-  All,
-}
+export { CustomTabs };
 
 interface TabScreenProps {
   selectedTab: CustomTabs;
