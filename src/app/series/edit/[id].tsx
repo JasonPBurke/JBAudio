@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -53,11 +53,15 @@ export default function SeriesEdit() {
 
   const [submitting, setSubmitting] = useState(false);
 
-  // Seed the draft from the series exactly once, when it first resolves.
-  const seededRef = useRef(false);
+  // Seed the draft from the series, but ONLY when the draft isn't already an
+  // edit-draft for this series. Keying on draft identity (not a per-mount ref)
+  // means returning from the "Add books" sub-flow does NOT re-seed and clobber
+  // the in-progress draft. The series object identity changes on every store
+  // emit, so this effect must be a cheap no-op once seeded.
   useEffect(() => {
-    if (seededRef.current || !series) return;
-    seededRef.current = true;
+    if (!series) return;
+    const draft = useSeriesDraftStore.getState();
+    if (draft.mode === 'edit' && draft.editingSeriesId === series.id) return;
     const keys = series.books
       .map((b) => bookStructuralKey(b))
       .filter((k): k is string => !!k);
@@ -105,6 +109,12 @@ export default function SeriesEdit() {
   const exitGroup = useCallback(() => {
     (navigation.getParent() ?? navigation).goBack();
   }, [navigation]);
+
+  // Cancel discards the draft so re-opening this series seeds fresh from the DB.
+  const handleCancel = useCallback(() => {
+    useSeriesDraftStore.getState().resetForCreate();
+    exitGroup();
+  }, [exitGroup]);
 
   const handleSave = useCallback(async () => {
     if (submitting || !id) return;
@@ -211,7 +221,11 @@ export default function SeriesEdit() {
       </Animated.ScrollView>
 
       <View style={[styles.footer, { borderTopColor: themeColors.divider }]}>
-        <Pressable onPress={exitGroup} style={styles.footerButton} hitSlop={8}>
+        <Pressable
+          onPress={handleCancel}
+          style={styles.footerButton}
+          hitSlop={8}
+        >
           <Text style={[styles.cancelText, { color: themeColors.textMuted }]}>
             Cancel
           </Text>

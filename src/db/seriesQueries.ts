@@ -125,8 +125,17 @@ export function observeSeriesData(): Observable<{
   series: SeriesRow[];
   memberships: MembershipRow[];
 }> {
-  const series$ = database.get<Series>('series').query().observe();
-  const members$ = database.get<SeriesBook>('series_books').query().observe();
+  // observeWithColumns (not plain observe): a plain list observer only emits on
+  // membership changes (add/delete), so a reorder (position-only) or rename
+  // (name-only) would NOT re-emit and the UI would stay stale until restart.
+  const series$ = database
+    .get<Series>('series')
+    .query()
+    .observeWithColumns(['name', 'sort_name']);
+  const members$ = database
+    .get<SeriesBook>('series_books')
+    .query()
+    .observeWithColumns(['series_id', 'book_key', 'position']);
   return combineLatest([series$, members$]).pipe(
     map(([seriesModels, memberModels]) => ({
       series: seriesModels
