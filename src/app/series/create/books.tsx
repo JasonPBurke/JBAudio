@@ -37,6 +37,10 @@ export default function SeriesCreateBooks() {
   const selectedBookKeys = useSeriesDraftStore((s) => s.selectedBookKeys);
   const toggleBookKey = useSeriesDraftStore((s) => s.toggleBookKey);
   const setOrderedKeys = useSeriesDraftStore((s) => s.setOrderedKeys);
+  const appendBookKeys = useSeriesDraftStore((s) => s.appendBookKeys);
+  const mode = useSeriesDraftStore((s) => s.mode);
+  const editingSeriesId = useSeriesDraftStore((s) => s.editingSeriesId);
+  const isEdit = mode === 'edit';
 
   // Union of the selected authors' books, grouped by author (author subheading),
   // each group sorted by title. Books without a structural key are excluded.
@@ -63,16 +67,33 @@ export default function SeriesCreateBooks() {
     return out;
   }, [authors, selectedAuthorNames]);
 
-  const canProceed = name.trim().length > 0 && selectedBookKeys.length > 0;
+  const canProceed = isEdit
+    ? selectedBookKeys.length > 0
+    : name.trim().length > 0 && selectedBookKeys.length > 0;
 
   const handleNext = useCallback(() => {
-    // Seed the order step in display order (author-grouped), selected only.
+    if (isEdit) {
+      // Add-books sub-flow: append the selection (additive; removals happen on
+      // the edit screen) and return to the already-mounted edit screen.
+      appendBookKeys(selectedBookKeys);
+      router.navigate(`/series/edit/${editingSeriesId}` as any);
+      return;
+    }
+    // Create flow: seed the order step in display order (author-grouped).
     const ordered = rows
       .filter((r) => r.type === 'book' && selectedBookKeys.includes(r.bookKey))
       .map((r) => (r as Extract<Row, { type: 'book' }>).bookKey);
     setOrderedKeys(ordered);
     router.navigate('/series/create/order' as any);
-  }, [rows, selectedBookKeys, setOrderedKeys, router]);
+  }, [
+    isEdit,
+    appendBookKeys,
+    editingSeriesId,
+    rows,
+    selectedBookKeys,
+    setOrderedKeys,
+    router,
+  ]);
 
   const renderItem = useCallback(
     ({ item }: { item: Row }) => {
@@ -113,20 +134,24 @@ export default function SeriesCreateBooks() {
     >
       <View style={styles.header}>
         <Text style={[styles.title, { color: themeColors.text }]}>
-          Name &amp; select books
+          {isEdit ? 'Add books' : 'Name & select books'}
         </Text>
-        <TextInput
-          value={name}
-          onChangeText={setName}
-          placeholder='Series name (required)'
-          placeholderTextColor={themeColors.textMuted}
-          style={[
-            styles.nameInput,
-            { color: themeColors.text, borderColor: themeColors.divider },
-          ]}
-        />
+        {!isEdit && (
+          <TextInput
+            value={name}
+            onChangeText={setName}
+            placeholder='Series name (required)'
+            placeholderTextColor={themeColors.textMuted}
+            style={[
+              styles.nameInput,
+              { color: themeColors.text, borderColor: themeColors.divider },
+            ]}
+          />
+        )}
         <Text style={[styles.instruction, { color: themeColors.textMuted }]}>
-          Tap the books that belong in this series.
+          {isEdit
+            ? 'Tap books to add to this series.'
+            : 'Tap the books that belong in this series.'}
         </Text>
       </View>
 
@@ -170,7 +195,7 @@ export default function SeriesCreateBooks() {
               },
             ]}
           >
-            Next
+            {isEdit ? 'Done' : 'Next'}
           </Text>
         </Pressable>
       </View>

@@ -19,13 +19,16 @@ export default function SeriesCreateAuthors() {
   const selected = useSeriesDraftStore((s) => s.selectedAuthorNames);
   const toggleAuthor = useSeriesDraftStore((s) => s.toggleAuthor);
   const resetForCreate = useSeriesDraftStore((s) => s.resetForCreate);
+  const mode = useSeriesDraftStore((s) => s.mode);
 
   const canProceed = selected.length > 0;
 
+  // In edit mode this screen is the start of the "Add books" sub-flow, so
+  // leaving must NOT wipe the edit draft — just pop back to the edit screen.
   const handleExit = useCallback(() => {
-    resetForCreate();
+    if (mode === 'create') resetForCreate();
     router.back();
-  }, [resetForCreate, router]);
+  }, [mode, resetForCreate, router]);
 
   const renderItem = useCallback(
     ({ item }: { item: { name: string } }) => {
