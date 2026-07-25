@@ -64,35 +64,56 @@ visibly clipped row against the log separates the two possibilities:
 
 The probes are removed before the branch is considered done.
 
-### Two defects found by reading — fixed regardless
+### Two findings from reading the layout
 
-Both are independently correct changes, and each is a plausible root cause.
+**a. Height arithmetic is fragile — 2px of headroom. Robustness cleanup, NOT a
+candidate root cause.**
 
-**a. Height arithmetic mismatch.** `BookGridItem`'s row variant occupies 232px:
+`BookGridItem`'s row variant and `BooksHorizontal`'s container each hardcode
+`220`, but the two numbers do not mean the same thing:
 
 | Contributor | Value |
 | --- | --- |
 | `pressableContainer` `paddingTop` | 4 |
-| `containerBase` height (row) | 220 |
+| `imageContainer` height (row) | 140 |
+| `bookInfoContainer` height | 68 |
+| **Visible content ends at** | **212** |
+| `containerBase` height (row) | 220 — 12px of it empty |
+| Pressable border box | 224 |
 | `pressableContainer` `marginBottom` | 8 |
-| **Total** | **232** |
+| **Layout advance** | **232** |
 
-It sits inside `BooksHorizontal`'s `listContainer` at `height: 220`, plus
-`contentContainerStyle.paddingBottom: 6`. Roughly 18px is clipped off the bottom
-of every horizontal row app-wide, `BooksHome` included.
+Against `listContainer`'s `height: 220` minus `contentContainerStyle`'s
+`paddingBottom: 6`, the usable content height is **214**. So ~10px of the
+Pressable is clipped — but all of it is the empty slack inside `containerBase`.
+**Nothing visible is lost today; visible content ends at 212 against a 214 clip
+line, leaving 2px of headroom.**
 
-Fix: replace the two unrelated hardcoded `220`s with a single shared constant so
-the container height is derived from the item height rather than coincidentally
-equal to part of it.
+Two pixels is one font-scale bump away from cutting the duration row. Fix:
+derive both heights from a single shared constant so the container height
+follows the item height instead of coincidentally almost matching it.
 
-**b. `null` returned from a measured cell.** `BookGridItem.tsx:255` returns
-`null` when the store has not yet resolved the book. A null child inside a cell
-FlashList is about to measure is a measurement hazard, and it matches the
-symptoms: inconsistent across rows on one screen, and visible on a freshly
-created series while the store re-emits.
+This cannot explain a ~25% height loss and is **not** treated as a candidate
+cause of the bug — it is fixed because it is fragile.
+
+**b. `null` returned from a measured cell — the strong candidate.**
+`BookGridItem.tsx:255` returns `null` when the store has not yet resolved the
+book. A null child inside a cell FlashList is about to measure is a measurement
+hazard, and it matches the symptoms: inconsistent across rows on one screen, and
+visible on a freshly created series while the store re-emits.
 
 Fix: render a fixed-size placeholder `View` with identical dimensions instead of
 `null`, so a cell measures the same whether or not its data has landed.
+
+### Blast radius: these are shared components
+
+`BooksHorizontal` is imported by `BooksHome` and `SeriesHome`; `BookGridItem` by
+those two plus `BooksGrid`. Both fixes therefore land on **all three library
+views at once** — there is no separate follow-up needed for `BooksHome`.
+
+The corollary is that this is a change to the shipped main library view, not a
+series-only change. `BooksHome`'s horizontal rows must be checked during the A/B
+alongside the Series view.
 
 ### Acceptance
 
@@ -315,6 +336,8 @@ rejected write looks like a dead button.
 **Device verification** — everything visual:
 
 - Collapsed rows full height on first paint, freshly created series and cold start.
+- `BooksHome` and `BooksGrid` horizontal rows unchanged in appearance after the
+  shared-constant refactor (§1a touches components all three views use).
 - FAB clears the mini player, hides and shows with the search bar, opens the wizard.
 - Edit icon opens the right series; header and icon taps never cross-fire.
 - Each empty-state message appears in its own condition.
