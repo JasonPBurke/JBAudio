@@ -18,6 +18,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { ensureSettingsRecord } from '@/db/settingsQueries';
 import { useThemeStore } from '@/store/themeStore';
 import { useLibraryStore } from '@/store/library';
+import { useSeriesStore } from '@/store/seriesStore';
 import { useUIReadyStore } from '@/store/uiReadyStore';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
 import { useAppStateStore } from '@/store/appState';
@@ -106,6 +107,14 @@ const App = () => {
     const unsubscribe = initLibraryStore();
     return () => unsubscribe();
   }, [initLibraryStore]);
+
+  // Initialize series store (depends on the library store's book map for
+  // structural-key resolution; safe to init alongside it).
+  const initSeriesStore = useSeriesStore((state) => state.init);
+  useEffect(() => {
+    const unsubscribe = initSeriesStore();
+    return () => unsubscribe();
+  }, [initSeriesStore]);
 
   // Initialize theme on app start
   useEffect(() => {
