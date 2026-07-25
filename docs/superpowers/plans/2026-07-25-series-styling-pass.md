@@ -80,6 +80,7 @@
 - Produces:
   - `normalizeSortName(name: string): string`
   - `isDuplicateSeriesName(name: string, series: { id: string; name: string }[], excludeId?: string): boolean`
+  - `duplicateNameIssue(name: string): string` — the single definition of the duplicate-name sentence, used for both the Error's message and the UI alert copy.
   - `class SeriesNameConflictError extends Error` with `readonly name = 'SeriesNameConflictError'` and a `conflictingName: string` property.
 
 **Why this file exists:** `normalizeSortName` currently lives in `src/db/seriesQueries.ts`, which imports `@/db` (WatermelonDB). Any pure helper importing it would drag the database into Jest. Moving it to a DB-free module keeps validation unit-testable, matching how `seriesAssembly.ts` and `seriesProgress.ts` are already structured.
@@ -136,12 +137,27 @@ test('empty series list is never a duplicate', () => {
   expect(isDuplicateSeriesName('Anything', [])).toBe(false);
 });
 
+test('duplicateNameIssue builds the exact sentence', () => {
+  expect(duplicateNameIssue('Dune Saga')).toBe(
+    'A series named "Dune Saga" already exists. Choose a different name.',
+  );
+});
+
 test('SeriesNameConflictError carries the conflicting name', () => {
   const err = new SeriesNameConflictError('Dune Saga');
   expect(err.conflictingName).toBe('Dune Saga');
+  expect(err.name).toBe('SeriesNameConflictError');
   expect(err instanceof Error).toBe(true);
 });
+
+test('SeriesNameConflictError message reuses duplicateNameIssue', () => {
+  expect(new SeriesNameConflictError('Dune Saga').message).toBe(
+    duplicateNameIssue('Dune Saga'),
+  );
+});
 ```
+
+Add `duplicateNameIssue` to the import at the top of the test file.
 
 - [ ] **Step 2: Run the test and confirm it fails**
 
@@ -182,12 +198,19 @@ export function isDuplicateSeriesName(
   );
 }
 
+/**
+ * The one definition of the duplicate-name sentence. Both the Error's message
+ * and the UI alert copy come from here so the two can never drift apart.
+ */
+export const duplicateNameIssue = (name: string) =>
+  `A series named "${name}" already exists. Choose a different name.`;
+
 /** Thrown by the query layer when a write would create a duplicate name. */
 export class SeriesNameConflictError extends Error {
   readonly conflictingName: string;
 
   constructor(conflictingName: string) {
-    super(`A series named "${conflictingName}" already exists.`);
+    super(duplicateNameIssue(conflictingName));
     this.name = 'SeriesNameConflictError';
     this.conflictingName = conflictingName;
   }
@@ -545,12 +568,16 @@ Expected: FAIL — `Cannot find module '@/helpers/seriesValidation'`
 Create `src/helpers/seriesValidation.ts`:
 
 ```ts
-import { isDuplicateSeriesName } from '@/helpers/seriesName';
+import {
+  duplicateNameIssue,
+  isDuplicateSeriesName,
+} from '@/helpers/seriesName';
 
 type SeriesLike = { id: string; name: string };
 
-export const duplicateNameIssue = (name: string) =>
-  `A series named "${name}" already exists. Choose a different name.`;
+// Re-exported so the wizard/edit screens have one import site for validation
+// copy. The sentence itself is defined once, in seriesName.ts.
+export { duplicateNameIssue };
 
 /** Wizard step 1. */
 export function seriesAuthorStepIssues(
