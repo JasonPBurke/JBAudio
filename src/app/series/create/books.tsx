@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import {
+  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -13,9 +14,11 @@ import { useNavigation, useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { useLibraryStore } from '@/store/library';
 import { useSeriesDraftStore } from '@/store/seriesDraftStore';
+import { useDerivedSeries } from '@/store/seriesStore';
 import { SeriesBookRow } from '@/components/SeriesBookRow';
 import { bookStructuralKey } from '@/helpers/bookStructuralKey';
 import { compareBookTitles } from '@/helpers/miscellaneous';
+import { seriesBookStepIssues } from '@/helpers/seriesValidation';
 import { Book } from '@/types/Book';
 import { fontSize, screenPadding } from '@/constants/tokens';
 
@@ -67,11 +70,26 @@ export default function SeriesCreateBooks() {
     return out;
   }, [authors, selectedAuthorNames]);
 
-  const canProceed = isEdit
-    ? selectedBookKeys.length > 0
-    : name.trim().length > 0 && selectedBookKeys.length > 0;
+  const allSeries = useDerivedSeries();
+  // Recomputes per keystroke (name is draft-store state), so the button goes
+  // inactive the moment a duplicate name is typed.
+  const issues = useMemo(
+    () =>
+      seriesBookStepIssues({
+        name,
+        selectedBookKeys,
+        series: allSeries,
+        isEdit,
+      }),
+    [name, selectedBookKeys, allSeries, isEdit],
+  );
+  const canProceed = issues.length === 0;
 
   const handleNext = useCallback(() => {
+    if (issues.length > 0) {
+      Alert.alert("Can't continue", issues.join('\n'));
+      return;
+    }
     if (isEdit) {
       // Add-books sub-flow: append the selection (additive; removals happen on
       // the edit screen) and POP back to the existing edit screen. Popping
@@ -88,6 +106,7 @@ export default function SeriesCreateBooks() {
     setOrderedKeys(ordered);
     router.navigate('/series/create/order' as any);
   }, [
+    issues,
     isEdit,
     appendBookKeys,
     navigation,
@@ -177,7 +196,6 @@ export default function SeriesCreateBooks() {
         </Pressable>
         <Pressable
           onPress={handleNext}
-          disabled={!canProceed}
           style={[
             styles.nextButton,
             {
@@ -233,13 +251,14 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: screenPadding.horizontal,
     paddingVertical: 8,
+    gap: 8,
   },
   authorHeading: {
     fontFamily: 'Rubik',
     fontWeight: '600',
     fontSize: fontSize.sm,
-    marginTop: 14,
-    marginBottom: 6,
+    marginTop: 6,
+    marginBottom: 0,
   },
   footer: {
     flexDirection: 'row',
