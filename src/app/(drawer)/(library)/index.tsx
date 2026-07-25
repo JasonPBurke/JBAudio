@@ -1,6 +1,6 @@
-import BooksList from '@/components/BooksList';
 import BooksHome from '@/components/BooksHome';
 import BooksGrid from '@/components/BooksGrid';
+import SeriesHome from '@/components/SeriesHome';
 import SearchBar, { SEARCH_BAR_HEIGHT } from '@/components/SearchBar';
 import { defaultStyles } from '@/styles';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -10,6 +10,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Header from '@/components/Header';
 import { useScanExternalFileSystem } from '@/hooks/useScanExternalFileSystem';
 import { useLibraryStore } from '@/store/library';
+import { useDerivedSeries } from '@/store/seriesStore';
+import { useSeriesDraftStore } from '@/store/seriesDraftStore';
+import {
+  countSeriesByState,
+  filterSeriesBySearch,
+} from '@/helpers/seriesAssembly';
+import { useRouter } from 'expo-router';
 import { useUIReadyStore } from '@/store/uiReadyStore';
 import { FloatingPlayer } from '@/components/FloatingPlayer';
 import { CustomTabs } from '@/components/TabScreen';
@@ -69,6 +76,13 @@ const LibraryScreen = ({ navigation }: any) => {
   const [activeGridSections, setActiveGridSections] = useState<Set<string>>(
     () => new Set(),
   );
+  // Separate expanded-set for the Series view (keyed by series id, not author
+  // name) so the two views' expansion state never collide.
+  const [activeSeriesSections, setActiveSeriesSections] = useState<
+    Set<string>
+  >(() => new Set());
+
+  const router = useRouter();
 
   useScanExternalFileSystem();
 
@@ -182,6 +196,47 @@ const LibraryScreen = ({ navigation }: any) => {
     );
   }, [selectedTab, searchFilteredAuthors]);
 
+  // --- Series view data (toggleView === 1) ---
+  const allSeries = useDerivedSeries();
+
+  // Search filters series by name OR contained book title.
+  const seriesSearchFiltered = useMemo(
+    () => filterSeriesBySearch(allSeries, debouncedSearchQuery),
+    [allSeries, debouncedSearchQuery],
+  );
+
+  // Tab counts in Series view are SERIES counts (Completion model), not books.
+  const seriesCounts = useMemo(
+    () => countSeriesByState(seriesSearchFiltered),
+    [seriesSearchFiltered],
+  );
+
+  // Map the shared progress tabs onto series aggregate state.
+  const tabFilteredSeries = useMemo(() => {
+    if (selectedTab === CustomTabs.All) return seriesSearchFiltered;
+    const target =
+      selectedTab === CustomTabs.Unplayed
+        ? 'unplayed'
+        : selectedTab === CustomTabs.Started
+          ? 'playing'
+          : 'finished';
+    return seriesSearchFiltered.filter((s) => s.progressState === target);
+  }, [selectedTab, seriesSearchFiltered]);
+
+  const handleCreateSeries = useCallback(() => {
+    useSeriesDraftStore.getState().resetForCreate();
+    // Cast: expo-router typed routes regenerate once the series/ screens exist
+    // (see player.tsx footprintList precedent).
+    router.navigate('/series/create/authors' as any);
+  }, [router]);
+
+  const handleEditSeries = useCallback(
+    (seriesId: string) => {
+      router.navigate(`/series/edit/${seriesId}` as any);
+    },
+    [router],
+  );
+
   const handleClearSearch = useCallback(() => {
     setSearchQuery('');
   }, []);
@@ -218,7 +273,7 @@ const LibraryScreen = ({ navigation }: any) => {
           toggleView={toggleView}
           selectedTab={selectedTab}
           setSelectedTab={setSelectedTab}
-          bookCounts={bookCounts}
+          bookCounts={toggleView === 1 ? seriesCounts : bookCounts}
         />
 
         {/* Container for list + overlay search bar - overflow hidden clips the search bar */}
@@ -234,11 +289,14 @@ const LibraryScreen = ({ navigation }: any) => {
             />
           )}
           {toggleView === 1 && (
-            <BooksList
-              authors={tabFilteredLibrary}
-              recencyMode={recencyMode}
+            <SeriesHome
+              series={tabFilteredSeries}
+              activeGridSections={activeSeriesSections}
+              setActiveGridSections={setActiveSeriesSections}
               onScroll={onScroll}
-              ListHeaderComponent={ListSpacer}
+              ListHeaderSpacer={ListSpacer}
+              onCreatePress={handleCreateSeries}
+              onEditPress={handleEditSeries}
             />
           )}
           {toggleView === 2 && (

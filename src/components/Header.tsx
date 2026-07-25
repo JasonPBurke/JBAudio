@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Grip, Library, List, Settings2 } from 'lucide-react-native';
+import { Grip, Layers, Library, Settings2 } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { screenPadding } from '@/constants/tokens';
 import TabScreen, { CustomTabs } from '@/components/TabScreen';
@@ -195,14 +195,12 @@ const Header = (props: headerProps) => {
               </View>
             )}
             {toggleView === 1 && (
-              <View style={{ transform: [{ rotateY: '180deg' }] }}>
-                <List
-                  size={24}
-                  color={themeColors.icon}
-                  strokeWidth={1.5}
-                  absoluteStrokeWidth
-                />
-              </View>
+              <Layers
+                size={24}
+                color={themeColors.icon}
+                strokeWidth={1.5}
+                absoluteStrokeWidth
+              />
             )}
             {toggleView === 2 && (
               <Grip
