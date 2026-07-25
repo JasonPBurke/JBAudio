@@ -35,6 +35,10 @@ import {
   shouldGenerateAutoChapters,
 } from './autoChapterGenerator';
 import { artworkFilename, coverExtractionKey } from './artworkIdentity';
+import {
+  pruneOrphanedSeriesBooks,
+  deleteEmptySeries,
+} from '@/db/seriesQueries';
 
 const DEFAULT_BOOK_ARTWORK_COLORS: ArtworkColors = {
   // average: null, // DEPRECATED: Removed from color extraction
@@ -943,6 +947,21 @@ async function removeMissingFiles(
         ...orphanedAuthors.map((a) => a.prepareDestroyPermanently()),
       );
     });
+  }
+
+  // Series resilience: when books are removed, prune any series_books whose
+  // structural key (first-file path) no longer backs a surviving file, then
+  // auto-delete any series left empty. Runs AFTER the cleanup batch (stable
+  // post-scan state), never mid-scan. A live key = any surviving chapter url:
+  // file paths are unique per book, so a surviving first file means its book
+  // survived.
+  if (orphanedBooks.length > 0) {
+    const liveKeys = new Set<string>();
+    for (const chapter of allChapters) {
+      if (!removedChapterIds.has(chapter.id)) liveKeys.add(chapter.url);
+    }
+    await pruneOrphanedSeriesBooks(liveKeys);
+    await deleteEmptySeries();
   }
 }
 

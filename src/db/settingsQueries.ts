@@ -4,6 +4,8 @@ import database from '@/db';
 import Settings, { LibraryFolderEntry } from '@/db/models/Settings';
 import { Q } from '@nozbe/watermelondb';
 import Book from '@/db/models/Book';
+import Series from '@/db/models/Series';
+import SeriesBook from '@/db/models/SeriesBook';
 import * as RNFS from '@dr.pogodin/react-native-fs';
 
 export async function ensureSettingsRecord(): Promise<void> {
@@ -264,6 +266,9 @@ export const removeLibraryFolder = async (folderPath: string) => {
     const allBooks = await booksCollection.query().fetch();
 
     const booksToDelete = [];
+    // Structural keys (first-file paths) of the books being removed — used to
+    // prune dangling series membership below.
+    const removedKeys = new Set<string>();
     for (const book of allBooks) {
       const chapters = await (book.chapters as any).fetch();
       if (
@@ -271,6 +276,7 @@ export const removeLibraryFolder = async (folderPath: string) => {
         chapters[0].url.startsWith(absoluteFolderPath)
       ) {
         booksToDelete.push(book);
+        removedKeys.add(chapters[0].url);
       }
     }
 
@@ -284,6 +290,40 @@ export const removeLibraryFolder = async (folderPath: string) => {
       }
       // Then delete the book
       deletions.push(book.prepareDestroyPermanently());
+    }
+
+    // 4. Series resilience (same atomic batch — no nested write): drop
+    // series_books rows referencing the removed books' structural keys, then
+    // auto-delete any series left with zero remaining membership.
+    if (removedKeys.size > 0) {
+      const allSeriesBooks = await database
+        .get<SeriesBook>('series_books')
+        .query()
+        .fetch();
+      const remainingBySeries = new Map<string, number>();
+      const seriesBooksToRemove: SeriesBook[] = [];
+      for (const sb of allSeriesBooks) {
+        const seriesId = (sb._raw as any).series_id;
+        if (removedKeys.has(sb.bookKey)) {
+          seriesBooksToRemove.push(sb);
+        } else {
+          remainingBySeries.set(
+            seriesId,
+            (remainingBySeries.get(seriesId) ?? 0) + 1,
+          );
+        }
+      }
+      if (seriesBooksToRemove.length > 0) {
+        for (const sb of seriesBooksToRemove) {
+          deletions.push(sb.prepareDestroyPermanently());
+        }
+        const allSeries = await database.get<Series>('series').query().fetch();
+        for (const s of allSeries) {
+          if (!remainingBySeries.get(s.id)) {
+            deletions.push(s.prepareDestroyPermanently());
+          }
+        }
+      }
     }
 
     await writer.batch(...deletions);
