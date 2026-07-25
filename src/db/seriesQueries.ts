@@ -6,10 +6,14 @@ import Series from '@/db/models/Series';
 import SeriesBook from '@/db/models/SeriesBook';
 import { SeriesRow, MembershipRow } from '@/helpers/seriesAssembly';
 import { computeMembershipDiff } from '@/db/seriesMembershipDiff';
+import {
+  normalizeSortName,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  SeriesNameConflictError,
+} from '@/helpers/seriesName';
 
 export { computeMembershipDiff } from '@/db/seriesMembershipDiff';
-
-export const normalizeSortName = (name: string) => name.trim().toLowerCase();
+export { normalizeSortName, SeriesNameConflictError } from '@/helpers/seriesName';
 
 /**
  * Create a new series with its ordered membership. `bookKeysInOrder` are
