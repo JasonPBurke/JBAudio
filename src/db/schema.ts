@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 30,
+  version: 31,
   tables: [
     tableSchema({
       name: 'authors',
@@ -246,6 +246,29 @@ export default appSchema({
         { name: 'chapter_index', type: 'number' },
         { name: 'position_ms', type: 'number' },
         { name: 'trigger_type', type: 'string' },
+        { name: 'created_at', type: 'number' },
+      ],
+    }),
+    // User-created series (also usable as personal playlists). Membership lives
+    // in series_books, keyed by a book's STRUCTURAL KEY (first file path), never
+    // book.id — see docs/superpowers/specs/2026-07-24-series-feature-design.md.
+    tableSchema({
+      name: 'series',
+      columns: [
+        { name: 'name', type: 'string' },
+        { name: 'sort_name', type: 'string', isIndexed: true },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ],
+    }),
+    tableSchema({
+      name: 'series_books',
+      columns: [
+        { name: 'series_id', type: 'string', isIndexed: true },
+        // Structural key = book.chapters[0].url (first file path). Survives tag
+        // edits + rescans that churn book.id. Resolved to a live Book in JS.
+        { name: 'book_key', type: 'string', isIndexed: true },
+        { name: 'position', type: 'number' },
         { name: 'created_at', type: 'number' },
       ],
     }),

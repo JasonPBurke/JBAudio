@@ -8,6 +8,8 @@ import Book from './models/Book';
 import Chapter from './models/Chapter';
 import Settings from './models/Settings';
 import Footprint from './models/Footprint';
+import Series from './models/Series';
+import SeriesBook from './models/SeriesBook';
 
 // First, create the adapter to the underlying database:
 const adapter = new SQLiteAdapter({
@@ -28,7 +30,15 @@ const adapter = new SQLiteAdapter({
 // Then, make a Watermelon database from it!
 const database = new Database({
   adapter,
-  modelClasses: [Author, Book, Chapter, Settings, Footprint],
+  modelClasses: [
+    Author,
+    Book,
+    Chapter,
+    Settings,
+    Footprint,
+    Series,
+    SeriesBook,
+  ],
 });
 
 export default database;

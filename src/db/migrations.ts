@@ -7,6 +7,31 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      // Series feature: two new tables. Membership (series_books) is keyed by a
+      // book's structural key (first file path), not book.id.
+      toVersion: 31,
+      steps: [
+        createTable({
+          name: 'series',
+          columns: [
+            { name: 'name', type: 'string' },
+            { name: 'sort_name', type: 'string', isIndexed: true },
+            { name: 'created_at', type: 'number' },
+            { name: 'updated_at', type: 'number' },
+          ],
+        }),
+        createTable({
+          name: 'series_books',
+          columns: [
+            { name: 'series_id', type: 'string', isIndexed: true },
+            { name: 'book_key', type: 'string', isIndexed: true },
+            { name: 'position', type: 'number' },
+            { name: 'created_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
+    {
       // Separate from v29: test devices already migrated to 29, and
       // WatermelonDB never re-runs an applied step.
       toVersion: 30,
