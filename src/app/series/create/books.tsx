@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useNavigation, useRouter } from 'expo-router';
 
 import { useTheme } from '@/hooks/useTheme';
 import { useLibraryStore } from '@/store/library';
@@ -27,6 +27,7 @@ export default function SeriesCreateBooks() {
   const { colors: themeColors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const navigation = useNavigation();
 
   const authors = useLibraryStore((state) => state.authors);
   const selectedAuthorNames = useSeriesDraftStore(
@@ -39,7 +40,6 @@ export default function SeriesCreateBooks() {
   const setOrderedKeys = useSeriesDraftStore((s) => s.setOrderedKeys);
   const appendBookKeys = useSeriesDraftStore((s) => s.appendBookKeys);
   const mode = useSeriesDraftStore((s) => s.mode);
-  const editingSeriesId = useSeriesDraftStore((s) => s.editingSeriesId);
   const isEdit = mode === 'edit';
 
   // Union of the selected authors' books, grouped by author (author subheading),
@@ -74,9 +74,11 @@ export default function SeriesCreateBooks() {
   const handleNext = useCallback(() => {
     if (isEdit) {
       // Add-books sub-flow: append the selection (additive; removals happen on
-      // the edit screen) and return to the already-mounted edit screen.
+      // the edit screen) and POP back to the existing edit screen. Popping
+      // (not navigate, which pushes a duplicate edit instance) keeps a clean
+      // single-instance stack: edit -> authors -> books, so pop(2) returns.
       appendBookKeys(selectedBookKeys);
-      router.navigate(`/series/edit/${editingSeriesId}` as any);
+      (navigation as any).pop(2);
       return;
     }
     // Create flow: seed the order step in display order (author-grouped).
@@ -88,7 +90,7 @@ export default function SeriesCreateBooks() {
   }, [
     isEdit,
     appendBookKeys,
-    editingSeriesId,
+    navigation,
     rows,
     selectedBookKeys,
     setOrderedKeys,

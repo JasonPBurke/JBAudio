@@ -68,17 +68,18 @@ export default function SeriesEdit() {
     resetForEdit(series.id, series.name, keys);
   }, [series, resetForEdit]);
 
-  // Reset the draft whenever the edit screen is popped — Cancel button, Android
-  // hardware back, OR edge-swipe — so re-opening a series always seeds fresh
-  // from the DB and discarded edits never resurface. Native-stack keeps this
-  // screen mounted while the Add-books sub-flow is pushed on top, so this
-  // cleanup does NOT fire during that round trip (only on a real pop). Save/
-  // Delete persist to the DB before the pop, so this only clears the draft.
+  // Reset the draft when this screen is removed by a back action — Android
+  // hardware back OR edge-swipe — so discarded edits never resurface on
+  // re-open. beforeRemove (a navigation event) is reliable for gestures where
+  // React unmount cleanups are not, because native-stack detaches popped
+  // screens without tearing them down. It does NOT fire on forward pushes, so
+  // the Add-books sub-flow (which pushes on top and pops back) is unaffected.
   useEffect(() => {
-    return () => {
+    const unsub = navigation.addListener('beforeRemove', () => {
       useSeriesDraftStore.getState().resetForCreate();
-    };
-  }, []);
+    });
+    return unsub;
+  }, [navigation]);
 
   const keyMap = useMemo(() => {
     const m = new Map<string, Book>();
@@ -118,17 +119,25 @@ export default function SeriesEdit() {
     [keyMap, themeColors, handleRemove],
   );
 
-  // Pops the whole series group off the root stack. The unmount cleanup resets
-  // the draft, so all exit paths (this, hardware back, edge-swipe) discard it.
+  // Pops the whole series group off the root stack. Button paths reset the
+  // draft explicitly here because this goes through the PARENT navigator, where
+  // the child's beforeRemove may not fire; gesture/hardware back is covered by
+  // the beforeRemove listener above.
   const exitGroup = useCallback(() => {
     (navigation.getParent() ?? navigation).goBack();
   }, [navigation]);
+
+  const handleCancel = useCallback(() => {
+    useSeriesDraftStore.getState().resetForCreate();
+    exitGroup();
+  }, [exitGroup]);
 
   const handleSave = useCallback(async () => {
     if (submitting || !id) return;
     setSubmitting(true);
     try {
       await updateSeries(id, name, orderedBookKeys);
+      useSeriesDraftStore.getState().resetForCreate();
       exitGroup();
     } catch (e) {
       console.error('updateSeries failed', e);
@@ -149,6 +158,7 @@ export default function SeriesEdit() {
           onPress: async () => {
             try {
               await deleteSeries(id);
+              useSeriesDraftStore.getState().resetForCreate();
               exitGroup();
             } catch (e) {
               console.error('deleteSeries failed', e);
@@ -227,7 +237,11 @@ export default function SeriesEdit() {
       </Animated.ScrollView>
 
       <View style={[styles.footer, { borderTopColor: themeColors.divider }]}>
-        <Pressable onPress={exitGroup} style={styles.footerButton} hitSlop={8}>
+        <Pressable
+          onPress={handleCancel}
+          style={styles.footerButton}
+          hitSlop={8}
+        >
           <Text style={[styles.cancelText, { color: themeColors.textMuted }]}>
             Cancel
           </Text>
