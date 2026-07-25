@@ -8,6 +8,13 @@
 export const normalizeSortName = (name: string) => name.trim().toLowerCase();
 
 /**
+ * The one definition of the duplicate-name sentence. Both the Error's message
+ * and the UI alert copy come from here so the two can never drift apart.
+ */
+export const duplicateNameIssue = (name: string) =>
+  `A series named "${name}" already exists. Choose a different name.`;
+
+/**
  * True when `name` collides with an existing series. Comparison is
  * case-insensitive and whitespace-trimmed (i.e. sortName equality), matching
  * the `sort_name` column persisted on create and update.
@@ -32,7 +39,7 @@ export class SeriesNameConflictError extends Error {
   readonly conflictingName: string;
 
   constructor(conflictingName: string) {
-    super(`A series named "${conflictingName}" already exists.`);
+    super(duplicateNameIssue(conflictingName));
     this.name = 'SeriesNameConflictError';
     this.conflictingName = conflictingName;
   }

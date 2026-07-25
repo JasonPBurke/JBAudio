@@ -2,6 +2,7 @@ import {
   normalizeSortName,
   isDuplicateSeriesName,
   SeriesNameConflictError,
+  duplicateNameIssue,
 } from '@/helpers/seriesName';
 
 const series = [
@@ -45,8 +46,21 @@ test('empty series list is never a duplicate', () => {
   expect(isDuplicateSeriesName('Anything', [])).toBe(false);
 });
 
+test('duplicateNameIssue builds the exact sentence', () => {
+  expect(duplicateNameIssue('Dune Saga')).toBe(
+    'A series named "Dune Saga" already exists. Choose a different name.',
+  );
+});
+
 test('SeriesNameConflictError carries the conflicting name', () => {
   const err = new SeriesNameConflictError('Dune Saga');
   expect(err.conflictingName).toBe('Dune Saga');
   expect(err instanceof Error).toBe(true);
+  expect(err.name).toBe('SeriesNameConflictError');
+});
+
+test('SeriesNameConflictError message reuses duplicateNameIssue', () => {
+  expect(new SeriesNameConflictError('Dune Saga').message).toBe(
+    duplicateNameIssue('Dune Saga'),
+  );
 });

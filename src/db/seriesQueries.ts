@@ -8,12 +8,11 @@ import { SeriesRow, MembershipRow } from '@/helpers/seriesAssembly';
 import { computeMembershipDiff } from '@/db/seriesMembershipDiff';
 import {
   normalizeSortName,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   SeriesNameConflictError,
 } from '@/helpers/seriesName';
 
 export { computeMembershipDiff } from '@/db/seriesMembershipDiff';
-export { normalizeSortName, SeriesNameConflictError } from '@/helpers/seriesName';
+export { normalizeSortName, SeriesNameConflictError };
 
 /**
  * Create a new series with its ordered membership. `bookKeysInOrder` are
