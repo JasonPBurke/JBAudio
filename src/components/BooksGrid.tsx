@@ -20,7 +20,6 @@ import {
   RECENCY_KEY_FOR_MODE,
   sortBooksByRecency,
 } from '@/helpers/bookRecency';
-import React from 'react';
 
 const styles = StyleSheet.create({
   container: {

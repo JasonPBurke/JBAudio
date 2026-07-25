@@ -11,7 +11,6 @@ import { screenPadding } from '@/constants/tokens';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
 import { memo, useCallback, useMemo } from 'react';
 import { useTheme } from '@/hooks/useTheme';
-import React from 'react';
 import { compareBookTitles } from '@/helpers/miscellaneous';
 import {
   LibraryRecencyMode,
@@ -39,7 +38,9 @@ const BooksList = ({
     const allBooks = authors.flatMap((author) => author.books);
     const sorted = recencyMode
       ? sortBooksByRecency(allBooks, RECENCY_KEY_FOR_MODE[recencyMode])
-      : allBooks.sort((a, b) => compareBookTitles(a.bookTitle, b.bookTitle));
+      : allBooks.sort((a, b) =>
+          compareBookTitles(a.bookTitle, b.bookTitle),
+        );
     return sorted
       .map((book) => book.bookId)
       .filter((bookId): bookId is string => !!bookId);

@@ -197,11 +197,11 @@ function PrimaryColorPicker({
       >
         <Panel5 style={[colorPickerStyle.panelStyle]} />
         {/* <OpacitySlider style={colorPickerStyle.sliderStyle} adaptSpectrum /> */}
-        <BrightnessSlider
+        {/* <BrightnessSlider
           adaptSpectrum
           boundedThumb={true}
           thumbShape='rect'
-        />
+        /> */}
         <InputWidget formats={['HEX']} />
         <Preview />
       </ColorPicker>

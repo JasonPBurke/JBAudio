@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { defaultStyles } from '@/styles';
-import { Logs } from 'lucide-react-native';
+import { Logs, TableOfContents } from 'lucide-react-native';
 import { TickerText } from '../components/TickerText';
 import { useCurrentChapter } from '@/hooks/useCurrentChapterStable';
 import { useTheme } from '@/hooks/useTheme';
@@ -49,7 +49,7 @@ export const PlayerChaptersModal = React.memo(
     return (
       <Pressable onPress={handlePress} style={styles.chapterTitleContainer}>
         <View style={logsIconWrapperStyle}>
-          <Logs
+          <TableOfContents
             size={24}
             color={themeColors.lightIcon}
             strokeWidth={1.5}
@@ -88,7 +88,8 @@ const styles = StyleSheet.create({
   },
   trackTitleText: {
     fontSize: 18,
-    fontFamily: 'Rubik', fontWeight: '500',
+    fontFamily: 'Rubik',
+    fontWeight: '500',
     includeFontPadding: false,
   },
 });
