@@ -68,6 +68,18 @@ export default function SeriesEdit() {
     resetForEdit(series.id, series.name, keys);
   }, [series, resetForEdit]);
 
+  // Reset the draft whenever the edit screen is popped — Cancel button, Android
+  // hardware back, OR edge-swipe — so re-opening a series always seeds fresh
+  // from the DB and discarded edits never resurface. Native-stack keeps this
+  // screen mounted while the Add-books sub-flow is pushed on top, so this
+  // cleanup does NOT fire during that round trip (only on a real pop). Save/
+  // Delete persist to the DB before the pop, so this only clears the draft.
+  useEffect(() => {
+    return () => {
+      useSeriesDraftStore.getState().resetForCreate();
+    };
+  }, []);
+
   const keyMap = useMemo(() => {
     const m = new Map<string, Book>();
     for (const book of Object.values(books)) {
@@ -106,22 +118,17 @@ export default function SeriesEdit() {
     [keyMap, themeColors, handleRemove],
   );
 
+  // Pops the whole series group off the root stack. The unmount cleanup resets
+  // the draft, so all exit paths (this, hardware back, edge-swipe) discard it.
   const exitGroup = useCallback(() => {
     (navigation.getParent() ?? navigation).goBack();
   }, [navigation]);
-
-  // Cancel discards the draft so re-opening this series seeds fresh from the DB.
-  const handleCancel = useCallback(() => {
-    useSeriesDraftStore.getState().resetForCreate();
-    exitGroup();
-  }, [exitGroup]);
 
   const handleSave = useCallback(async () => {
     if (submitting || !id) return;
     setSubmitting(true);
     try {
       await updateSeries(id, name, orderedBookKeys);
-      useSeriesDraftStore.getState().resetForCreate();
       exitGroup();
     } catch (e) {
       console.error('updateSeries failed', e);
@@ -142,7 +149,6 @@ export default function SeriesEdit() {
           onPress: async () => {
             try {
               await deleteSeries(id);
-              useSeriesDraftStore.getState().resetForCreate();
               exitGroup();
             } catch (e) {
               console.error('deleteSeries failed', e);
@@ -221,11 +227,7 @@ export default function SeriesEdit() {
       </Animated.ScrollView>
 
       <View style={[styles.footer, { borderTopColor: themeColors.divider }]}>
-        <Pressable
-          onPress={handleCancel}
-          style={styles.footerButton}
-          hitSlop={8}
-        >
+        <Pressable onPress={exitGroup} style={styles.footerButton} hitSlop={8}>
           <Text style={[styles.cancelText, { color: themeColors.textMuted }]}>
             Cancel
           </Text>
