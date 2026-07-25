@@ -179,9 +179,18 @@ the "Recently Added" row.
 
 ## 6. Create wizard (pushed stack routes)
 
-Routes: `series/create/authors` → `series/create/books` → `series/create/order`.
-Working state in `seriesDraftStore` (reset on entry). Native back = previous
-step.
+Routes: `/series/create/authors` → `/series/create/books` →
+`/series/create/order`. Working state in `seriesDraftStore` (reset on entry).
+Native back = previous step.
+
+**Route placement (convention).** The wizard/edit screens live in a **dedicated
+`src/app/series/` group at the app root**, siblings of `titleDetails`,
+`editTitleDetails`, `chapterList`, etc. — matching this app's established
+convention that focused, pushed flows sit at root (the drawer wraps only the
+persistent library shell), **not** nested under `(drawer)/(library)/`. Unlike the
+single-screen root flows, `series/` gets its **own `_layout.tsx` Stack** because
+it is a multi-screen sub-flow (consistent per-step headers/back; can be presented
+modally over the library).
 
 ### Step 1 — `authors` (multi-select filter)
 - List of all authors with selection bubbles.
@@ -210,7 +219,7 @@ step.
 
 ---
 
-## 7. Edit screen (`series/edit/[id]`, single consolidated)
+## 7. Edit screen (`/series/edit/[id]`, single consolidated)
 
 Reached via the expand-only **"✎ Edit series"** button on the listing. Loads the
 series into `seriesDraftStore` (mode `edit`).
@@ -293,10 +302,11 @@ series row arranges" cleanly separated.
 - `src/store/seriesDraftStore.ts`
 - `src/components/SeriesHome.tsx`
 - `src/components/SeriesBookRow.tsx`
-- `src/app/(drawer)/(library)/series/create/authors.tsx`
-- `src/app/(drawer)/(library)/series/create/books.tsx`
-- `src/app/(drawer)/(library)/series/create/order.tsx`
-- `src/app/(drawer)/(library)/series/edit/[id].tsx`
+- `src/app/series/_layout.tsx` (Stack navigator owning the wizard/edit flow)
+- `src/app/series/create/authors.tsx`
+- `src/app/series/create/books.tsx`
+- `src/app/series/create/order.tsx`
+- `src/app/series/edit/[id].tsx`
 - `src/helpers/bookStructuralKey.ts` (or extend `artworkIdentity.ts`)
 
 **Modified**
