@@ -89,9 +89,31 @@ Pressable is clipped — but all of it is the empty slack inside `containerBase`
 **Nothing visible is lost today; visible content ends at 212 against a 214 clip
 line, leaving 2px of headroom.**
 
-Two pixels is one font-scale bump away from cutting the duration row. Fix:
-derive both heights from a single shared constant so the container height
-follows the item height instead of coincidentally almost matching it.
+Two pixels is one font-scale bump away from cutting the duration row.
+
+**Fix direction — reclaim dead space, do NOT resize anything visible.** The 12px
+inside `containerBase` is unused: its children are top-aligned and total 208, so
+that space is already the part being clipped. `contentContainerStyle`'s
+`paddingBottom: 6` is cross-axis padding on a horizontal list, whose only effect
+is shaving height off the items. Both are removed, and one shared constant
+drives the rest:
+
+```
+ROW_ITEM_HEIGHT = 4 (paddingTop) + 140 (cover) + 68 (info) + 8 (marginBottom) = 220
+```
+
+| | Before | After |
+| --- | --- | --- |
+| `imageContainer` height | 140 | **140 (unchanged)** |
+| `bookInfoContainer` height | 68 | **68 (unchanged)** |
+| `listContainer` height | 220 | **220 (unchanged)** |
+| `containerBase` row height | 220 (12 dead) | 208 (= 140 + 68) |
+| `contentContainerStyle.paddingBottom` | 6 | removed |
+| Headroom before clipping | 2px | 8px |
+
+Covers, text and row height are pixel-identical afterwards. Growing
+`listContainer` to 232 instead is **explicitly rejected**: it would make every
+collapsed section 12px taller in all three library views.
 
 This cannot explain a ~25% height loss and is **not** treated as a candidate
 cause of the bug — it is fixed because it is fragile.
