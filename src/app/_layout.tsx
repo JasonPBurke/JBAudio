@@ -285,6 +285,12 @@ const RootNavigation = () => {
             animation: 'fade',
           }}
         />
+        <Stack.Screen
+          name='series'
+          options={{
+            animation: 'slide_from_right',
+          }}
+        />
       </Stack>
     </BottomSheetModalProvider>
   );
