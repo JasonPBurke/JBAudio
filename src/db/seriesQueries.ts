@@ -15,6 +15,28 @@ export { computeMembershipDiff } from '@/db/seriesMembershipDiff';
 export { normalizeSortName, SeriesNameConflictError };
 
 /**
+ * Throw if `name` collides with an existing series' sort_name. `excludeId`
+ * omits the series being renamed so saving an unchanged name still works.
+ * Queries sort_name directly rather than reusing isDuplicateSeriesName so the
+ * check runs against the database, not a possibly-stale store snapshot.
+ */
+async function assertSeriesNameAvailable(
+  name: string,
+  excludeId?: string,
+): Promise<void> {
+  const key = normalizeSortName(name);
+  if (!key) return;
+  const clashes = await database
+    .get<Series>('series')
+    .query(Q.where('sort_name', key))
+    .fetch();
+  const conflict = clashes.some(
+    (s) => s.id !== excludeId && s._raw._status !== 'deleted',
+  );
+  if (conflict) throw new SeriesNameConflictError(name.trim());
+}
+
+/**
  * Create a new series with its ordered membership. `bookKeysInOrder` are
  * structural keys (first file paths). Returns the new series id.
  */
@@ -22,6 +44,7 @@ export async function createSeries(
   name: string,
   bookKeysInOrder: string[],
 ): Promise<string> {
+  await assertSeriesNameAvailable(name);
   let newId = '';
   await database.write(async () => {
     const now = new Date();
@@ -59,6 +82,7 @@ export async function updateSeries(
     await deleteSeries(id);
     return;
   }
+  await assertSeriesNameAvailable(name, id);
   await database.write(async () => {
     const series = await database.get<Series>('series').find(id);
     const existingRows = await database
