@@ -275,7 +275,7 @@ EOF
 - Create: `src/helpers/__tests__/seriesEmptyMessage.test.ts`
 
 **Interfaces:**
-- Consumes: `CustomTabs` enum from `@/components/TabScreen` (`Unplayed = 0, Started = 1, Finished = 2, All = 3`).
+- Consumes: `CustomTabs` enum from `@/types/CustomTabs` (`Unplayed = 0, Started = 1, Finished = 2, All = 3`).
 - Produces: `seriesEmptyMessage(args: { totalSeriesCount: number; searchMatchCount: number; hasSearchQuery: boolean; selectedTab: CustomTabs }): string`
 
 **Why:** `SeriesHome` only ever receives `tabFilteredSeries`, so it cannot tell "no series exist" from "this tab is empty". Today one played series makes both the Unplayed and Finished tabs claim no series have been set up. The decision needs `allSeries`, the search-filtered list and the tab — all of which live in `index.tsx` — so it is computed there and passed down as a string.
@@ -286,7 +286,7 @@ Create `src/helpers/__tests__/seriesEmptyMessage.test.ts`:
 
 ```ts
 import { seriesEmptyMessage } from '@/helpers/seriesEmptyMessage';
-import { CustomTabs } from '@/components/TabScreen';
+import { CustomTabs } from '@/types/CustomTabs';
 
 const base = {
   totalSeriesCount: 3,
@@ -364,7 +364,7 @@ Expected: FAIL — `Cannot find module '@/helpers/seriesEmptyMessage'`
 Create `src/helpers/seriesEmptyMessage.ts`:
 
 ```ts
-import { CustomTabs } from '@/components/TabScreen';
+import { CustomTabs } from '@/types/CustomTabs';
 
 export const NO_SERIES_MESSAGE =
   'No series have been set up. Tap + to build a new one.';
@@ -1311,7 +1311,7 @@ EOF
 - Modify: `src/app/(drawer)/(library)/index.tsx` (pass `selectedTab` to all three)
 
 **Interfaces:**
-- Consumes: `CustomTabs` from `@/components/TabScreen`.
+- Consumes: `CustomTabs` from `@/types/CustomTabs`.
 - Produces: all three views take a `selectedTab: CustomTabs` prop.
 
 **Note:** scroll position is reset on **tab** change only, never when flipping between Books / Series / Grid.
@@ -1345,7 +1345,7 @@ Add `useEffect` and `useRef` to the `react` import, and pass `ref={listRef}` to 
 
 - [ ] **Step 2: Add the same effect to `BooksHome`**
 
-`BooksHome` already declares `listRef` at line 63-64 and already passes `ref={listRef}`. Add `selectedTab: CustomTabs;` to `BookListProps`, destructure it, add `import { CustomTabs } from '@/components/TabScreen';`, and add the identical `isFirstTabRender` ref plus `useEffect` block from Step 1 (typed `FlashList<FlatListItem>`).
+`BooksHome` already declares `listRef` at line 63-64 and already passes `ref={listRef}`. Add `selectedTab: CustomTabs;` to `BookListProps`, destructure it, add `import { CustomTabs } from '@/types/CustomTabs';`, and add the identical `isFirstTabRender` ref plus `useEffect` block from Step 1 (typed `FlashList<FlatListItem>`).
 
 - [ ] **Step 3: Add the same effect to `BooksGrid`**
 
@@ -1355,7 +1355,7 @@ Add `useEffect` and `useRef` to the `react` import, and pass `ref={listRef}` to 
   const listRef = useRef<React.ComponentRef<typeof FlashList<string>>>(null);
 ```
 
-Pass `ref={listRef}` to the `FlashList` at line 139, add `selectedTab: CustomTabs;` to `BookGridProps`, destructure it, add `import { CustomTabs } from '@/components/TabScreen';`, and add the identical `isFirstTabRender` ref plus `useEffect` block from Step 1.
+Pass `ref={listRef}` to the `FlashList` at line 139, add `selectedTab: CustomTabs;` to `BookGridProps`, destructure it, add `import { CustomTabs } from '@/types/CustomTabs';`, and add the identical `isFirstTabRender` ref plus `useEffect` block from Step 1.
 
 - [ ] **Step 4: Pass the tab from the library screen**
 
