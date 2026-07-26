@@ -8,7 +8,7 @@ import React, {
 } from 'react';
 import { FlashList, FlashListProps } from '@shopify/flash-list';
 import { Author, Book } from '@/types/Book';
-import { BookGridItem } from './BookGridItem';
+import { BookGridItem, ROW_ITEM_HEIGHT } from './BookGridItem';
 import { utilsStyles } from '@/styles';
 import { compareBookTitles } from '@/helpers/miscellaneous';
 
@@ -67,9 +67,6 @@ const BooksHorizontal = ({
     <View style={styles.listContainer}>
       <FlashList
         ref={listRef}
-        contentContainerStyle={{
-          paddingBottom: 6,
-        }}
         scrollEventThrottle={16}
         data={bookIds}
         renderItem={renderBookItem}
@@ -92,6 +89,6 @@ export default memo(BooksHorizontal);
 
 const styles = StyleSheet.create({
   listContainer: {
-    height: 220,
+    height: ROW_ITEM_HEIGHT,
   },
 });
