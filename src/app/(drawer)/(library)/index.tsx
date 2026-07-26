@@ -20,6 +20,7 @@ import { seriesEmptyMessage } from '@/helpers/seriesEmptyMessage';
 import { useRouter } from 'expo-router';
 import { useUIReadyStore } from '@/store/uiReadyStore';
 import { FloatingPlayer } from '@/components/FloatingPlayer';
+import CreateSeriesFab from '@/components/CreateSeriesFab';
 import { CustomTabs } from '@/types/CustomTabs';
 import { BookProgressState } from '@/helpers/handleBookPlay';
 import { LibraryRecencyMode } from '@/helpers/bookRecency';
@@ -235,10 +236,6 @@ const LibraryScreen = ({ navigation }: any) => {
     [allSeries, seriesSearchFiltered, debouncedSearchQuery, selectedTab],
   );
 
-  // Not wired to any button yet — the Create Series bar was removed from
-  // SeriesHome's list header; a floating action button takes over calling
-  // this (see Task 11).
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleCreateSeries = useCallback(() => {
     useSeriesDraftStore.getState().resetForCreate();
     // Cast: expo-router typed routes regenerate once the series/ screens exist
@@ -335,6 +332,9 @@ const LibraryScreen = ({ navigation }: any) => {
           />
         </View>
       </View>
+      {toggleView === 1 && (
+        <CreateSeriesFab isVisible={isVisible} onPress={handleCreateSeries} />
+      )}
       <FloatingPlayer />
     </View>
   );
