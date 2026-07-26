@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRouter } from 'expo-router';
 import Animated, { useAnimatedRef } from 'react-native-reanimated';
@@ -8,6 +8,8 @@ import Sortable, {
 } from 'react-native-sortables';
 import { GripVertical } from 'lucide-react-native';
 
+import { SeriesNameConflictError } from '@/helpers/seriesName';
+import { duplicateNameIssue } from '@/helpers/seriesValidation';
 import { useTheme } from '@/hooks/useTheme';
 import { useLibraryStore } from '@/store/library';
 import { useSeriesDraftStore } from '@/store/seriesDraftStore';
@@ -73,10 +75,19 @@ export default function SeriesCreateOrder() {
       // with its Series toggle intact.
       (navigation.getParent() ?? navigation).goBack();
     } catch (e) {
-      console.error('createSeries failed', e);
       setSubmitting(false);
+      // The name was validated two screens back; a conflict here means the
+      // library changed under us. Send the user back to rename rather than
+      // leaving a button that appears to do nothing.
+      if (e instanceof SeriesNameConflictError) {
+        Alert.alert("Can't continue", duplicateNameIssue(e.conflictingName), [
+          { text: 'OK', onPress: () => router.back() },
+        ]);
+        return;
+      }
+      console.error('createSeries failed', e);
     }
-  }, [submitting, name, orderedBookKeys, resetForCreate, navigation]);
+  }, [submitting, name, orderedBookKeys, resetForCreate, navigation, router]);
 
   return (
     <View
