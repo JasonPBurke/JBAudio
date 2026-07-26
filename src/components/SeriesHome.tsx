@@ -2,7 +2,7 @@ import React, { memo, useCallback, useMemo } from 'react';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import { ChevronRight, Pencil, Plus } from 'lucide-react-native';
+import { ChevronRight, Pencil } from 'lucide-react-native';
 
 import { BookGridItem } from './BookGridItem';
 import BooksHorizontal from './BooksHorizontal';
@@ -16,7 +16,6 @@ import { withOpacity } from '@/helpers/colorUtils';
 
 type SeriesFlatItem =
   | { type: 'sectionHeader'; seriesId: string; title: string }
-  | { type: 'editBar'; seriesId: string }
   | { type: 'horizontalRow'; seriesId: string; books: Book[] }
   | { type: 'book'; seriesId: string; bookId: string };
 
@@ -27,7 +26,7 @@ type SeriesHomeProps = {
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   /** Spacer offsetting content below the parent's overlay search bar. */
   ListHeaderSpacer?: React.ReactElement;
-  onCreatePress: () => void;
+  emptyMessage: string;
   onEditPress: (seriesId: string) => void;
 };
 
@@ -37,7 +36,7 @@ const SeriesHome = ({
   setActiveGridSections,
   onScroll,
   ListHeaderSpacer,
-  onCreatePress,
+  emptyMessage,
   onEditPress,
 }: SeriesHomeProps) => {
   const { colors: themeColors } = useTheme();
@@ -51,14 +50,13 @@ const SeriesHome = ({
   );
 
   // Series arrive already A–Z with books in user order. Build the flat array:
-  // a header per series; expanded → an edit bar then the book grid (order
-  // preserved); collapsed → a single horizontal row (order preserved).
+  // a header per series; expanded → the book grid (order preserved);
+  // collapsed → a single horizontal row (order preserved).
   const flatData: SeriesFlatItem[] = useMemo(() => {
     const items: SeriesFlatItem[] = [];
     for (const s of series) {
       items.push({ type: 'sectionHeader', seriesId: s.id, title: s.name });
       if (activeGridSections.has(s.id)) {
-        items.push({ type: 'editBar', seriesId: s.id });
         for (const book of s.books) {
           if (book.bookId)
             items.push({ type: 'book', seriesId: s.id, bookId: book.bookId });
@@ -93,21 +91,9 @@ const SeriesHome = ({
                 seriesId={item.seriesId}
                 isActive={activeGridSections.has(item.seriesId)}
                 onSectionPress={handleSectionPress}
+                onEditPress={onEditPress}
               />
             </View>
-          );
-        case 'editBar':
-          return (
-            <Pressable
-              style={styles.editBar}
-              android_ripple={{ color: themeColors.dividerAlpha16 }}
-              onPress={() => onEditPress(item.seriesId)}
-            >
-              <Pencil size={16} color={themeColors.primary} />
-              <Text style={[styles.editBarText, { color: themeColors.primary }]}>
-                Edit series
-              </Text>
-            </Pressable>
           );
         case 'horizontalRow':
           return (
@@ -139,7 +125,6 @@ const SeriesHome = ({
       numColumns,
       itemWidth,
       onEditPress,
-      themeColors,
     ],
   );
 
@@ -147,8 +132,6 @@ const SeriesHome = ({
     switch (item.type) {
       case 'sectionHeader':
         return `header-${item.seriesId}`;
-      case 'editBar':
-        return `edit-${item.seriesId}`;
       case 'horizontalRow':
         return `row-${item.seriesId}`;
       case 'book':
@@ -170,30 +153,6 @@ const SeriesHome = ({
 
   const getItemType = useCallback((item: SeriesFlatItem) => item.type, []);
 
-  const ListHeader = useMemo(
-    () => (
-      <View>
-        {ListHeaderSpacer}
-        <Pressable
-          style={[
-            styles.createButton,
-            { borderColor: themeColors.primary },
-          ]}
-          android_ripple={{ color: themeColors.dividerAlpha16 }}
-          onPress={onCreatePress}
-        >
-          <Plus size={18} color={themeColors.primary} />
-          <Text
-            style={[styles.createButtonText, { color: themeColors.primary }]}
-          >
-            Create Series
-          </Text>
-        </Pressable>
-      </View>
-    ),
-    [ListHeaderSpacer, onCreatePress, themeColors],
-  );
-
   return (
     <View style={{ flex: 1, paddingTop: 8 }}>
       <FlashList
@@ -209,7 +168,7 @@ const SeriesHome = ({
         overrideProps={{ initialDrawBatchSize: 8 }}
         onScroll={onScroll}
         scrollEventThrottle={16}
-        ListHeaderComponent={ListHeader}
+        ListHeaderComponent={ListHeaderSpacer}
         ListEmptyComponent={
           <Text
             style={[
@@ -217,8 +176,7 @@ const SeriesHome = ({
               { color: themeColors.textMuted },
             ]}
           >
-            No series have been set up. Tap &lsquo;Create Series&rsquo; to build
-            a new one.
+            {emptyMessage}
           </Text>
         }
         contentContainerStyle={{ paddingBottom: 58 }}
@@ -233,62 +191,77 @@ const SectionHeader = memo(function SectionHeader({
   seriesId,
   isActive,
   onSectionPress,
+  onEditPress,
 }: {
   title: string;
   seriesId: string;
   isActive: boolean;
   onSectionPress: (seriesId: string) => void;
+  onEditPress: (seriesId: string) => void;
 }) {
   const { colors: themeColors } = useTheme();
   const handlePress = useCallback(
     () => onSectionPress(seriesId),
     [seriesId, onSectionPress],
   );
+  const handleEditPress = useCallback(
+    () => onEditPress(seriesId),
+    [seriesId, onEditPress],
+  );
   const chevronWrapperStyle = useMemo(
     () => [styles.chevronBase, isActive && styles.chevronRotated],
     [isActive],
   );
   return (
-    <Pressable
-      style={styles.sectionHeaderPressable}
-      android_ripple={{ color: withOpacity(themeColors.divider, 0.16) }}
-      onPress={handlePress}
-    >
-      <View style={styles.titleBar}>
-        <Text
-          numberOfLines={1}
-          style={[styles.titleText, { color: themeColors.text }]}
-        >
-          {title}
-        </Text>
-        <View style={chevronWrapperStyle}>
-          <ChevronRight size={24} color={themeColors.icon} />
+    <View style={styles.headerRow}>
+      <Pressable
+        style={styles.editIconButton}
+        android_ripple={{
+          color: withOpacity(themeColors.divider, 0.16),
+          borderless: true,
+          radius: 18,
+        }}
+        hitSlop={8}
+        accessibilityLabel={`Edit ${title}`}
+        onPress={handleEditPress}
+      >
+        <Pencil size={18} color={themeColors.primary} />
+      </Pressable>
+      <Pressable
+        style={styles.sectionHeaderPressable}
+        android_ripple={{ color: withOpacity(themeColors.divider, 0.16) }}
+        onPress={handlePress}
+      >
+        <View style={styles.titleBar}>
+          <Text
+            numberOfLines={1}
+            style={[styles.titleText, { color: themeColors.text }]}
+          >
+            {title}
+          </Text>
+          <View style={chevronWrapperStyle}>
+            <ChevronRight size={24} color={themeColors.icon} />
+          </View>
         </View>
-      </View>
-    </Pressable>
+      </Pressable>
+    </View>
   );
 });
 
 export default memo(SeriesHome);
 
 const styles = StyleSheet.create({
-  createButton: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginHorizontal: screenPadding.horizontal,
-    marginBottom: 8,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderRadius: 8,
+    paddingLeft: screenPadding.horizontal,
   },
-  createButtonText: {
-    fontFamily: 'Rubik',
-    fontWeight: '600',
-    fontSize: fontSize.base,
+  editIconButton: {
+    paddingVertical: 4,
+    paddingRight: 10,
   },
   sectionHeaderPressable: {
+    flex: 1,
     paddingVertical: 4,
     marginBottom: 4,
   },
@@ -296,7 +269,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingLeft: screenPadding.horizontal,
+    paddingLeft: 0,
   },
   titleText: {
     fontFamily: 'Rubik',
@@ -314,18 +287,5 @@ const styles = StyleSheet.create({
   },
   horizontalRowContainer: {
     paddingBottom: 4,
-  },
-  editBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingLeft: screenPadding.horizontal,
-    paddingVertical: 8,
-    marginBottom: 4,
-  },
-  editBarText: {
-    fontFamily: 'Rubik',
-    fontWeight: '600',
-    fontSize: fontSize.sm,
   },
 });

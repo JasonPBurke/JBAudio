@@ -16,6 +16,7 @@ import {
   countSeriesByState,
   filterSeriesBySearch,
 } from '@/helpers/seriesAssembly';
+import { seriesEmptyMessage } from '@/helpers/seriesEmptyMessage';
 import { useRouter } from 'expo-router';
 import { useUIReadyStore } from '@/store/uiReadyStore';
 import { FloatingPlayer } from '@/components/FloatingPlayer';
@@ -223,6 +224,21 @@ const LibraryScreen = ({ navigation }: any) => {
     return seriesSearchFiltered.filter((s) => s.progressState === target);
   }, [selectedTab, seriesSearchFiltered]);
 
+  const seriesEmptyText = useMemo(
+    () =>
+      seriesEmptyMessage({
+        totalSeriesCount: allSeries.length,
+        searchMatchCount: seriesSearchFiltered.length,
+        hasSearchQuery: debouncedSearchQuery.trim().length > 0,
+        selectedTab,
+      }),
+    [allSeries, seriesSearchFiltered, debouncedSearchQuery, selectedTab],
+  );
+
+  // Not wired to any button yet — the Create Series bar was removed from
+  // SeriesHome's list header; a floating action button takes over calling
+  // this (see Task 11).
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleCreateSeries = useCallback(() => {
     useSeriesDraftStore.getState().resetForCreate();
     // Cast: expo-router typed routes regenerate once the series/ screens exist
@@ -295,7 +311,7 @@ const LibraryScreen = ({ navigation }: any) => {
               setActiveGridSections={setActiveSeriesSections}
               onScroll={onScroll}
               ListHeaderSpacer={ListSpacer}
-              onCreatePress={handleCreateSeries}
+              emptyMessage={seriesEmptyText}
               onEditPress={handleEditSeries}
             />
           )}
