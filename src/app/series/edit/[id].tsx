@@ -26,6 +26,11 @@ import { useSeriesDraftStore } from '@/store/seriesDraftStore';
 import { SeriesBookRow } from '@/components/SeriesBookRow';
 import { bookStructuralKey } from '@/helpers/bookStructuralKey';
 import { deleteSeries, updateSeries } from '@/db/seriesQueries';
+import { SeriesNameConflictError } from '@/helpers/seriesName';
+import {
+  duplicateNameIssue,
+  seriesEditIssues,
+} from '@/helpers/seriesValidation';
 import { Book } from '@/types/Book';
 import { fontSize, screenPadding } from '@/constants/tokens';
 
@@ -132,18 +137,33 @@ export default function SeriesEdit() {
     exitGroup();
   }, [exitGroup]);
 
+  // excludeId keeps a series' own name from reading as a conflict with itself.
+  const issues = useMemo(
+    () => seriesEditIssues({ name, series: allSeries, excludeId: id }),
+    [name, allSeries, id],
+  );
+  const canSave = issues.length === 0;
+
   const handleSave = useCallback(async () => {
     if (submitting || !id) return;
+    if (issues.length > 0) {
+      Alert.alert("Can't save", issues.join('\n'));
+      return;
+    }
     setSubmitting(true);
     try {
       await updateSeries(id, name, orderedBookKeys);
       useSeriesDraftStore.getState().resetForCreate();
       exitGroup();
     } catch (e) {
-      console.error('updateSeries failed', e);
       setSubmitting(false);
+      if (e instanceof SeriesNameConflictError) {
+        Alert.alert("Can't save", duplicateNameIssue(e.conflictingName));
+        return;
+      }
+      console.error('updateSeries failed', e);
     }
-  }, [submitting, id, name, orderedBookKeys, exitGroup]);
+  }, [submitting, id, issues, name, orderedBookKeys, exitGroup]);
 
   const handleDelete = useCallback(() => {
     if (!id) return;
@@ -168,8 +188,6 @@ export default function SeriesEdit() {
       ],
     );
   }, [id, exitGroup]);
-
-  const canSave = name.trim().length > 0;
 
   return (
     <View
@@ -248,7 +266,7 @@ export default function SeriesEdit() {
         </Pressable>
         <Pressable
           onPress={handleSave}
-          disabled={!canSave || submitting}
+          disabled={submitting}
           style={[
             styles.saveButton,
             {
