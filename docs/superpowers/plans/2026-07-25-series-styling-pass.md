@@ -1706,7 +1706,24 @@ EOF
 
 **This task cannot be completed without a device.** Everything above is JS-only, so one build covers all of it and fix iteration runs over Metro reload.
 
-- [ ] **Step 1: Add the `__DEV__` probes**
+- [ ] **Step 1: Confirm the `__DEV__` probes are present**
+
+The probes are **already committed** (`685410e`) — they were added during the
+final review's fix wave, after the review found this task's dependency on them
+had fallen through a seam in the plan. There are **three**, not two; grep
+`rowprobe` to find them:
+
+| File | Logs | Answers |
+| --- | --- | --- |
+| `BooksHorizontal.tsx` | `[rowprobe] inner <sectionId> h=` | did the inner shelf render short? |
+| `SeriesHome.tsx` | `[rowprobe] outer <seriesId> h=` | did the masonry cell measure short? |
+| `BookGridItem.tsx` | `[rowprobe] item <bookId> h=` | did any individual cell measure ≠ 220? |
+
+The third is the decisive one: it tests the actual claim — that a cell measured
+short and the measurement stuck.
+
+<details>
+<summary>Original Step 1 text (probes now already applied)</summary>
 
 In `src/components/BooksHorizontal.tsx`, on the `listContainer` `View`:
 
@@ -1740,6 +1757,8 @@ In `src/components/SeriesHome.tsx`, on the `horizontalRowContainer` `View` in `r
             >
 ```
 
+</details>
+
 - [ ] **Step 2: Build and install**
 
 Run: `npm run android` (i.e. `expo run:android`). Never run `expo prebuild --clean` — `android/` is committed and holds a custom turbomodule.
@@ -1752,11 +1771,18 @@ With `adb logcat | grep rowprobe` running:
 2. Create a brand-new series and return to the list without scrolling.
 3. Cold-start the app and open the Series view.
 
-Expected: every row renders at full height with its cover uncropped, and every probe line reports `outer h≈224` / `inner h=220`.
+Expected: every row renders at full height with its cover uncropped, `item h=220` for every cell, `inner h=220`, and `outer h≈224`.
 
-If any row still clips, the probe separates the two causes:
-- **outer short** → the masonry cell measured wrong; investigate FlashList's layout cache for the `horizontalRow` item type.
-- **inner short** → a style/constraint problem inside the row; re-check the Task 12 constants against what actually rendered.
+If any row still clips, the probes separate the causes:
+- **`item` ≠ 220** → a cell measured short; the null-cell hypothesis is confirmed and the placeholder needs another look.
+- **`item` = 220 but `inner` short** → the shelf's height derivation is at fault, not the cells.
+- **`outer` short** → the masonry cell measured wrong; the cause is FlashList's layout cache for the `horizontalRow` item type, **not** Task 13 — a `horizontalRow` cell wraps a View with explicit `height: 220`, which Yoga cannot shrink no matter what the inner list does.
+
+**Note the expected magnitude.** The reported symptom is ~55px, roughly a quarter height. A purely-null batch predicts ~0px and a fully-resolved one predicts 220px, so ~55px implies a *mixed* batch where height normalization picked the tallest of several partially-rendered cells. Record the actual number — it is the single best discriminator available.
+
+**Decisive A/B if the result is ambiguous:** gate the placeholder behind a debug flag and toggle `null` ↔ placeholder over a Metro reload, no rebuild. If clipping tracks the toggle 1:1, the hypothesis is proven.
+
+Even if the specific mechanism is refuted, Tasks 12 and 13 are still correct — together they make the row cell's measured height a compile-time constant in every state. Keep them regardless of the verdict.
 
 Do **not** proceed to Step 5 until rows render correctly. If the bug survives, stop and report the probe output rather than guessing at another fix.
 
@@ -1767,6 +1793,8 @@ Do **not** proceed to Step 5 until rows render correctly. If the bug survives, s
 - [ ] FAB opens the create wizard, and is present when zero series exist
 - [ ] Pencil icon opens the correct series' edit screen
 - [ ] Pencil and header taps never cross-fire; the title does not shift on expand
+- [ ] **Long series name:** the title ellipsizes and the chevron holds its position at the right edge (the pencil consumed ~28px of that row; `titleText` now uses `flexShrink: 1` instead of `maxWidth: '95%'`)
+- [ ] Any series created before this branch that shares a name with another still opens and saves — pre-existing duplicates now trip the new guard, so Save greys out until one is renamed. Expected, self-healing, not a bug
 - [ ] Empty states: zero series; a search with no matches; Unplayed / Started / Finished tabs each with series that don't qualify
 - [ ] Tab change resets scroll to the top in Books, Series and Grid, with no MVCP flash
 - [ ] Switching Books ↔ Series ↔ Grid does **not** reset scroll
@@ -1780,7 +1808,9 @@ Do **not** proceed to Step 5 until rows render correctly. If the bug survives, s
 
 - [ ] **Step 5: Remove the probes**
 
-Revert both `onLayout` props added in Step 1. Confirm with `git diff` that only the probe lines are gone.
+Remove all **three** probes. `grep -rn rowprobe src` finds the declaration and log line in each file, but in `BookGridItem.tsx` the probe is three pieces that must go together: the `devItemLayoutProps` declaration, its `{...(devItemLayoutProps as object)}` spread on the `PressableScale`, and the `LayoutChangeEvent` import. A grep-only pass would miss the latter two — though not silently, since deleting the declaration alone fails `tsc` and an orphaned import fails ESLint's zero-error bar.
+
+Confirm with `git diff` that only probe lines are gone, then re-run the full verification.
 
 - [ ] **Step 6: Final verification**
 

@@ -241,8 +241,18 @@ Each view gains a `listRef` and an effect on `selectedTab` calling
 `BooksHome` already declares an unused `listRef`; `SeriesHome` and `BooksGrid`
 need one added.
 
-Scroll position is **not** reset when switching between Books / Series / Grid —
-only on tab change.
+Scroll position is reset only on tab change — the effect never fires on a
+`toggleView` switch.
+
+**Correction (found during the final review):** this section originally claimed
+scroll position is *preserved* when switching between Books / Series / Grid, as
+though that were a deliberate guarantee. It is not, and never was.
+`index.tsx` renders the three views as `{toggleView === N && <Component/>}`, so
+each list fully unmounts and remounts on a view switch and loses its offset
+regardless of this feature. That is pre-existing behavior, not something this
+pass introduced. Preserving position across view switches would require keeping
+all three mounted and toggling visibility — a separate change, out of scope
+here.
 
 **Risk:** `maintainVisibleContentPosition` is on by default in FlashList 2.3.2
 and has caused anchor drift on this list before (see memory
