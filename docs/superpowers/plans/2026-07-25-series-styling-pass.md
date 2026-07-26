@@ -1043,13 +1043,20 @@ import {
 
 - [ ] **Step 2: Replace `canSave` with the issue list**
 
-Replace line 172:
+Delete `const canSave = name.trim().length > 0;` from line 172 and put the
+replacement block **immediately before `handleSave`** — not at line 172, which
+sits after `handleDelete`.
 
-```ts
-  const canSave = name.trim().length > 0;
-```
+Placement is mandatory, not stylistic. Step 3 adds `issues` to `handleSave`'s
+`useCallback` dependency array, and a dependency array is evaluated when
+`useCallback` is *called* during render. With `handleSave` at ~line 135 and a
+`const issues` at ~line 172, the reference lands in `issues`'s temporal dead
+zone and throws `ReferenceError: Cannot access 'issues' before initialization`
+on every render — the screen would never mount. `tsc` and ESLint both pass on
+this; it only fails at runtime. `authors.tsx` and `books.tsx` already declare
+`issues` before their handler for the same reason.
 
-with:
+The block to insert:
 
 ```ts
   // excludeId keeps a series' own name from reading as a conflict with itself.
