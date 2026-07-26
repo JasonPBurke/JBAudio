@@ -264,9 +264,19 @@ export const BookGridItem = memo(function BookGridItem({
     };
   }, [isRow, itemWidth, safeArtworkWidth, safeArtworkHeight]);
 
-  // If data isn't ready or the book was deleted, render nothing.
+  // If data isn't ready or the book was deleted, render an empty cell of the
+  // SAME size rather than null. FlashList measures cells; a null child makes a
+  // cell measure short, and that measurement can stick — which is how rows end
+  // up rendering at a fraction of their height while their neighbours are fine.
   // Must stay below every hook so the hook order is render-stable.
-  if (!bookId || !bookData || !fullBook) return null;
+  if (!bookId || !bookData || !fullBook) {
+    return (
+      <View
+        style={[styles.pressableContainer, itemDimensions.container]}
+        pointerEvents='none'
+      />
+    );
+  }
 
   return (
     <PressableScale
