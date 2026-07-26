@@ -1,5 +1,5 @@
 import { FlashList, FlashListProps } from '@shopify/flash-list';
-import { useCallback, memo, useMemo } from 'react';
+import { useCallback, memo, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import {
   RECENCY_KEY_FOR_MODE,
   sortBooksByRecency,
 } from '@/helpers/bookRecency';
+import { CustomTabs } from '@/types/CustomTabs';
 
 const styles = StyleSheet.create({
   container: {
@@ -47,6 +48,7 @@ export type BookGridProps = Partial<FlashListProps<string>> & {
   recencyMode?: LibraryRecencyMode;
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   ListHeaderComponent?: React.ReactElement;
+  selectedTab: CustomTabs;
 };
 
 const BooksGrid = ({
@@ -58,9 +60,27 @@ const BooksGrid = ({
   recencyMode = null,
   onScroll,
   ListHeaderComponent,
+  selectedTab,
 }: BookGridProps) => {
   const { colors: themeColors } = useTheme();
   const numColumns = useSettingsStore((state) => state.numColumns);
+  const listRef = useRef<React.ComponentRef<typeof FlashList<string>>>(null);
+  const isFirstTabRender = useRef(true);
+
+  // Land at the top when the tab changes so the new set of books reads from
+  // the beginning rather than resuming the previous tab's offset. Deferred one
+  // frame: FlashList 2.3.2 has maintainVisibleContentPosition on by default and
+  // re-anchors on the data commit, which would otherwise fight this call.
+  useEffect(() => {
+    if (isFirstTabRender.current) {
+      isFirstTabRender.current = false;
+      return;
+    }
+    const handle = requestAnimationFrame(() => {
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+    });
+    return () => cancelAnimationFrame(handle);
+  }, [selectedTab]);
 
   const { width: screenWidth } = Dimensions.get('window');
   const ITEM_MARGIN_HORIZONTAL = 10;
@@ -137,6 +157,7 @@ const BooksGrid = ({
 
   return (
     <FlashList
+      ref={listRef}
       style={styles.container}
       data={bookIds}
       renderItem={renderBookItem}

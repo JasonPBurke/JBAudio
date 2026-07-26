@@ -299,6 +299,7 @@ const LibraryScreen = ({ navigation }: any) => {
               activeGridSections={activeGridSections}
               onScroll={onScroll}
               ListHeaderComponent={ListSpacer}
+              selectedTab={selectedTab}
             />
           )}
           {toggleView === 1 && (
@@ -310,6 +311,7 @@ const LibraryScreen = ({ navigation }: any) => {
               ListHeaderSpacer={ListSpacer}
               emptyMessage={seriesEmptyText}
               onEditPress={handleEditSeries}
+              selectedTab={selectedTab}
             />
           )}
           {toggleView === 2 && (
@@ -320,6 +322,7 @@ const LibraryScreen = ({ navigation }: any) => {
               flowDirection='column'
               onScroll={onScroll}
               ListHeaderComponent={ListSpacer}
+              selectedTab={selectedTab}
             />
           )}
 

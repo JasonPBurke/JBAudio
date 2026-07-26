@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useMemo } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
@@ -13,6 +13,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { fontSize, screenPadding } from '@/constants/tokens';
 import { utilsStyles } from '@/styles';
 import { withOpacity } from '@/helpers/colorUtils';
+import { CustomTabs } from '@/types/CustomTabs';
 
 type SeriesFlatItem =
   | { type: 'sectionHeader'; seriesId: string; title: string }
@@ -28,6 +29,7 @@ type SeriesHomeProps = {
   ListHeaderSpacer?: React.ReactElement;
   emptyMessage: string;
   onEditPress: (seriesId: string) => void;
+  selectedTab: CustomTabs;
 };
 
 const SeriesHome = ({
@@ -38,6 +40,7 @@ const SeriesHome = ({
   ListHeaderSpacer,
   emptyMessage,
   onEditPress,
+  selectedTab,
 }: SeriesHomeProps) => {
   const { colors: themeColors } = useTheme();
   const numColumns = useSettingsStore((state) => state.numColumns);
@@ -48,6 +51,25 @@ const SeriesHome = ({
       (screenWidth - ITEM_MARGIN_HORIZONTAL * (numColumns + 1)) / numColumns,
     [screenWidth, numColumns],
   );
+
+  const listRef =
+    useRef<React.ComponentRef<typeof FlashList<SeriesFlatItem>>>(null);
+  const isFirstTabRender = useRef(true);
+
+  // Land at the top when the tab changes so the new set of series reads from
+  // the beginning rather than resuming the previous tab's offset. Deferred one
+  // frame: FlashList 2.3.2 has maintainVisibleContentPosition on by default and
+  // re-anchors on the data commit, which would otherwise fight this call.
+  useEffect(() => {
+    if (isFirstTabRender.current) {
+      isFirstTabRender.current = false;
+      return;
+    }
+    const handle = requestAnimationFrame(() => {
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+    });
+    return () => cancelAnimationFrame(handle);
+  }, [selectedTab]);
 
   // Series arrive already A–Z with books in user order. Build the flat array:
   // a header per series; expanded → the book grid (order preserved);
@@ -156,6 +178,7 @@ const SeriesHome = ({
   return (
     <View style={{ flex: 1, paddingTop: 8 }}>
       <FlashList
+        ref={listRef}
         data={flatData}
         renderItem={renderItem}
         keyExtractor={keyExtractor}

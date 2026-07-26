@@ -1,4 +1,10 @@
-import React, { memo, useCallback, useMemo, useRef } from 'react';
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import {
   Dimensions,
@@ -23,6 +29,7 @@ import {
 } from '@/helpers/bookRecency';
 import { fontSize, screenPadding } from '@/constants/tokens';
 import { utilsStyles } from '@/styles';
+import { CustomTabs } from '@/types/CustomTabs';
 
 export type BookListProps = Partial<FlashListProps<Book>> & {
   authors?: Author[];
@@ -32,6 +39,7 @@ export type BookListProps = Partial<FlashListProps<Book>> & {
   activeGridSections: Set<string>;
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   ListHeaderComponent?: React.ReactElement;
+  selectedTab: CustomTabs;
 };
 
 const RECENTS_TITLE: Record<'played' | 'finished' | 'added', string> = {
@@ -58,11 +66,28 @@ const BooksHome = ({
   activeGridSections,
   onScroll,
   ListHeaderComponent,
+  selectedTab,
 }: BookListProps) => {
   const { colors: themeColors } = useTheme();
   const listRef =
     useRef<React.ComponentRef<typeof FlashList<FlatListItem>>>(null);
+  const isFirstTabRender = useRef(true);
   const CONTAINER_PADDING_TOP = 8;
+
+  // Land at the top when the tab changes so the new set of books reads from
+  // the beginning rather than resuming the previous tab's offset. Deferred one
+  // frame: FlashList 2.3.2 has maintainVisibleContentPosition on by default and
+  // re-anchors on the data commit, which would otherwise fight this call.
+  useEffect(() => {
+    if (isFirstTabRender.current) {
+      isFirstTabRender.current = false;
+      return;
+    }
+    const handle = requestAnimationFrame(() => {
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+    });
+    return () => cancelAnimationFrame(handle);
+  }, [selectedTab]);
 
   const numColumns = useSettingsStore((state) => state.numColumns);
   const { width: screenWidth } = Dimensions.get('window');
