@@ -23,6 +23,17 @@ import { recordFootprint } from '@/db/footprintQueries';
 import { Book } from '@/types/Book';
 import { setTitleDetailsNavIntent } from '@/store/titleDetailsNavIntent';
 
+/** Row-flow ("horizontal shelf") geometry. BooksHorizontal derives its own
+ *  container height from ROW_ITEM_HEIGHT so the two files cannot drift apart —
+ *  they previously both hardcoded 220, which did not mean the same thing in
+ *  each place and left only 2px of headroom before visible content clipped. */
+export const ROW_COVER_HEIGHT = 140;
+export const ROW_INFO_HEIGHT = 68;
+const ROW_PADDING_TOP = 4;
+const ROW_MARGIN_BOTTOM = 8;
+export const ROW_ITEM_HEIGHT =
+  ROW_PADDING_TOP + ROW_COVER_HEIGHT + ROW_INFO_HEIGHT + ROW_MARGIN_BOTTOM; // 220
+
 export type BookGridItemProps = {
   bookId: string;
   flowDirection: 'row' | 'column';
@@ -225,10 +236,13 @@ export const BookGridItem = memo(function BookGridItem({
     const aspectRatio = safeArtworkWidth / safeArtworkHeight;
     return {
       container: isRow
-        ? { height: 220, width: aspectRatio * 160 }
+        ? {
+            height: ROW_COVER_HEIGHT + ROW_INFO_HEIGHT,
+            width: aspectRatio * 160,
+          }
         : { width: itemWidth, height: (1 / aspectRatio) * itemWidth + 90 },
       imageContainer: isRow
-        ? { height: 140, width: aspectRatio * 140 }
+        ? { height: ROW_COVER_HEIGHT, width: aspectRatio * ROW_COVER_HEIGHT }
         : {
             paddingTop: 10,
             width: itemWidth + 2,
@@ -237,8 +251,8 @@ export const BookGridItem = memo(function BookGridItem({
       // Explicit pixel dimensions so Glide can downscale at decode time
       imageSize: isRow
         ? {
-            width: Math.round(aspectRatio * 140),
-            height: 140,
+            width: Math.round(aspectRatio * ROW_COVER_HEIGHT),
+            height: ROW_COVER_HEIGHT,
             borderRadius: 3,
           }
         : {
@@ -335,7 +349,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   bookInfoContainer: {
-    height: 68,
+    height: ROW_INFO_HEIGHT,
     justifyContent: 'flex-start',
     alignItems: 'flex-start',
     paddingHorizontal: 2,
