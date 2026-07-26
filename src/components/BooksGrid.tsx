@@ -1,5 +1,5 @@
 import { FlashList, FlashListProps } from '@shopify/flash-list';
-import { useCallback, memo, useEffect, useMemo, useRef } from 'react';
+import { useCallback, memo, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import {
   sortBooksByRecency,
 } from '@/helpers/bookRecency';
 import { CustomTabs } from '@/types/CustomTabs';
+import { useResetScrollOnTabChange } from '@/hooks/useResetScrollOnTabChange';
 
 const styles = StyleSheet.create({
   container: {
@@ -65,22 +66,7 @@ const BooksGrid = ({
   const { colors: themeColors } = useTheme();
   const numColumns = useSettingsStore((state) => state.numColumns);
   const listRef = useRef<React.ComponentRef<typeof FlashList<string>>>(null);
-  const isFirstTabRender = useRef(true);
-
-  // Land at the top when the tab changes so the new set of books reads from
-  // the beginning rather than resuming the previous tab's offset. Deferred one
-  // frame: FlashList 2.3.2 has maintainVisibleContentPosition on by default and
-  // re-anchors on the data commit, which would otherwise fight this call.
-  useEffect(() => {
-    if (isFirstTabRender.current) {
-      isFirstTabRender.current = false;
-      return;
-    }
-    const handle = requestAnimationFrame(() => {
-      listRef.current?.scrollToOffset({ offset: 0, animated: false });
-    });
-    return () => cancelAnimationFrame(handle);
-  }, [selectedTab]);
+  useResetScrollOnTabChange(listRef, selectedTab);
 
   const { width: screenWidth } = Dimensions.get('window');
   const ITEM_MARGIN_HORIZONTAL = 10;
