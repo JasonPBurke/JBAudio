@@ -271,10 +271,9 @@ export const BookGridItem = memo(function BookGridItem({
   // Must stay below every hook so the hook order is render-stable.
   if (!bookId || !bookData || !fullBook) {
     return (
-      <View
-        style={[styles.pressableContainer, itemDimensions.container]}
-        pointerEvents='none'
-      />
+      <View style={styles.pressableContainer} pointerEvents='none'>
+        <View style={itemDimensions.container} />
+      </View>
     );
   }
 
