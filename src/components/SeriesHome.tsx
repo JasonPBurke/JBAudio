@@ -105,7 +105,18 @@ const SeriesHome = ({
           );
         case 'horizontalRow':
           return (
-            <View style={styles.horizontalRowContainer}>
+            <View
+              style={styles.horizontalRowContainer}
+              // TEMPORARY [rowprobe] — remove after the clipped-row device verification.
+              onLayout={
+                __DEV__
+                  ? (e) =>
+                      console.log(
+                        `[rowprobe] outer ${item.seriesId} h=${e.nativeEvent.layout.height}`,
+                      )
+                  : undefined
+              }
+            >
               <BooksHorizontal
                 sectionId={item.seriesId}
                 books={item.books}
@@ -283,7 +294,7 @@ const styles = StyleSheet.create({
   titleText: {
     fontFamily: 'Rubik',
     fontSize: fontSize.base,
-    maxWidth: '95%',
+    flexShrink: 1,
   },
   chevronBase: {
     marginRight: 12,

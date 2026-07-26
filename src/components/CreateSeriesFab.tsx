@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated, {
+  Extrapolation,
   interpolate,
   useAnimatedStyle,
   type SharedValue,
@@ -33,6 +34,7 @@ const CreateSeriesFab = ({ isVisible, onPress }: Props) => {
       isVisible.value,
       [0, 1],
       [FAB_SIZE + FAB_BOTTOM_OFFSET, 0],
+      Extrapolation.CLAMP,
     );
     return { opacity: isVisible.value, transform: [{ translateY }] };
   });

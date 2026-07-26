@@ -1,5 +1,10 @@
 import { memo, useCallback, useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  type LayoutChangeEvent,
+} from 'react-native';
 import { PressableScale } from 'pressto';
 import FastImage from '@d11/react-native-fast-image';
 import { fontSize } from '@/constants/tokens';
@@ -32,7 +37,7 @@ export const ROW_INFO_HEIGHT = 68;
 const ROW_PADDING_TOP = 4;
 const ROW_MARGIN_BOTTOM = 8;
 export const ROW_ITEM_HEIGHT =
-  ROW_PADDING_TOP + ROW_COVER_HEIGHT + ROW_INFO_HEIGHT + ROW_MARGIN_BOTTOM; // 220
+  ROW_PADDING_TOP + ROW_COVER_HEIGHT + ROW_INFO_HEIGHT + ROW_MARGIN_BOTTOM;
 
 export type BookGridItemProps = {
   bookId: string;
@@ -265,9 +270,15 @@ export const BookGridItem = memo(function BookGridItem({
   }, [isRow, itemWidth, safeArtworkWidth, safeArtworkHeight]);
 
   // If data isn't ready or the book was deleted, render an empty cell of the
-  // SAME size rather than null. FlashList measures cells; a null child makes a
-  // cell measure short, and that measurement can stick — which is how rows end
-  // up rendering at a fraction of their height while their neighbours are fine.
+  // SAME size rather than null. FlashList measures cells, and a null child
+  // makes a cell measure short — that stuck short measurement is the
+  // suspected cause of rows rendering at a fraction of their height while
+  // their neighbours are fine (matches the symptoms; not yet confirmed on
+  // device). This placeholder is size-accurate in row flow (always
+  // ROW_COVER_HEIGHT + ROW_INFO_HEIGHT) but only approximate in column flow:
+  // itemDimensions.container falls back to a 1:1 aspect ratio until the real
+  // artwork dimensions resolve, so it will not exactly match the resolved
+  // item's eventual height there.
   // Must stay below every hook so the hook order is render-stable.
   if (!bookId || !bookData || !fullBook) {
     return (
@@ -277,11 +288,25 @@ export const BookGridItem = memo(function BookGridItem({
     );
   }
 
+  // TEMPORARY [rowprobe] — remove after the clipped-row device verification.
+  // Spread (rather than a direct prop) because PressableScale's forwarded
+  // prop type doesn't declare onLayout, though the underlying gesture-handler
+  // BaseButton it wraps forwards it to the native View like any other prop.
+  const devItemLayoutProps = __DEV__
+    ? {
+        onLayout: (e: LayoutChangeEvent) =>
+          console.log(
+            `[rowprobe] item ${bookId} h=${e.nativeEvent.layout.height}`,
+          ),
+      }
+    : undefined;
+
   return (
     <PressableScale
       rippleRadius={0}
       style={styles.pressableContainer}
       onPress={handlePress}
+      {...(devItemLayoutProps as object)}
     >
       <View style={[styles.containerBase, itemDimensions.container]}>
         <View style={itemDimensions.imageContainer}>
