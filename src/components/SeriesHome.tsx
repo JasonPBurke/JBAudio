@@ -57,6 +57,29 @@ const SeriesHome = ({
     useRef<React.ComponentRef<typeof FlashList<SeriesFlatItem>>>(null);
   useResetScrollOnTabChange(listRef, selectedTab);
 
+  // Remount the list whenever the set of series changes.
+  //
+  // A row inserted while this screen is DETACHED renders clipped — the create
+  // wizard and the edit screen are pushed native-stack routes, and
+  // react-native-screens detaches what is underneath (the same behaviour that
+  // forced `beforeRemove` for the edit-draft discard). Device probes showed
+  // every layer reporting correct geometry in the clipped state — this View
+  // measured 224, FlashList's own cached layout said 224, and the cell `y`
+  // offsets decomposed exactly — so the shadow tree is right and only the
+  // painted native view is wrong. Remounting is the one thing that reliably
+  // fixes it, which is why switching library views and back also "repairs" a
+  // clipped row.
+  //
+  // Keyed on the id list, not array identity: `useDerivedSeries()` returns a
+  // fresh array on every library emit (progress saves included), but the joined
+  // string only changes on a real insert/delete/reorder, so this does NOT
+  // remount during playback. Cost is a reset scroll position on those three
+  // actions, which is acceptable for how rarely they happen.
+  //
+  // Revisit on any react-native / react-native-screens / FlashList upgrade —
+  // this is a targeted workaround for native behaviour, not a root-cause fix.
+  const listKey = useMemo(() => series.map((s) => s.id).join('|'), [series]);
+
   // Series arrive already A–Z with books in user order. Build the flat array:
   // a header per series; expanded → the book grid (order preserved);
   // collapsed → a single horizontal row (order preserved).
@@ -89,7 +112,7 @@ const SeriesHome = ({
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: SeriesFlatItem }) => {
+    ({ item, index }: { item: SeriesFlatItem; index: number }) => {
       switch (item.type) {
         case 'sectionHeader':
           return (
@@ -108,12 +131,19 @@ const SeriesHome = ({
             <View
               style={styles.horizontalRowContainer}
               // TEMPORARY [rowprobe] — remove after the clipped-row device verification.
+              // Logs BOTH what this View measures and what FlashList has cached
+              // for the same cell. A mismatch proves the clipping comes from
+              // FlashList's cell layout, not from anything we render.
               onLayout={
                 __DEV__
-                  ? (e) =>
+                  ? (e) => {
+                      const cached = listRef.current?.getLayout(index);
                       console.log(
-                        `[rowprobe] outer ${item.seriesId} h=${e.nativeEvent.layout.height}`,
-                      )
+                        `[rowprobe] outer ${item.seriesId} idx=${index} ` +
+                          `measured=${e.nativeEvent.layout.height} ` +
+                          `flashlist=${cached ? `${cached.height}@y${cached.y}` : 'none'}`,
+                      );
+                    }
                   : undefined
               }
             >
@@ -175,6 +205,7 @@ const SeriesHome = ({
   return (
     <View style={{ flex: 1, paddingTop: 8 }}>
       <FlashList
+        key={listKey}
         ref={listRef}
         data={flatData}
         renderItem={renderItem}
