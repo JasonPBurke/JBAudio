@@ -1,7 +1,6 @@
 package com.fuzzylogic42.JBAudio
 import expo.modules.splashscreen.SplashScreenManager
 
-import android.os.Build
 import android.os.Bundle
 
 import com.facebook.react.ReactActivity
@@ -48,18 +47,30 @@ class MainActivity : ReactActivity() {
     * Align the back button behavior with Android S
     * where moving root activities to background instead of finishing activities.
     * @see <a href="https://developer.android.com/reference/android/app/Activity#onBackPressed()">onBackPressed</a>
+    *
+    * NOTE: we deliberately do NOT delegate to super on Android S+ (the upstream
+    * Expo/RN template does). On targetSdk 36 ReactActivity registers an
+    * OnBackPressedCallback to work around enforced predictive back, and its
+    * invokeDefaultOnBackPressed() calls setEnabled(false) on that callback
+    * without ever re-enabling it. Since this method only runs when JS declined
+    * to handle the press, the very first back press on a root screen latches the
+    * callback off for the lifetime of the Activity: every later back press then
+    * bypasses React Navigation entirely and backgrounds the app, no matter which
+    * screen is open, until the process is restarted. The callback is private, so
+    * a subclass cannot re-enable it — we background the task ourselves instead,
+    * which leaves it enabled.
+    *
+    * Upstream fixed this in RN 0.84.0 (the re-enable was added after
+    * super.onBackPressed()); it was NOT backported to the 0.83 branch, and
+    * 0.83.10 is still affected. Once this app is on RN >= 0.84 (Expo SDK 56
+    * ships 0.85.3) this whole override can be reverted to the stock Expo
+    * template version.
     */
   override fun invokeDefaultOnBackPressed() {
-      if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.R) {
-          if (!moveTaskToBack(false)) {
-              // For non-root activities, use the default implementation to finish them.
-              super.invokeDefaultOnBackPressed()
-          }
-          return
+      if (!moveTaskToBack(false)) {
+          // For non-root activities, use the default implementation to finish them.
+          // The latch is harmless here because the Activity is going away anyway.
+          super.invokeDefaultOnBackPressed()
       }
-
-      // Use the default back button implementation on Android S
-      // because it's doing more than [Activity.moveTaskToBack] in fact.
-      super.invokeDefaultOnBackPressed()
   }
 }
