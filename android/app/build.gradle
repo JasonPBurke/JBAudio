@@ -95,8 +95,12 @@ android {
         versionCode 1
         versionName "1.0.0"
         //! REMOVE THIS BLOCK FOR REMOTE BUILDS --- THIS ALLOWS LOCAL BUILDS TO NOT CRASH PC
+        // Defaults to arm64-v8a only (real devices) to keep local builds cheap --
+        // Reanimated/WatermelonDB compile C++ once per ABI, so extra ABIs are not free.
+        // The emulators are x86_64-primary; build for them with:
+        //   ORG_GRADLE_PROJECT_jbAbiFilters=arm64-v8a,x86_64 npx expo run:android
         ndk {
-            abiFilters "arm64-v8a"
+            abiFilters(*((findProperty('jbAbiFilters') ?: 'arm64-v8a').split(',')))
         }
     }
     signingConfigs {
