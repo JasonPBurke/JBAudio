@@ -476,26 +476,28 @@ const TitleDetails = () => {
             height: artworkSize.height,
           }}
         >
-          <ShadowedView
-            style={shadowStyle({
-              opacity: 0.5,
-              radius: 12,
-              offset: [5, 3],
-            })}
-          >
-            <FastImage
-              source={{
-                uri: book.artwork ?? unknownBookImageUri,
-                priority: FastImage.priority.high,
-                cache: FastImage.cacheControl.immutable,
-              }}
-              style={{
-                ...styles.bookArtworkImage,
-                height: artworkSize.height,
-              }}
-              resizeMode={FastImage.resizeMode.contain}
-            />
-          </ShadowedView>
+          <Pressable onLongPress={handleEditTitle} delayLongPress={400}>
+            <ShadowedView
+              style={shadowStyle({
+                opacity: 0.5,
+                radius: 12,
+                offset: [5, 3],
+              })}
+            >
+              <FastImage
+                source={{
+                  uri: book.artwork ?? unknownBookImageUri,
+                  priority: FastImage.priority.high,
+                  cache: FastImage.cacheControl.immutable,
+                }}
+                style={{
+                  ...styles.bookArtworkImage,
+                  height: artworkSize.height,
+                }}
+                resizeMode={FastImage.resizeMode.contain}
+              />
+            </ShadowedView>
+          </Pressable>
         </View>
         <ScrollView
           style={styles.bookInfoContainer}
