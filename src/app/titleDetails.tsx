@@ -57,7 +57,8 @@ import { consumeTitleDetailsNavIntent } from '@/store/titleDetailsNavIntent';
 
 const TitleDetails = () => {
   const { top, bottom } = useSafeAreaInsets();
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } =
+    useWindowDimensions();
   const { setActiveBookId, activeBookId } = useQueueStore();
   const { bookId, author, bookTitle } = useLocalSearchParams<{
     bookId: string;
@@ -503,208 +504,214 @@ const TitleDetails = () => {
           <Pressable
             onLongPress={handleEditTitle}
             delayLongPress={400}
-            style={[styles.bookInfoContainer]}
+            style={styles.bookInfoContainer}
           >
-            <Text
-              style={[
-                styles.bookTitleText,
-                { color: themeColors.lightText },
-              ]}
-            >
-              {book.bookTitle ?? bookTitle}
-            </Text>
-
-            <View style={styles.authorNarratorContainer}>
-              <View
-                style={{
-                  alignItems: 'center',
-                  flex: 1,
-                }}
+            <View style={styles.bookInfoColumn}>
+              <Text
+                style={[
+                  styles.bookTitleText,
+                  { color: themeColors.lightText },
+                ]}
               >
-                <Text
+                {book.bookTitle ?? bookTitle}
+              </Text>
+
+              <View style={styles.authorNarratorContainer}>
+                <View
                   style={{
-                    ...styles.bookInfoText,
-                    color: labelColor,
+                    alignItems: 'center',
+                    flex: 1,
                   }}
                 >
-                  Author
-                </Text>
-                <Text
-                  numberOfLines={3}
-                  style={{
-                    ...styles.bookInfoText,
-                    textAlign: 'center',
-                    color: themeColors.lightText,
-                  }}
-                >
-                  {book.author ?? author}
-                </Text>
-              </View>
-              <View
-                style={{
-                  ...styles.divider,
-                  backgroundColor: labelColor,
-                }}
-              />
-              <View
-                style={{
-                  alignItems: 'center',
-                  flex: 1,
-                }}
-              >
-                <Text
-                  style={{
-                    ...styles.bookInfoText,
-                    color: labelColor,
-                  }}
-                >
-                  Read by
-                </Text>
-                <Text
-                  numberOfLines={3}
-                  style={{
-                    ...styles.bookInfoText,
-                    textAlign: 'center',
-                    color: themeColors.lightText,
-                  }}
-                >
-                  {book.metadata.narrator}
-                </Text>
-              </View>
-            </View>
-            <View
-              style={[styles.inlineInfoContainer, { flexWrap: 'wrap' }]}
-            >
-              {genres.map((genre, index) => (
-                <Text
-                  key={index}
-                  style={[
-                    styles.genreText,
-                    {
-                      backgroundColor:
-                        book.artworkColors?.darkVibrant ||
-                        colors.modalBackground,
-                    },
-                  ]}
-                >
-                  {genre}
-                </Text>
-              ))}
-            </View>
-
-            <View style={styles.infoCardContainer}>
-              <View style={styles.infoCard}>
-                <Clock8 size={24} color={colors.text} strokeWidth={1.5} />
-
-                <Text
-                  style={[
-                    styles.bookInfoText,
-                    { marginTop: 12, color: themeColors.lightText },
-                  ]}
-                >
-                  {formatSecondsToMinutes(book.bookDuration || 0)}
-                </Text>
-                <Text style={styles.listInfoText}>Duration</Text>
-              </View>
-              <View
-                style={{
-                  ...styles.divider,
-                  backgroundColor: labelColor,
-                }}
-              />
-              <View style={styles.infoCard}>
-                <Calendar size={24} color={colors.text} strokeWidth={1.5} />
-                <Text
-                  style={[
-                    styles.bookInfoText,
-                    { marginTop: 12, color: themeColors.lightText },
-                  ]}
-                >
-                  {book.metadata.year}
-                </Text>
-                <Text style={styles.listInfoText}>Released</Text>
-              </View>
-              <View
-                style={{
-                  ...styles.divider,
-                  backgroundColor: labelColor,
-                }}
-              />
-              <Pressable
-                onPress={handleChapterPress}
-                style={styles.infoCard}
-              >
-                <Book size={24} color={colors.text} strokeWidth={1.5} />
-                <Text
-                  style={[
-                    styles.bookInfoText,
-                    { marginTop: 12, color: themeColors.lightText },
-                  ]}
-                >
-                  {book.metadata.totalTrackCount! > 1
-                    ? book.metadata.totalTrackCount
-                    : book.chapters.length}
-                </Text>
-                <Text style={styles.listInfoText}>Chapters</Text>
-              </Pressable>
-            </View>
-
-            <ShadowedView
-              style={shadowStyle({
-                opacity: 0.4,
-                radius: 8,
-                offset: [0, 0],
-                color: colors.textMuted,
-              })}
-            >
-              <TouchableOpacity
-                activeOpacity={0.9}
-                disabled={isLoading}
-                onPress={handlePlayPress}
-              >
-                <View style={styles.playButton}>
-                  {isPlayingBook ? (
-                    <Pause
-                      size={34}
-                      color={colors.text}
-                      strokeWidth={1.5}
-                      absoluteStrokeWidth
-                    />
-                  ) : (
-                    <Play
-                      size={34}
-                      color={colors.text}
-                      strokeWidth={1.5}
-                      absoluteStrokeWidth
-                    />
-                  )}
                   <Text
                     style={{
-                      color: colors.text,
-                      fontSize: fontSize.base,
-                      fontFamily: 'Rubik',
+                      ...styles.bookInfoText,
+                      color: labelColor,
                     }}
                   >
-                    {isPlayingBook
-                      ? 'Playing'
-                      : showLoading
-                        ? 'Loading'
-                        : isBookStarted
-                          ? 'Continue Listening'
-                          : 'Start Listening'}
+                    Author
+                  </Text>
+                  <Text
+                    numberOfLines={3}
+                    style={{
+                      ...styles.bookInfoText,
+                      textAlign: 'center',
+                      color: themeColors.lightText,
+                    }}
+                  >
+                    {book.author ?? author}
                   </Text>
                 </View>
-              </TouchableOpacity>
-            </ShadowedView>
-            {book.bookProgressValue !== BookProgressState.NotStarted && (
-              <BookDurationRow
-                book={book}
-                fontSize={14}
-                barHeight={5}
-                textColor={themeColors.lightTextMuted}
-                style={{ width: '100%', paddingHorizontal: 6 }}
-              />
-            )}
+                <View
+                  style={{
+                    ...styles.divider,
+                    backgroundColor: labelColor,
+                  }}
+                />
+                <View
+                  style={{
+                    alignItems: 'center',
+                    flex: 1,
+                  }}
+                >
+                  <Text
+                    style={{
+                      ...styles.bookInfoText,
+                      color: labelColor,
+                    }}
+                  >
+                    Read by
+                  </Text>
+                  <Text
+                    numberOfLines={3}
+                    style={{
+                      ...styles.bookInfoText,
+                      textAlign: 'center',
+                      color: themeColors.lightText,
+                    }}
+                  >
+                    {book.metadata.narrator}
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={[styles.inlineInfoContainer, { flexWrap: 'wrap' }]}
+              >
+                {genres.map((genre, index) => (
+                  <Text
+                    key={index}
+                    style={[
+                      styles.genreText,
+                      {
+                        backgroundColor:
+                          book.artworkColors?.darkVibrant ||
+                          colors.modalBackground,
+                      },
+                    ]}
+                  >
+                    {genre}
+                  </Text>
+                ))}
+              </View>
+
+              <View style={styles.infoCardContainer}>
+                <View style={styles.infoCard}>
+                  <Clock8 size={24} color={colors.text} strokeWidth={1.5} />
+
+                  <Text
+                    style={[
+                      styles.bookInfoText,
+                      { marginTop: 12, color: themeColors.lightText },
+                    ]}
+                  >
+                    {formatSecondsToMinutes(book.bookDuration || 0)}
+                  </Text>
+                  <Text style={styles.listInfoText}>Duration</Text>
+                </View>
+                <View
+                  style={{
+                    ...styles.divider,
+                    backgroundColor: labelColor,
+                  }}
+                />
+                <View style={styles.infoCard}>
+                  <Calendar
+                    size={24}
+                    color={colors.text}
+                    strokeWidth={1.5}
+                  />
+                  <Text
+                    style={[
+                      styles.bookInfoText,
+                      { marginTop: 12, color: themeColors.lightText },
+                    ]}
+                  >
+                    {book.metadata.year}
+                  </Text>
+                  <Text style={styles.listInfoText}>Released</Text>
+                </View>
+                <View
+                  style={{
+                    ...styles.divider,
+                    backgroundColor: labelColor,
+                  }}
+                />
+                <Pressable
+                  onPress={handleChapterPress}
+                  style={styles.infoCard}
+                >
+                  <Book size={24} color={colors.text} strokeWidth={1.5} />
+                  <Text
+                    style={[
+                      styles.bookInfoText,
+                      { marginTop: 12, color: themeColors.lightText },
+                    ]}
+                  >
+                    {book.metadata.totalTrackCount! > 1
+                      ? book.metadata.totalTrackCount
+                      : book.chapters.length}
+                  </Text>
+                  <Text style={styles.listInfoText}>Chapters</Text>
+                </Pressable>
+              </View>
+
+              <ShadowedView
+                style={shadowStyle({
+                  opacity: 0.4,
+                  radius: 8,
+                  offset: [0, 0],
+                  color: colors.textMuted,
+                })}
+              >
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  disabled={isLoading}
+                  onPress={handlePlayPress}
+                >
+                  <View style={styles.playButton}>
+                    {isPlayingBook ? (
+                      <Pause
+                        size={34}
+                        color={colors.text}
+                        strokeWidth={1.5}
+                        absoluteStrokeWidth
+                      />
+                    ) : (
+                      <Play
+                        size={34}
+                        color={colors.text}
+                        strokeWidth={1.5}
+                        absoluteStrokeWidth
+                      />
+                    )}
+                    <Text
+                      style={{
+                        color: colors.text,
+                        fontSize: fontSize.base,
+                        fontFamily: 'Rubik',
+                      }}
+                    >
+                      {isPlayingBook
+                        ? 'Playing'
+                        : showLoading
+                          ? 'Loading'
+                          : isBookStarted
+                            ? 'Continue Listening'
+                            : 'Start Listening'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </ShadowedView>
+              {book.bookProgressValue !== BookProgressState.NotStarted && (
+                <BookDurationRow
+                  book={book}
+                  fontSize={14}
+                  barHeight={5}
+                  textColor={themeColors.lightTextMuted}
+                  style={{ width: '100%', paddingHorizontal: 6 }}
+                />
+              )}
+            </View>
             <View style={styles.inlineInfoContainer}>
               <Text style={styles.paragraph}>
                 {book.metadata.description}
@@ -748,6 +755,15 @@ export default TitleDetails;
 // Horizontal padding on bookContainer; shared with the artwork width bound so
 // the two cannot drift apart.
 const SCREEN_HORIZONTAL_PADDING = 16;
+
+/**
+ * Caps the upper info group so its rows stay a readable, phone-like width
+ * instead of stretching the full 800dp of a tablet — which left the Author/Read
+ * by columns flung to opposite edges and made the info card, play button and
+ * duration row look oversized. Comfortably above a phone's content width
+ * (~367dp), so phones are unaffected.
+ */
+const INFO_COLUMN_MAX_WIDTH = 550;
 const PROGRESS_OPTION_HEIGHT = 44;
 const PROGRESS_MENU_HEIGHT = PROGRESS_OPTION_HEIGHT * 3;
 
@@ -771,6 +787,16 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingTop: 12,
     paddingHorizontal: 6,
+  },
+  // Width-capped group holding everything from the title down to the duration
+  // row. The description, hairline and copyright sit outside it so they keep
+  // the full width — long prose reads fine wide, unlike the info card and
+  // play button, which looked stretched.
+  bookInfoColumn: {
+    gap: 20,
+    width: '100%',
+    maxWidth: INFO_COLUMN_MAX_WIDTH,
+    alignSelf: 'center',
   },
   bookArtworkContainer: {
     // width/height are supplied per-render from computeDetailsArtworkSize
@@ -799,6 +825,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.modalBackground,
   },
   infoCard: {
+    // flex:1 gives the three cards equal thirds. Without it they size to their
+    // content and `space-between` pins the outer two to the container edges,
+    // so Duration and Chapters sat off-centre within their own column.
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
