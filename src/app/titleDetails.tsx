@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   Modal,
+  useWindowDimensions,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import FastImage from '@d11/react-native-fast-image';
@@ -51,11 +52,12 @@ import { removeAutoChapters } from '@/helpers/autoChapterGenerator';
 import { recordFootprint } from '@/db/footprintQueries';
 import { getBookById, stampLastPlayed } from '@/db/bookQueries';
 import MeshGradientBackground from '@/components/MeshGradientBackground';
-import { normalizeSize } from '@/helpers/normalizeSize';
+import { computeDetailsArtworkSize } from '@/helpers/artworkSizing';
 import { consumeTitleDetailsNavIntent } from '@/store/titleDetailsNavIntent';
 
 const TitleDetails = () => {
   const { top, bottom } = useSafeAreaInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { setActiveBookId, activeBookId } = useQueueStore();
   const { bookId, author, bookTitle } = useLocalSearchParams<{
     bookId: string;
@@ -74,7 +76,7 @@ const TitleDetails = () => {
     progressExpand.value = withTiming(showProgressOptions ? 1 : 0, {
       duration: 250,
     });
-  }, [showProgressOptions]);
+  }, [showProgressOptions, progressExpand]);
 
   const progressMenuStyle = useAnimatedStyle(() => ({
     height: progressExpand.value * PROGRESS_MENU_HEIGHT,
@@ -150,8 +152,19 @@ const TitleDetails = () => {
     book.bookProgressValue !== BookProgressState.NotStarted;
   const isPlayingBook = isActiveBook && playing;
 
-  const imgHeight = book.artworkHeight;
-  const imgWidth = book.artworkWidth;
+  // Scales with the window instead of a hardcoded dp so the cover doesn't read
+  // as a postage stamp on a tablet. Unlike the player this screen scrolls, so
+  // the bound is a share of the height rather than the leftover space — see
+  // computeDetailsArtworkSize for why the two rules differ.
+  const artworkSize = computeDetailsArtworkSize({
+    aspectRatio:
+      book.artworkHeight && book.artworkWidth
+        ? book.artworkWidth / book.artworkHeight
+        : 0,
+    windowWidth,
+    windowHeight,
+    horizontalPadding: SCREEN_HORIZONTAL_PADDING,
+  });
 
   const handleChapterPress = () => {
     router.push(`/chapterList?bookId=${bookId}&readOnly=true`);
@@ -458,9 +471,8 @@ const TitleDetails = () => {
         <View
           style={{
             ...styles.bookArtworkContainer,
-            width: imgHeight
-              ? (imgWidth! / imgHeight) * FIXED_ARTWORK_HEIGHT
-              : 0,
+            width: artworkSize.width,
+            height: artworkSize.height,
           }}
         >
           <ShadowedView
@@ -476,7 +488,10 @@ const TitleDetails = () => {
                 priority: FastImage.priority.high,
                 cache: FastImage.cacheControl.immutable,
               }}
-              style={styles.bookArtworkImage}
+              style={{
+                ...styles.bookArtworkImage,
+                height: artworkSize.height,
+              }}
               resizeMode={FastImage.resizeMode.contain}
             />
           </ShadowedView>
@@ -730,7 +745,9 @@ const TitleDetails = () => {
 
 export default TitleDetails;
 
-const FIXED_ARTWORK_HEIGHT = normalizeSize(375);
+// Horizontal padding on bookContainer; shared with the artwork width bound so
+// the two cannot drift apart.
+const SCREEN_HORIZONTAL_PADDING = 16;
 const PROGRESS_OPTION_HEIGHT = 44;
 const PROGRESS_MENU_HEIGHT = PROGRESS_OPTION_HEIGHT * 3;
 
@@ -743,7 +760,7 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     justifyContent: 'flex-start',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: SCREEN_HORIZONTAL_PADDING,
     marginTop: 50,
     width: '100%',
     gap: 12,
@@ -756,12 +773,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   bookArtworkContainer: {
-    height: FIXED_ARTWORK_HEIGHT,
+    // width/height are supplied per-render from computeDetailsArtworkSize
     paddingTop: 12,
     zIndex: 10,
   },
   bookArtworkImage: {
-    height: FIXED_ARTWORK_HEIGHT,
+    // height is supplied per-render alongside the container's
     width: '100%',
     borderRadius: 8,
   },
