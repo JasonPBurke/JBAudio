@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-  version: 30,
+  version: 31,
   tables: [
     tableSchema({
       name: 'authors',

@@ -2,10 +2,29 @@ import {
   createTable,
   schemaMigrations,
   addColumns,
+  unsafeExecuteSql,
 } from '@nozbe/watermelondb/Schema/migrations';
 
 export default schemaMigrations({
   migrations: [
+    {
+      // Data-only. usePopulateDatabase used to default a coverless book's
+      // artwork to the bundled placeholder's URI, so the nullable column was
+      // never null and "which books have no cover?" was unanswerable. A
+      // rescan cannot heal these rows — scanLibrary skips files already in
+      // the DB — so they have to be cleaned here.
+      //
+      // Allowlist, not denylist: every real cover is written as a file:// URI
+      // (scanLibrary saveArtworkToFile, replaceBookArtwork). Anything else is
+      // a placeholder — a schemeless resource id in a release build, a
+      // http://10.0.2.2:8081/... Metro URL in a debug build.
+      toVersion: 31,
+      steps: [
+        unsafeExecuteSql(
+          "UPDATE books SET artwork = NULL WHERE artwork IS NOT NULL AND artwork NOT LIKE 'file://%';",
+        ),
+      ],
+    },
     {
       // Separate from v29: test devices already migrated to 29, and
       // WatermelonDB never re-runs an applied step.
