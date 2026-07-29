@@ -46,8 +46,14 @@ export const FloatingPlayer = React.memo(() => {
 
   const displayedBook = useBookById(displayedTrack?.bookId ?? '');
 
+  // This wrapper is a sibling of the inset-padded content view in
+  // (drawer)/(library)/index.tsx, so it sits in the raw edge-to-edge window and
+  // has to reserve the navigation bar itself. Net offset is exactly
+  // insets.bottom; it previously came to insets.bottom - 12 + 10, leaving the
+  // player 2dp underneath the bar — invisible against a gesture pill, a visible
+  // sliver against a solid 3-button bar.
   const wrapperStyle = useMemo(
-    () => [styles.absoluteWrapper, { marginBottom: bottom - 12 }],
+    () => [styles.absoluteWrapper, { marginBottom: bottom }],
     [bottom],
   );
 
@@ -130,7 +136,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 8,
     right: 8,
-    bottom: 10,
+    // Offset comes entirely from marginBottom: insets.bottom — see wrapperStyle.
+    bottom: 0,
   },
   touchable: {
     flexDirection: 'row',

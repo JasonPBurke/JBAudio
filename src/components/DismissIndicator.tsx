@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -23,11 +23,24 @@ export const DismissIndicator = () => {
   );
 };
 
+const PILL_HEIGHT = 7;
+const PILL_MARGIN_BOTTOM = normalizeSize(18);
+
+/**
+ * Layout height this component contributes to the player's flex column.
+ *
+ * Note the `top` offset applied in the component is a *relative* offset: it
+ * shifts the pill below the status bar visually without reserving any layout
+ * space, so it is deliberately not part of this total. Exported for
+ * PLAYER_CHROME_HEIGHT in player.tsx.
+ */
+export const DISMISS_INDICATOR_HEIGHT = PILL_HEIGHT + PILL_MARGIN_BOTTOM;
+
 const styles = StyleSheet.create({
   backButton: {
-    marginBottom: normalizeSize(18),
+    marginBottom: PILL_MARGIN_BOTTOM,
     width: 55,
-    height: 7,
+    height: PILL_HEIGHT,
     backgroundColor: withOpacity(colors.background, 0.66),
     borderRadius: 50,
     borderColor: colors.textMuted,
