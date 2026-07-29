@@ -6,10 +6,6 @@ import {
 import { getHeapLimitBytes } from '@/helpers/deviceHeap';
 import type { Book, Chapter } from '@/types/Book';
 
-jest.mock('@/constants/images', () => ({
-  unknownBookImageUri: 'file:///fallback.png',
-}));
-
 jest.mock('@/constants/featureFlags', () => ({
   CLIPPED_CHAPTERS_SPIKE: true,
 }));
@@ -177,9 +173,32 @@ describe('buildClippedChapterTracks', () => {
     expect(ids.size).toBe(3);
   });
 
-  it('falls back to the unknown-book artwork when the book has none', () => {
+  // Artwork falls through to undefined so the native side can substitute the
+  // bundled default (MusicService.applyDefaultArtwork); no JS route to the
+  // bundled image survives a release build.
+  it('leaves artwork undefined when the book has none', () => {
     const book = { ...singleFileBook, artwork: null } as unknown as Book;
     const tracks = buildClippedChapterTracks(book);
-    expect(tracks[0].artwork).toBe('file:///fallback.png');
+    expect(tracks[0].artwork).toBeUndefined();
+  });
+
+  it('drops a persisted schemeless placeholder so native can substitute', () => {
+    // usePopulateDatabase stores resolveAssetSource's output for coverless
+    // books; in release that is a schemeless resource id Coil cannot load.
+    const book = {
+      ...singleFileBook,
+      artwork: 'src_assets_images_unknown_track',
+    } as unknown as Book;
+    const tracks = buildClippedChapterTracks(book);
+    expect(tracks[0].artwork).toBeUndefined();
+  });
+
+  it('leaves a real cover URI untouched', () => {
+    const book = {
+      ...singleFileBook,
+      artwork: 'file:///data/artwork/real-cover.png',
+    } as unknown as Book;
+    const tracks = buildClippedChapterTracks(book);
+    expect(tracks[0].artwork).toBe('file:///data/artwork/real-cover.png');
   });
 });

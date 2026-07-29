@@ -3,7 +3,7 @@ import * as Sentry from '@sentry/react-native';
 import { getLastActiveBook } from '@/db/settingsQueries';
 import { getBookWithChaptersForRestoration } from '@/db/bookQueries';
 import { getChapterProgressInDB } from '@/db/chapterQueries';
-import { unknownBookImageUri } from '@/constants/images';
+import { resolveTrackArtwork } from '@/helpers/defaultArtwork';
 import { useQueueStore } from '@/store/queue';
 import {
   isSingleFileBook,
@@ -71,7 +71,7 @@ export async function restoreLastActiveBook(): Promise<void> {
         url: chapters[0].url,
         title: initialChapter?.chapterTitle ?? bookInfo.bookTitle,
         artist: bookInfo.author,
-        artwork: bookInfo.artwork ?? unknownBookImageUri,
+        artwork: resolveTrackArtwork(bookInfo.artwork),
         album: bookInfo.bookTitle,
         bookId: bookInfo.bookId,
         duration: initialChapter?.chapterDuration,
@@ -132,7 +132,7 @@ export async function restoreLastActiveBook(): Promise<void> {
         url: chapter.url,
         title: chapter.chapterTitle,
         artist: bookInfo.author,
-        artwork: bookInfo.artwork ?? unknownBookImageUri,
+        artwork: resolveTrackArtwork(bookInfo.artwork),
         album: bookInfo.bookTitle,
         bookId: bookInfo.bookId,
         duration: chapter.chapterDuration,

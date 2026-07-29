@@ -8,6 +8,9 @@
 /** @type {import('jest').Config} */
 module.exports = {
   moduleNameMapper: {
+    // Static image imports must map to a stub before the alias entries below,
+    // or `@/assets/...` resolves to real PNG bytes that jest tries to parse.
+    '\\.(png|jpg|jpeg|gif|webp)$': '<rootDir>/__mocks__/fileMock.js',
     '^@/assets/(.*)$': '<rootDir>/assets/$1',
     '^@/(.*)$': '<rootDir>/src/$1',
   },

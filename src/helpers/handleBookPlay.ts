@@ -1,4 +1,4 @@
-import { unknownBookImageUri } from '@/constants/images';
+import { resolveTrackArtwork } from '@/helpers/defaultArtwork';
 import { getChapterProgressInDB } from '@/db/chapterQueries';
 import { Book } from '@/types/Book';
 import { getBookById, stampLastPlayed } from '@/db/bookQueries';
@@ -92,7 +92,7 @@ const handleBookPlayInner = async (
         url: book.chapters[0].url,
         title: initialChapter?.chapterTitle ?? book.bookTitle,
         artist: book.author,
-        artwork: book.artwork ?? unknownBookImageUri,
+        artwork: resolveTrackArtwork(book.artwork),
         album: book.bookTitle,
         bookId: book.bookId,
         duration: initialChapter?.chapterDuration,
@@ -112,7 +112,7 @@ const handleBookPlayInner = async (
         url: chapter.url,
         title: chapter.chapterTitle,
         artist: chapter.author,
-        artwork: book.artwork ?? unknownBookImageUri,
+        artwork: resolveTrackArtwork(book.artwork),
         album: book.bookTitle,
         bookId: book.bookId,
         duration: chapter.chapterDuration,
