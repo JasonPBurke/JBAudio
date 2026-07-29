@@ -23,8 +23,10 @@ export function resolveTrackArtwork(
 ): string | undefined {
   if (!artwork) return undefined;
   // No scheme → an Android resource identifier from resolveAssetSource.
-  // usePopulateDatabase persists that value for coverless books, so the column
-  // is truthy but unloadable; treat it as "no cover" so native substitutes.
+  // usePopulateDatabase no longer writes that (stored artwork is now a
+  // file:// URI or null, and the v31 migration cleaned up the rows that
+  // predate the change), but the guard stays: it costs nothing, it fails
+  // safe, and it covers any device whose migration has not yet run.
   if (!/^[a-z][a-z0-9+.-]*:/i.test(artwork)) return undefined;
   return artwork;
 }

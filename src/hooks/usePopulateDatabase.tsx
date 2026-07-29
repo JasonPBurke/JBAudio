@@ -5,7 +5,6 @@ import Author from '@/db/models/Author';
 import Book from '@/db/models/Book';
 import Chapter from '@/db/models/Chapter';
 import Settings from '@/db/models/Settings'; // Import Settings model
-import { unknownBookImageUri } from '@/constants/images';
 
 /**
  * Populates a single book into the database.
@@ -63,7 +62,7 @@ export const populateSingleBook = async (
         .get<Book>('books')
         .prepareCreate((book) => {
           book.title = bookData.bookTitle;
-          book.artwork = bookData.artwork || unknownBookImageUri;
+          book.artwork = bookData.artwork || null;
           book.artworkHeight = bookData.artworkHeight || null;
           book.artworkWidth = bookData.artworkWidth || null;
           // book.coverColorAverage = bookData.artworkColors.average || null; // DEPRECATED
@@ -110,7 +109,7 @@ export const populateSingleBook = async (
       // Update existing book
       batchOperations.push(
         bookRecord.prepareUpdate((book: Book) => {
-          book.artwork = bookData.artwork || unknownBookImageUri;
+          book.artwork = bookData.artwork || null;
           book.artworkHeight = bookData.artworkHeight || null;
           book.artworkWidth = bookData.artworkWidth || null;
           // book.coverColorAverage = bookData.artworkColors.average || null; // DEPRECATED
@@ -261,7 +260,7 @@ export const populateDatabase = async (authors: AuthorType[]) => {
             .get<Book>('books')
             .prepareCreate((book) => {
               book.title = bookData.bookTitle;
-              book.artwork = bookData.artwork || unknownBookImageUri;
+              book.artwork = bookData.artwork || null;
               book.artworkHeight = bookData.artworkHeight || null;
               book.artworkWidth = bookData.artworkWidth || null;
               book.coverColorAverage =
@@ -308,7 +307,7 @@ export const populateDatabase = async (authors: AuthorType[]) => {
           // Update existing book //! DO I WANT TO UPDATE AN EXISTING BOOK???
           batchOperations.push(
             bookRecord.prepareUpdate((book: Book) => {
-              book.artwork = bookData.artwork || unknownBookImageUri;
+              book.artwork = bookData.artwork || null;
               book.artworkHeight = bookData.artworkHeight || null;
               book.artworkWidth = bookData.artworkWidth || null;
               book.coverColorAverage =
