@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   TouchableOpacity,
   Pressable,
+  useWindowDimensions,
 } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { withOpacity } from '@/helpers/colorUtils';
@@ -21,11 +22,15 @@ import { useEffect, useState } from 'react';
 import { BookEditableFields } from '@/types/Book';
 import { updateBookDetails } from '@/db/bookQueries';
 import { ImagePlus } from 'lucide-react-native';
-import { normalizeSize } from '@/helpers/normalizeSize';
+import { computeDetailsArtworkSize } from '@/helpers/artworkSizing';
+
+/** Keeps this cover 5dp shorter than titleDetails' so the two screens align. */
+const COVER_ALIGNMENT_OFFSET = 5;
 
 const EditTitleDetails = () => {
   const { colors: themeColors } = useTheme();
   const { top, bottom } = useSafeAreaInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { bookId } = useLocalSearchParams<{
     bookId: string;
   }>();
@@ -95,6 +100,29 @@ const EditTitleDetails = () => {
     );
   }
 
+  const aspectRatio =
+    book.artworkHeight && book.artworkWidth
+      ? book.artworkWidth / book.artworkHeight
+      : 0;
+
+  // Tracks titleDetails' cover, which scales with the window rather than a
+  // hardcoded dp — otherwise this stays phone-sized on a tablet. The wrapper
+  // is sized to the artwork itself rather than the full screen width: with a
+  // full-width box, `resizeMode: contain` letterboxes the cover and leaves the
+  // overlay icon stranded out in the gutter, since absolute positioning
+  // resolves against the container, not the rendered pixels.
+  const cover = computeDetailsArtworkSize({
+    aspectRatio,
+    windowWidth,
+    windowHeight,
+    horizontalPadding: 0, // this ScrollView has no horizontal padding
+  });
+
+  // Shrinking width by the same proportion keeps the aspect ratio exact, which
+  // is what lets the overlay sit flush in the real corner.
+  const imageHeight = cover.height - COVER_ALIGNMENT_OFFSET;
+  const imageWidth = cover.width - COVER_ALIGNMENT_OFFSET * aspectRatio;
+
   return (
     // Android keyboard avoidance is handled natively by adjustPan
     // (softwareKeyboardLayoutMode: 'pan'); enabling KAV there too
@@ -128,7 +156,10 @@ const EditTitleDetails = () => {
         </Animated.Text>
         <Pressable
           onPress={handleCoverArtPress}
-          style={styles.imageWrapper}
+          style={[
+            styles.imageWrapper,
+            { width: imageWidth, height: imageHeight },
+          ]}
         >
           <FastImage
             source={{
@@ -348,21 +379,28 @@ const styles = StyleSheet.create({
     paddingTop: 25,
   },
   header: {
-    fontFamily: 'Rubik', fontWeight: '600',
+    fontFamily: 'Rubik',
+    fontWeight: '600',
     fontSize: 24,
     paddingBottom: 5,
   },
   imageWrapper: {
-    width: '100%',
+    // width/height are supplied per-render and match the artwork exactly, so
+    // imageOverlayIcon's bottom/right land inside the cover's real corner.
+    position: 'relative',
   },
   image: {
+    // Fills the wrapper, which is already the artwork's aspect ratio — so
+    // `contain` never letterboxes. Kept as a guard against bad metadata.
     width: '100%',
-    height: normalizeSize(370), //* this is 5px smaller than the FIXED_IMAGE_HEIGHT in titleDetails for alignment
+    height: '100%',
   },
   imageOverlayIcon: {
     position: 'absolute',
-    bottom: 8,
-    right: 12,
+    // Equal insets so the badge sits evenly in the artwork's corner. Only
+    // meaningful because imageWrapper is sized to the artwork — see above.
+    bottom: 7,
+    right: 7,
     borderRadius: 20,
     padding: 8,
   },
@@ -405,7 +443,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   buttonText: {
-    fontFamily: 'Rubik', fontWeight: '600',
+    fontFamily: 'Rubik',
+    fontWeight: '600',
     fontSize: 16,
   },
 });

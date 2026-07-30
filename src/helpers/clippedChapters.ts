@@ -1,6 +1,6 @@
 import type { Track } from 'react-native-track-player';
 import type { Book, Chapter } from '@/types/Book';
-import { unknownBookImageUri } from '@/constants/images';
+import { resolveTrackArtwork } from '@/helpers/defaultArtwork';
 import { CLIPPED_CHAPTERS_SPIKE } from '@/constants/featureFlags';
 import { getHeapLimitBytes } from '@/helpers/deviceHeap';
 import {
@@ -97,7 +97,7 @@ export function buildClippedChapterTracks(book: Book): Track[] {
     url: chapters[0].url,
     title: ch.chapterTitle,
     artist: book.author,
-    artwork: book.artwork ?? unknownBookImageUri,
+    artwork: resolveTrackArtwork(book.artwork),
     album: book.bookTitle,
     bookId: book.bookId,
     duration: ch.chapterDuration,

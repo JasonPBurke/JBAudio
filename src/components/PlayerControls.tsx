@@ -639,7 +639,13 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
       withTiming(10, { duration: 200 }),
       withTiming(0, { duration: 100 }),
     );
-  }, [uiActive, timerDuration, uiChapters, handlePresentModalPress]);
+  }, [
+    uiActive,
+    timerDuration,
+    uiChapters,
+    handlePresentModalPress,
+    rotation,
+  ]);
 
   return (
     <Pressable
@@ -699,7 +705,10 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
           </Animated.View>
         )}
       </Animated.View>
-      {uiActive && isPlaying && <AnimatedZZZ timerActiveValue={uiActive} />}
+      {/* Always mounted. The z's only cycle while the timer is actually
+          counting down (armed + playing); otherwise they rest statically at
+          the same spots, so the bell's purpose reads with the timer off. */}
+      <AnimatedZZZ timerActive={uiActive} animate={uiActive && isPlaying} />
     </Pressable>
   );
 }

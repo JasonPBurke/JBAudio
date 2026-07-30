@@ -2,6 +2,7 @@ import {
   createTable,
   schemaMigrations,
   addColumns,
+  unsafeExecuteSql,
 } from '@nozbe/watermelondb/Schema/migrations';
 
 export default schemaMigrations({
@@ -9,7 +10,13 @@ export default schemaMigrations({
     {
       // Series feature: two new tables. Membership (series_books) is keyed by a
       // book's structural key (first file path), not book.id.
-      toVersion: 31,
+      //
+      // RENUMBERED 31 -> 32 when main merged in: main claimed v31 for the
+      // artwork cleanup below, and two different migrations cannot share a
+      // version. Any device that applied the OLD series v31 must be wiped —
+      // it sits at user_version 31, which now means the artwork migration, so
+      // it would run only step 32 and hit "table series already exists".
+      toVersion: 32,
       steps: [
         createTable({
           name: 'series',
@@ -29,6 +36,24 @@ export default schemaMigrations({
             { name: 'created_at', type: 'number' },
           ],
         }),
+      ],
+    },
+    {
+      // Data-only. usePopulateDatabase used to default a coverless book's
+      // artwork to the bundled placeholder's URI, so the nullable column was
+      // never null and "which books have no cover?" was unanswerable. A
+      // rescan cannot heal these rows — scanLibrary skips files already in
+      // the DB — so they have to be cleaned here.
+      //
+      // Allowlist, not denylist: every real cover is written as a file:// URI
+      // (scanLibrary saveArtworkToFile, replaceBookArtwork). Anything else is
+      // a placeholder — a schemeless resource id in a release build, a
+      // http://10.0.2.2:8081/... Metro URL in a debug build.
+      toVersion: 31,
+      steps: [
+        unsafeExecuteSql(
+          "UPDATE books SET artwork = NULL WHERE artwork IS NOT NULL AND artwork NOT LIKE 'file://%';",
+        ),
       ],
     },
     {

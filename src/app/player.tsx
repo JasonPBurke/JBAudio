@@ -1,5 +1,11 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
-import { StyleSheet, View, ActivityIndicator } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  ActivityIndicator,
+  useWindowDimensions,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useActiveTrack } from 'react-native-track-player';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -11,6 +17,7 @@ import { withOpacity } from '@/helpers/colorUtils';
 import { useTheme } from '@/hooks/useTheme';
 import MeshGradientBackground from '@/components/MeshGradientBackground';
 import { normalizeSize } from '@/helpers/normalizeSize';
+import { computePlayerArtworkSize } from '@/helpers/artworkSizing';
 import {
   CurrentChapterContext,
   useCurrentChapterStable,
@@ -18,14 +25,56 @@ import {
 import { consumePlayerNavIntent } from '@/store/playerNavIntent';
 
 // Memoized components - extracted to prevent re-renders
-import { PlayerArtwork } from '@/components/player/PlayerArtwork';
+import {
+  PlayerArtwork,
+  ARTWORK_MARGIN_TOP,
+  ARTWORK_MARGIN_BOTTOM,
+} from '@/components/player/PlayerArtwork';
 import { PlayerControls } from '@/components/PlayerControls';
 import { PlayerProgressBar } from '@/components/PlayerProgressBar';
 import { PlayerChaptersModal } from '@/modals/PlayerChaptersModal';
 import { BookTimeRemaining } from '@/components/BookTimeRemaining';
-import { DismissIndicator } from '@/components/DismissIndicator';
+import {
+  DismissIndicator,
+  DISMISS_INDICATOR_HEIGHT,
+} from '@/components/DismissIndicator';
 
-const FIXED_ARTWORK_HEIGHT = normalizeSize(375);
+// Spacer ceilings, shared with PLAYER_CHROME_HEIGHT below so the budget can
+// never drift from what the column actually renders.
+const SPACER_MAX_ABOVE_CHAPTERS = normalizeSize(50);
+const SPACER_MAX_ABOVE_PROGRESS = normalizeSize(70);
+const SPACER_MAX_ABOVE_CONTROLS = normalizeSize(50);
+
+// Measured heights of the children that have no exported constant of their own.
+const CHAPTER_ROW_HEIGHT = 36; // 24 icon + 6 paddingVertical x2
+const PROGRESS_BAR_HEIGHT = 30; // 2 slider + 10 marginTop + ~18 time row
+const TIME_REMAINING_HEIGHT = 20; // single 16pt line
+const CONTROLS_HEIGHT = 95; // play/pause Pressable, 70 icon x 1.35
+
+/**
+ * Vertical dp every player child except the artwork consumes.
+ *
+ * The controls are the fixed budget and the cover art is the remainder: this
+ * total plus the bottom safe-area inset is reserved first, and whatever height
+ * is left goes to the artwork. That is what keeps every control on screen on
+ * phones, tablets and foldables alike.
+ *
+ * Being slightly wrong degrades gracefully in both directions — underestimate
+ * and the Spacers compress, overestimate and there is a little more trailing
+ * space. The controls stay clear either way, because paddingBottom reserves
+ * insets.bottom independently of this constant.
+ */
+const PLAYER_CHROME_HEIGHT =
+  DISMISS_INDICATOR_HEIGHT +
+  ARTWORK_MARGIN_TOP +
+  ARTWORK_MARGIN_BOTTOM +
+  SPACER_MAX_ABOVE_CHAPTERS +
+  SPACER_MAX_ABOVE_PROGRESS +
+  SPACER_MAX_ABOVE_CONTROLS +
+  CHAPTER_ROW_HEIGHT +
+  PROGRESS_BAR_HEIGHT +
+  TIME_REMAINING_HEIGHT +
+  CONTROLS_HEIGHT;
 
 // Pre-defined styles to avoid inline object creation on each render
 const timeRemainingContainerStyle = { alignItems: 'center' as const };
@@ -86,6 +135,10 @@ const PlayerScreen = () => {
   }, [router]);
 
   const { colors: themeColors } = useTheme();
+  const insets = useSafeAreaInsets();
+  // Not the module-scope Dimensions read in normalizeSize: this has to follow
+  // rotation, unfolding and multi-window resizes.
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   // These hooks only fire on track change, not during playback progress
   const activeTrack = useActiveTrack();
@@ -96,11 +149,37 @@ const PlayerScreen = () => {
   // own TrackPlayer listeners and getProgress() call.
   const currentChapter = useCurrentChapterStable();
 
-  // Memoized artwork width calculation based on aspect ratio
-  const artworkWidth = useMemo(() => {
-    if (!book?.artworkHeight) return 0;
-    return (book.artworkWidth! / book.artworkHeight) * FIXED_ARTWORK_HEIGHT;
-  }, [book?.artworkHeight, book?.artworkWidth]);
+  // Cover art takes whatever height is left after the chrome and the nav bar,
+  // bounded by the screen width so it cannot overflow horizontally.
+  const artworkSize = useMemo(
+    () =>
+      computePlayerArtworkSize({
+        aspectRatio: book?.artworkHeight
+          ? book.artworkWidth! / book.artworkHeight
+          : 0,
+        windowWidth,
+        windowHeight,
+        bottomInset: insets.bottom,
+        chromeHeight: PLAYER_CHROME_HEIGHT,
+        horizontalPadding: screenPadding.horizontal,
+      }),
+    [
+      book?.artworkHeight,
+      book?.artworkWidth,
+      windowWidth,
+      windowHeight,
+      insets.bottom,
+    ],
+  );
+
+  // Reserves the Android navigation bar, which draws over the column's last
+  // child (PlayerControls) under edge-to-edge. Phones have trailing slack so
+  // this is a visual no-op there; on tablets it is what stops the controls
+  // being buried by the taskbar.
+  const overlayContainerStyle = useMemo(
+    () => [styles.overlayContainer, { paddingBottom: insets.bottom }],
+    [insets.bottom],
+  );
 
   // Memoized gradient colors based on artwork colors
   const gradientColors = useMemo(
@@ -137,18 +216,18 @@ const PlayerScreen = () => {
           artworkColors={book?.artworkColors ?? null}
         />
         <View style={styles.dimOverlay} pointerEvents='none' />
-        <View style={styles.overlayContainer}>
+        <View style={overlayContainerStyle}>
           <DismissIndicator />
 
           {/* Memoized artwork component - only re-renders when artwork/width changes */}
           <PlayerArtwork
             artwork={book?.artwork}
-            width={artworkWidth}
-            height={FIXED_ARTWORK_HEIGHT}
+            width={artworkSize.width}
+            height={artworkSize.height}
             onLongPress={handleArtworkLongPress}
           />
 
-          <Spacer flex={1} maxHeight={normalizeSize(50)} />
+          <Spacer flex={1} maxHeight={SPACER_MAX_ABOVE_CHAPTERS} />
 
           {/* Chapter trigger - navigates to chapter list screen */}
           <PlayerChaptersModal
@@ -156,7 +235,7 @@ const PlayerScreen = () => {
             darkestColor={gradientColors[3]}
           />
 
-          <Spacer flex={1.4} maxHeight={normalizeSize(70)} />
+          <Spacer flex={1.4} maxHeight={SPACER_MAX_ABOVE_PROGRESS} />
 
           {/* Progress bar uses Reanimated shared values - no React re-renders */}
           <PlayerProgressBar />
@@ -166,7 +245,7 @@ const PlayerScreen = () => {
             <BookTimeRemaining size={16} color={colors.textMuted} />
           </View>
 
-          <Spacer flex={1} maxHeight={normalizeSize(50)} />
+          <Spacer flex={1} maxHeight={SPACER_MAX_ABOVE_CONTROLS} />
 
           {/* Memoized controls - uses Reanimated for button animations */}
           <PlayerControls />

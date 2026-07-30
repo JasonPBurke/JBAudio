@@ -54,10 +54,18 @@ export const PlayerArtwork = React.memo(
 
 PlayerArtwork.displayName = 'PlayerArtwork';
 
+/**
+ * Vertical margins around the cover art. Exported because player.tsx has to
+ * subtract them when working out how much height is left over for the artwork
+ * itself — see PLAYER_CHROME_HEIGHT there.
+ */
+export const ARTWORK_MARGIN_TOP = normalizeSize(60);
+export const ARTWORK_MARGIN_BOTTOM = normalizeSize(30);
+
 const styles = StyleSheet.create({
   container: {
-    marginTop: normalizeSize(60),
-    marginBottom: normalizeSize(30),
+    marginTop: ARTWORK_MARGIN_TOP,
+    marginBottom: ARTWORK_MARGIN_BOTTOM,
     alignSelf: 'center',
   },
   image: {

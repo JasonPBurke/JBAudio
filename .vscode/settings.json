@@ -1,4 +1,20 @@
 {
+	// Keep VS Code's file watcher off directories that never need live
+	// watching. Each entry here is one inotify watch per directory saved,
+	// and `fs.inotify.max_user_watches` is a per-USER budget shared with
+	// watchman, Metro and Gradle. node_modules alone is ~22k directories.
+	"files.watcherExclude": {
+		"**/node_modules/**": true,
+		"**/.git/objects/**": true,
+		"**/.git/subtree-cache/**": true,
+		"**/android/build/**": true,
+		"**/android/.gradle/**": true,
+		"**/android/app/build/**": true,
+		"**/android/app/.cxx/**": true,
+		"**/ios/Pods/**": true,
+		"**/ios/build/**": true,
+		"**/.expo/**": true
+	},
 	"cSpell.words": [
 		"Entypo",
 		"mediainfo",
