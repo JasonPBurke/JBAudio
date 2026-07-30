@@ -480,7 +480,7 @@ index 13a6c60..4c529be 100644
  
      override fun removeListeners(count: Double) {
 diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
-index b495b5a..d947e2c 100644
+index b495b5a..ee51b8c 100644
 --- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
 +++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
 @@ -46,14 +46,21 @@ import com.doublesymmetry.trackplayer.utils.BundleUtils.setRating
@@ -588,7 +588,7 @@ index b495b5a..d947e2c 100644
                  sessionCommandsBuilder.build(),
                  playerCommands!!
              )
-@@ -343,6 +385,78 @@ class MusicService : HeadlessJsMediaService() {
+@@ -343,6 +385,77 @@ class MusicService : HeadlessJsMediaService() {
          }
      }
  
@@ -656,18 +656,17 @@ index b495b5a..d947e2c 100644
 +                "com.google.android.projection.gearhead"
 +            )?.also { carArtworkCache[artwork.toString()] = it }
 +            ?: return
-+        // Preserve any query string (?t=... cache-buster from artwork
-+        // replacement) so Coil's cache key changes when the cover changes.
-+        // FileProvider resolves by path only and ignores the query.
-+        track.artwork = artwork.query
-+            ?.let { contentUri.buildUpon().encodedQuery(it).build() }
-+            ?: contentUri
++        // artworkToContentUri already carried over the ?t=... cache-buster and
++        // granted that exact uri, so this is ready to hand out as-is. Do NOT
++        // re-append the query here: the resulting uri would no longer match the
++        // grant, which is the bug this replaced.
++        track.artwork = contentUri
 +    }
 +
      @MainThread
      fun add(track: Track) {
          add(listOf(track))
-@@ -350,18 +464,21 @@ class MusicService : HeadlessJsMediaService() {
+@@ -350,18 +463,21 @@ class MusicService : HeadlessJsMediaService() {
  
      @MainThread
      fun add(tracks: List<Track>) {
@@ -689,7 +688,7 @@ index b495b5a..d947e2c 100644
          player.load(track.toAudioItem())
      }
  
-@@ -490,6 +607,8 @@ class MusicService : HeadlessJsMediaService() {
+@@ -490,6 +606,8 @@ class MusicService : HeadlessJsMediaService() {
      fun updateMetadataForTrack(index: Int, bundle: Bundle) {
          tracks[index].let { currentTrack ->
              currentTrack.setMetadata(reactContext, bundle, 0)
@@ -698,7 +697,7 @@ index b495b5a..d947e2c 100644
  
              player.replaceItem(index, currentTrack.toAudioItem())
          }
-@@ -671,15 +790,55 @@ class MusicService : HeadlessJsMediaService() {
+@@ -671,15 +789,55 @@ class MusicService : HeadlessJsMediaService() {
          return bundle
      }
  
@@ -754,7 +753,7 @@ index b495b5a..d947e2c 100644
          val payload = Arguments.createArray()
          data.forEach { payload.pushMap(Arguments.fromBundle(it)) }
  
-@@ -694,6 +853,12 @@ class MusicService : HeadlessJsMediaService() {
+@@ -694,6 +852,12 @@ class MusicService : HeadlessJsMediaService() {
      override fun onBind(intent: Intent?): IBinder? {
          val intentAction = intent?.action
          Timber.d("intentAction = $intentAction")
@@ -767,7 +766,7 @@ index b495b5a..d947e2c 100644
          return if (intentAction != null) {
              super.onBind(intent)
          } else {
-@@ -708,8 +873,12 @@ class MusicService : HeadlessJsMediaService() {
+@@ -708,8 +872,12 @@ class MusicService : HeadlessJsMediaService() {
      }
  
      override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
@@ -782,7 +781,7 @@ index b495b5a..d947e2c 100644
      }
  
      @MainThread
-@@ -787,14 +956,20 @@ class MusicService : HeadlessJsMediaService() {
+@@ -787,14 +955,20 @@ class MusicService : HeadlessJsMediaService() {
  
      @MainThread
      override fun onHeadlessJsTaskFinish(taskId: Int) {
@@ -806,7 +805,7 @@ index b495b5a..d947e2c 100644
              player.destroy()
          }
  
-@@ -862,6 +1037,185 @@ class MusicService : HeadlessJsMediaService() {
+@@ -862,6 +1036,201 @@ class MusicService : HeadlessJsMediaService() {
          val service = this@MusicService
      }
  
@@ -875,9 +874,25 @@ index b495b5a..d947e2c 100644
 +
 +    private fun artworkToContentUri(fileUriStr: String, authority: String, browserPkg: String): Uri? {
 +        return try {
-+            val path = Uri.parse(fileUriStr).path ?: return null
++            val parsed = Uri.parse(fileUriStr)
++            val path = parsed.path ?: return null
 +            val file = File(path).canonicalFile
-+            val contentUri = FileProvider.getUriForFile(this, authority, file)
++            val base = FileProvider.getUriForFile(this, authority, file)
++
++            // Carry over any query string (the ?t=... cache-buster added by
++            // artwork replacement) BEFORE granting, and grant this exact uri.
++            //
++            // Uri permission matching is not path-only. Granting .../x.webp and
++            // then handing the media session .../x.webp?t=123 leaves the read
++            // ungranted: FileProvider does ignore the query when it opens the
++            // file, but that happens AFTER the permission check, so the mismatch
++            // surfaces as a SecurityException on every artwork load — measured at
++            // ~1/sec while playing a book whose cover came from cover search.
++            // SystemUI falls back to the in-band bitmap, so the cover still
++            // renders and the only visible symptom is log spam.
++            val contentUri = parsed.query
++                ?.let { base.buildUpon().encodedQuery(it).build() }
++                ?: base
 +
 +            // Grant to the subscribing browser (logged to diagnose unexpected packages).
 +            Timber.d("AA artwork grant: browserPkg=$browserPkg uri=$contentUri")
@@ -992,7 +1007,7 @@ index b495b5a..d947e2c 100644
      private inner class InnerMediaSessionCallback : MediaLibrarySession.Callback {
          // HACK: I'm sure most of the callbacks were not implemented correctly.
          // ATM I only care that andorid auto still functions.
-@@ -925,12 +1279,107 @@ class MusicService : HeadlessJsMediaService() {
+@@ -925,12 +1294,107 @@ class MusicService : HeadlessJsMediaService() {
              }
          }
  
@@ -1100,7 +1115,7 @@ index b495b5a..d947e2c 100644
              player.forwardingPlayer.let {
                  when (command.customAction) {
                      CustomCommandButton.JUMP_BACKWARD.customAction -> { it.seekBack() }
-@@ -955,14 +1404,43 @@ class MusicService : HeadlessJsMediaService() {
+@@ -955,14 +1419,43 @@ class MusicService : HeadlessJsMediaService() {
              )
          }
  
@@ -1147,7 +1162,7 @@ index b495b5a..d947e2c 100644
          }
  
          override fun onSetRating(
-@@ -1029,5 +1507,16 @@ class MusicService : HeadlessJsMediaService() {
+@@ -1029,5 +1522,16 @@ class MusicService : HeadlessJsMediaService() {
  
          const val DEFAULT_JUMP_INTERVAL = 15.0
          const val DEFAULT_STOP_FOREGROUND_GRACE_PERIOD = 5
