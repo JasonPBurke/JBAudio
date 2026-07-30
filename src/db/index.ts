@@ -20,8 +20,9 @@ const adapter = new SQLiteAdapter({
   // additional installation steps have to be taken - disable if you run into issues...)
   jsi: true /* Platform.OS === 'ios' */,
   // (optional, but you should implement this method)
-  onSetUpError: (_error) => {
+  onSetUpError: (error) => {
     // Database failed to load -- offer the user to reload the app or log out
+    console.error('WatermelonDB setup failed:', error);
   },
 });
 
