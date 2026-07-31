@@ -54,7 +54,6 @@ app-example
 
 # md prompt files
 plans
-docs
 skills-lock.json
 
 .env.local
