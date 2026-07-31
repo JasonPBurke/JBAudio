@@ -53,7 +53,7 @@ sentry.properties
 app-example
 
 # md prompt files
-plans
+/plans
 skills-lock.json
 
 .env.local
