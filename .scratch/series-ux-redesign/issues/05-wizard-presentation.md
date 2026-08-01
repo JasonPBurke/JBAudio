@@ -1,15 +1,10 @@
 # 05 — Wizard presentation: overlay or full-screen push?
 
 Type: prototype
-Status: open
+Status: resolved
 Blocked by: (none)
-Claim released: 2026-07-31 — worked in one session, decision deferred by the
-driver. Back on the frontier. The build work is DONE and recorded below; only the
-replace-vs-cover decision remains, so resuming costs a look at the device and an
-answer, not a rebuild.
+Resolved: 2026-08-01 — driver chose push over sheet. See Answer.
 
-**Open sub-question:** sheet presentation + 0.95 detent is settled; the
-**animation direction** (`slide_from_bottom` vs `slide_from_right`) is not.
 Parent: [map.md](../map.md)
 
 ## Question
@@ -202,7 +197,10 @@ it can disagree with the source until then.
 
 ## Answer
 
-_(unresolved — the driver deferred the decision on 2026-07-31)_
+**Push retained.** The wizard stays an opaque full-screen push
+(`slide_from_right`) — no code change, since the branch was already reverted to
+this state (see Branch state above). The `formSheet` alternative was built,
+verified technically viable, and rejected.
 
 ### What is settled
 
@@ -214,20 +212,30 @@ _(unresolved — the driver deferred the decision on 2026-07-31)_
 - `animation` is inert under `formSheet` (§4).
 - The clipped-row bug is **not** fixed by this (§2). The `listKey` workaround stays.
 
-### The one open question
+### Candidates considered
 
 **Should entering the wizard replace the library (push) or cover it (sheet)?**
-Candidates, in the order they were considered:
 
 1. **Sheet at 0.95** — matches every other focused flow in the app; the driver
    picked 0.95 over 0.92 on-device, but *before* learning the direction and
-   presentation are coupled, so re-confirm rather than assume.
-2. **Push** — full-screen room, strongest "you have left the library" signal, but
-   remains the app's only screen that behaves this way.
-3. **Sheet with other detents** — 0.85 / 0.90 / `fitToContents` unrecorded.
+   presentation are coupled. Not chosen.
+2. **Push — CHOSEN.** Full-screen room, the strongest "you have left the
+   library" signal. Remains the app's only screen that behaves this way; that
+   tradeoff is accepted, not resolved away.
+3. **Sheet with other detents** — 0.85 / 0.90 / `fitToContents` unrecorded. Moot.
 4. **`transparentModal`** — fade over a dimmed library, as `editTitleDetails` and
-   `chapterList` do. Keeps context, and being a non-sheet it can animate freely.
-   **Not yet built.**
+   `chapterList` do. Not built. Moot.
+
+### Consequences
+
+- **No code change.** `src/app/_layout.tsx` and `SeriesHome.tsx` stay as they are
+  on `HEAD` — this ticket's `formSheet` experiment already left no trace.
+- **The "jarring" transition is not fixed by this decision.** If it's revisited,
+  it lives in the **Wizard flow shape as fallback** fog item on the map, not
+  here — this ticket's question was presentation only, not the wizard's steps.
+- **The clipped-row "second prize" does not materialize.** Hypothesis 6 was
+  refuted regardless of which way this decision went (§2) — the `listKey`
+  remount workaround in `SeriesHome.tsx:81` stays.
 
 ### Emulator caveat for the next session
 

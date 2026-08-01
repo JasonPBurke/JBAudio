@@ -83,6 +83,18 @@ Sharpened by ticket 06; used loosely until then.
   press can exit the app entirely — a "tap" then lands on the Android launcher.
 - Navigator `screenOptions` changes do **not** apply via fast refresh; they need a
   full JS reload.
+- **`pidof` does NOT prove the app is foregrounded** — a stray back press dropped it
+  to the Android launcher while `pidof` still returned a pid, and the next scripted
+  swipes scrolled the launcher. Use
+  `adb shell dumpsys window | grep mCurrentFocus`, which names the focused activity.
+  This supersedes the `pidof` advice above. Also: **`console.table` does not forward
+  to the Metro log** — use formatted `console.log`.
+- **A book cell can only render a book that is in the library store.** `SeriesHome`
+  passes a bare `bookId` to `BookGridItem`, which re-resolves it from
+  `useLibraryStore`; an unresolvable id renders a size-accurate **blank** cell
+  (`BookGridItem.tsx:265`). Any variant, and any future "proposal" concept from
+  ticket 02, has to respect this — or render from the `Book` objects that
+  `DerivedSeries.books` already carries and that `SeriesHome` currently throws away.
 - The existing implementation is **functional and device-verified**. Treat it as a
   **resource, not a constraint**.
 
@@ -128,6 +140,24 @@ Sharpened by ticket 06; used loosely until then.
   web only; ABS mobile reuses one card geometry — so 08 should prototype
   divergence, not assume it.
 
+- [04 — Stand up the prototype harness](issues/04-prototype-harness.md)
+  — **Built and device-verified**, lives in `src/prototypes/` (JS-only, no rebuild).
+  Two orthogonal knobs — **Variant** and **Data** — plus two variants (`Baseline`,
+  `Numbered`) so the switcher has an A/B partner. `Stress ×15` covers every listed
+  shape and three bonus ones from ticket 03, all verified on device. **Writes nothing
+  to the DB**: schema v32 has no canonical-number column, so a DB-backed injector
+  could not have produced the Dresden-gaps dataset at all — and "clear synthetic"
+  is therefore a true restore. Real-code footprint is three commented lines in the
+  library screen; `SeriesHome` is untouched. Adding a variant for 08 = copy a file,
+  add one row. **08 now waits only on 06 and 07.**
+
+- [05 — Wizard presentation: overlay or full-screen push?](issues/05-wizard-presentation.md)
+  — **Push retained**, no code change. The `formSheet` alternative (0.95 detent)
+  was built and read as a proper overlay, but the driver chose push's stronger
+  "you have left the library" signal anyway. Didn't fix the clipped-row bug
+  either way (hypothesis 6 refuted on-device). The "jarring" complaint that
+  opened this ticket stays open — folded into the wizard-flow-shape fog.
+
 ## Not yet specified
 
 In scope, but not yet sharp enough to ticket. Graduates as the frontier advances.
@@ -157,8 +187,9 @@ In scope, but not yet sharp enough to ticket. Graduates as the frontier advances
 Ruled beyond this destination. Does not graduate.
 
 - **The clipped-row bug as a standalone hunt.** Deferred by the driver;
-  5 hypotheses already refuted. Tickets 05 and 08 may dissolve it as a side
-  effect, but chasing it is not on the route.
+  6 hypotheses now refuted (05's formSheet test was the 6th). 05 did **not**
+  dissolve it as a side effect — 08 is the one remaining ticket that could,
+  but chasing it directly is still not on the route.
 - **Merging to `main`.** Both series branches stay open.
 - **The implementation itself.** This map ends at an approved spec.
 - **Auto-generating series from an online database** (Audible/Goodreads lookup).

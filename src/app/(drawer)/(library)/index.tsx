@@ -1,6 +1,5 @@
 import BooksHome from '@/components/BooksHome';
 import BooksGrid from '@/components/BooksGrid';
-import SeriesHome from '@/components/SeriesHome';
 import SearchBar, { SEARCH_BAR_HEIGHT } from '@/components/SearchBar';
 import { defaultStyles } from '@/styles';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -10,8 +9,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Header from '@/components/Header';
 import { useScanExternalFileSystem } from '@/hooks/useScanExternalFileSystem';
 import { useLibraryStore } from '@/store/library';
-import { useDerivedSeries } from '@/store/seriesStore';
 import { useSeriesDraftStore } from '@/store/seriesDraftStore';
+// THROWAWAY — Series UX redesign prototype harness (ticket 04). These two
+// imports and their two use sites below are the harness's ENTIRE footprint in
+// real code; both are no-ops in a production build. Delete them together with
+// `src/prototypes/` when the effort ends — see src/prototypes/README.md.
+import { useSeriesSource } from '@/prototypes/useSeriesSource';
+import SeriesProtoSlot from '@/prototypes/SeriesProtoSlot';
 import {
   countSeriesByState,
   filterSeriesBySearch,
@@ -199,7 +203,9 @@ const LibraryScreen = ({ navigation }: any) => {
   }, [selectedTab, searchFilteredAuthors]);
 
   // --- Series view data (toggleView === 1) ---
-  const allSeries = useDerivedSeries();
+  // THROWAWAY (ticket 04): `useSeriesSource` IS `useDerivedSeries` unless the
+  // prototype harness has a synthetic preset selected in a __DEV__ build.
+  const allSeries = useSeriesSource();
 
   // Search filters series by name OR contained book title.
   const seriesSearchFiltered = useMemo(
@@ -303,7 +309,9 @@ const LibraryScreen = ({ navigation }: any) => {
             />
           )}
           {toggleView === 1 && (
-            <SeriesHome
+            /* THROWAWAY (ticket 04): renders the real SeriesHome unless a
+               prototype variant is selected in a __DEV__ build. */
+            <SeriesProtoSlot
               series={tabFilteredSeries}
               activeGridSections={activeSeriesSections}
               setActiveGridSections={setActiveSeriesSections}

@@ -1,0 +1,102 @@
+# Series prototype harness — THROWAWAY
+
+Built for `.scratch/series-ux-redesign/issues/04-prototype-harness.md`. It exists so
+ticket 08 (browse presentation) can be judged against a library that is big, ugly and
+varied, on `Pixel_7_Pro`, with no rebuild and no risk to the real database.
+
+**Delete the whole thing when the effort ends** — see [Deleting it](#deleting-it).
+
+## Using it
+
+1. Metro dev build, Library screen, switch to the **Series** view (the Layers toggle).
+2. Bottom-left there is a small `proto · Baseline` pill. Tap it.
+3. **Variant** picks which browse implementation renders. **Data** picks the dataset.
+4. `Log dataset` dumps a `console.table` of what is currently rendered — series name,
+   book count, forced progress state, canonical numbers, and what each row stresses.
+
+Both knobs persist across full JS reloads (AsyncStorage), because navigator work forces
+those and losing your place mid-A/B is exactly the friction this removes. When synthetic
+data is live the pill carries a coloured dot and the open panel says so in the accent
+colour, so a persisted "on" can never be mistaken for the real library.
+
+## The two knobs are orthogonal
+
+Variant and dataset are independent on purpose: a layout that only works on the calm
+dataset is as wrong as one that only works under stress, and you cannot see that unless
+you can hold one knob still while turning the other.
+
+## Datasets
+
+| Preset       | What it is                                                     |
+| ------------ | -------------------------------------------------------------- |
+| `Real DB`    | the actual `series` rows on the device — the harness is inert   |
+| `Stress ×15` | 15 fabricated series covering every shape ticket 04 listed      |
+| `Calm ×3`    | 3 ordinary series — the control                                 |
+
+`Stress ×15` covers, in one list: a 22-book series, a 1-book series, a 95-character name,
+~15 series at once, one series each of all-unplayed / mixed / all-finished, three series
+sharing the same books, and gaps in canonical numbering (Dresden `1, 3, 4, 8`). It also
+carries three shapes ticket 03's research turned up as real: a decimal number (`4.5`),
+numbering that starts at 4, and a series with no numbering at all.
+
+## Two constraints worth knowing before you edit it
+
+**Synthetic series may reference only REAL book ids.** `SeriesHome` passes a bare
+`bookId` to `BookGridItem`, which re-resolves it from `useLibraryStore`; an invented id
+renders as a size-accurate *blank* cell (`BookGridItem.tsx:265`). So a 22-book series over
+an 8-book emulator is built by **repeating** real books, never by cloning them with fake
+ids. Every cover, title, duration and progress ring therefore stays real, and nothing is
+written to the library store.
+
+The repeats are why `variants/BaselineSeriesHome.tsx` is a *copy* of `SeriesHome` rather
+than an import: the shipping `keyExtractor` is `${seriesId}-${bookId}`, which collides on
+a repeat. The copy adds an index suffix and strips the `[rowprobe]` logging; nothing else
+differs, and nothing else should. (The collapsed horizontal row needs no fix —
+`BooksHorizontal` passes no `keyExtractor`, so FlashList falls back to the index.)
+
+**Nothing is written to the database.** Schema v32 has no column for a canonical published
+number and `DerivedSeries` has no field for one — the very thing ticket 07 still has to
+decide. A DB-backed injector could not express the Dresden-gaps dataset this ticket asks
+for. Building rows in memory sidesteps the schema *and* makes "clear synthetic series" a
+true restore rather than a best-effort cleanup.
+
+`ProtoSeries` is `DerivedSeries` widened with `canonicalNumbers` and `stresses`. Because
+the library screen's filters pass objects through by reference, those fields survive the
+search/tab pipeline even though its types erase them — variants re-widen with a cast.
+
+## Adding a variant (this is what ticket 08 does)
+
+1. Copy `variants/BaselineSeriesHome.tsx`, change what you are testing.
+2. Add one row to `VARIANTS` in `variants.ts`.
+3. Fast-refresh. It is in the switcher.
+
+Prototype code is throwaway: no jest, no tablet pass, no font-scale pass. It does hold the
+repo's `tsc`/eslint-zero-errors line, because breaking that costs every other session time.
+
+## Footprint in real code
+
+Three edits, all in `src/app/(drawer)/(library)/index.tsx`, all marked `THROWAWAY`:
+
+- `useDerivedSeries()` → `useSeriesSource()`
+- `<SeriesHome …>` → `<SeriesProtoSlot …>`
+- the two imports for those
+
+Injecting the data *above* the screen's search/tab/count pipeline is what makes the
+tab-filtering dataset meaningful: `countSeriesByState`, `filterSeriesBySearch` and the tab
+filter all run over synthetic rows exactly as they run over real ones, with no branching in
+real code.
+
+In a production build `__DEV__` is false: `useSeriesSource` returns the real store output
+and `SeriesProtoSlot` renders the real `SeriesHome`. No variant or panel module is reached.
+The one production cost is a single Zustand selector over a store that never changes.
+
+## Deleting it
+
+```
+rm -rf src/prototypes
+```
+
+then in `src/app/(drawer)/(library)/index.tsx` restore the three `THROWAWAY` sites:
+re-import `SeriesHome` from `@/components/SeriesHome` and `useDerivedSeries` from
+`@/store/seriesStore`, and put both back at their use sites. `src/components/SeriesHome.tsx`
+was never modified, so there is nothing to revert there.
