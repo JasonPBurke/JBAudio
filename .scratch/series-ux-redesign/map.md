@@ -30,15 +30,23 @@ React Compiler. FlashList 2.3.2, Reanimated 4.2.1, react-native-sortables 1.10.0
 WatermelonDB (**schema v32** on this branch; `main` is v31), Zustand, FastImage,
 custom MediaInfo turbomodule.
 
-### Provisional vocabulary
+### Vocabulary
 
-Sharpened by ticket 06; used loosely until then.
+Sharpened by ticket 06 (2026-08-02); no longer provisional.
 
-- **Series** — an ordered, named, user-authored set of books. Doubles as a
-  **personal playlist**; no decision may foreclose that (original spec, §Summary).
+- **Series** — an ordered, named set of books, **identified by its `name`**.
+  May be authored by a human or inferred by the detector — see *Origin*. Doubles
+  as a **personal playlist**; no decision may foreclose that (original spec,
+  §Summary).
 - **Edition** — a distinct recording of the same series (Discworld/Nigel Planer
-  vs Discworld 2022 full cast). Whether this is part of series *identity* is
-  **unsettled** — ticket 06.
+  vs Discworld 2022 full cast). **Settled by 06: NOT part of series identity.**
+  It is a *naming convention* (`Discworld (2022)`), carried in the name and
+  filled from the folder — there is no `edition` column and no series grouping
+  level. Two editions are simply two series with two names.
+- **Origin** — `series.origin: 'detected' | 'user'`, who *created* the series
+  (06). The boundary that makes playlists survive wipe-and-regenerate:
+  regeneration may only touch `'detected'`. Whether an edit promotes
+  `'detected'` → `'user'` is ticket 09's.
 - **Position** — 0-based order within the series. Exists today
   (`series_books.position`).
 - **Canonical number** — the book's number in the published series (Dresden #3,
@@ -173,7 +181,7 @@ Sharpened by ticket 06; used loosely until then.
   could not have produced the Dresden-gaps dataset at all — and "clear synthetic"
   is therefore a true restore. Real-code footprint is three commented lines in the
   library screen; `SeriesHome` is untouched. Adding a variant for 08 = copy a file,
-  add one row. **08 now waits only on 06** (07 resolved 2026-08-02).
+  add one row. **08 is now unblocked** (07 resolved 2026-08-02, 06 on 2026-08-02).
 
 - [05 — Wizard presentation: overlay or full-screen push?](issues/05-wizard-presentation.md)
   — **Push retained**, no code change. The `formSheet` alternative (0.95 detent)
@@ -222,6 +230,28 @@ Sharpened by ticket 06; used loosely until then.
   12 flat folders are missing (298 + 35 = 333 vs 350 on device) — accuracy
   figures hold, coverage figures are lower bounds.
 
+- [06 — Series identity: is a series `name`, or `name × edition`?](issues/06-series-identity-edition.md)
+  — **A series is identified by its `name`. Edition is not first-class.** The
+  ticket's premise had already dissolved: 02's collision check emits
+  `"Discworld"` (41) and `"Discworld (2022)"` (39) as two **already
+  name-distinct** series — across all 28 emitted series that is the *only*
+  edition pair and there is **no name collision anywhere** in the library — so
+  the forcing case costs **zero schema change**. Edition is a naming convention
+  filled from the folder; no `edition` column (narrator can't populate it —
+  absent on 39/41 classic Discworld), no `series_group` (a second hierarchy
+  level in every screen for a case occurring once in 350 titles). **The
+  duplicate-name rule survives untouched** — this ticket predicted it "must
+  change" and it doesn't; `seriesName.ts` needs **no code change**. Detector-
+  generated collisions **disambiguate** (parent folder, then ` (2)`) — never
+  merge (that recombines the 80-book/39-doubled-number series 02 exists to
+  prevent), never abstain (the detector holds a validated split). One new
+  column: **`series.origin: 'detected' | 'user'`**, mirroring 07's
+  `canonical_source`, which makes "never foreclose personal playlists"
+  structural — regeneration may only touch `'detected'`. `origin` records
+  *creation* only; whether an edit promotes it is **09's**. Detection creates
+  the edition split **without a confirmation gate**. Unblocks
+  [08](issues/08-browse-presentation.md).
+
 ## Not yet specified
 
 In scope, but not yet sharp enough to ticket. Graduates as the frontier advances.
@@ -242,18 +272,25 @@ In scope, but not yet sharp enough to ticket. Graduates as the frontier advances
   "number sequentially from current order" action belongs here is open: it would
   number all 39 of the 2022 Discworld units in one tap, but on a gapped set it
   stamps 1,2,3,4 over 1,3,4,8 and destroys the distinction 07 exists to draw.
-  Waits on 06 and [09](issues/09-auto-generate-series-setting.md).
+  **06 adds one more occupant**: renaming is now an edit to a series' *identity*,
+  not its label, so the rename affordance is load-bearing here. Waits on
+  [09](issues/09-auto-generate-series-setting.md) alone.
 - **`titleDetails` integration** — what series info a book's detail screen shows,
   and whether membership can be edited book-first rather than series-first.
 - **Consolidated schema decisions** — **canonical number settled by 07**
   (`series_books.canonical_number` + `canonical_source`, schema v33). **Detection
   confidence settled by 02**: a tier (`certain`/`likely`/`possible`/`guess`) plus
   a reason string, never a float — so the column is small and the `why` trail is
-  what any explanatory UI reads. Still open: **edition** (06), an override marker
-  for series **membership and naming** as distinct from the number (now owned by
-  [09](issues/09-auto-generate-series-setting.md), because wipe-and-regenerate is
-  what makes it load-bearing), and **series artwork**. Whether these ship as one
-  migration or several is the remaining coherence question.
+  what any explanatory UI reads. **Edition settled by 06 and it costs nothing** —
+  identity is `name`, so there is no `edition` column and no grouping table;
+  06 adds exactly one column, **`series.origin` (`'detected' | 'user'`)**. Still
+  open: an override marker for series **membership and naming** as distinct from
+  the number (now owned by [09](issues/09-auto-generate-series-setting.md),
+  because wipe-and-regenerate is what makes it load-bearing — and 09 must also
+  rule whether an edit *promotes* `origin`), and **series artwork**. Whether
+  these ship as one migration or several is the remaining coherence question;
+  the running total is now **three columns across two tables** (07's two on
+  `series_books`, 06's one on `series`).
 - **Wizard flow shape as fallback** — the 3-step funnel may be wrong once the
   review surface absorbs part of its job. Fold in the defects logged in
   [05](issues/05-wizard-presentation.md): the inactive Next/Save button renders
