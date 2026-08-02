@@ -1,0 +1,49 @@
+
+A. FOLDER EVIDENCE PERMITTED (self-validated per library)
+  coverage of in-series units      187/236  (79.2%)
+  proposed series                  29
+  grouping purity, edition-blind   98.4%   (3/190 misplaced)
+  grouping purity, edition-aware   77.9%   (42/190 misplaced)
+  display name correct             179/190  (94.2%)
+  canonical number correct         169/175  (96.6%)
+  standalones swept into a series  0
+
+   tier       units   grouping-correct   name-correct   number-correct
+   certain      109           100%          100%            100%
+   likely        22           100%           64%            100%
+   possible      45            93%           93%             85%
+   guess         14           100%          100%            100%
+
+B. PORTABLE SIGNALS ONLY (user declined the folder switch)
+  coverage of in-series units      128/236  (54.2%)
+  proposed series                  26
+  grouping purity, edition-blind   100.0%   (0/131 misplaced)
+  grouping purity, edition-aware   92.4%   (10/131 misplaced)
+  display name correct             123/131  (93.9%)
+  canonical number correct         120/120  (100.0%)
+  standalones swept into a series  0
+
+   tier       units   grouping-correct   name-correct   number-correct
+   certain      109           100%          100%            100%
+   likely        22           100%           64%            100%
+
+
+WHAT THE CASCADE ABSTAINS ON (folder-permitted run) -- 49 units, by cause:
+   7  Ender Saga               album="001 - Enders Game"  folder="Enders Game"
+   4  Drenai                   album="Legend (Unabridged)"  folder="Drenai Series, Books 1-5"
+   4  Formic Wars              album="Ender09 - Earth Unaware"  folder="Enders Game"
+   4  The Science of Discworld album="The Science of Discworld I"  folder="The Science of Discworld"
+   3  Rivers of London         album="Rivers of London (Midnight Riot)"  folder="Ben Aaronovitch - Rivers of London Series [2011-2022]"
+   3  Bas-Lag                  album="Perdido Street Station"  folder="2000 - Perdido Street Station"
+   3  Hyperion Cantos          album="Endymion"  folder="The Hyperion Cantos - Dan Simmons"
+   3  The Books of Babel       album="Arm of the Sphinx (Unabridged)"  folder="Josiah Bancroft"
+   3  Founders Trilogy         album="Foundryside: A Novel"  folder="Founders Trilogy"
+   3  Gentlemen Bastards       album="The Lies of Locke Lamora (Unabridged)"  folder="Gentlemen Bastards"
+   2  Barsoom                  album="The Gods of Mars"  folder="gofmars_tc_1302_librivox"
+   2  Dungeon Crawler Carl     album="Operation Bounce House"  folder=""
+   2  Red Rising               album="Red Rising (Unabridged)"  folder=""
+   2  Legends & Lattes         album="Legends and Lattes"  folder=""
+   1  Blacktongue              album="The Blacktongue Thief"  folder="Blacktongue"
+   1  Hierarchy                album="The Will of the Many (Unabridged)"  folder="James Islington - The Will of the Many"
+   1  The Murderbot Diaries    album="All Systems Red"  folder=""
+   1  Shadow of the Leviathan  album="The Tainted Cup"  folder=""

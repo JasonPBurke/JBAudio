@@ -1,7 +1,7 @@
 # 02 — Detection cascade: what rules get it right, and how do they fail?
 
 Type: prototype
-Status: open
+Status: claimed
 Blocked by: 01
 Parent: [map.md](../map.md)
 
