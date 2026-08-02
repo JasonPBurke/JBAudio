@@ -228,7 +228,8 @@ function detect(units, options = {}) {
     if (c.nameOk >= need) { accepted.push({ ...c, mode: 'name-corroborated' }); continue; }
     // number corroboration: most members carry a number but nothing names the series
     if (c.numOk >= Math.ceil(c.size * 0.6) && c.size >= 3) { accepted.push({ ...c, mode: 'number-corroborated' }); continue; }
-    accepted.push({ ...c, mode: 'uncorroborated' });
+    if (opts.acceptUncorroborated && c.size >= opts.acceptUncorroborated) { accepted.push({ ...c, mode: 'uncorroborated' }); continue; }
+    accepted.push({ ...c, mode: 'uncorroborated-rejected' });
   }
   // deepest accepted cluster wins for a unit (sub-series beats parent)
   const clusterFor = new Map();
@@ -248,11 +249,13 @@ function detect(units, options = {}) {
     if (p.portable) {
       name = p.portable.name; key = p.portable.key; why = [...p.portable.evidence];
       conf = p.portable.tier >= 3 ? 4 : (p.portable.agree || p.portable.tier >= 2 ? 3 : 3);
-      if (c && !c.rejected && c.mode !== 'uncorroborated' && c.key === key) { conf = 4; why.push('folder:' + c.mode); }
+      if (c && !c.rejected && !String(c.mode).startsWith('uncorroborated') && c.key === key) { conf = 4; why.push('folder:' + c.mode); }
     } else if (c && opts.trustFolders && c.mode === 'name-corroborated') {
       name = c.display; key = c.key; conf = 2; why = ['folder:name-corroborated(' + c.nameOk + '/' + c.size + ')'];
     } else if (c && opts.trustFolders && c.mode === 'number-corroborated') {
       name = c.display; key = c.key; conf = 1; why = ['folder:number-corroborated(' + c.numOk + '/' + c.size + ')'];
+    } else if (c && opts.trustFolders && c.mode === 'uncorroborated') {
+      name = c.display; key = c.key; conf = 1; why = ['folder:UNCORROBORATED(' + c.size + ' books, nothing in the tags agrees)'];
     }
     if (num == null && folderNum != null && name) { num = folderNum; why.push('num:folder'); }
     return { rel: p.unit.rel, file: p.unit.file, flat: p.unit.flat, album: p.unit.album,

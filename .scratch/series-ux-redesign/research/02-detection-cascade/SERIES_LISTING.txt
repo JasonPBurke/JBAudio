@@ -1,0 +1,312 @@
+
+============================================================================
+A.  SELF-VALIDATED  (tags agree, or the folder is corroborated by its own members)
+============================================================================
+
+"Discworld"  -- 80 books  [33 possible, 47 certain]  <== MIXES 2 REAL SERIES
+         #1  The Colour of Magic                                       
+         #1  Discworld 01 - The Colour of Magic                        
+         #2  The Light Fantastic                                       
+         #2  Discworld 02 - The Light Fantastic                        
+         #3  Equal Rites                                               
+         #3  Discworld 03 - Equal Rites                                
+         #4  Mort (#4)                                                 
+         #4  Discworld 04 - Mort                                       
+         #5  Sourcery (#5)                                             
+         #5  Discworld 05 - Sourcery                                   
+         #6  Discworld 06 -  Wyrd Sisters                              
+         #7  Pyramids: Discworld, Book 7                               
+         #7  Discworld 07 - Pyramids                                   
+         #8  Guards! Guards!                                           
+         #8  Discworld 08 - Guards! Guards!                            
+         #9  (#9) Eric                                                 
+         #9  Discworld 09 - Eric                                       
+        #10  Moving Pictures: Discworld, Book 10                       
+        #10  Discworld 10 - Moving Pictures                            
+        #11  (#11) Reaper Man                                          
+        #11  Discworld 11 - Reaper Man                                 
+        #12  Witches Abroad                                            
+        #12  Discworld 12 - Witches Abroad                             
+        #13  Small Gods (#13)                                          
+        #13  Discworld 13 - Small Gods                                 
+        #14  Lords and Ladies                                          
+        #14  Discworld 14 - Lords and Ladies                           
+        #15  Men at Arms                                               
+        #15  Discworld 15 - Men At Arms                                
+        #16  (#16) Soul Music                                          
+        #16  Discworld 16 - Soul Music                                 
+        #17  (#17) Interesting Times                                   
+        #17  Discworld 17 - Interesting Times                          
+        #18  Maskerade                                                 
+        #18  Discworld 18 - Maskerade                                  
+        #19  Feet of Clay                                              
+        #19  Discworld 19 - Feet of Clay                               
+        #20  Hogfather: Discworld, Book 20                             
+        #20  Discworld 20 - Hogfather                                  
+        #21  Jingo                                                     
+        #21  Discworld 21 - Jingo                                      
+        #22  The Last Continent: Discworld, Book 22                    
+        #22  Discworld 22 - The Last Continent                         
+        #23  Carpe Jugulum                                             
+        #23  Discworld 23 - Carpe Jugulum                              
+        #24  The Fifth Elephant                                        
+        #24  Discworld 24 - The Fifth Elephant                         
+        #25  The Truth                                                 
+        #25  Discworld 25 - The Truth                                  
+        #26  Thief of Time (#26)                                       
+        #26  Discworld 26 - Thief of Time                              
+        #27  Discworld 27 - The Last Hero                              
+        #28  The Amazing Maurice and His Educated Rodents (#28)        
+        #28  Discworld 28 - The Amazing Maurice and His Educated Rodent
+        #29  Night Watch: Discworld, Book 29                           
+        #29  Discworld 29 - Night Watch                                
+        #30  The Wee Free Men: Discworld, Book 30                      
+        #30  Discworld 30 - The Wee Free Men                           
+        #31  (#31) Monstrous Regiment                                  
+        #31  Discworld 31 - Monstrous Regiment                         
+        #32  A Hat Full of Sky: Discworld, Book 32                     
+        #32  Discworld 32 - A Hat Full of Sky                          
+        #33  Going Postal                                              
+        #33  Discworld 33 - Going Postal                               
+        #34  Thud!: Discworld, Book 34                                 
+        #34  Discworld 34 - Thud!                                      
+        #35  Wintersmith: Discworld, Book 35                           
+        #35  Discworld 35 - Wintersmith                                
+        #36  Making Money                                              
+        #36  Discworld 36 - Making Money                               
+        #37  Unseen Academicals: Discworld Book, 37                    
+        #37  Discworld 37 - Unseen Academicals                         
+        #38  I Shall Wear Midnight                                     
+        #38  DW38-I Shall Wear Midnight                                
+        #39  Snuff: Discworld, Book 39                                 
+        #39  Snuff                                                     
+        #40  Raising Steam                                             
+        #40  Raising Steam                                             
+        #41  The Shepherd's Crown                                      
+        #41  The Shepherd's Crown                                      
+
+"Dresden Files"  -- 22 books  [21 certain, 1 possible]
+         #1  Storm Front: The Dresden Files, Book 1                    
+         #2  Fool Moon: The Dresden Files, Book 2                      
+         #3  Grave Peril: The Dresden Files, Book 3                    
+         #4  Summer Knight: The Dresden Files, Book 4                  
+         #5  Death Masks: The Dresden Files, Book 5                    
+         #6  Blood Rites: The Dresden Files, Book 6                    
+         #7  Dead Beat: The Dresden Files, Book 7                      
+         #8  Proven Guilty: The Dresden Files, Book 8                  
+         #9  White Night: The Dresden Files, Book 9                    
+        #10  The Dresden Files #10: Small Favor                        
+        #11  The Dresden Files #11: Turn Coat                          
+        #12  The Dresden Files #12: Changes                            
+      #12.5  The Dresden Files #12.5: Side Jobs                        
+        #13  The Dresden Files #13: Ghost Story                        
+        #14  The Dresden Files #14: Cold Days                          
+        #15  The Dresden Files #15: Skin Game                          
+      #15.5  Brief Cases                                               
+        #16  Peace Talks                                               
+        #17  Battle Ground                                             
+      #17.5  The Law                                                   
+        #18  Twelve Months                                             
+          -  Heroic Hearts                                             
+
+"Demon Accords"  -- 17 books  [12 certain, 2 likely, 3 possible]  <== MIXES 2 REAL SERIES
+         #1  Book 01 - God Touched - Demon Accords Series              
+         #1  Volume 01 - The Demon Accords Compendium                   <-- I labelled this "Demon Accords Compendium"
+         #2  Book 02 - Demon Driven - Demon Accords Series             
+         #2  Volume 02 - The Demon Accords Compendium                   <-- I labelled this "Demon Accords Compendium"
+         #3  Book 03 - Brutal Asset - Demon Accords Series             
+         #3  Volume 3 - The Demon Accords Compendium                    <-- I labelled this "Demon Accords Compendium"
+       #3.5  Book 03.5 - Black Frost - Demon Accords Series            
+         #4  Book 04 - Duel Nature - Demon Accords Series              
+         #5  Book 05 - Fallen Stars - Demon Accords Series             
+         #6  Book 06 - Executable - Demon Accords Series               
+         #7  Book 07 - Forced Ascent - Demon Accords Series            
+         #8  Book 08 Part 1 - College Arcane - Demon Accords Series    
+         #8  Book 08 Part 2 - College Arcane - Demon Accords Series    
+         #9  Book 09 - God Hammer - Demon Accords Series               
+        #10  Book 10 - Rogues - Demon Accords Series                   
+        #11  Book 11 - Snake Eyes - Demon Accords Series               
+        #12  Book 12 - Winterfall - Demon Accords Series               
+
+"The Dark Tower"  -- 8 books  [2 possible, 6 certain]
+         #1  The Dark Tower I: The Gunslinger                          
+         #2  The Dark Tower II: The Drawing Of The Three               
+         #4  The Dark Tower IV: Wizard & Glass                         
+         #5  The Dark Tower V: Wolves Of The Calla                     
+         #6  The Dark Tower VI: Song Of Susannah                       
+         #7  The Dark Tower VII: The Dark Tower                        
+          -  LEGENDS - Stories by The Masters of Fantasy                <-- I labelled this #0.5
+          -  1991 - The Waste Lands (DT3 - read by Frank Muller)        <-- I labelled this #3
+
+"The First Law"  -- 7 books  [7 guess]
+         #1  01 - The Blade Itself                                     
+         #2  02 - Before They Are Hanged                               
+         #3  03 - Last Argument of Kings                               
+         #4  04 - Best Served Cold                                     
+         #5  05 - The Heroes                                           
+         #6  06 - Red Country                                          
+         #7  07 - Sharp Ends: Stories from the World of the First Law  
+
+"Mistborn"  -- 6 books  [6 likely]
+         #1  Mistborn 1 (Michael Kramer)                               
+         #2  Mistborn 2 (Michael Kramer)                               
+         #3  Mistborn 3 (Michael Kramer)                               
+         #4  Mistborn 4 (Michael Kramer)                               
+         #5  Mistborn 5 (Michael Kramer)                               
+         #6  Mistborn 6 (Michael Kramer)                               
+
+"Shadow Saga"  -- 6 books  [4 possible, 2 certain]
+         #1  Shadow 1 - Ender's Shadow                                 
+         #3  Shadow 3 - Shadow Puppets                                 
+         #6  Shadow of the Hegemon                                      <-- I labelled this #2
+         #8  008 - Shadow of the Giant                                  <-- I labelled this #4
+         #9  Shadows in Flight                                          <-- I labelled this #5
+        #10  The Last Shadow: Other Tales from the Ender Universe       <-- I labelled this #6
+
+"Lockwood and Co."  -- 5 books  [3 certain, 2 possible]
+         #1  Lockwood and Co Book 1 - The Screaming Staircase          
+         #2  Lockwood and Co Book 2 - The Whispering Skull             
+         #3  Lockwood and Co Book 3 - The Hollow Boy                   
+         #4  Lockwood & Co. - Book 4 - The Creeping Shadow             
+         #5  Lockwood & Co: The Empty Grave                            
+
+"Long Earth"  -- 5 books  [5 certain]
+         #1  (Long Earth 01) The Long Earth                            
+         #2  (Long Earth 02) The Long War                              
+         #3  (Long Earth 03) The Long Mars                             
+         #4  (Long Earth 04) The Long Utopia                           
+         #5  (Long Earth 05) The Long Cosmos                           
+
+"Memory, Sorrow & Thorn"  -- 4 books  [4 guess]
+         #1  01 The Dragonbone Chair                                   
+         #2  02 The Stone of Farewell                                  
+         #3  03 To Green Angel Tower - Siege                           
+         #4  04 To Green Angel Tower - Storm                           
+
+"Crouch, B"  -- 3 books  [3 likely]
+         #1  Crouch, B: 1 Pines                                         <-- I labelled this "Wayward Pines"
+         #2  Crouch, B: 2 Wayward                                       <-- I labelled this "Wayward Pines"
+         #3  Crouch, B: 3 The Last Town                                 <-- I labelled this "Wayward Pines"
+
+"The Age of Madness"  -- 3 books  [3 guess]
+         #1  01 - A Little Hatred                                      
+         #2  02 - The Trouble with Peace                               
+         #3  03 - The Wisdom of Crowds                                 
+
+"Bromeliad"  -- 3 books  [3 certain]
+         #1  Bromeliad 01 - Truckers                                   
+         #2  Bromeliad 02 - Diggers                                    
+         #3  Bromeliad 03 - Wings                                      
+
+"Bobiverse"  -- 2 books  [2 certain]
+         #1  Bobiverse 01 We Are Legion (We Are Bob)                   
+         #2  Bobiverse 02 For We Are Many                              
+
+"The Silo Saga"  -- 2 books  [2 certain]
+         #2  Shift: The Silo Saga, Book 2                              
+         #3  Dust: The Silo Saga, Book 3                               
+
+"Kingkiller Chronicle"  -- 2 books  [2 likely]
+         #1  Kingkiller Chronicle 01 The Name of the Wind              
+         #2  Kingkiller Chronicle 02 The Wise Man's Fear               
+
+"TMC"  -- 2 books  [2 likely]
+         #1  TMC 01 Thursday Murder Club                                <-- I labelled this "Thursday Murder Club"
+         #2  TMC 02 The Man Who Died Twice                              <-- I labelled this "Thursday Murder Club"
+
+"Cerulean Chronicles"  -- 2 books  [2 certain]
+         #1  Cerulean Chronicles 01 - The House in the Cerulean Sea    
+         #2  Cerulean Chronicles 02 - Somewhere Beyond the Sea         
+
+"Blacktongue"  -- 1 books  [1 certain]
+         #2  The Daughters' War                                        
+
+"Hyperion"  -- 1 books  [1 likely]
+         #1  Hyperion: Hyperion, Book 1                                 <-- I labelled this "Hyperion Cantos"
+
+"Waylander"  -- 1 books  [1 likely]
+         #2  Waylander II: In the Realm of the Wolf                     <-- I labelled this "Drenai"
+
+"Warlock Holmes"  -- 1 books  [1 likely]
+         #1  Warlock Holmes 1: A Study in Brimstone                    
+
+"Hierarchy"  -- 1 books  [1 certain]
+         #2  The Strength of the Few                                   
+
+"The Devils"  -- 1 books  [1 likely]
+         #1  The Devils: The Devils, Book 1                            
+
+"The Hexologists"  -- 1 books  [1 certain]
+         #2  A Tangle of Time                                          
+
+"The Murderbot Diaries"  -- 1 books  [1 likely]
+         #7  Martha Wells - The Murderbot Diaries 07 - System Collapse 
+
+"Dungeon Crawler Carl"  -- 1 books  [1 likely]
+         #2  Carl's Doomsday Scenario: Dungeon Crawler Carl, Book 2    
+
+"The Second Formic War"  -- 1 books  [1 likely]
+         #2  The Hive: The Second Formic War, Book 2                    <-- I labelled this "Formic Wars"
+
+"Shadow of the Leviathan"  -- 1 books  [1 certain]
+         #2  A Drop of Corruption                                      
+
+  -> 29 series, 190 books
+
+============================================================================
+B.  UNCORROBORATED FOLDERS  (folder names a series; nothing in the tags confirms it)
+============================================================================
+
+"Enders Game"  -- 7 books  [7 guess]  <== MIXES 3 REAL SERIES
+         #1  001 - Enders Game                                          <-- I labelled this "Ender Saga"
+          -  A War Of Gifts                                             <-- I labelled this "Ender Saga"
+          -  Ender in Exile                                             <-- I labelled this "Ender Saga"
+          -  Ender08 - Short Stories                                    <-- I labelled this a STANDALONE
+          -  First Meetings                                             <-- I labelled this "Ender Saga"
+          -  Children of the Fleet                                      <-- I labelled this "Fleet School"
+          -  Ender08 - Short Stories                                    <-- I labelled this a STANDALONE
+
+"Drenai"  -- 4 books  [4 guess]
+         #1  Legend                                                    
+         #2  The King Beyond the Gate                                  
+         #3  Waylander                                                 
+         #4  Quest for Lost Heroes                                     
+
+"Formic Wars"  -- 4 books  [4 guess]
+         #1  Ender09 - Earth Unaware                                   
+         #2  Earth Afire                                               
+         #3  3 Earth Awakens                                           
+         #4  The Swarm                                                 
+
+"The Science of Discworld"  -- 4 books  [4 guess]
+         #1  The Science of Discworld I                                
+         #2  The Science of Discworld II The Globe                     
+         #3  The Science of Discworld III Darwin's Watch               
+         #4  The Science of Discworld IV Judgement Day                 
+
+"Rivers of London"  -- 3 books  [3 guess]
+          -  Rivers of London (Midnight Riot)                           <-- I labelled this #1
+          -  Moon Over Soho                                             <-- I labelled this #2
+          -  The Masquerades of Spring                                 
+
+"The Hyperion Cantos"  -- 3 books  [3 guess]
+          -  Endymion                                                   <-- I labelled this #3
+          -  The Fall of Hyperion                                      
+          -  The Rise of Endymion                                      
+
+"Speaker Trilogy"  -- 3 books  [3 guess]
+         #2  002 - Speaker for the Dead                                 <-- I labelled this "Ender Saga"
+         #3  Ender03 - Xenocide                                         <-- I labelled this "Ender Saga"
+         #4  Ender04 - Children of the Mind                             <-- I labelled this "Ender Saga"
+
+"Founders Trilogy"  -- 3 books  [3 guess]
+         #1  Foundryside: A Novel                                      
+         #2  Shorefall: A Novel                                        
+         #3  Locklands: A Novel                                        
+
+"Gentlemen Bastards"  -- 3 books  [3 guess]
+         #1  The Lies of Locke Lamora                                  
+         #2  Red Seas Under Red Skies                                  
+         #3  The Republic of Thieves                                   
+
+  -> 9 series, 34 books
