@@ -201,6 +201,27 @@ Sharpened by ticket 06; used loosely until then.
   **Evidence correction to 01: Snuff is Discworld #39 — the folder was right and
   the `.nfo` was wrong.**
 
+- [02 — Detection cascade: what rules get it right, and how do they fail?](issues/02-detection-cascade.md)
+  — **Detection is good enough that review is not the centre of gravity; a
+  settings toggle is.** A precedence waterfall (`extra.SERIES` → `Grouping` →
+  album patterns → folder, each folder cluster **self-validated against its own
+  members' tags**) scores **98.3% grouping purity with 0 standalones swept** at
+  the Conservative level (19 series, 179 books), 97.2% at Full (+9 series from
+  uncorroborated folders, but one visibly wrong `Enders Game` group). **Grouping
+  and naming are different problems and only grouping is expensive** — every
+  surviving name error (`TMC`, `Crouch, B`) has correct grouping, so names are
+  editable defaults. **Editions stay separate via a number-collision check**:
+  repeated canonical numbers inside one proposed series trigger a fall back to
+  the folder split (Discworld 80 → 41 + 39; edition-aware purity 77.9% → 98.3%),
+  and it correctly declines on Demon Accords. Driver rulings: **no folder-consent
+  switch** (self-validation replaces it), **no one-book series** (which also
+  killed three fragment/parent collisions), **sidecars dropped entirely** —
+  the real device library has 4 `.opf`, all on books already detected at
+  `certain`, and a blind probe costs ~28.6 s of scan time for ≈0–1 units.
+  **Corpus caveat: 01 probed at most 2 files per directory**, so 35 books in the
+  12 flat folders are missing (298 + 35 = 333 vs 350 on device) — accuracy
+  figures hold, coverage figures are lower bounds.
+
 ## Not yet specified
 
 In scope, but not yet sharp enough to ticket. Graduates as the frontier advances.
@@ -210,24 +231,29 @@ In scope, but not yet sharp enough to ticket. Graduates as the frontier advances
   candidate occupant**: an explicit per-series "Sort by number" action that
   re-seeds `position` from canonical on demand — considered and deliberately not
   adopted in 07 because it has nowhere to live yet.
-- **Review & correction surface** — the new mode between "auto" and "manual":
-  confirm/reject a proposal, split a series that merged two editions, merge two
-  that should be one, reassign a mis-filed book. Waits on 02 and 06. **07 assigns
-  it one more job**: the canonical-number edit field. 07 ruled that a human
-  override must exist and that writing it flips `canonical_source` to `'user'`,
-  but deliberately declined to site the UI — putting a number field in the wizard
-  would pre-commit the funnel shape that is itself still fog (below). Whether a
-  bulk "number sequentially from current order" action belongs here is open: it
-  would number all 43 of the 2022 Discworld units in one tap, but on a gapped set
-  it stamps 1,2,3,4 over 1,3,4,8 and destroys the distinction 07 exists to draw.
+- **Correction surface** — **materially narrowed by 02**: the driver removed the
+  post-scan confirm/reject queue (a wipe-and-regenerate button makes detection
+  errors cheap without per-item UI), so this is now an *editing* surface, not a
+  *gate*. Still open: rename a series, split one, merge two, reassign a mis-filed
+  book, and **07's canonical-number edit field** (07 ruled the override must exist
+  and flips `canonical_source` to `'user'`, but declined to site the UI). 02 makes
+  renaming the highest-traffic action — grouping is 98.3% right while names are
+  94.2%, so the common repair is a label fix, not a regrouping. Whether a bulk
+  "number sequentially from current order" action belongs here is open: it would
+  number all 39 of the 2022 Discworld units in one tap, but on a gapped set it
+  stamps 1,2,3,4 over 1,3,4,8 and destroys the distinction 07 exists to draw.
+  Waits on 06 and [09](issues/09-auto-generate-series-setting.md).
 - **`titleDetails` integration** — what series info a book's detail screen shows,
   and whether membership can be edited book-first rather than series-first.
-- **Consolidated schema decisions** — **canonical number is now settled by 07**
-  (`series_books.canonical_number` + `canonical_source`, schema v33), which also
-  pre-empted the override flag *for the number*. Still open: **edition** (06),
-  **detection confidence** (02), an override marker for series **membership and
-  naming** as distinct from the number, and **series artwork**. Whether these ship
-  as one migration or several is the remaining coherence question.
+- **Consolidated schema decisions** — **canonical number settled by 07**
+  (`series_books.canonical_number` + `canonical_source`, schema v33). **Detection
+  confidence settled by 02**: a tier (`certain`/`likely`/`possible`/`guess`) plus
+  a reason string, never a float — so the column is small and the `why` trail is
+  what any explanatory UI reads. Still open: **edition** (06), an override marker
+  for series **membership and naming** as distinct from the number (now owned by
+  [09](issues/09-auto-generate-series-setting.md), because wipe-and-regenerate is
+  what makes it load-bearing), and **series artwork**. Whether these ship as one
+  migration or several is the remaining coherence question.
 - **Wizard flow shape as fallback** — the 3-step funnel may be wrong once the
   review surface absorbs part of its job. Fold in the defects logged in
   [05](issues/05-wizard-presentation.md): the inactive Next/Save button renders
@@ -237,10 +263,21 @@ In scope, but not yet sharp enough to ticket. Graduates as the frontier advances
   bugs; every browse variant eventually needs a tablet answer.
 - **Re-verifying the existing series logic** — assumed correct, never re-checked
   against the redesign's assumptions.
-- **Recommended (not enforced) library structure** — driver-raised 2026-08-01:
-  if ticket 02's measured cascade accuracy on the ~60%-portable signal base is
-  disappointing, discuss the pros/cons of *recommending* a structure to users
-  (ABS-style enforcement is explicitly off the table). Waits on 02's numbers.
+- **Recommended (not enforced) library structure** — driver-raised 2026-08-01,
+  waiting on 02's numbers. **Those numbers are now in and they weaken the case:**
+  folders are already used without a consent switch, self-validation rejects the
+  bad ones on evidence, and Conservative reaches 98.3% purity with 0 false
+  positives. The residual gap is books whose *tags* say nothing and whose folder
+  no sibling corroborates (Gentlemen Bastards, Founders Trilogy, Drenai) — a
+  recommendation would help exactly those. Open question is whether that is worth
+  any user-facing advice at all, or whether Full fidelity already covers it.
+
+- **Corpus re-pull without the per-directory cap** — 01 probed at most 2 files
+  per directory, so the 12 flat multi-book folders contributed 24 units where 59
+  books exist, and every coverage figure on this map is a lower bound. A re-pull
+  would firm up coverage and let 02's cascade be scored on the ~35 missing books
+  (all single-file books whose probed siblings already detect at `certain`).
+  Not a blocker for any decision — accuracy figures are unaffected.
 
 ## Out of scope
 

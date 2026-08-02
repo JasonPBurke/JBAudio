@@ -1,8 +1,10 @@
 # 02 — Detection cascade: what rules get it right, and how do they fail?
 
 Type: prototype
-Status: claimed
+Status: resolved
 Blocked by: 01
+Resolved: 2026-08-02 — cascade built and scored offline over the real-library
+corpus against hand-authored ground truth. See Answer.
 Parent: [map.md](../map.md)
 
 ## Question
@@ -152,4 +154,168 @@ Stale comment in shipped code.)
 
 ## Answer
 
-_(unresolved)_
+Resolved 2026-08-02. A candidate cascade was built and **scored offline against
+hand-authored ground truth** over the real-library corpus. Harness, data and the
+full per-series listing:
+[`../research/02-detection-cascade/`](../research/02-detection-cascade/)
+(`README.md`, `RESULTS.txt`, `SERIES_LISTING.txt`).
+
+### The headline
+
+Detection is good enough that **review-and-correction is not the centre of
+gravity** — a settings toggle is. Two fidelity levels, measured:
+
+| | **Conservative** (default) | **Full** |
+|---|---|---|
+| evidence | tags + self-validated folders | + uncorroborated folders |
+| series created | **19** | 28 |
+| books placed | 179 | 213 |
+| grouping purity (edition-aware) | **98.3%** | 97.2% |
+| canonical number correct | 96.4% | 95.2% |
+| standalones swept into a series | **0** | 2 |
+| coverage of in-series units | 75.8% | 89.0% |
+
+### The decisions
+
+1. **Precedence, not weighted scoring.** A strict waterfall
+   (`extra.SERIES` → `Grouping` → album patterns → folder) reaches 98.3% purity
+   and — decisively — is *explainable*. Every proposal carries a `why` trail
+   (`alb.name-num-dash`, `folder:name-corroborated(25/39)`). A weighted score
+   would buy nothing measurable and cannot be shown to a user.
+2. **Confidence is a tier plus a reason, never a number.** Four tiers —
+   `certain` / `likely` / `possible` / `guess`. The evidence is naturally
+   ordinal, and the reason string is what any explanatory UI would show.
+3. **Grouping and naming are different problems, and only grouping is
+   expensive.** Purity 98.3%, display names 94.2%. *Every* surviving name error
+   has correct grouping (`TMC`, `Crouch, B`, `Dresden Files` missing its "The").
+   A wrong name costs one rename; a wrong grouping costs a split/merge/re-file.
+   **Optimise the cascade for grouping purity and treat the name as an editable
+   default.**
+4. **Abstention is cheap and it works.** 0 standalones swept at Conservative.
+   The corpus's hardest cases (Bas-Lag in `{YEAR - Title}` folders, LibriVox
+   Barsoom) are simply not grouped, which is the correct outcome.
+5. **No folder-consent switch** (driver, 2026-08-02). Folder evidence is always
+   *considered*; per-library self-validation always runs underneath it. The
+   author-folder trap is rejected on evidence, not on a user's answer —
+   `Dennis E. Taylor` is refused because its members' albums say "Bobiverse",
+   while `Discworld (2022)` is trusted because 25/39 of its own albums say
+   "Discworld". Same library, same code, opposite verdicts.
+6. **No one-book series** (driver, 2026-08-02). A series needs two books; a
+   second book arriving later creates it. This removed 11 of 29 proposed series
+   and, for free, killed three fragment/parent collisions that would otherwise
+   have shipped side by side: `Hyperion`(1) vs `The Hyperion Cantos`(3),
+   `Waylander`(1) vs `Drenai`(4), `The Second Formic War`(1) vs `Formic Wars`(4).
+7. **Sidecars are dropped entirely** from series detection (driver,
+   2026-08-02) — see the measurement below.
+8. **Number collision falls back to folders.** See below; this is the edition fix.
+
+### The number-collision check — how editions stay separate
+
+A real series numbers each book once. **Repeated canonical numbers inside one
+proposed series mean something has merged that should not have.** The check
+(`collision.js`), in full:
+
+> If a proposed series has ≥4 numbered books, and ≥25% of its numbers are
+> duplicates, and its members partition by folder into ≥2 parts that each hold
+> ≥2 books and are each internally near-unique — **take the folder split**, and
+> name each part by its raw folder name.
+
+On this library it fires exactly once, on the right target: `Discworld`, 80
+books, 39 numbers doubled (49%), partitioning into `Discworld` (41) and
+`Discworld (2022)` (39), each internally unique. **Edition-aware purity
+77.9% → 98.3%.** It correctly *declines* on `Demon Accords` (24% duplication,
+just under threshold, and the partition would be degenerate — one book per
+folder).
+
+Note what this is and is not: it is a **grouping** fix that keeps two editions
+apart. It does not decide whether "edition" is part of series *identity* —
+that stays [06](06-series-identity-edition.md), which this hands a working
+structural separation to start from.
+
+### Sidecars: measured, then dropped
+
+The app reads no `.nfo`/`.opf` today. The question was whether to add a probe.
+Measured against the real device library (not the local corpus 01 sampled):
+
+- **`.opf`: 4 files, all four in The Long Earth** — which the cascade already
+  gets at `certain` from `(Long Earth 01) …` albums. Yield: **zero**.
+- **`.nfo`: 23 files**, only 8 of them on units the cascade abstains from
+  (Bas-Lag ×3, Drenai ×4, Rivers of London ×1). 01 measured `Series Name:` at
+  2/36, so expected yield is **≈0–1 units of 298**.
+- Cost: blind probe **~28.6 s** added to every scan (572 probes at ~50 ms/miss);
+  gated to abstentions only, **~4.9 s**.
+
+Nothing justifies either cost. **Sidecars do not enter the cascade.** This does
+not bear on the deferred general-metadata effort, where `.nfo` `Read By:` is
+still the best narrator source in the corpus (36/36).
+
+### Failure shape — what actually goes wrong
+
+The three cases the driver named are all handled: **two Morts land in two
+separate Discworld series** (folder-derived, then split by number collision);
+**Bobiverse 02 → "Bobiverse" #2** with the author-folder rejected; **Bands of
+Mourning → "Mistborn" #6** with `(Michael Kramer)` recognised as the narrator
+because it equals `Composer`.
+
+Known defects that survive at Conservative, in order of cost:
+
+1. **`Demon Accords` (17 books) absorbs the 3 Compendium volumes**, which take
+   numbers #1/#2/#3 and collide with the real books 1–3. The only genuine
+   grouping impurity left.
+2. **`Shadow Saga` numbers are wrong** (1, 3, 6, 8, 9, 10 — should be 1–6). The
+   folder numbers are Ender-*universe* positions, not Shadow Saga positions.
+   Per [07](07-sequence-numbering.md) this is cosmetic — `position` still sorts.
+3. **Ugly names**: `Crouch, B` (should be Wayward Pines), `TMC` (Thursday Murder
+   Club), `Dresden Files` and `Long Earth` losing their leading "The".
+4. **Full level only**: `Enders Game` (7 books) mixes 4 Ender Saga books with
+   Children of the Fleet and two short-story collections. It is the single bad
+   group at Full, and the reason Full is not the default.
+
+Two traps did **not** fire, worth recording: `The Science of Discworld` (4
+books) formed its own group rather than being absorbed into the 80 Discworld
+units; and `Warbreaker`'s `Grouping = "Warbreaker 1"/"Warbreaker 2"` — two
+halves of one book — was suppressed by the split-book guard rather than becoming
+a phantom two-book series.
+
+### Corpus limitation — read before quoting any coverage number
+
+**Ticket 01's device probe took at most two files per directory.** For the 12
+flat multi-book folders that means it captured 24 units where **59 single-file
+books exist**. Reconciliation: 298 probed + 35 provably unprobed = **333**
+against the driver's on-device count of **350**; no directory went unprobed, so
+the residual ~17 is most likely library growth since the 2026-08-01 pull.
+
+Accuracy figures (purity, naming, numbering) are unaffected — they are measured
+on what was probed. **Coverage percentages are lower bounds.** The 35 missing
+books are all single-file books in folders whose probed siblings already detect
+at `certain`/`likely`, so they would very likely join their existing series
+(Bobiverse 2→5, Rivers of London 2→15, DCC 2→8, Murderbot 2→7, Red Rising 2→6,
+TMC 2→4, Silo 2→3). A re-pull with no per-directory cap would settle it.
+
+### Ground truth
+
+`ground_truth.json` labels all 298 units — 246 in a series, **236 across 38
+multi-book series**. It is **authored, not derived**: from human knowledge of
+these books plus every available signal, which is exactly the advantage a
+curator has and the machine lacks. It is therefore *not* valid to cite
+folder-rule accuracy against it as proof that folders are trustworthy in
+general — only that they agree with truth here. Units where reasonable curators
+differ (Ender hierarchy, split books, the Demon Accords Compendium) carry
+`ambiguous: true`.
+
+### What this hands to the rest of the map
+
+- **[06](06-series-identity-edition.md) is unblocked**, and inherits a working
+  structural edition separation plus a hard fact: **portable signals cannot
+  distinguish the two Discworld editions at all** (both say "Discworld"),
+  narrator cannot either (classic has `Composer` on 2/41, and the two narrator
+  sets do not overlap but barely exist), so **folder + number collision is the
+  only discriminator that works**.
+- The **review-and-correction fog item is materially narrowed** — the driver
+  removed the post-scan confirm/reject queue in favour of a settings toggle
+  (see new ticket [09](09-auto-generate-series-setting.md)). Correction as an
+  *editing* surface survives; correction as a *gate* does not.
+- **`series_books.canonical_source`** from 07 covers the number. An override
+  marker for **membership and naming** is still open and now belongs to 09,
+  because "wipe and regenerate" makes "what happens to my edits" the sharp
+  question.

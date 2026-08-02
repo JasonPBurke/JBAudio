@@ -1,40 +1,35 @@
 'use strict';
-const { detect, normKey } = require('./cascade.js'); const { refine } = require('./refine.js');
+const { run } = require('./pipeline.js'); const { normKey } = require('./cascade.js');
 const units = require('./units.json'); const truth = require('./ground_truth.json');
 const ukey = u => u.rel + (u.flat ? ' :: ' + (u.album || u.file) : '');
 const K = s => s && String(s).replace(/&/g, ' and ').replace(/\s+/g, ' ').trim();
 const NK = s => K(normKey(K(s)));
-const title = u => {
-  const a = (u.album || '').replace(/\s*\((Unabridged|Abridged)\)\s*$/i, '').trim();
-  return a || u.rel.split('/').pop();
-};
-const items = refine(detect(units, { trustFolders: true, acceptUncorroborated: 3 }).results, units)
-  .map((r, i) => ({ ...r, u: units[i], t: truth[ukey(units[i])] || {} }));
+const title = u => (u.album || '').replace(/\s*\((Unabridged|Abridged)\)\s*$/i, '').trim() || u.rel.split('/').pop();
 
-const groups = new Map();
-items.forEach(it => { if (!it.key) return; if (!groups.has(it.key)) groups.set(it.key, []); groups.get(it.key).push(it); });
+const cons = run(units, 'conservative'), full = run(units, 'full');
+const consKeys = new Set(cons.map(r => r.key).filter(Boolean));
 
-const unc = new Set(), self = new Set();
-for (const [k, mem] of groups) (mem.some(m => m.why.some(w => w.includes('UNCORROBORATED'))) ? unc : self).add(k);
-
-function show(keys, heading) {
-  console.log(`\n${'='.repeat(76)}\n${heading}\n${'='.repeat(76)}`);
-  let n = 0, books = 0;
-  for (const k of [...keys].sort((a, b) => groups.get(b).length - groups.get(a).length)) {
-    const mem = groups.get(k); n++; books += mem.length;
-    const tiers = {}; mem.forEach(m => tiers[m.confName] = (tiers[m.confName] || 0) + 1);
-    const tset = new Set(mem.map(m => (m.t.series || '(standalone)') + (m.t.edition ? ' [' + m.t.edition + ']' : '')));
-    const flag = tset.size > 1 ? '  <== MIXES ' + tset.size + ' REAL SERIES' : '';
-    console.log(`\n"${mem[0].name}"  -- ${mem.length} books  [${Object.entries(tiers).map(([a, b]) => b + ' ' + a).join(', ')}]${flag}`);
-    const sorted = mem.slice().sort((a, b) => (parseFloat(a.num) || 999) - (parseFloat(b.num) || 999));
-    for (const m of sorted) {
-      const wrong = !m.t.series ? ' <-- I labelled this a STANDALONE'
+function groupsOf(res) {
+  const g = new Map();
+  res.forEach((r, i) => { if (!r.key) return; if (!g.has(r.key)) g.set(r.key, []); g.get(r.key).push({ ...r, u: units[i], t: truth[ukey(units[i])] || {} }); });
+  return g;
+}
+function show(g, keys, heading) {
+  console.log(`\n${'='.repeat(74)}\n${heading}\n${'='.repeat(74)}`);
+  let ns = 0, nb = 0;
+  for (const k of [...keys].sort((a, b) => g.get(b).length - g.get(a).length)) {
+    const mem = g.get(k); ns++; nb += mem.length;
+    const t = new Set(mem.map(m => (m.t.series || '(standalone)') + (m.t.edition ? ' [' + m.t.edition + ']' : '')));
+    console.log(`\n"${mem[0].name}"  ${mem.length} books${t.size > 1 ? '   <== MIXES ' + t.size + ' REAL SERIES' : ''}`);
+    for (const m of mem.slice().sort((a, b) => (parseFloat(a.num) || 999) - (parseFloat(b.num) || 999))) {
+      const w = !m.t.series ? ' <-- I labelled this a STANDALONE'
         : NK(m.name) !== NK(m.t.series) ? ` <-- I labelled this "${m.t.series}"`
         : (m.t.number != null && String(m.num) !== String(m.t.number)) ? ` <-- I labelled this #${m.t.number}` : '';
-      console.log(`     ${(m.num == null ? '  -' : '#' + m.num).padStart(6)}  ${title(m.u).slice(0, 58).padEnd(58)}${wrong}`);
+      console.log(`   ${(m.num == null ? ' -' : '#' + m.num).padStart(6)}  ${title(m.u).slice(0, 56).padEnd(56)}${w}`);
     }
   }
-  console.log(`\n  -> ${n} series, ${books} books`);
+  console.log(`\n  -> ${ns} series, ${nb} books`);
 }
-show(self, 'A.  SELF-VALIDATED  (tags agree, or the folder is corroborated by its own members)');
-show(unc, 'B.  UNCORROBORATED FOLDERS  (folder names a series; nothing in the tags confirms it)');
+const gc = groupsOf(cons), gf = groupsOf(full);
+show(gc, gc.keys(), 'LEVEL 1 - CONSERVATIVE  (tags + self-validated folders)');
+show(gf, [...gf.keys()].filter(k => !consKeys.has(k)), 'LEVEL 2 - FULL  adds these (uncorroborated folders)');
