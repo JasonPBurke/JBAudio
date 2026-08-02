@@ -179,6 +179,11 @@ what a real cascade achieves (fog item added to the map).
 ### Signal conflicts worth remembering (they motivate abstention)
 
 1. Snuff: folder says `Discworld 39`, its NFO says `Position in Series: 33`.
+   **Adjudicated 2026-08-02 (driver, in ticket [07](07-sequence-numbering.md)):
+   the folder is right.** Snuff is the 39th Discworld novel; 33 is *Going
+   Postal*. So a tidy, machine-readable, purpose-built sidecar field is simply
+   **factually wrong** — `.nfo` `Position in Series` is demoted as a number
+   source, and 02 must rank folder above it.
 2. WoT (local): `artist` = series name, `album_artist` = author — and the
    app's current `author = Artist || Performer || Album_Performer` mapping
    **already records "The Wheel of Time" as an author today**.

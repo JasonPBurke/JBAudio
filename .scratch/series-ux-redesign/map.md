@@ -173,7 +173,7 @@ Sharpened by ticket 06; used loosely until then.
   could not have produced the Dresden-gaps dataset at all — and "clear synthetic"
   is therefore a true restore. Real-code footprint is three commented lines in the
   library screen; `SeriesHome` is untouched. Adding a variant for 08 = copy a file,
-  add one row. **08 now waits only on 06 and 07.**
+  add one row. **08 now waits only on 06** (07 resolved 2026-08-02).
 
 - [05 — Wizard presentation: overlay or full-screen push?](issues/05-wizard-presentation.md)
   — **Push retained**, no code change. The `formSheet` alternative (0.95 detent)
@@ -182,20 +182,52 @@ Sharpened by ticket 06; used loosely until then.
   either way (hypothesis 6 refuted on-device). The "jarring" complaint that
   opened this ticket stays open — folded into the wizard-flow-shape fog.
 
+- [07 — Sequence numbering: position, canonical number, or both?](issues/07-sequence-numbering.md)
+  — **Both exist; each gets one job.** The badge shows the **canonical number**,
+  blank when unknown (position is already carried by layout, so a `3` on the third
+  cell is confirmation while a `4` is information). **`position` stays the sole
+  sort authority**; canonical only *seeds* it, at create and at insert — so a
+  wrong number is cosmetic, never structural, and the wizard's drag step survives
+  as pre-sorted rather than redundant. Schema **v32 → v33**: two optional columns
+  on `series_books` — `canonical_number` (string, normalised on write, holds
+  `12.5`/`14b`/`1-3`, float-parsed only for seeding and range-collapse) and
+  `canonical_source` (`'user' | 'detected'`; rescans refresh `detected`, never
+  touch `user`). **No placeholders for un-owned books**; gaps read from the
+  header range (`#1, 3-4, 8`, already built — needs a width cap or it eats the
+  series name). A human override **must exist** but its UI is sited with the
+  review-and-correction fog, not the wizard. Multi-membership verified working
+  today (*Guards! Guards!* = Discworld 8 **and** Night Watch 1, independently);
+  a hand-made sub-series seeds **null**, since the parent's tag doesn't name it.
+  **Evidence correction to 01: Snuff is Discworld #39 — the folder was right and
+  the `.nfo` was wrong.**
+
 ## Not yet specified
 
 In scope, but not yet sharp enough to ticket. Graduates as the frontier advances.
 
 - **Series detail screen** — whether one exists at all, what it holds, and how it
-  relates to inline expansion. Waits on ticket 08's browse decision.
+  relates to inline expansion. Waits on ticket 08's browse decision. **07 adds a
+  candidate occupant**: an explicit per-series "Sort by number" action that
+  re-seeds `position` from canonical on demand — considered and deliberately not
+  adopted in 07 because it has nowhere to live yet.
 - **Review & correction surface** — the new mode between "auto" and "manual":
   confirm/reject a proposal, split a series that merged two editions, merge two
-  that should be one, reassign a mis-filed book. Waits on 02 and 06.
+  that should be one, reassign a mis-filed book. Waits on 02 and 06. **07 assigns
+  it one more job**: the canonical-number edit field. 07 ruled that a human
+  override must exist and that writing it flips `canonical_source` to `'user'`,
+  but deliberately declined to site the UI — putting a number field in the wizard
+  would pre-commit the funnel shape that is itself still fog (below). Whether a
+  bulk "number sequentially from current order" action belongs here is open: it
+  would number all 43 of the 2022 Discworld units in one tap, but on a gapped set
+  it stamps 1,2,3,4 over 1,3,4,8 and destroys the distinction 07 exists to draw.
 - **`titleDetails` integration** — what series info a book's detail screen shows,
   and whether membership can be edited book-first rather than series-first.
-- **Consolidated schema decisions** — canonical number, edition, detection
-  confidence, user-override/"don't re-detect" flag, series artwork. Individual
-  pieces surface in 06/07 and the review surface; they need one coherent pass.
+- **Consolidated schema decisions** — **canonical number is now settled by 07**
+  (`series_books.canonical_number` + `canonical_source`, schema v33), which also
+  pre-empted the override flag *for the number*. Still open: **edition** (06),
+  **detection confidence** (02), an override marker for series **membership and
+  naming** as distinct from the number, and **series artwork**. Whether these ship
+  as one migration or several is the remaining coherence question.
 - **Wizard flow shape as fallback** — the 3-step funnel may be wrong once the
   review surface absorbs part of its job. Fold in the defects logged in
   [05](issues/05-wizard-presentation.md): the inactive Next/Save button renders
@@ -222,3 +254,21 @@ Ruled beyond this destination. Does not graduate.
 - **The implementation itself.** This map ends at an approved spec.
 - **Auto-generating series from an online database** (Audible/Goodreads lookup).
   Local signals only.
+
+- **Sidecar-driven general book metadata** (`.nfo`/`.opf` → Author, Narrator,
+  Title). Driver-raised 2026-08-02 and consciously deferred: this map ends at a
+  Series spec, and populating book fields is library *scanning*, not series
+  identity. **Reading sidecars as series signals stays in scope** — it is now an
+  explicit part of [02](issues/02-detection-cascade.md).
+
+  Worth knowing when the follow-on effort starts, so it isn't re-derived:
+  the app reads **no `.nfo`/`.opf` today** (a gap, not a decision), but **does**
+  read `.cue` via `src/lib/SafCueReader.ts`, so the SAF text-read path exists.
+  01 found `.nfo` `Read By:` present **36/36** — the most *reliable* narrator
+  source in the corpus, though narrower reach than `Composer` (153/304). 02 will
+  deliver both the file-reading mechanism and the probe-cost measurement this
+  work depends on: sidecars are **invisible to the scoped-storage directory
+  listing** and must be probed by constructed path at ~50 ms per miss
+  (`scanLibrary.ts:201-207`). Do **not** read 07's demotion of `.nfo`
+  `Position in Series` as a verdict on the format — that was one field, n=1,
+  and wrong in its single instance.
