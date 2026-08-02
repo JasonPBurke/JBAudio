@@ -48,10 +48,39 @@ The three cases the driver named explicitly must be handled:
   the next scan must not undo it. Implies a persisted override marker — feeds the
   schema work in the fog.
 
+## Driver inputs (2026-08-01, on resolving 01)
+
+1. **Folder conventions are per-library, never global.** No folder rule ships as
+   a universal prior, and structure is never enforced (ABS-style mandates are
+   off the table). But a *specific* user's structure may **earn trust by
+   self-validation**: where folder patterns corroborate tag signals at scale
+   within that library (e.g. `Discworld NN - Title` folders agree with albums
+   41/41), the learned convention may then be applied to that library's
+   tag-silent units. The 01 traps (author-as-folder, `{YEAR - Title}` folders,
+   flat multi-book dirs, chapter-split dirs that look identical to flat dirs)
+   are the cases self-validation must reject.
+2. **Err on the side of caution — abstention bias is binding.** Do not create a
+   series unless confident it is correct. An unmade group costs one wizard
+   trip; a wrong group costs trust and cleanup. (Consistent with 03: user
+   corrections are top-precedence detection inputs, so the detector defers.)
+3. **A user-facing switch may gate folder evidence** ("use my file structure to
+   create series?"), asked before scan/series creation. Consent turns a
+   heuristic into a sanctioned signal and fits the abstention bias. Two open
+   sub-questions for this ticket: the switch permits folders to be *considered*
+   — per-convention self-validation still applies underneath it (Discworld
+   folders pass, Bobiverse's author-folder must still be rejected, same
+   library, same switch); and *when* to ask — pre-scan consent is abstract,
+   while post-dry-run consent can show what the structure would produce
+   ("your folders look like 12 series — use them?"), which fits the
+   review-and-correction centre of gravity.
+
 ## Notes
 
 - All signals are already in JS (`mediainfo.ts:105-114`, and the full MediaInfo
   JSON via `NativeMediaInfo.ts`). **No native change, no rebuild.**
+- 01's real-library data + probe scripts: `../research/01-signal-inventory/`
+  (`device_general.jsonl` = 304 units with full General tracks — the offline
+  scoring corpus this ticket's Acceptance asks for already exists there).
 - Keep the rules a **pure, RN-free, DB-free helper** so it is jest-testable —
   `jest.config.js` has no RN preset.
 - The corpus is curated to be pathological on purpose. Do not tune to 8 books;

@@ -1,0 +1,364 @@
+/sdcard/Audiobooks
+/sdcard/Audiobooks/Terry Pratchett
+/sdcard/Audiobooks/Terry Pratchett/Discworld
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 01 - The Colour of Magic
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 02 - The Light Fantastic
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 03 - Equal Rites
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 04 - Mort
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 05 - Sourcery
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 06 - Wyrd Sisters
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 07 - Pyramids
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 08 - Guards! Guards!
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 09 - Eric
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 10 - Moving Pictures
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 11 - Reaper Man
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 12 - Witches Abroad
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 13 - Small Gods
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 14 - Lords and Ladies
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 15 - Men at Arms
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 16 - Soul Music
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 17 - Interesting Times
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 18 - Maskerade
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 19 - Feet of Clay
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 20 - Hogfather
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 21 - Jingo
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 22 - The Last Continent
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 23 - Carpe Jugulum
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 24 - The Fifth Elephant
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 25 - The Truth
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 26 - Thief of Time
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 27 - The Last Hero
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 28 - The Amazing Maurice and His Educated Rodents
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 29 - Night Watch
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 30 - The Wee Free Men
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 31 - Monstrous Regiment
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 32 - A Hat Full of Sky
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 33 - Going Postal
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 34 - Thud!
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 35 - Wintersmith
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 36 - Making Money
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 37 - Unseen Academicals
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 38 - I Shall Wear Midnight
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 39 -Snuff - Terry Pratchett
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 40 - Raising Steam
+/sdcard/Audiobooks/Terry Pratchett/Discworld/Discworld 41 - The Shepherd's Crown
+/sdcard/Audiobooks/Terry Pratchett/Bromeliad
+/sdcard/Audiobooks/Terry Pratchett/Bromeliad/Diggers
+/sdcard/Audiobooks/Terry Pratchett/Bromeliad/Truckers
+/sdcard/Audiobooks/Terry Pratchett/Bromeliad/Wings
+/sdcard/Audiobooks/Terry Pratchett/Nation
+/sdcard/Audiobooks/Terry Pratchett/The Folklore of Discworld
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(1) The Colour of Magic
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(2) The Light Fantastic
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(3) Equal Rites
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(4) Mort
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(5) Sourcery
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(7) Pyramids
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(8) Guards! Guards!
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(9) Eric
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(10) Moving Pictures
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(11) Reaper Man
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(12) Witches Abroad
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(13) Small Gods
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(14) Lords and Ladies
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(15) Men at Arms
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(16) Soul Music
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(17) Interesting Times
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(18) Maskerade
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(19) Feet of Clay
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(20) Hogfather
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(21) Jingo
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(22) The Last Continent
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(23) Carpe Jugulum
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(24) The Fifth Elephant
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(25) The Truth
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(26) Thief of Time
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(27) The Last Hero
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(28) The Amazing Maurice and His Educated Rodents
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(29) Night Watch
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(30) The Wee Free Men
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(31) Monstrous Regiment
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(32) A Hat Full of Sky
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(33) Going Postal
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(34) Thud!
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(35) Wintersmith
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(36) Making Money
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(37) Unseen Academicals
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(38) I Shall Wear Midnight
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(39) Snuff
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(40) Raising Steam
+/sdcard/Audiobooks/Terry Pratchett/Discworld (2022)/(41) The Shepherd's Crown
+/sdcard/Audiobooks/Terry Pratchett/The Long Earth
+/sdcard/Audiobooks/Terry Pratchett/The Long Earth/(Long Earth 04) The Long Utopia
+/sdcard/Audiobooks/Terry Pratchett/The Long Earth/(Long Earth 03) The Long Mars
+/sdcard/Audiobooks/Terry Pratchett/The Long Earth/(Long Earth 02) The Long War
+/sdcard/Audiobooks/Terry Pratchett/The Long Earth/(Long Earth 01) The Long Earth
+/sdcard/Audiobooks/Terry Pratchett/The Long Earth/(Long Earth 05) The Long Cosmos
+/sdcard/Audiobooks/Terry Pratchett/Strata
+/sdcard/Audiobooks/Terry Pratchett/The Carpet People (2021)
+/sdcard/Audiobooks/Terry Pratchett/The Carpet People (2021)/The Carpet People (illustrated eBook) [azw3 & epub]
+/sdcard/Audiobooks/Terry Pratchett/The Carpet People (2021)/The Carpet People (Audiobook)
+/sdcard/Audiobooks/Terry Pratchett/The Carpet People
+/sdcard/Audiobooks/Terry Pratchett/The Science of Discworld
+/sdcard/Audiobooks/Terry Pratchett/The Science of Discworld/The Science of Discworld IV Judgement Day
+/sdcard/Audiobooks/Terry Pratchett/The Science of Discworld/The Science of Discworld III Darwin's Watch
+/sdcard/Audiobooks/Terry Pratchett/The Science of Discworld/The Science of Discworld I
+/sdcard/Audiobooks/Terry Pratchett/The Science of Discworld/The Science of Discworld II The Globe
+/sdcard/Audiobooks/Terry Pratchett/A Blink of the Screen - Collected Shorter Fiction
+/sdcard/Audiobooks/Brandon Sanderson
+/sdcard/Audiobooks/Brandon Sanderson/The Frugal Wizard’s Handbook
+/sdcard/Audiobooks/Brandon Sanderson/Tress of the Emerald Sea
+/sdcard/Audiobooks/Brandon Sanderson/Yumi and the Nightmare Painter
+/sdcard/Audiobooks/Brandon Sanderson/The Sunlit Man
+/sdcard/Audiobooks/Brandon Sanderson/Arcanum Unbounded The Cosmere Collection
+/sdcard/Audiobooks/Brandon Sanderson/1.The Final Empire
+/sdcard/Audiobooks/Brandon Sanderson/Isles of the Emberdark
+/sdcard/Audiobooks/Brandon Sanderson/Isles of the Emberdark/Isles of the Emberdark
+/sdcard/Audiobooks/Brandon Sanderson/2.The Well of Ascension
+/sdcard/Audiobooks/Brandon Sanderson/3.The Hero of Ages
+/sdcard/Audiobooks/Brandon Sanderson/5.Shadows of Self
+/sdcard/Audiobooks/Brandon Sanderson/Warbreaker
+/sdcard/Audiobooks/Brandon Sanderson/4.The Alloy of Law
+/sdcard/Audiobooks/Brandon Sanderson/6.The Bands of Mourning
+/sdcard/Audiobooks/Dan Simmons
+/sdcard/Audiobooks/Dan Simmons/The Hyperion Cantos - Dan Simmons
+/sdcard/Audiobooks/Dan Simmons/The Hyperion Cantos - Dan Simmons/Hyperion
+/sdcard/Audiobooks/Dan Simmons/The Hyperion Cantos - Dan Simmons/The Fall of Hyperion (Bevine) 600mb
+/sdcard/Audiobooks/Dan Simmons/The Hyperion Cantos - Dan Simmons/Endymion (Bevine) 643mb
+/sdcard/Audiobooks/Dan Simmons/The Hyperion Cantos - Dan Simmons/The Rise of Endymion (Bevine) 822mb
+/sdcard/Audiobooks/Dan Simmons/The Hyperion Cantos - Dan Simmons/Collected Hyperion Artwork
+/sdcard/Audiobooks/Dan Simmons/The Hyperion Cantos - Dan Simmons/Collected Hyperion Artwork/Book Covers
+/sdcard/Audiobooks/Orson Scott Card
+/sdcard/Audiobooks/Orson Scott Card/Enders Game
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Speaker Trilogy
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Speaker Trilogy/3 - Xenocide
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Speaker Trilogy/04 Children of the Mind
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Speaker Trilogy/2 - Speaker for the Dead
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Chrismas stories
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Chrismas stories/A war of gifts
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Ender in Exile
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Shadow Saga
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Shadow Saga/5 - Ender's Shadow
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Shadow Saga/8 - Shadow of the Giant
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Shadow Saga/6 - Shadow of the Hegemon
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Shadow Saga/7 - Shadow Puppets
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Shadow Saga/10 The Last Shadow
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Shadow Saga/9 - Shadows in Flight
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/1 - Ender's Game
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Formic Wars
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Formic Wars/3 Earth Awakens
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Formic Wars/01 Earth Unaware
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Formic Wars/2 Earth Afire
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Formic Wars/4 The Swarm
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Formic Wars/5 The Hive
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Ender short stories
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Ender's Parents
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Ender's Parents/First Meetings (polish boy)
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/IGMS Anthology
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Fleet school
+/sdcard/Audiobooks/Orson Scott Card/Enders Game/Fleet school/Children of the Fleet
+/sdcard/Audiobooks/The Wandering Inn
+/sdcard/Audiobooks/Robert Jackson Bennett
+/sdcard/Audiobooks/Robert Jackson Bennett/Founders Trilogy
+/sdcard/Audiobooks/Robert Jackson Bennett/Founders Trilogy/3 Locklands
+/sdcard/Audiobooks/Robert Jackson Bennett/Founders Trilogy/1 Foundryside
+/sdcard/Audiobooks/Robert Jackson Bennett/Founders Trilogy/2 Shorefall
+/sdcard/Audiobooks/Robert Jackson Bennett/Robert Jackson Bennett  - A Drop of Corruption
+/sdcard/Audiobooks/Robert Jackson Bennett/Robert Jackson Bennett  - A Drop of Corruption/.pad
+/sdcard/Audiobooks/Dennis E. Taylor
+/sdcard/Audiobooks/Dennis E. Taylor/Bobiverse
+/sdcard/Audiobooks/Joe Hill
+/sdcard/Audiobooks/Steven King
+/sdcard/Audiobooks/Steven King/The Dark Tower
+/sdcard/Audiobooks/Steven King/The Dark Tower/The Dark Tower V - Wolves of The Calla
+/sdcard/Audiobooks/Steven King/The Dark Tower/The Dark Tower VII - The Dark Tower
+/sdcard/Audiobooks/Steven King/The Dark Tower/The Dark Tower lll - The Wastelands
+/sdcard/Audiobooks/Steven King/The Dark Tower/The Dark Tower VI - Song of Susannah
+/sdcard/Audiobooks/Steven King/The Dark Tower/The Dark Tower IV - Wizard & Glass
+/sdcard/Audiobooks/Steven King/The Dark Tower/The Dark Tower I - The Gunslinger
+/sdcard/Audiobooks/Steven King/The Dark Tower/The Dark Tower II - The Drawing of the Three
+/sdcard/Audiobooks/Steven King/The Dark Tower/The Dark Tower .5 - THE LITTLE SISTERS OF ELURIA
+/sdcard/Audiobooks/Steven King/The Green Mile
+/sdcard/Audiobooks/Andy Weir
+/sdcard/Audiobooks/Andy Weir/The Martian
+/sdcard/Audiobooks/Andy Weir/Andy Weir - Project Hail Mary
+/sdcard/Audiobooks/Tad Williams
+/sdcard/Audiobooks/Tad Williams/Memory, Sorrow & Thorn series by Tad Williams
+/sdcard/Audiobooks/Tad Williams/Memory, Sorrow & Thorn series by Tad Williams/04 To Green Angel Tower - Storm
+/sdcard/Audiobooks/Tad Williams/Memory, Sorrow & Thorn series by Tad Williams/03 To Green Angel Tower - Siege
+/sdcard/Audiobooks/Tad Williams/Memory, Sorrow & Thorn series by Tad Williams/01 The Dragonbone Chair
+/sdcard/Audiobooks/Tad Williams/Memory, Sorrow & Thorn series by Tad Williams/02 The Stone of Farewel
+/sdcard/Audiobooks/Jim Butcher
+/sdcard/Audiobooks/Jim Butcher/Dresden Files
+/sdcard/Audiobooks/Jim Butcher/Dresden Files/Changes
+/sdcard/Audiobooks/Jim Butcher/Dresden Files/Cold Days
+/sdcard/Audiobooks/Jim Butcher/Dresden Files/Twelve Months
+/sdcard/Audiobooks/Jim Butcher/Dresden Files/Dead Beat
+/sdcard/Audiobooks/Jim Butcher/Dresden Files/Death Masks
+/sdcard/Audiobooks/Jim Butcher/Dresden Files/Blood Rites
+/sdcard/Audiobooks/Jim Butcher/Dresden Files/Ghost Story
+/sdcard/Audiobooks/Jim Butcher/Dresden Files/Grave Peril
+/sdcard/Audiobooks/Jim Butcher/Dresden Files/Skin Game
+/sdcard/Audiobooks/Jim Butcher/Dresden Files/Small Favor
+/sdcard/Audiobooks/Jim Butcher/Dresden Files/Battle Ground
+/sdcard/Audiobooks/Jim Butcher/Dresden Files/White Night
+/sdcard/Audiobooks/Jim Butcher/Dresden Files/Fool Moon
+/sdcard/Audiobooks/Jim Butcher/Dresden Files/Heroic Hearts
+/sdcard/Audiobooks/Jim Butcher/Dresden Files/Peace Talks
+/sdcard/Audiobooks/Jim Butcher/Dresden Files/Turn Coat
+/sdcard/Audiobooks/Jim Butcher/Dresden Files/Brief Cases
+/sdcard/Audiobooks/Jim Butcher/Dresden Files/Summer Knight
+/sdcard/Audiobooks/Jim Butcher/Dresden Files/The Law
+/sdcard/Audiobooks/Jim Butcher/Dresden Files/Proven Guilty
+/sdcard/Audiobooks/Jim Butcher/Dresden Files/Side Jobs
+/sdcard/Audiobooks/Jim Butcher/Dresden Files/Storm Front
+/sdcard/Audiobooks/Ringworld
+/sdcard/Audiobooks/Pierce Brown
+/sdcard/Audiobooks/Scott Lynch
+/sdcard/Audiobooks/Scott Lynch/Gentlemen Bastards
+/sdcard/Audiobooks/Scott Lynch/Gentlemen Bastards/02 Red Seas Under Red Skies [B004K3OJ0K]
+/sdcard/Audiobooks/Scott Lynch/Gentlemen Bastards/01 The Lies of Locke Lamora [B004K4EMHE]
+/sdcard/Audiobooks/Scott Lynch/Gentlemen Bastards/03 The Republic of Thieves [B00G4JQ1KO]
+/sdcard/Audiobooks/Travis Baldree
+/sdcard/Audiobooks/Agatha Christie
+/sdcard/Audiobooks/Agatha Christie/!Smart AudioBook Player Statistics
+/sdcard/Audiobooks/Agatha Christie/Agatha Christie - Miss Marple The Complete Short Stories chapterized
+/sdcard/Audiobooks/Blake Crouch
+/sdcard/Audiobooks/Blake Crouch/Crouch, Blake - Wayward Pines 1-3 (2012-2014)
+/sdcard/Audiobooks/Blake Crouch/Crouch, Blake - Wayward Pines 1-3 (2012-2014)/Crouch, Blake - Wayward Pines 3 - The Last Town (2014)
+/sdcard/Audiobooks/Blake Crouch/Crouch, Blake - Wayward Pines 1-3 (2012-2014)/Crouch, Blake - Wayward Pines 1 - Pines (2012)
+/sdcard/Audiobooks/Blake Crouch/Crouch, Blake - Wayward Pines 1-3 (2012-2014)/Crouch, Blake - Wayward Pines 2 - Wayward (2013)
+/sdcard/Audiobooks/Richard Osman
+/sdcard/Audiobooks/Edgar Rice Burroughs
+/sdcard/Audiobooks/Edgar Rice Burroughs/gofmars_tc_1302_librivox
+/sdcard/Audiobooks/Edgar Rice Burroughs/princess_mars_tc_librivox
+/sdcard/Audiobooks/Christopher Moore
+/sdcard/Audiobooks/Christopher Moore/Anima Rising - Christopher Moore
+/sdcard/Audiobooks/Joe Abercrombie
+/sdcard/Audiobooks/Joe Abercrombie/Joe Abercrombie - The Devils
+/sdcard/Audiobooks/Joe Abercrombie/First Law World
+/sdcard/Audiobooks/Joe Abercrombie/First Law World/01 - The First Law
+/sdcard/Audiobooks/Joe Abercrombie/First Law World/01 - The First Law/03 - Last Argument of Kings
+/sdcard/Audiobooks/Joe Abercrombie/First Law World/01 - The First Law/02 - Before They Are Hanged
+/sdcard/Audiobooks/Joe Abercrombie/First Law World/01 - The First Law/01 - The Blade Itself
+/sdcard/Audiobooks/Joe Abercrombie/First Law World/01 - The First Law/05 - The Heroes
+/sdcard/Audiobooks/Joe Abercrombie/First Law World/01 - The First Law/06 - Red Country
+/sdcard/Audiobooks/Joe Abercrombie/First Law World/01 - The First Law/07 - Sharp Ends
+/sdcard/Audiobooks/Joe Abercrombie/First Law World/01 - The First Law/04 - Best Served Cold
+/sdcard/Audiobooks/Joe Abercrombie/First Law World/02 - The Age of Madness
+/sdcard/Audiobooks/Joe Abercrombie/First Law World/02 - The Age of Madness/01 - A Little Hatred
+/sdcard/Audiobooks/Joe Abercrombie/First Law World/02 - The Age of Madness/02 - The Trouble with Peace
+/sdcard/Audiobooks/Joe Abercrombie/First Law World/02 - The Age of Madness/03 - The Wisdom of Crowds
+/sdcard/Audiobooks/Jonathan Stroud
+/sdcard/Audiobooks/Jonathan Stroud/Lockwood and Co. Series
+/sdcard/Audiobooks/Jonathan Stroud/Lockwood and Co. Series/Book 4 - The Creeping Shadow
+/sdcard/Audiobooks/Jonathan Stroud/Lockwood and Co. Series/Book 4 - The Creeping Shadow/Lockwood & Co. - Book 4 - The Creeping Shadow
+/sdcard/Audiobooks/Jonathan Stroud/Lockwood and Co. Series/Book 1 - The Screaming Staircase
+/sdcard/Audiobooks/Jonathan Stroud/Lockwood and Co. Series/Book 1 - The Screaming Staircase/The Screaming Staircase - Book 1
+/sdcard/Audiobooks/Jonathan Stroud/Lockwood and Co. Series/Book 2 - The Whispering Skull
+/sdcard/Audiobooks/Jonathan Stroud/Lockwood and Co. Series/Book 2 - The Whispering Skull/The Whispering Skull
+/sdcard/Audiobooks/Jonathan Stroud/Lockwood and Co. Series/Book 3 - The Hollow Boy
+/sdcard/Audiobooks/Jonathan Stroud/Lockwood and Co. Series/Book 3 - The Hollow Boy/The Hollow Boy
+/sdcard/Audiobooks/Jonathan Stroud/Lockwood and Co. Series/Book 5 - The Empty Grave
+/sdcard/Audiobooks/Patrick Rothfuss
+/sdcard/Audiobooks/Patrick Rothfuss/The Kingkiller Chronicle 01-02 (Patrick Rothfuss) (Nick Podehl)
+/sdcard/Audiobooks/Patrick Rothfuss/The Kingkiller Chronicle 01-02 (Patrick Rothfuss) (Nick Podehl)/ebooks
+/sdcard/Audiobooks/Stanislaw Lem
+/sdcard/Audiobooks/Stanislaw Lem/Stanislaw Lem, Bill Johnston - translator - The Invincible (Unabridged)
+/sdcard/Audiobooks/China Mieville
+/sdcard/Audiobooks/China Mieville/2000 - Perdido Street Station
+/sdcard/Audiobooks/China Mieville/2002 - The Scar
+/sdcard/Audiobooks/China Mieville/2004 - Iron Council
+/sdcard/Audiobooks/China Mieville/2005 - Looking for Jake and Other Stories
+/sdcard/Audiobooks/China Mieville/2007 - Un Lun Dun
+/sdcard/Audiobooks/China Mieville/2009 - The City & The City
+/sdcard/Audiobooks/China Mieville/2010 - Kraken
+/sdcard/Audiobooks/China Mieville/2011 - Embassytown
+/sdcard/Audiobooks/China Mieville/2012 - Railsea
+/sdcard/Audiobooks/China Mieville/2015 - Three Moments of an Explosion
+/sdcard/Audiobooks/China Mieville/2016 - The Last Days of New Paris
+/sdcard/Audiobooks/China Mieville/2016 - This Census-Taker
+/sdcard/Audiobooks/Fonda Lee
+/sdcard/Audiobooks/George Orwell
+/sdcard/Audiobooks/George Orwell/Animal Farm
+/sdcard/Audiobooks/Susanna Clark
+/sdcard/Audiobooks/Susanna Clark/2004 - Jonathan Strange & Mr Norrell (Avers) 64k 34.49.33 {965mb}
+/sdcard/Audiobooks/Matt Haig
+/sdcard/Audiobooks/Martha Wells
+/sdcard/Audiobooks/Matt Dinniman
+/sdcard/Audiobooks/Matt Dinniman/Dungeon Crawler Carl
+/sdcard/Audiobooks/Christopher Buehlman
+/sdcard/Audiobooks/Christopher Buehlman/Blacktongue
+/sdcard/Audiobooks/Christopher Buehlman/Blacktongue/02 The Daughters' War
+/sdcard/Audiobooks/Christopher Buehlman/Blacktongue/01 The Blacktongue Thief
+/sdcard/Audiobooks/Douglas Adams
+/sdcard/Audiobooks/Douglas Adams/Neil Gaiman - Don't Panic
+/sdcard/Audiobooks/J.R.R. Tolkien
+/sdcard/Audiobooks/James Islington
+/sdcard/Audiobooks/James Islington/James Islington - The Will of the Many
+/sdcard/Audiobooks/George R.R. Martin
+/sdcard/Audiobooks/George R.R. Martin/A Knight of the Seven Kingdoms
+/sdcard/Audiobooks/TJ Klune
+/sdcard/Audiobooks/Bonnie Garmus
+/sdcard/Audiobooks/Hugh Howey
+/sdcard/Audiobooks/Hugh Howey/The Silo Saga
+/sdcard/Audiobooks/John Conroe
+/sdcard/Audiobooks/John Conroe/Demon Accords Series
+/sdcard/Audiobooks/John Conroe/Demon Accords Series/Book 05 - Fallen Stars - Demon Accords Series - 2013
+/sdcard/Audiobooks/John Conroe/Demon Accords Series/Book 08 - College Arcane - Demon Accords Series - 2015
+/sdcard/Audiobooks/John Conroe/Demon Accords Series/Book 08 - College Arcane - Demon Accords Series - 2015/John Conroe - College Arcane Part 1 (Unabridged)
+/sdcard/Audiobooks/John Conroe/Demon Accords Series/Book 08 - College Arcane - Demon Accords Series - 2015/John Conroe - College Arcane Part 2 (Unabridged)
+/sdcard/Audiobooks/John Conroe/Demon Accords Series/Book 02 - Demon Driven - Demon Accords Series - 2010
+/sdcard/Audiobooks/John Conroe/Demon Accords Series/Book 06 - Executable - Demon Accords Series - 2014
+/sdcard/Audiobooks/John Conroe/Demon Accords Series/Book 09 - God Hammer - Demon Accords Series - 2015
+/sdcard/Audiobooks/John Conroe/Demon Accords Series/Book 07 - Forced Ascent - Demon Accords Series - 2014
+/sdcard/Audiobooks/John Conroe/Demon Accords Series/Book 03 - Brutal Asset - Demon Accords Series - 2011
+/sdcard/Audiobooks/John Conroe/Demon Accords Series/Book 01 - God Touched - Demon Accords Series - 2010
+/sdcard/Audiobooks/John Conroe/Demon Accords Series/Book 11 - Snake Eyes - Demon Accords Series - 2016
+/sdcard/Audiobooks/John Conroe/Demon Accords Series/Book 10 - Rogues - Demon Accords Series - 2016
+/sdcard/Audiobooks/John Conroe/Demon Accords Series/Volume 02 - Demon Accords Compendium Series - 2018
+/sdcard/Audiobooks/John Conroe/Demon Accords Series/Book 12 - Winterfall - Demon Accords Series - 2017
+/sdcard/Audiobooks/John Conroe/Demon Accords Series/Volume 01 - Demon Accords Compendium Series - 2018
+/sdcard/Audiobooks/John Conroe/Demon Accords Series/Book 04 - Duel Nature - Demon Accords Series - 2012
+/sdcard/Audiobooks/John Conroe/Demon Accords Series/Volume 03 - Demon Accords Compendium Series - 2020
+/sdcard/Audiobooks/John Conroe/Demon Accords Series/Book 03.5 - Black Frost - Demon Accords Series - 2011
+/sdcard/Audiobooks/John Scalzi
+/sdcard/Audiobooks/John Scalzi/Starter Villain - John Scalzi
+/sdcard/Audiobooks/Josiah Bancroft
+/sdcard/Audiobooks/Josiah Bancroft/Josiah Bancroft
+/sdcard/Audiobooks/Josiah Bancroft/Josiah Bancroft - The Books of Babel 04 - The Fall of Babel
+/sdcard/Audiobooks/Josiah Bancroft/The Hexologists - A Tangle of Time
+/sdcard/Audiobooks/Josiah Bancroft/The Hexologists - A Tangle of Time/.pad
+/sdcard/Audiobooks/Philip K. Dick
+/sdcard/Audiobooks/Philip K. Dick/Ubik - Philip K. Dick
+/sdcard/Audiobooks/V. E. Schwab
+/sdcard/Audiobooks/V. E. Schwab/V. E. Schwab - The Invisible Life of Addie LaRue
+/sdcard/Audiobooks/Khaled Hosseini
+/sdcard/Audiobooks/Khaled Hosseini/A Thousand Splendid Suns (Unabridged)
+/sdcard/Audiobooks/Khaled Hosseini/A Thousand Splendid Suns (Unabridged)/ebook
+/sdcard/Audiobooks/David Gemmell
+/sdcard/Audiobooks/David Gemmell/Drenai Series, Books 1-5
+/sdcard/Audiobooks/David Gemmell/Drenai Series, Books 1-5/David Gemmell - Waylander Drenai, Book 3 (Unabridged)
+/sdcard/Audiobooks/David Gemmell/Drenai Series, Books 1-5/David Gemmell - Quest for Lost Heroes Drenai, Book 4 (Unabridged)
+/sdcard/Audiobooks/David Gemmell/Drenai Series, Books 1-5/David Gemmell - The King Beyond the Gate Drenai, Book 2 (Unabridged)
+/sdcard/Audiobooks/David Gemmell/Drenai Series, Books 1-5/David Gemmell - Legend Drenai, Book 1 (Unabridged)
+/sdcard/Audiobooks/David Gemmell/Drenai Series, Books 1-5/David Gemmell - Waylander II In the Realm of the Wolf Drenai, Book 5 (Unabridged)
+/sdcard/Audiobooks/Niel Gayman
+/sdcard/Audiobooks/Niel Gayman/The Ocean at the End of the Lane
+/sdcard/Audiobooks/Drew Hayes
+/sdcard/Audiobooks/Drew Hayes/Drew Hayes - Fred the Vampire Accountant 01 - The Utterly Uninteresting and Unadventurous Tales
+/sdcard/Audiobooks/Ben Aronovitch
+/sdcard/Audiobooks/Ben Aronovitch/Ben Aaronovitch - Rivers of London Series [2011-2022]
+/sdcard/Audiobooks/Ben Aronovitch/Ben Aaronovitch - Rivers of London Series [2011-2022]/Ben Aaronovitch - The Masquerades of Spring
+/sdcard/Audiobooks/G.S. Denning
+/sdcard/Audiobooks/G.S. Denning/Warlock Holmes
+/sdcard/Audiobooks/Donna Tart
+/sdcard/Audiobooks/John Kennedy Toole
+/sdcard/Audiobooks/John Kennedy Toole/John Kennedy Toole - A Confederacy of Dunces (1980) [AAC]
+/sdcard/Audiobooks/Peter Clines
+/sdcard/Audiobooks/Peter Clines/Peter Clines - 14  (Threshold)
+/sdcard/Audiobooks/Kathryn Stockett
+/sdcard/Audiobooks/Brian Greene
+/sdcard/Audiobooks/Robert Louis Stevenson
+/sdcard/Audiobooks/Robert Louis Stevenson/treasure_island_dram_1306_librivox

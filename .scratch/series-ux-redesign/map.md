@@ -56,8 +56,14 @@ Sharpened by ticket 06; used loosely until then.
   the whole document; `GeneralTrack` is typed `[key: string]: unknown` with an
   `extra` bag (`src/NativeMediaInfo.ts:36,57`). `src/helpers/mediainfo.ts:105-114`
   already parses `Album`, `Artist`/`Performer`, and `Composer`→`narrator`.
-- **`Grouping` is present on only 1 of 5 sampled book sets** (Dresden). Do not
-  build on it as the primary signal. Full evidence in ticket 01.
+- **Real-library signal frequencies are now measured** (ticket 01, n=304
+  on-device units): explicit series tags on ~13% of in-series books, album
+  carries series name+number on ~52%, **≈57–60% of in-series books are
+  groupable from portable (tag/album) signals alone; ~4% are dark to every
+  signal**. Folder-derived evidence is **non-portable by design** — the app
+  does not enforce library structure, and this library's tree is one user's
+  convention. Most books in a *typical* library are standalones; absence of
+  series tags there is correct data, not failure.
 - **Folder path is load-bearing and inconsistent.** The series folder is the
   *parent* for one book and the *grandparent* for another; for a third it is the
   **author name** and must be rejected. **Reconciled with ticket 03:**
@@ -112,6 +118,11 @@ Sharpened by ticket 06; used loosely until then.
   testable, not sacred. Audible switches layout per content type; that convention
   is worth a prototype rather than an assumption.
 - Never foreclose personal playlists.
+- **Abstention bias** (driver, 2026-08-01): never auto-create a series without
+  confidence it is correct — an unmade group costs a wizard trip, a wrong group
+  costs trust. Folder conventions are per-library evidence that must
+  self-validate against that library's tags; never a global prior, never
+  enforced.
 
 ### Repo gotchas
 
@@ -127,6 +138,19 @@ Sharpened by ticket 06; used loosely until then.
 ## Decisions so far
 
 <!-- one line per closed ticket: gist + link -->
+
+- [01 — Signal inventory: what series-bearing data actually exists?](issues/01-signal-inventory.md)
+  — Sample widened from 8 books to **304 real-library units** (driver's phone) +
+  140 local, all read with a host build of the **exact bundled MediaInfoLib
+  v25.10**. **≈60% of genuinely-in-series books carry portable machine-usable
+  series identity; ~96% reachable if this library's folders are trusted; ~4%
+  dark.** `Grouping` survives the JSON path as top-level `"Grouping"`; Audible
+  `SERIES`/`PART`/ASIN live in `extra`; the app currently discards all of them —
+  and its `author` fallback already records "The Wheel of Time" as an author.
+  MediaInfo ≥ ffprobe on every signal tested. NFO sidecars carry `Read By:`
+  narrator 36/36. Field meanings are per-rip (`artist` = author 80% / narrator /
+  series); book↔folder↔unit is not 1:1 (12 flat multi-book dirs, anthology
+  nesting, split books, sub-series with resetting numbers).
 
 - [03 — Prior art: how do other apps present and detect series?](issues/03-prior-art-series-ux.md)
   — Canonical sequence is universal and belongs **on the join row as a
@@ -181,6 +205,10 @@ In scope, but not yet sharp enough to ticket. Graduates as the frontier advances
   bugs; every browse variant eventually needs a tablet answer.
 - **Re-verifying the existing series logic** — assumed correct, never re-checked
   against the redesign's assumptions.
+- **Recommended (not enforced) library structure** — driver-raised 2026-08-01:
+  if ticket 02's measured cascade accuracy on the ~60%-portable signal base is
+  disappointing, discuss the pros/cons of *recommending* a structure to users
+  (ABS-style enforcement is explicitly off the table). Waits on 02's numbers.
 
 ## Out of scope
 
