@@ -36,6 +36,16 @@ export type ProtoSeries = DerivedSeries & {
   canonicalNumbers: (number | null)[];
   /** What this row exists to stress. Shown in the dev panel, never in the UI. */
   stresses: string;
+  /**
+   * Who created the series (ticket 06's `series.origin` column, schema v33).
+   * Added for ticket 08: one of that ticket's judging criteria is "where do
+   * detected-but-unconfirmed series surface", and a layout with nowhere to put
+   * the distinction has to be redone. Note that 02 and 09 have since removed
+   * the *confirmation gate* — detection creates series outright — so what a
+   * browse layout actually owes this field is a CORRECTION entry point, not an
+   * approval queue.
+   */
+  origin: 'detected' | 'user';
 };
 
 type Spec = {
@@ -49,6 +59,10 @@ type Spec = {
   /** null = "no numbering known"; otherwise index-aligned with the books. */
   numbers: (number | null)[] | null;
   stresses: string;
+  /** Defaults to 'detected' — after ticket 02, that is the common case by far
+   *  (98.3% grouping purity, so most rows in a real library are machine-made).
+   *  Set 'user' on the few that stand in for hand-made playlists. */
+  origin?: 'detected' | 'user';
 };
 
 /**
@@ -114,20 +128,32 @@ const STRESS_SPECS: Spec[] = [
     stresses: 'ALL FINISHED — Finished tab filter + count',
   },
   {
+    // Offset deliberately NOT 0. Series art derives from the FIRST book, so
+    // three specs all starting at pool[0] made Discworld/City Watch/Death draw
+    // identical backdrops and manufactured a "shared cover" design problem that
+    // does not exist in a real library (driver, 2026-08-03: two series collide
+    // only if they share a first book, which is rare). Overlapping membership —
+    // the actual stress this row exists for — is preserved.
     name: 'City Watch',
     count: 6,
-    offset: 0,
+    offset: 2,
     progressState: 'playing',
     numbers: range(1, 6),
     stresses: 'SHARED MEMBERSHIP — same books as Discworld, different numbers',
+    // Hand-made sub-series: ticket 07 verified Guards! Guards! sits in both
+    // Discworld and Night Watch independently, and that such a series seeds a
+    // null canonical number because the parent's tag never names it.
+    origin: 'user',
   },
   {
+    // Also non-zero — see City Watch above.
     name: 'Death',
     count: 5,
-    offset: 0,
+    offset: 4,
     progressState: 'playing',
     numbers: range(1, 5),
     stresses: 'SHARED MEMBERSHIP — third series over the same books',
+    origin: 'user',
   },
   {
     name: 'Q',
@@ -136,6 +162,8 @@ const STRESS_SPECS: Spec[] = [
     progressState: 'unplayed',
     numbers: [1, 2],
     stresses: 'one-character name — minimum header width',
+    // Stands in for a personal playlist — the thing no decision may foreclose.
+    origin: 'user',
   },
   {
     name: 'Mistborn: Era Two',
@@ -232,6 +260,7 @@ function toProtoSeries(spec: Spec, pool: Book[]): ProtoSeries {
     progressState: spec.progressState,
     canonicalNumbers: books.map((_, i) => spec.numbers?.[i] ?? null),
     stresses: spec.stresses,
+    origin: spec.origin ?? 'detected',
   };
 }
 

@@ -11,8 +11,10 @@ varied, on `Pixel_7_Pro`, with no rebuild and no risk to the real database.
 1. Metro dev build, Library screen, switch to the **Series** view (the Layers toggle).
 2. Bottom-left there is a small `proto · Baseline` pill. Tap it.
 3. **Variant** picks which browse implementation renders. **Data** picks the dataset.
-4. `Log dataset` dumps a `console.table` of what is currently rendered — series name,
+4. `Log dataset` dumps a formatted block of what is currently rendered — series name,
    book count, forced progress state, canonical numbers, and what each row stresses.
+   (Deliberately `console.log`, not `console.table`: the latter does not forward to
+   the Metro log.)
 
 Both knobs persist across full JS reloads (AsyncStorage), because navigator work forces
 those and losing your place mid-A/B is exactly the friction this removes. When synthetic
@@ -64,7 +66,37 @@ true restore rather than a best-effort cleanup.
 the library screen's filters pass objects through by reference, those fields survive the
 search/tab pipeline even though its types erase them — variants re-widen with a cast.
 
-## Adding a variant (this is what ticket 08 does)
+## Variants
+
+| Variant       | Ticket | What it is                                                      |
+| ------------- | ------ | --------------------------------------------------------------- |
+| `Baseline`    | 04     | the Series view exactly as it ships today                        |
+| `Numbered`    | 04     | baseline + number badges + collapsed `#1, 3-4, 8` range          |
+| `Cards`       | 08     | one full-width card per series; body expands, chevron → detail   |
+| `Rich header` | 08     | sections kept; cover backdrop + **static** 4-cover peek          |
+| `Picker`      | 08     | thin rows only, no inline expansion — everything on detail       |
+| `Rich + play` | 08     | rich header, no chip, no expansion (tap → detail), play button   |
+| `Rich + continue` | 08 | same, but a `Continue`/`Start` pill instead of the play icon      |
+
+The last two are one component (`RichPlaySeriesHome.tsx`) behind two registry
+rows, one boolean apart — the driver wanted to compare the icon against the
+wording without a code edit between looks.
+
+The three ticket-08 variants share `ProtoSeriesDetail.tsx` (the detail screen),
+`seriesFacts.ts` (derived counts/next-up/range — data only, no layout) and
+`seriesCardParts.tsx` (`CoverCluster` / `OriginChip` / `CompletionBar`). Sharing
+the detail screen is deliberate: 08 asks what the **browse** unit is, and three
+bespoke detail screens would have made the driver compare six things.
+
+Two traps already paid for, do not re-introduce:
+
+- **`bookProgressValue` is a tri-state enum (0/1/2), not a fraction.** Averaging
+  it renders "1 of 7 finished" as 50%. Completion is a count — see `seriesFacts.ts`.
+- **A fanned cover stack needs its offset to outpace its shrink.** Equal rates
+  right-align every layer, the front one occludes the rest, and a 22-book series
+  draws as one lone cover. See `CoverCluster`.
+
+## Adding a variant
 
 1. Copy `variants/BaselineSeriesHome.tsx`, change what you are testing.
 2. Add one row to `VARIANTS` in `variants.ts`.

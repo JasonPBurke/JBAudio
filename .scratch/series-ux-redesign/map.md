@@ -284,15 +284,38 @@ Sharpened by ticket 06 (2026-08-02); no longer provisional.
   `timer.tsx`. Card is **`Series Detection`**. Schema: **5 columns across 2
   tables + 1 new table**. Graduates [10](issues/10-correction-surface.md).
 
+- [08 — Browse presentation: what is the repeating unit?](issues/08-browse-presentation.md)
+  — **A rich section header with a static cover peek, and it does NOT expand.**
+  Picked on device from six built variants (`Rich + continue`). A 96dp band over
+  a scrimmed first-book backdrop carries name (2 lines, truncating), the meta
+  line with 07's canonical range, a completion bar, and a **`Start`/`Continue`/
+  `Restart`** button that is never absent — hiding it on finished series left the
+  row's right side empty so a completed series read as an unfinished *layout*.
+  **Inline expansion is gone entirely**, and with it the masonry list, all book
+  cells, and the nested-horizontal-FlashList construct — a **dividend, not the
+  argument** (three of four candidates killed it anyway). **`BooksHome` and
+  `BooksGrid` are untouched**: nothing forked, nothing modified, the Series view
+  simply stops being a customer of `BookGridItem`/`BooksHorizontal`. Design
+  continuity with `BooksHome` was *tested and lost* — the section-shaped variant
+  was built and beaten by the same header without expansion, upholding 03's
+  Audible divergence finding. **No origin chip on browse**: it truncated the
+  canonical range on 5 of 15 series, and a row cannot carry both at full width —
+  provenance is detail-only. Covers take their true shape (`BookGridItem.tsx:246`,
+  500×500 fallback); the peek fits as many as the device allows so the count
+  varies by device *and* by series; `+N` hides when nothing is hidden. Play
+  styling is `BookGridItem`'s outlined glyph on `backgroundAlpha59` **plus a
+  hairline border** it does not have — a deliberate divergence, because the grid
+  button always sits on cover art while this one sits on a scrim that can match
+  its own ground and vanish. Density ~3.5 series/screen, so it is **not** the
+  densest option and was not chosen for density. Graduates
+  [11](issues/11-series-detail-contents.md); **does not decide** tablet, theme,
+  font scale, or the detail screen's transition (prototype used a `Modal`, not a
+  route).
+
 ## Not yet specified
 
 In scope, but not yet sharp enough to ticket. Graduates as the frontier advances.
 
-- **Series detail screen** — whether one exists at all, what it holds, and how it
-  relates to inline expansion. Waits on ticket 08's browse decision. **07 adds a
-  candidate occupant**: an explicit per-series "Sort by number" action that
-  re-seeds `position` from canonical on demand — considered and deliberately not
-  adopted in 07 because it has nowhere to live yet.
 - **`titleDetails` integration** — what series info a book's detail screen shows,
   and whether membership can be edited book-first rather than series-first.
   **09 adds a precedent worth copying**: the sibling `Remove Auto-Chapters` item
@@ -313,19 +336,32 @@ In scope, but not yet sharp enough to ticket. Graduates as the frontier advances
   being the removal tombstone), plus a **`suppressed_series(name, created_at)`
   table** — 09 explicitly declined to overload `origin` with a `'suppressed'`
   value, keeping 06's "records creation only" intact. **09 also ruled an edit does
-  NOT promote `origin`.** Still open: **series artwork**, and where 02's
-  confidence tier physically lands. Whether these ship as one migration or
-  several is the remaining coherence question; the running total is now **five
-  columns across two tables plus one new two-column table** (07's two and 09's one
-  on `series_books`, 06's one and 09's one on `series`, and 09's
-  `suppressed_series`).
+  NOT promote `origin`.** Still open: where 02's confidence tier physically lands,
+  and **[11](issues/11-series-detail-contents.md) will add more** — a series
+  **artwork override** (art derives from the first book and *follows* a reorder,
+  so only an override needs storing) and a **series description**, which 08's
+  session confirmed must be rescan-protected like `name` and therefore needs a
+  `*_source` companion under 09's per-aspect model. Whether these ship as one
+  migration or several is the remaining coherence question; the running total is
+  **five columns across two tables plus one new two-column table** (07's two and
+  09's one on `series_books`, 06's one and 09's one on `series`, and 09's
+  `suppressed_series`) — **plus whatever 11 lands**.
 - **Wizard flow shape as fallback** — the 3-step funnel may be wrong once the
   review surface absorbs part of its job. Fold in the defects logged in
   [05](issues/05-wizard-presentation.md): the inactive Next/Save button renders
   with an **invisible label**, the wizard has no app header, and every step has a
   large dead vertical region.
 - **Tablet / large-screen behaviour** — this app has a history of tablet layout
-  bugs; every browse variant eventually needs a tablet answer.
+  bugs; every browse variant eventually needs a tablet answer. **08 sharpens
+  this**: its peek row already fits "as many covers as the width allows", so a
+  tablet gets more for free — but the 96dp band, the 2-line name cap and the
+  single-column list are all phone-shaped decisions that a tablet will test.
+  08 also explicitly deferred light theme, font scale and animation.
+- **The series detail screen's transition** — 08 prototyped it as a `Modal`, so
+  push-vs-sheet is untested *by construction*. 05 chose push for the wizard on a
+  "you have left the library" argument that may not transfer to a detail screen,
+  which is not a modal task flow. Belongs with
+  [11](issues/11-series-detail-contents.md) or just after it.
 - **Re-verifying the existing series logic** — assumed correct, never re-checked
   against the redesign's assumptions.
 - **Recommended (not enforced) library structure** — driver-raised 2026-08-01,
@@ -352,13 +388,28 @@ In scope, but not yet sharp enough to ticket. Graduates as the frontier advances
 Ruled beyond this destination. Does not graduate.
 
 - **The clipped-row bug as a standalone hunt.** Deferred by the driver;
-  6 hypotheses now refuted (05's formSheet test was the 6th). 05 did **not**
-  dissolve it as a side effect — 08 is the one remaining ticket that could,
-  but chasing it directly is still not on the route.
+  6 hypotheses refuted (05's formSheet test was the 6th). **08 dissolved it
+  structurally**: the winning design has no inline expansion, no masonry list and
+  no book cells, so the horizontal-FlashList-inside-a-masonry-cell construct the
+  bug lived in no longer exists on this screen. Per 08's own instruction that was
+  treated as a **dividend, not an argument** — the variant was chosen on how it
+  reads. **Not a root-cause fix**: if that construct is ever reintroduced
+  anywhere, the bug is unexplained and comes back with it.
 - **Merging to `main`.** Both series branches stay open.
 - **The implementation itself.** This map ends at an approved spec.
 - **Auto-generating series from an online database** (Audible/Goodreads lookup).
-  Local signals only.
+  Local signals only. *(Note: 11 does allow an online **cover art** lookup for a
+  series, parallel to the existing `/coverArtSearch`. That is artwork, not series
+  identity, and does not reopen this.)*
+
+- **Cross-series split and merge.** Driver-raised then ruled out 2026-08-03:
+  *"deleting and rebuilding is good enough for now, and if at a later date
+  feedback leads me to needing to add this, we can revisit."* They are the only
+  two corrections a single-series editor structurally cannot express, so the
+  reasoning is preserved in [10](issues/10-correction-surface.md) — but nothing
+  is designed for them. **Consequence worth holding:** delete-and-rebuild is now
+  the sanctioned repair of last resort, so deletion, 09's `suppressed_series`
+  restore path, and the wizard all sit on a load-bearing route.
 
 - **Sidecar-driven general book metadata** (`.nfo`/`.opf` → Author, Narrator,
   Title). Driver-raised 2026-08-02 and consciously deferred: this map ends at a

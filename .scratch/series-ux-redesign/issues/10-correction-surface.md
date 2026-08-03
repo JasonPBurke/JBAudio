@@ -22,22 +22,34 @@ with a settings toggle plus suppression-on-delete. What is left is genuinely an
 
 ## The decisions
 
-1. **Does the existing series editor absorb all of it?**
-   `src/app/series/edit/[id].tsx` already does rename, reorder and delete. The
-   question is whether correction is "that screen, reached from more places" or
-   a different surface entirely. Note 05 kept the wizard as the app's only
-   opaque full-screen push — whatever this is, it should probably not be a
-   second one.
+1. **Does the existing series editor absorb all of it?** **Largely yes —
+   settled during 08 (2026-08-03).** `src/app/series/edit/[id].tsx` already does
+   rename, **add books** (:242), remove (`handleRemove`), reorder (`Sortable`)
+   and delete — a complete single-series repair kit. Correction is therefore
+   "that screen, reached from the right place", not a new surface. **But it is a
+   strict subset of correction** — see 3 and the defect below. Note 05 kept the
+   wizard as the app's only opaque full-screen push; this should not be a second.
 
-2. **Entry points.** A bad grouping is *noticed* on the browse screen, not in
-   settings. How does the user get from "that's wrong" to the fix — long-press,
-   overflow menu, swipe, a detail screen? Depends on 08's browse decision,
-   which is why this is blocked on it.
+2. **Entry points. Settled by 08.** Editing is reached **from the series detail
+   screen's three-dot menu**, and nowhere else. 08 removed the `Pencil` from
+   every browse row (`SeriesHome.tsx:279`) and deliberately did not replace it —
+   putting it back would re-clutter the space the redesign cleared. Accepted
+   cost: editing goes from 1 tap to 2. What remains for this ticket is only
+   whether *correction-specific* actions need any entry beyond that menu.
 
-3. **Split and merge.** The only two corrections with no home at all. 02's
-   number-collision check already splits editions automatically, so the
-   residual need is unmeasured — establish whether it exists before designing
-   for it.
+3. ~~**Split and merge.**~~ **OUT OF SCOPE — driver, 2026-08-03.**
+   *"Deleting and rebuilding is good enough for now, and if at a later date
+   feedback leads me to needing to add this, we can revisit."* Design nothing
+   for it here.
+
+   Recorded because the reasoning matters if it ever returns: these are the only
+   two corrections a single-series editor **structurally cannot express** — it
+   operates on one id, while a false split ("these two are one") or false merge
+   ("this one is two") spans two. The escape hatch is delete the wrong series
+   and rebuild it in the wizard. That is now load-bearing, so **deletion and the
+   wizard must stay capable enough to serve as the universal repair of last
+   resort** — 09's `suppressed_series` + `Removed Series` restore path is part of
+   why this is acceptable.
 
 4. **Reassigning a mis-filed book.** Book-first or series-first? Overlaps the
    `titleDetails` fog item, which may want to merge into this ticket.
@@ -54,6 +66,26 @@ with a settings toggle plus suppression-on-delete. What is left is genuinely an
    It would number all 39 of the 2022 Discworld units in one tap, but on a
    gapped set it stamps 1,2,3,4 over 1,3,4,8 and destroys the distinction 07
    exists to draw.
+
+## Defect this ticket inherits — found during 08, not yet fixed
+
+**The existing editor predates 09 and will silently undo repairs on *detected*
+series.** Schema is v32; `membership`, `name_source`, `origin` and
+`suppressed_series` do not exist yet, so:
+
+- `handleRemove` + `updateSeries` just rewrite the join rows. On a detected
+  series **the next rescan re-adds the book the user removed** — exactly the
+  failure 09 predicted ("removals need a tombstone or the repair for a wrong
+  merge silently undoes itself").
+- `updateSeries` **deletes the series when its last book is removed**
+  (`seriesQueries.ts:81-83`), whereas 09 ruled that delete must **suppress** via
+  `suppressed_series`, or detection simply recreates it.
+
+So "correction = the edit screen" only becomes *true* once the edit screen is
+made 09-aware. That is a correctness upgrade to an existing screen rather than a
+design question, but this ticket owns noticing it — and it matters more now that
+**delete-and-rebuild is the sanctioned escape hatch** for split/merge: that path
+runs straight through the suppression behaviour above.
 
 ## Constraints already settled
 
