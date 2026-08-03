@@ -285,7 +285,34 @@ Sharpened by ticket 06 (2026-08-02); no longer provisional.
   tables + 1 new table**. Graduates [10](issues/10-correction-surface.md).
 
 - [08 — Browse presentation: what is the repeating unit?](issues/08-browse-presentation.md)
-  — **A rich section header with a static cover peek, and it does NOT expand.**
+  — **A full-bleed row, no card, separated by an inset hairline rule: fanned
+  square cover cluster with a centred play glyph, beside name / meta / completion
+  bar / next-up. It does not expand.** Reopened 2026-08-03 after the first pass's
+  `Rich + continue` failed to satisfy; **fourteen variants across two passes**,
+  winner `Blend sep ctr` + `Blend quiet ctr`. **The answer is TWO variants and a
+  SETTING** — they differ only in the backdrop, and the driver ruled that a user
+  toggle picks between them, converting the art-heavy-vs-quiet axis from a spec
+  decision into a user one (→ [12](issues/12-series-display-setting.md)).
+  ~140dp/row, **~4.5 series/screen** against the first pass's 3.5. **The play
+  button carries no word**: its `Start`/`Continue`/`Restart` label cost ~27% of
+  the row's width and caused four faults, and the state is already carried by the
+  progress bar plus a next-up line that now has **three** states
+  (`Next` / `Continue` / `Series complete`) — so the label was *redundant*, not
+  sacrificed. The glyph sits on a 42% scrim **inside** the cover layer and is a
+  **fixed near-white, not a theme colour** — theme-coupling made it invisible in
+  light mode, the first light-theme defect this effort has found. Cover geometry:
+  **square boxes** (tall art pillarboxed, wide art cropped), constant 8.4dp peek,
+  constant 100.8dp cluster width — all three so the glyph aligns and the text
+  column starts at the same x on every row. **Inline expansion, the masonry list
+  and every book cell are gone**; `BooksHome`/`BooksGrid` untouched; no origin
+  chip on browse. The card container lost, measurably: 24dp of padding ≈ 4
+  characters of every line. **Row height is variable — the first pass's
+  "predictability over elasticity" ruling is deliberately reversed** (`Blend
+  stack` fixed it structurally and was not chosen). Costs **no schema**: the
+  toggle is a client setting. Does **not** decide tablet, font scale, animation,
+  or the detail screen's transition. Unblocks
+  [10](issues/10-correction-surface.md) and
+  [11](issues/11-series-detail-contents.md).
   Picked on device from six built variants (`Rich + continue`). A 96dp band over
   a scrimmed first-book backdrop carries name (2 lines, truncating), the meta
   line with 07's canonical range, a completion bar, and a **`Start`/`Continue`/
@@ -352,11 +379,19 @@ In scope, but not yet sharp enough to ticket. Graduates as the frontier advances
   with an **invisible label**, the wizard has no app header, and every step has a
   large dead vertical region.
 - **Tablet / large-screen behaviour** — this app has a history of tablet layout
-  bugs; every browse variant eventually needs a tablet answer. **08 sharpens
-  this**: its peek row already fits "as many covers as the width allows", so a
-  tablet gets more for free — but the 96dp band, the 2-line name cap and the
-  single-column list are all phone-shaped decisions that a tablet will test.
-  08 also explicitly deferred light theme, font scale and animation.
+  bugs; every browse variant eventually needs a tablet answer. **08's second
+  pass changes what this has to cover** (the peek row and the 96dp band it used
+  to reference are both gone): the row is now a fixed-width 100.8dp cluster
+  beside a `flex: 1` text column, so a tablet spends *all* its extra width on
+  text and none on covers — a very long line with a very small picture. The
+  84dp cluster, the 2-line name cap and the single-column list are all
+  phone-shaped decisions a tablet will test.
+- **Light theme** — 08's first pass deferred it; its second pass found and fixed
+  the first defect (a glyph coloured from the theme while sitting on a scrim the
+  component itself paints, invisible in light mode). **The trap is now on
+  record** — anything drawn on a surface the component darkens must be coloured
+  against that surface, not the palette — but no systematic light-theme pass has
+  been done. Font scale and animation are likewise still untouched.
 - **The series detail screen's transition** — 08 prototyped it as a `Modal`, so
   push-vs-sheet is untested *by construction*. 05 chose push for the wizard on a
   "you have left the library" argument that may not transfer to a detail screen,

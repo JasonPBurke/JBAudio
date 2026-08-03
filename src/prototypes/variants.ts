@@ -15,6 +15,16 @@ import {
   RichPlayIcon,
   RichPlayContinue,
 } from './variants/RichPlaySeriesHome';
+import {
+  BlendCard,
+  BlendSeparator,
+  BlendQuiet,
+  BlendIcon,
+  BlendStack,
+  BlendCenter,
+  BlendSeparatorCenter,
+  BlendQuietCenter,
+} from './variants/BlendSeriesHome';
 import type { VariantProps } from './variantProps';
 
 export type Variant = {
@@ -73,6 +83,64 @@ export const VARIANTS: Variant[] = [
     label: 'Rich + continue',
     hint: 'same, but the play button is a `Continue` pill echoing the detail screen',
     Component: RichPlayContinue,
+  },
+  // ---- Ticket 08 REOPENED (2026-08-03): the Cards × Rich blend. The peek row
+  // is deleted and the fanned cluster takes over the cover job, which is the one
+  // move that answers BOTH complaints (row too heavy, peek doesn't earn its
+  // height). `card` vs `sep` isolates the container; `quiet` drops the backdrop.
+  {
+    id: 'blendcard',
+    label: 'Blend card',
+    hint: 'Cards frame + Rich backdrop: fanned cluster, next-up, Continue pill. Bounded card, no peek row',
+    Component: BlendCard,
+  },
+  {
+    id: 'blendsep',
+    label: 'Blend sep',
+    hint: 'same row, but no card — full-bleed backdrop and an inset hairline rule like BooksList',
+    Component: BlendSeparator,
+  },
+  {
+    id: 'blendquiet',
+    label: 'Blend quiet',
+    hint: 'same row and rule, but NO cover art behind the text — covers appear only in the cluster',
+    Component: BlendQuiet,
+  },
+  // ---- Ticket 08 REOPENED, second round: the `Continue` pill cost ~27% of the
+  // row's width and caused four separate faults. Both hold container=card +
+  // backdrop constant against `Blend card`, so the ONLY variable is the play
+  // affordance.
+  {
+    id: 'blendicon',
+    label: 'Blend icon',
+    hint: 'pill → bare glyph ON the front cover (BookGridItem-style). Zero width cost, text column ~250dp',
+    Component: BlendIcon,
+  },
+  {
+    id: 'blendstack',
+    label: 'Blend stack',
+    hint: 'pill shrunk and tucked under the fan. Row ~20dp taller but FIXED height, text column ~250dp',
+    Component: BlendStack,
+  },
+  {
+    id: 'blendcenter',
+    label: 'Blend center',
+    hint: 'glyph CENTRED and larger on the front cover over a 42% scrim — trades artwork detail for contrast',
+    Component: BlendCenter,
+  },
+  // The centred glyph carried across to the two separator containers, so the
+  // play-affordance and container questions can be judged together.
+  {
+    id: 'blendsepctr',
+    label: 'Blend sep ctr',
+    hint: 'centred glyph + full-bleed backdrop + inset hairline rule — no card edges',
+    Component: BlendSeparatorCenter,
+  },
+  {
+    id: 'blendquietctr',
+    label: 'Blend quiet ctr',
+    hint: 'centred glyph, hairline rule, NO backdrop — the quietest row in the set',
+    Component: BlendQuietCenter,
   },
 ];
 

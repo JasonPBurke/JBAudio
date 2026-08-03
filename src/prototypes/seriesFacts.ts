@@ -106,6 +106,16 @@ export type SeriesFacts = {
   nextUpIndex: number;
   /** Canonical number of `nextUp`, when one is known. */
   nextUpNumber: number | null;
+  /**
+   * Is `nextUp` already part-read (tri-state `1 = Started`) rather than
+   * untouched? Distinguishes **mid-book** from **between books**, which is the
+   * difference between `Continue · #9 Eric` and `Next · #9 Eric`.
+   *
+   * Driver, 2026-08-03: this is what lets the play button drop its
+   * `Start`/`Continue`/`Restart` word without losing the information — the
+   * state is carried by the progress bar and this line instead.
+   */
+  nextUpStarted: boolean;
   /** `1, 3-4, 8` — already collapsed. Empty string when nothing is numbered. */
   range: string;
   /** Per-book progress AFTER the synthetic reconciliation described above. */
@@ -181,6 +191,7 @@ export function getSeriesFacts(
     nextUp: nextUpIndex === -1 ? null : books[nextUpIndex],
     nextUpIndex,
     nextUpNumber: nextUpIndex === -1 ? null : (numbers[nextUpIndex] ?? null),
+    nextUpStarted: nextUpIndex !== -1 && progressValues[nextUpIndex] === 1,
     range: collapseNumberRange(numbers),
     progressValues,
     cluster,
@@ -193,8 +204,23 @@ export function getSeriesFacts(
  * instead of comparing structure.
  */
 export function seriesMetaLine(facts: SeriesFacts): string {
-  const books = `${facts.bookCount} book${facts.bookCount === 1 ? '' : 's'}`;
+  const books = seriesCountLine(facts);
   if (facts.finishedCount === 0) return books;
   if (facts.finishedCount === facts.bookCount) return `${books} · finished`;
   return `${books} · ${facts.finishedCount} finished`;
+}
+
+/**
+ * Count only — no finished tally. The `Blend` variants' meta line (driver,
+ * 2026-08-03), because `CompletionBar` renders `8/41` directly beneath it and
+ * saying "8 finished" above that is the SAME FACT TWICE. Dropping it buys back
+ * roughly 70dp, which is what stops ticket 07's canonical range truncating in
+ * the blend's much narrower text column — and that range is 07's whole answer
+ * to "does the order read at a glance".
+ *
+ * Kept as a sibling rather than a flag on `seriesMetaLine` so the older
+ * variants' copy is provably unchanged and the A/B stays about structure.
+ */
+export function seriesCountLine(facts: SeriesFacts): string {
+  return `${facts.bookCount} book${facts.bookCount === 1 ? '' : 's'}`;
 }
