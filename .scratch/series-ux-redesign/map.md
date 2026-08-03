@@ -252,6 +252,38 @@ Sharpened by ticket 06 (2026-08-02); no longer provisional.
   the edition split **without a confirmation gate**. Unblocks
   [08](issues/08-browse-presentation.md).
 
+- [09 — Auto-generate series: the setting, and what happens to my edits](issues/09-auto-generate-series-setting.md)
+  — **The toggle promises that nothing you do by hand is ever overwritten.**
+  `Auto-Generate Chapters` turned out to be a **two-surfaced** precedent, and the
+  app had therefore already ruled on the shape: **bulk actions create, per-item
+  actions destroy** (there is no bulk destroy anywhere in `src/`). **Ownership is
+  per-aspect, not per-object** — `series.name_source` + `series_books.membership`
+  join 07's `canonical_source`, so a rename does *not* freeze membership. Coarse
+  "touch it, own it" promotion was rejected because 02 measures grouping at 98.3%
+  and naming at 94.2%: renaming is the commonest repair and must not cost
+  anything else. **An edit does NOT promote `origin`** — answering the question
+  06 deferred. **"Wipe-and-regenerate" does not ship**: rescan **reconciles**, so
+  surviving rows keep `position` and hand-ordering survives with no flag (07
+  already specified seeding only "at create and at insert"). Removals need a
+  tombstone or the repair for a wrong merge silently undoes itself —
+  `membership = 'excluded'`, a third enum value rather than a sixth column.
+  **Delete always suppresses**, via a new **`suppressed_series(name, created_at)`
+  table** rather than a `'suppressed'` value on `origin` — the driver caught that
+  conflating lifecycle with provenance silently amends 06's "creation only", and
+  the separate table also deletes both pieces of defensive code the shell-row
+  design needed (`deleteEmptySeries` unchanged). A checkbox on the delete dialog
+  was rejected: **a modifier asking for foresight fails exactly when foresight is
+  absent**; recovery lives in a browsable `Removed Series` list instead.
+  **OFF stops future detection and leaves existing series untouched** (driver,
+  matching `autoChapterInterval = null`). **ON by default and NOT Pro-gated** —
+  gating would invert the redesign for free users. Full fidelity ships as plain
+  language (`Also group by folder name`, default off), never as
+  "Conservative/Full". Retro button carries **no count** (driver's call, against
+  recommendation: the naive count is not a promise). Copy is one muted line plus
+  a pressable `Info` icon → `InfoDialogPopup`, the pattern already in
+  `timer.tsx`. Card is **`Series Detection`**. Schema: **5 columns across 2
+  tables + 1 new table**. Graduates [10](issues/10-correction-surface.md).
+
 ## Not yet specified
 
 In scope, but not yet sharp enough to ticket. Graduates as the frontier advances.
@@ -261,36 +293,32 @@ In scope, but not yet sharp enough to ticket. Graduates as the frontier advances
   candidate occupant**: an explicit per-series "Sort by number" action that
   re-seeds `position` from canonical on demand — considered and deliberately not
   adopted in 07 because it has nowhere to live yet.
-- **Correction surface** — **materially narrowed by 02**: the driver removed the
-  post-scan confirm/reject queue (a wipe-and-regenerate button makes detection
-  errors cheap without per-item UI), so this is now an *editing* surface, not a
-  *gate*. Still open: rename a series, split one, merge two, reassign a mis-filed
-  book, and **07's canonical-number edit field** (07 ruled the override must exist
-  and flips `canonical_source` to `'user'`, but declined to site the UI). 02 makes
-  renaming the highest-traffic action — grouping is 98.3% right while names are
-  94.2%, so the common repair is a label fix, not a regrouping. Whether a bulk
-  "number sequentially from current order" action belongs here is open: it would
-  number all 39 of the 2022 Discworld units in one tap, but on a gapped set it
-  stamps 1,2,3,4 over 1,3,4,8 and destroys the distinction 07 exists to draw.
-  **06 adds one more occupant**: renaming is now an edit to a series' *identity*,
-  not its label, so the rename affordance is load-bearing here. Waits on
-  [09](issues/09-auto-generate-series-setting.md) alone.
 - **`titleDetails` integration** — what series info a book's detail screen shows,
   and whether membership can be edited book-first rather than series-first.
+  **09 adds a precedent worth copying**: the sibling `Remove Auto-Chapters` item
+  already lives in this screen's overflow menu, `disabled` at 0.4 opacity when it
+  does not apply — so a per-book series action has an established home and an
+  established disabled-state convention. May merge into
+  [10](issues/10-correction-surface.md), which owns the book-first-vs-series-first
+  question.
 - **Consolidated schema decisions** — **canonical number settled by 07**
   (`series_books.canonical_number` + `canonical_source`, schema v33). **Detection
   confidence settled by 02**: a tier (`certain`/`likely`/`possible`/`guess`) plus
   a reason string, never a float — so the column is small and the `why` trail is
   what any explanatory UI reads. **Edition settled by 06 and it costs nothing** —
   identity is `name`, so there is no `edition` column and no grouping table;
-  06 adds exactly one column, **`series.origin` (`'detected' | 'user'`)**. Still
-  open: an override marker for series **membership and naming** as distinct from
-  the number (now owned by [09](issues/09-auto-generate-series-setting.md),
-  because wipe-and-regenerate is what makes it load-bearing — and 09 must also
-  rule whether an edit *promotes* `origin`), and **series artwork**. Whether
-  these ship as one migration or several is the remaining coherence question;
-  the running total is now **three columns across two tables** (07's two on
-  `series_books`, 06's one on `series`).
+  06 adds exactly one column, **`series.origin` (`'detected' | 'user'`)**.
+  **Override markers settled by 09**: `series.name_source` and
+  `series_books.membership` (`'detected' | 'user' | 'excluded'`, the third value
+  being the removal tombstone), plus a **`suppressed_series(name, created_at)`
+  table** — 09 explicitly declined to overload `origin` with a `'suppressed'`
+  value, keeping 06's "records creation only" intact. **09 also ruled an edit does
+  NOT promote `origin`.** Still open: **series artwork**, and where 02's
+  confidence tier physically lands. Whether these ship as one migration or
+  several is the remaining coherence question; the running total is now **five
+  columns across two tables plus one new two-column table** (07's two and 09's one
+  on `series_books`, 06's one and 09's one on `series`, and 09's
+  `suppressed_series`).
 - **Wizard flow shape as fallback** — the 3-step funnel may be wrong once the
   review surface absorbs part of its job. Fold in the defects logged in
   [05](issues/05-wizard-presentation.md): the inactive Next/Save button renders
@@ -306,8 +334,11 @@ In scope, but not yet sharp enough to ticket. Graduates as the frontier advances
   bad ones on evidence, and Conservative reaches 98.3% purity with 0 false
   positives. The residual gap is books whose *tags* say nothing and whose folder
   no sibling corroborates (Gentlemen Bastards, Founders Trilogy, Drenai) — a
-  recommendation would help exactly those. Open question is whether that is worth
-  any user-facing advice at all, or whether Full fidelity already covers it.
+  recommendation would help exactly those. **09 narrows this a lot**: Full
+  fidelity is now user-visible as `Also group by folder name`, so folder naming
+  has become a thing the user can deliberately opt into, and that switch's caption
+  is the natural home for any advice. What remains is only whether the app should
+  *proactively* recommend a structure anywhere beyond that one caption.
 
 - **Corpus re-pull without the per-directory cap** — 01 probed at most 2 files
   per directory, so the 12 flat multi-book folders contributed 24 units where 59
