@@ -696,6 +696,40 @@ Ruled beyond this destination. Does not graduate.
   like `name`) and an editor field behind it. Withdrawn from the schema section,
   which had already promised it.
 
+- **Pillarboxing of non-square covers on a fan's front card. Driver-accepted
+  2026-08-04 (*"accept it"*), ruled not worth fixing.**
+
+  **Scope, stated precisely because it was framed two wrong ways first — it is
+  NOT pinned-art-only and it is NOT the edit screen.** It is **any** non-square
+  cover on **any** `CoverCluster` layer, which means **browse rows and the
+  detail hero**, and it happens with **derived** art exactly as much as pinned.
+  It is visible on the emulator today in the `Discworld Proto` browse row
+  (`assets/13-detail-sheet/17-FINAL-browse-glyph-no-front-scrim.png`) with
+  nothing pinned. Pinning only raises the odds, because web-searched *series*
+  art is less often square than a book cover.
+
+  **Why only there.** The geometry is identical everywhere — `fitInBox`
+  (`seriesFacts.ts`) and `CoverCluster` both shrink the image to touch its box on
+  the long axis, leaving space on the short one. What differs is what fills that
+  space. The editor's 88dp cover and the detail sheet's 46dp row covers leave it
+  **unfilled**, so it is page background and invisible
+  (`07-pin-caption-pinned.png` — the editor looks clean). `CoverCluster` layers
+  fill it with **`PILLAR`, a fixed `#0B0B0B`** (`seriesCardParts.tsx:79`),
+  deliberately *not* `themeColors.background` so it reads as a cover's own
+  letterbox and does not become a white hole in light theme. Against the hero's
+  scrimmed backdrop that near-black is darker than its surroundings, so it reads
+  as bands (`08-pinned-art-on-fan.png`).
+
+  **Accepted as cosmetic** — it was present through all fourteen of 08's browse
+  variants and never remarked on, which is some evidence it reads as a letterbox
+  rather than a fault. Two fixes were offered and declined: **crop-to-fill the
+  front layer** (bands go, square box and glyph alignment survive, but the edges
+  of tall art are lost) and **re-colouring `PILLAR`** to the theme background
+  (cheapest, but reintroduces exactly the light-theme hole `PILLAR` exists to
+  prevent). Do not abandon the square box — 08 squared it so the glyph aligns and
+  every row's text column starts at the same x, and letting the front layer track
+  the artwork's aspect is what misaligned it in the first place.
+
 - **Retrofitting restart-from-zero to `BookGridItem` — OUT OF SCOPE HERE, BUT
   THE DRIVER WANTS IT FIXED. This is a carried commitment, not an accepted
   divergence.** `handleBookPlay` has no `Finished` case

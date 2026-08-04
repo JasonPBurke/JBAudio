@@ -224,10 +224,16 @@ Two fixes the build effort owes, not one:
 
 ### New findings worth carrying
 
-- **A non-square pinned cover pillarboxes** inside `CoverCluster`'s square box —
-  visible black bands either side of the front card. Book covers are mostly
-  square so this rarely bit; **searched-for *series* art often will not be**, and
-  the artwork override is exactly where non-square art enters.
+- **Non-square covers pillarbox on a fan's front card** — black bands either
+  side, on the browse row and the detail hero. **DRIVER-ACCEPTED, not to be
+  fixed**; full reasoning in the map's Out of scope section. Two framings this
+  ticket floated first and both were wrong, recorded so they are not repeated:
+  it is **not pinned-art-only** (derived art does it too — live on the emulator
+  in the `Discworld Proto` browse row with nothing pinned) and it is **not the
+  edit screen** (the editor's 88dp box leaves the gap unfilled, so it is page
+  background and invisible). The difference is only what fills the leftover
+  space: `fitInBox` surfaces leave it empty, `CoverCluster` layers fill it with
+  the fixed near-black `PILLAR`.
 - **`bookProgressValue` stays `Finished` after a restart**, so the row keeps its
   ✓. Reads as defensible (you *have* finished it; you are re-listening) but it is
   a judgement, not a given.

@@ -177,7 +177,10 @@ const ProtoSeriesDetailSheet = ({ series }: { series: DerivedSeries }) => {
     shape: bookCoverShape(book),
   }));
 
-  const renderRow = useCallback(({ item }: { item: Row }) => <BookRow row={item} />, []);
+  const renderRow = useCallback(
+    ({ item }: { item: Row }) => <BookRow row={item} />,
+    [],
+  );
 
   // Books repeat under synthetic data, so bookId alone is not unique.
   const keyExtractor = useCallback(
@@ -218,7 +221,10 @@ const ProtoSeriesDetailSheet = ({ series }: { series: DerivedSeries }) => {
     <View
       style={[
         styles.screen,
-        { backgroundColor: themeColors.background, paddingTop: insets.top + 8 },
+        {
+          backgroundColor: themeColors.background,
+          paddingTop: insets.top + 8,
+        },
       ]}
     >
       {/*
@@ -331,14 +337,24 @@ const ProtoSeriesDetailSheet = ({ series }: { series: DerivedSeries }) => {
                       }`}
                     >
                       <Text
-                        numberOfLines={titleExpanded ? undefined : TITLE_LINE_CAP}
-                        style={[styles.heroTitle, { color: themeColors.text }]}
+                        numberOfLines={
+                          titleExpanded ? undefined : TITLE_LINE_CAP
+                        }
+                        style={[
+                          styles.heroTitle,
+                          { color: themeColors.text },
+                        ]}
                       >
                         {series.name}
                       </Text>
                     </Pressable>
                   ) : (
-                    <Text style={[styles.heroTitle, { color: themeColors.text }]}>
+                    <Text
+                      style={[
+                        styles.heroTitle,
+                        { color: themeColors.text },
+                      ]}
+                    >
                       {series.name}
                     </Text>
                   )}
@@ -357,7 +373,10 @@ const ProtoSeriesDetailSheet = ({ series }: { series: DerivedSeries }) => {
 
                   <Text
                     numberOfLines={1}
-                    style={[styles.heroMeta, { color: themeColors.textMuted }]}
+                    style={[
+                      styles.heroMeta,
+                      { color: themeColors.textMuted },
+                    ]}
                   >
                     {seriesMetaLine(facts)}
                     {facts.range !== '' ? ` · #${facts.range}` : ''}
@@ -394,10 +413,17 @@ const ProtoSeriesDetailSheet = ({ series }: { series: DerivedSeries }) => {
               <Pressable
                 style={styles.fixRow}
                 onPress={openEditor}
-                android_ripple={{ color: withOpacity(themeColors.divider, 0.16) }}
+                android_ripple={{
+                  color: withOpacity(themeColors.divider, 0.16),
+                }}
               >
                 <Wrench size={15} color={themeColors.textMuted} />
-                <Text style={[styles.fixLabel, { color: themeColors.textMuted }]}>
+                <Text
+                  style={[
+                    styles.fixLabel,
+                    { color: themeColors.textMuted },
+                  ]}
+                >
                   Edit series
                 </Text>
                 {editorTarget === 'proto' && (
@@ -412,7 +438,9 @@ const ProtoSeriesDetailSheet = ({ series }: { series: DerivedSeries }) => {
               <View
                 style={[
                   styles.divider,
-                  { backgroundColor: withOpacity(themeColors.divider, 0.18) },
+                  {
+                    backgroundColor: withOpacity(themeColors.divider, 0.18),
+                  },
                 ]}
               />
             </View>
@@ -421,7 +449,10 @@ const ProtoSeriesDetailSheet = ({ series }: { series: DerivedSeries }) => {
       />
 
       {protoEditing && (
-        <ProtoSeriesEdit series={series} onClose={() => setProtoEditing(false)} />
+        <ProtoSeriesEdit
+          series={series}
+          onClose={() => setProtoEditing(false)}
+        />
       )}
     </View>
   );
@@ -462,11 +493,18 @@ const HeroPlayButton = memo(function HeroPlayButton({
 
   return (
     <Pressable
-      style={[styles.continueButton, { backgroundColor: themeColors.primary }]}
+      style={[
+        styles.continueButton,
+        { backgroundColor: themeColors.primary },
+      ]}
       android_ripple={{ color: withOpacity('#000000', 0.12) }}
       onPress={onPress}
     >
-      <Play size={16} color={themeColors.background} fill={themeColors.background} />
+      <Play
+        size={16}
+        color={themeColors.background}
+        fill={themeColors.background}
+      />
       <Text
         numberOfLines={1}
         style={[styles.continueLabel, { color: themeColors.background }]}
@@ -624,7 +662,10 @@ const BookRow = memo(function BookRow({ row }: { row: Row }) {
   const trailing = (
     <>
       <View style={styles.rowText}>
-        <Text numberOfLines={2} style={[styles.rowTitle, { color: themeColors.text }]}>
+        <Text
+          numberOfLines={2}
+          style={[styles.rowTitle, { color: themeColors.text }]}
+        >
           {row.book.bookTitle}
         </Text>
         <Text
