@@ -40,6 +40,12 @@ const ProtoPanel = ({ rendered }: Props) => {
   const variantId = useProtoStore((s) => s.variantId);
   const setVariantId = useProtoStore((s) => s.setVariantId);
   const clearSynthetic = useProtoStore((s) => s.clearSynthetic);
+  const seriesBackgrounds = useProtoStore((s) => s.seriesBackgrounds);
+  const setSeriesBackgrounds = useProtoStore((s) => s.setSeriesBackgrounds);
+  const rowMode = useProtoStore((s) => s.rowMode);
+  const setRowMode = useProtoStore((s) => s.setRowMode);
+  const editorTarget = useProtoStore((s) => s.editorTarget);
+  const setEditorTarget = useProtoStore((s) => s.setEditorTarget);
 
   const poolSize = useLibraryStore((s) => Object.keys(s.books).length);
   const variant = resolveVariant(variantId);
@@ -131,6 +137,43 @@ const ProtoPanel = ({ rendered }: Props) => {
             onPress={() => setDataPreset(p.id)}
           />
         ))}
+      </View>
+
+      {/*
+        TICKET 13's knobs. All three belong to the DETAIL SHEET, not to browse,
+        and they are chips rather than switches only because every other control
+        in this panel is a chip.
+
+        `Backgrounds` stands in for ticket 12's `Series Backgrounds` column,
+        which 11 widened to govern the detail hero too — default ON, matching
+        12's ruling. `Rows` is 13's secondary question after the driver merged
+        the glyph into it: `whole` is 11's one-target row with no glyph, `split`
+        gives the cover a glyph and playback and the text `titleDetails`.
+        `Editor` picks which screen the sheet's single wrench row opens: `real`
+        is the routing test (an opaque push over a live sheet), `proto` reaches
+        `ProtoSeriesEdit` and its pinned-artwork caption.
+      */}
+      <Text style={[styles.label, { color: themeColors.textMuted }]}>
+        Detail sheet (13)
+      </Text>
+      <View style={styles.chipRow}>
+        <Chip
+          label={`Backgrounds ${seriesBackgrounds ? 'ON' : 'OFF'}`}
+          active={seriesBackgrounds}
+          onPress={() => setSeriesBackgrounds(!seriesBackgrounds)}
+        />
+        <Chip
+          label={rowMode === 'split' ? 'Rows: split' : 'Rows: whole'}
+          active={rowMode === 'split'}
+          onPress={() => setRowMode(rowMode === 'whole' ? 'split' : 'whole')}
+        />
+        <Chip
+          label={`Editor: ${editorTarget}`}
+          active={editorTarget === 'proto'}
+          onPress={() =>
+            setEditorTarget(editorTarget === 'real' ? 'proto' : 'real')
+          }
+        />
       </View>
 
       <Text style={[styles.stat, { color: themeColors.textMuted }]}>

@@ -126,6 +126,28 @@ Sharpened by ticket 06 (2026-08-02); no longer provisional.
   testable, not sacred. Audible switches layout per content type; that convention
   is worth a prototype rather than an assumption.
 - Never foreclose personal playlists.
+- **PLAY-GLYPH HOUSE STYLE — the darkening is the GLYPH, never the artwork**
+  (driver, 2026-08-04, resolving [13](issues/13-detail-sheet-prototype.md)).
+  A play glyph drawn over cover art takes its contrast from its **own `fill`**:
+  `fill` = the scrim value (**0.42 black**), stroke = a **fixed near-white**,
+  and **no scrim, disc or badge outside the glyph** — every pixel of artwork
+  outside the play shape stays untouched. **Applies in both places this effort
+  draws one: the detail sheet's book rows AND the browse row's glyph over the
+  fanned cover cluster.**
+
+  **This AMENDS 08 and the mechanism of 12.** 08 put the browse glyph on a 42%
+  scrim *inside the front cover layer* (`CoverCluster`'s `frontScrim`), and 12
+  froze that scrim across both toggle states. The value and the reasoning both
+  survive — 12 wanted contrast that cannot vary with a user preference, and a
+  glyph carrying its own fill satisfies that **more completely**, since it is
+  now independent of the backdrop entirely. Only the *region* changed.
+  `frontScrim` is now `0` on the winning variants.
+
+  Two things NOT to re-derive: the colours stay **fixed, never theme-derived**
+  (08's light-theme defect was a palette-coloured glyph on artwork the palette
+  knows nothing about), and a **26dp disc was built and rejected** on the way
+  here — a smaller darkened patch is still a darkened patch.
+
 - **Abstention bias** (driver, 2026-08-01): never auto-create a series without
   confidence it is correct — an unmade group costs a wizard trip, a wrong group
   costs trust. Folder conventions are per-library evidence that must
@@ -301,8 +323,10 @@ Sharpened by ticket 06 (2026-08-02); no longer provisional.
   the row's width and caused four faults, and the state is already carried by the
   progress bar plus a next-up line that now has **three** states
   (`Next` / `Continue` / `Series complete`) — so the label was *redundant*, not
-  sacrificed. The glyph sits on a 42% scrim **inside** the cover layer and is a
-  **fixed near-white, not a theme colour** — theme-coupling made it invisible in
+  sacrificed. The glyph sits on a 42% scrim **inside** the cover layer
+  (**AMENDED by [13](issues/13-detail-sheet-prototype.md): the 0.42 moved into
+  the glyph's own `fill` and `frontScrim` is now 0 — see the play-glyph house
+  style in Notes**) and is a **fixed near-white, not a theme colour** — theme-coupling made it invisible in
   light mode, the first light-theme defect this effort has found. Cover geometry:
   **square boxes** (tall art pillarboxed, wide art cropped), constant 8.4dp peek,
   constant 100.8dp cluster width — all three so the glyph aligns and the text
@@ -361,7 +385,11 @@ Sharpened by ticket 06 (2026-08-02); no longer provisional.
   names something the toggle does not control. Global and not-Pro-gated are
   **entailments, not choices** — `settings` is a single-row table so per-library
   is inexpressible, and gating a default-ON setting would charge users to turn
-  *off* the busier read. **Scrim stays 0.42 in both states**: 08's re-tune
+  *off* the busier read. **Scrim stays 0.42 in both states** — **the VALUE and the
+  REASON survive [13](issues/13-detail-sheet-prototype.md), the MECHANISM does
+  not: 0.42 is now the glyph's own `fill` rather than a scrim on the cover, which
+  serves this ruling better still, since a self-contained glyph cannot vary with
+  the toggle at all.** 08's re-tune
   premise does not survive — the glyph never sat on the backdrop, it sits on the
   front cover in both states, and a toggle-dependent scrim would make legibility
   vary by preference (08's own theme-coupling bug, repeated). **Ruling that
@@ -459,6 +487,48 @@ Sharpened by ticket 06 (2026-08-02); no longer provisional.
   look pinned". Header is a **grab handle only** — the 48dp nav row goes.
   Schema: **one column**. Graduates [13](issues/13-detail-sheet-prototype.md).
 
+- [13 — Build the detail sheet: does a push over a live sheet survive?](issues/13-detail-sheet-prototype.md)
+  — **(C) ADOPTED, and the row got a second target.** Built on a REAL route
+  (`src/app/seriesDetail.tsx` + one `Stack.Screen`), so 08/10/11's "it's a
+  `Modal`, it says nothing about presentation" caveat is finally discharged.
+  **The opaque push is the only presentation that misbehaves**: it presents
+  fine and `Save`/`Cancel`/back all land on the sheet with its scroll offset
+  **pixel-exact** (nothing remounts), but popping the group *reveals the
+  LIBRARY* for ~165 ms and the sheet then **re-presents** with a full slide-up.
+  Both shipped alternatives are clean over a live sheet — `transparentModal`
+  cross-fades, `formSheet` slides down, each revealing the sheet already
+  underneath — so `series/edit/[id]` becomes a root `transparentModal` matching
+  `editTitleDetails`. A `formSheet` editor was offered (sheet-over-sheet is now
+  proven) and **rejected**: 05 chose a push because the editor is a task flow
+  with a Save/Cancel footer, and that survives the presentation change.
+  **CORRECTION to 11 and to 13's own brief: the group boundary does NOT own
+  `seriesDraftStore`'s lifetime** — `series/_layout.tsx` is a bare `<Stack>` and
+  every reset lives on a screen, so (C) orphans nothing and `exitGroup()`
+  collapses to a plain `goBack()`. Only the `Add books` sub-flow's return leg is
+  untested. **Rows are now SPLIT — the cover plays, the text opens
+  `titleDetails`** — which **REVERSES 11's "no route to `titleDetails` at all"**.
+  That was never a technical finding; it fell out of "the whole row plays", and
+  the question it implied (can a root `formSheet` present over another root
+  `formSheet`? nothing in this app stacks two sheets) had never been asked.
+  It can: presents fully, returns cleanly. **The glyph question dissolved into
+  the target question** — a glyph is only worth its pixels if it discriminates,
+  which needs two targets — and **the scrim shrank to the GLYPH ITSELF**: 0.42
+  black as the triangle's `fill`, near-white stroke as its border, every pixel
+  outside it untouched artwork (a 26dp disc was built and rejected as "still a
+  darkened patch"). **Restart-from-zero KEPT** despite the escape hatch
+  returning. **`Delete` is broken worse than 11 predicted — a full-screen WHITE
+  sheet**, because the route renders `null` and `titleDetails`-style options set
+  no `contentStyle` background (`player` does, `_layout.tsx:239`); it needs
+  BOTH a routing fix and a background. Also verified: hero honours
+  `Series Backgrounds` in both states (and needed an unspecified bottom fade or
+  the backdrop's edge is a seam), pinned art rides the front card **and the
+  backdrop follows it**, both caption states work, rows play for real with
+  `LoaderKitView` on the active one. New traps: **a non-square pinned cover
+  pillarboxes** in the square cluster box (series art is likelier non-square
+  than book art), and **playing a real book collapses a synthetic series'
+  fabricated progress** to real values (`reconcileProgress`'s `hasMix`).
+  Costs **no schema**. tsc 0 / eslint 0 / jest 484.
+
 ## Not yet specified
 
 In scope, but not yet sharp enough to ticket. Graduates as the frontier advances.
@@ -471,7 +541,12 @@ In scope, but not yet sharp enough to ticket. Graduates as the frontier advances
   under 09's `membership = 'excluded'`. What is still fog is only where the line
   physically sits on a screen whose hero is a mesh gradient and a large cover.
   **The disabled-state convention this item used to recommend is reversed** —
-  see Out of scope.
+  see Out of scope. **[13](issues/13-detail-sheet-prototype.md) closes the loop
+  in the other direction and removes the last technical unknown**: the series
+  detail sheet now routes INTO `titleDetails` (the row's text half), and
+  `formSheet`-over-`formSheet` was measured clean on device, so the two screens
+  can point at each other without a navigation problem. Whoever sites the series
+  line should know it is a **round trip**, not a one-way exit.
 - **Consolidated schema decisions** — **canonical number settled by 07**
   (`series_books.canonical_number` + `canonical_source`, schema v33), with
   **10 changing `canonical_number`'s TYPE from string to nullable number** —
@@ -525,7 +600,15 @@ In scope, but not yet sharp enough to ticket. Graduates as the frontier advances
   been done. Font scale and animation are likewise still untouched.
   **11 raises the stakes**: its detail hero is a scrimmed backdrop painted by the
   component itself — the exact construct the defect lived in — so this screen
-  repeats the trap at full size.
+  repeats the trap at full size. **13 built that hero and defused the trap
+  rather than tripping it** — the gradient is derived from
+  `themeColors.background`, so text on it stays a theme colour legitimately, and
+  the play-glyph house style removed the palette-vs-artwork conflict entirely.
+  **But 13 found a NEW light/dark defect of the same family**: a `formSheet`
+  whose route renders `null` shows the platform's **white** container, because
+  `titleDetails`-style options set no `contentStyle` background. Any screen
+  copying those options inherits it. **The systematic light-theme pass is still
+  undone**, and font scale and animation remain untouched.
 - **Re-verifying the existing series logic** — assumed correct, never re-checked
   against the redesign's assumptions.
 - **Recommended (not enforced) library structure** — driver-raised 2026-08-01,
@@ -613,11 +696,31 @@ Ruled beyond this destination. Does not graduate.
   like `name`) and an editor field behind it. Withdrawn from the schema section,
   which had already promised it.
 
-- **Retrofitting restart-from-zero to `BookGridItem`.** Driver-raised 2026-08-04
-  in the same breath as ruling it *in* for
-  [11](issues/11-series-detail-contents.md)'s book rows. `handleBookPlay` has no
-  `Finished` case (`handleBookPlay.ts:44-68`), so a finished book resumes at its
-  last few seconds everywhere in the app. 11 diverges deliberately because it has
-  no route to `titleDetails` and therefore no escape hatch; the library grid keeps
-  the old behaviour until someone changes it. **A known, accepted inconsistency**
-  — same book, two surfaces, two behaviours — not an oversight.
+- **Retrofitting restart-from-zero to `BookGridItem` — OUT OF SCOPE HERE, BUT
+  THE DRIVER WANTS IT FIXED. This is a carried commitment, not an accepted
+  divergence.** `handleBookPlay` has no `Finished` case
+  (`handleBookPlay.ts:44-68`), so a finished book resumes at its last few
+  seconds everywhere in the app.
+
+  **This entry previously read "a known, accepted inconsistency… not an
+  oversight" and that is now REVERSED** (driver, 2026-08-04, resolving
+  [13](issues/13-detail-sheet-prototype.md)): *"doublecheck that we have put in
+  a note to correct this in `BookGridItem` to match this better behavior."*
+  There was no such note — the map recorded the opposite — hence this rewrite.
+
+  The reversal has a history worth keeping. 11 ruled restart-from-zero *in* for
+  the detail rows **because that screen had no route to `titleDetails` and
+  therefore no escape hatch**, and the library grid was left alone on the
+  grounds that it *had* one. 13 then restored the escape hatch (the row split
+  opens `titleDetails`), which removed that justification — and the driver kept
+  restart-from-zero anyway, on the grounds that landing 30 seconds from the end
+  of a finished book is a poor outcome whether or not you can seek out of it.
+  **So the argument is no longer "this screen is special"; it is "this is the
+  better behaviour", which applies everywhere.**
+
+  It stays out of scope for *this* map on scope grounds only — `BookGridItem` is
+  the library grid, a book-screen change, and this map ends at a Series spec.
+  **The follow-on effort should fix it**, ideally by giving `handleBookPlay` the
+  `Finished` case rather than duplicating the caller-side rewind that
+  `ProtoSeriesDetailSheet` currently uses. Until then the inconsistency is
+  live and **known to be wrong**, not sanctioned.

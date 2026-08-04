@@ -88,6 +88,46 @@ The three ticket-08 variants share `ProtoSeriesDetail.tsx` (the detail screen),
 the detail screen is deliberate: 08 asks what the **browse** unit is, and three
 bespoke detail screens would have made the driver compare six things.
 
+## The detail sheet (ticket 13) — the one part that is a REAL ROUTE
+
+`ProtoSeriesDetailSheet.tsx`, mounted by `src/app/seriesDetail.tsx` with a
+`Stack.Screen` in `src/app/_layout.tsx`. Ticket 13's question was about
+*presentation*, and only a real route has one — `ProtoSeriesDetail`'s `Modal`
+was flagged as a fidelity caveat by 08 and 10 for exactly that reason.
+
+Reached by tapping a row in the `Blend *` variants (the only ones repointed at
+the route; the other five keep the `Modal`, since 08 is resolved).
+
+Three knobs in the panel, all detail-sheet-only:
+
+| Knob | What it stands in for |
+| --- | --- |
+| `Backgrounds` | ticket 12's `Series Backgrounds` column, which 11 widened to govern this hero. Default ON, per 12. |
+| `Rows` | `split` (cover plays, text → `titleDetails`) vs `whole` (11's one-target row). **`split` is the ruling**; `whole` is kept so the A/B survives. |
+| `Editor` | `real` pushes the actual `series/edit/[id]`; `proto` opens `ProtoSeriesEdit` and its pinned-artwork caption. |
+
+**It writes to the database — a deliberate exception to the harness rule above.**
+"Rows play for real" is inherently stateful: `handleBookPlay` stamps
+`last_played_at`, promotes `NotStarted → Started`, and restart-from-zero adds a
+chapter-index/progress reset. Synthetic *series* are still pure memory; only the
+real books they point at move.
+
+**Harness artifact worth knowing before you read anything into it:** playing a
+real book from a *synthetic* series collapses that series' fabricated progress
+to the real values, because `reconcileProgress`'s `hasMix` flips the moment any
+member book is touched (`seriesFacts.ts:139-158`). Expect the meta line and the
+completion bar to change under `Stress ×15` as soon as you play anything.
+
+### Play-glyph house style (driver, 2026-08-04)
+
+**The darkening is the glyph, never the artwork.** `fill` = 0.42 black, stroke =
+fixed near-white, and *no* scrim, disc or badge outside the play shape. Used
+both here and on the browse row's glyph over the fanned cluster, so
+`CoverCluster`'s `frontScrim` is now `0` on the winning variants. Two rejected
+predecessors, do not reintroduce: a full-cover 42% scrim (turned a 22-row list
+into 22 identical buttons) and a 26dp disc (a smaller darkened patch is still a
+darkened patch).
+
 ## The edit screen (ticket 10)
 
 `ProtoSeriesEdit.tsx`, opened from the detail screen's `Edit series` row. Not a
@@ -127,11 +167,16 @@ repo's `tsc`/eslint-zero-errors line, because breaking that costs every other se
 
 ## Footprint in real code
 
-Three edits, all in `src/app/(drawer)/(library)/index.tsx`, all marked `THROWAWAY`:
+Three edits in `src/app/(drawer)/(library)/index.tsx`, all marked `THROWAWAY`:
 
 - `useDerivedSeries()` → `useSeriesSource()`
 - `<SeriesHome …>` → `<SeriesProtoSlot …>`
 - the two imports for those
+
+Plus two files ticket 13 needed, because a route cannot live in `src/prototypes/`:
+
+- `src/app/seriesDetail.tsx` — the route (renders `null` outside `__DEV__`)
+- one `<Stack.Screen name='seriesDetail'>` in `src/app/_layout.tsx`
 
 Injecting the data *above* the screen's search/tab/count pipeline is what makes the
 tab-filtering dataset meaningful: `countSeriesByState`, `filterSeriesBySearch` and the tab
@@ -145,10 +190,11 @@ The one production cost is a single Zustand selector over a store that never cha
 ## Deleting it
 
 ```
-rm -rf src/prototypes
+rm -rf src/prototypes src/app/seriesDetail.tsx
 ```
 
-then in `src/app/(drawer)/(library)/index.tsx` restore the three `THROWAWAY` sites:
+then remove the `seriesDetail` `<Stack.Screen>` from `src/app/_layout.tsx`, and
+in `src/app/(drawer)/(library)/index.tsx` restore the three `THROWAWAY` sites:
 re-import `SeriesHome` from `@/components/SeriesHome` and `useDerivedSeries` from
 `@/store/seriesStore`, and put both back at their use sites. `src/components/SeriesHome.tsx`
 was never modified, so there is nothing to revert there.

@@ -53,11 +53,12 @@
  * `BookGridItem` and `BooksHorizontal` are both unused, so `BooksHome` and
  * `BooksGrid` are untouched.
  */
-import React, { memo, useCallback, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useMemo, useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
 import FastImage from '@d11/react-native-fast-image';
+import { useRouter } from 'expo-router';
 import { Play } from 'lucide-react-native';
 
 import { unknownBookImageUri } from '@/constants/images';
@@ -75,7 +76,14 @@ import {
   CLUSTER_MAX_LAYERS,
   coverClusterWidth,
 } from '../seriesCardParts';
-import ProtoSeriesDetail from '../ProtoSeriesDetail';
+/*
+ * TICKET 13: this variant no longer renders `ProtoSeriesDetail`'s `Modal`. 08's
+ * winner is the browse screen the driver will actually be looking at, so it is
+ * the one that has to launch the REAL route — that is the whole point of 13.
+ * The other five ticket-08 variants keep the Modal: 08 is resolved, and
+ * rewriting a closed ticket's artifact buys nothing.
+ */
+const DETAIL_ROUTE = '/seriesDetail';
 
 /** Long-axis box for one cluster layer. `Cards` used 84 and the driver liked it. */
 const CLUSTER_SIZE = 84;
@@ -148,7 +156,7 @@ const BlendSeriesHome = ({
   overlayStyle?: OverlayStyle;
 }) => {
   const { colors: themeColors } = useTheme();
-  const [detailSeries, setDetailSeries] = useState<DerivedSeries | null>(null);
+  const router = useRouter();
 
   const listRef = useRef<React.ComponentRef<typeof FlashList<Row>>>(null);
   useResetScrollOnTabChange(listRef, selectedTab);
@@ -165,10 +173,10 @@ const BlendSeriesHome = ({
   );
 
   const handleOpenDetail = useCallback(
-    (s: DerivedSeries) => setDetailSeries(s),
-    [],
+    (s: DerivedSeries) =>
+      router.navigate({ pathname: DETAIL_ROUTE, params: { id: s.id } }),
+    [router],
   );
-  const handleCloseDetail = useCallback(() => setDetailSeries(null), []);
 
   const renderItem = useCallback(
     ({ item }: { item: Row }) => (
@@ -231,7 +239,6 @@ const BlendSeriesHome = ({
         contentContainerStyle={{ paddingBottom: 58 }}
         showsVerticalScrollIndicator={false}
       />
-      <ProtoSeriesDetail series={detailSeries} onClose={handleCloseDetail} />
     </View>
   );
 };
@@ -361,9 +368,20 @@ const BlendRow = memo(function BlendRow({
               covers={facts.cluster}
               size={CLUSTER_SIZE}
               overlayAlign={overlayStyle === 'center' ? 'center' : 'corner'}
-              frontScrim={
-                playSlot === 'overlay' && overlayStyle === 'center' ? 0.42 : 0
-              }
+              /*
+               * WAS 0.42 FOR THE CENTRED GLYPH — now 0 (driver, 2026-08-04,
+               * resolving ticket 13). The 0.42 did not go away, it moved
+               * INSIDE the glyph as its `fill`, so the darkening is bounded by
+               * the play shape instead of covering the whole front cover. See
+               * `PlayIcon` below and the map's standing preference.
+               *
+               * AMENDS 08 (which put the glyph on a front-cover scrim) and the
+               * mechanism of 12's "scrim stays 0.42 in both states" — 12's
+               * REASON survives and is in fact better served: the glyph now
+               * carries its own contrast, so legibility cannot vary with the
+               * `Series Backgrounds` preference at all.
+               */
+              frontScrim={0}
               overlay={
                 playSlot === 'overlay' ? (
                   <PlayIcon
@@ -543,6 +561,13 @@ const PlayIcon = memo(function PlayIcon({
       accessibilityLabel={`${label} ${seriesName}`}
     >
       <Play
+        /*
+         * `fill` at the scrim's own 0.42 is what makes the centred glyph
+         * legible now that the front cover is no longer darkened — the house
+         * style settled on ticket 13: the darkened region is the GLYPH, its
+         * stroke is the border, and nothing outside it is touched.
+         */
+        fill={centered ? withOpacity('#000000', 0.42) : 'transparent'}
         size={centered ? 40 : 20}
         /*
          * The centred glyph is deliberately NOT `themeColors.icon`. It sits on

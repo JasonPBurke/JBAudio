@@ -52,6 +52,7 @@ import { withOpacity } from '@/helpers/colorUtils';
 import { Book } from '@/types/Book';
 import type { DerivedSeries } from '@/helpers/seriesAssembly';
 import type { ProtoSeries } from './syntheticSeries';
+import { useProtoStore } from './protoStore';
 import { bookCoverShape, fitInBox } from './seriesFacts';
 
 /**
@@ -122,16 +123,42 @@ const ProtoSeriesEdit = ({
   const [name, setName] = useState(series.name);
   const [rows, setRows] = useState<EditRow[]>(() => buildRows(series));
 
+  const pinned = useProtoStore((s) => s.pinnedSeries[series.id] ?? false);
+  const setPinned = useProtoStore((s) => s.setPinned);
+
   /**
    * Ticket 08 ruled series art DERIVES from the first book and FOLLOWS a
    * reorder. Reading it off `rows[0]` rather than off the series is what makes
    * that visible: `Sort by number` can change the cover in the header, live.
-   * An override would freeze this — which is the thing worth feeling before
-   * deciding where the override button goes.
+   * An override FREEZES this — the thing ticket 10 found reads like a bug, and
+   * ticket 11 answered with the caption below.
+   *
+   * Stand-in only: schema v33 is unbuilt and the harness writes nothing, so a
+   * pin is a boolean in `protoStore` drawn as the series' LAST book's cover.
+   * It has to be a visibly different cover, or an override cannot be told apart
+   * from the derived art.
    */
-  const coverShape = useMemo(
-    () => (rows[0] ? bookCoverShape(rows[0].book) : null),
-    [rows],
+  const coverShape = useMemo(() => {
+    if (pinned && rows.length > 0) return bookCoverShape(rows[rows.length - 1].book);
+    return rows[0] ? bookCoverShape(rows[0].book) : null;
+  }, [rows, pinned]);
+
+  /*
+   * THE UN-PIN GAP NOBODY HAD NAMED (ticket 11). Once `series.artwork` is
+   * non-null it stays non-null forever — the cover control can only ever set
+   * it, so a user who pins by accident has no way back to the derived art. One
+   * caption fixes it by being three things at once: an INDICATOR that art is
+   * pinned (10 asked for exactly that after `Sort by number` silently changed
+   * the cover), an EXPLANATION of where the art comes from otherwise, and the
+   * ESCAPE HATCH itself.
+   *
+   * The real implementation's revert must also DELETE the pinned file, or it
+   * leaks into the orphan pile `orphaned-artwork-files-never-cleaned` already
+   * tracks.
+   */
+  const togglePin = useCallback(
+    () => setPinned(series.id, !pinned),
+    [series.id, pinned, setPinned],
   );
 
   const canSort = useMemo(
@@ -178,35 +205,69 @@ const ProtoSeriesEdit = ({
               with ImagePlus on a 70%-opacity chip. No separate "change art"
               control — the app has no such control for books either.
             */}
-            <Pressable
-              style={[styles.coverBox, { borderColor: themeColors.divider }]}
-              android_ripple={{ color: withOpacity(themeColors.divider, 0.16) }}
-              accessibilityLabel='Change series artwork'
-            >
-              {coverShape && (
-                <FastImage
-                  source={{
-                    uri: coverShape.uri ?? unknownBookImageUri,
-                    priority: FastImage.priority.normal,
-                    cache: FastImage.cacheControl.immutable,
-                  }}
-                  style={fitInBox(coverShape, COVER_BOX)}
-                  resizeMode={FastImage.resizeMode.cover}
-                />
-              )}
-              <View
-                style={[
-                  styles.coverBadge,
-                  { backgroundColor: withOpacity(themeColors.background, 0.7) },
-                ]}
+            <View style={styles.coverColumn}>
+              <Pressable
+                style={[styles.coverBox, { borderColor: themeColors.divider }]}
+                android_ripple={{ color: withOpacity(themeColors.divider, 0.16) }}
+                accessibilityLabel='Change series artwork'
+                // Stands in for `/coverArtSearch`, which ticket 10 ruled this
+                // control opens — the app's only entry point to it is
+                // `editTitleDetails.tsx:78`, i.e. inside the edit form.
+                onPress={() => setPinned(series.id, true)}
               >
-                <ImagePlus
-                  size={16}
-                  color={themeColors.textMuted}
-                  strokeWidth={1.5}
-                />
-              </View>
-            </Pressable>
+                {coverShape && (
+                  <FastImage
+                    source={{
+                      uri: coverShape.uri ?? unknownBookImageUri,
+                      priority: FastImage.priority.normal,
+                      cache: FastImage.cacheControl.immutable,
+                    }}
+                    style={fitInBox(coverShape, COVER_BOX)}
+                    resizeMode={FastImage.resizeMode.cover}
+                  />
+                )}
+                <View
+                  style={[
+                    styles.coverBadge,
+                    { backgroundColor: withOpacity(themeColors.background, 0.7) },
+                  ]}
+                >
+                  <ImagePlus
+                    size={16}
+                    color={themeColors.textMuted}
+                    strokeWidth={1.5}
+                  />
+                </View>
+              </Pressable>
+
+              {/*
+                Two states, one element. Derived: a muted statement of fact, not
+                a control — there is nothing to revert to. Pinned: a pressable
+                that says what pressing it DOES rather than naming its own state
+                ("Pinned" would be an indicator that leaves the escape hatch
+                unbuilt, which is the gap 11 found).
+              */}
+              {pinned ? (
+                <Pressable
+                  onPress={togglePin}
+                  hitSlop={6}
+                  style={styles.coverCaptionButton}
+                  accessibilityLabel='Use first book’s cover instead'
+                >
+                  <Text
+                    style={[styles.coverCaption, { color: themeColors.primary }]}
+                  >
+                    Use first book’s cover instead
+                  </Text>
+                </Pressable>
+              ) : (
+                <Text
+                  style={[styles.coverCaption, { color: themeColors.textMuted }]}
+                >
+                  Using first book’s cover
+                </Text>
+              )}
+            </View>
 
             <View style={styles.identityText}>
               <TextInput
@@ -386,6 +447,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 14,
+  },
+  coverColumn: {
+    width: COVER_BOX,
+    gap: 6,
+  },
+  coverCaption: {
+    fontFamily: 'Rubik',
+    fontSize: 10,
+    lineHeight: 13,
+  },
+  coverCaptionButton: {
+    paddingVertical: 2,
   },
   coverBox: {
     width: COVER_BOX,

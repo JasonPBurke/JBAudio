@@ -291,6 +291,27 @@ const RootNavigation = () => {
             animation: 'slide_from_right',
           }}
         />
+        {/*
+          THROWAWAY — Series UX redesign prototype harness, ticket 13.
+          Delete with `rm -rf src/prototypes` (see src/prototypes/README.md).
+
+          Options copied from `titleDetails` above, deliberately and exactly:
+          ticket 11 chose `formSheet` BECAUSE `titleDetails` is the app's
+          existing detail-screen-for-an-object, so a divergence here would test
+          something nobody decided. Note ticket 05's warning applies in reverse —
+          `sheetShouldOverflowTopInset: true` yields a FULL-HEIGHT sheet, which
+          for the wizard read as indistinguishable from a push and was wrong;
+          here it is the point, because it is what `titleDetails` does.
+        */}
+        <Stack.Screen
+          name='seriesDetail'
+          options={{
+            presentation: 'formSheet',
+            animation: 'slide_from_bottom',
+            sheetCornerRadius: 15,
+            sheetShouldOverflowTopInset: true,
+          }}
+        />
       </Stack>
     </BottomSheetModalProvider>
   );
