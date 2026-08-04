@@ -88,6 +88,26 @@ The three ticket-08 variants share `ProtoSeriesDetail.tsx` (the detail screen),
 the detail screen is deliberate: 08 asks what the **browse** unit is, and three
 bespoke detail screens would have made the driver compare six things.
 
+## The edit screen (ticket 10)
+
+`ProtoSeriesEdit.tsx`, opened from the detail screen's `Edit series` row. Not a
+variant — there is only one, because ticket 10 settled *that* correction is the
+edit screen and asked only what the screen has to grow to hold:
+
+- a pressable series cover + `ImagePlus` badge, parity with `editTitleDetails`
+- a per-row canonical-number field (ticket 07's override, finally sited)
+- `Sort by number`, which 07 declined purely for having nowhere to live
+
+Two things it exists to have made visible, both now findings on ticket 10:
+**sorting silently changes the series artwork** (08: art follows the first book),
+and **the number field cannot use a numeric keyboard**, because 07's
+`canonical_number` is a string holding `14b` and `1-3` and Android's numeric
+input types exclude letters.
+
+Rows draw a grip but do **not** drag: `react-native-sortables` is deliberately
+not wired, since the shipping screen's drag is already device-verified and the
+question was what fits in a row.
+
 Two traps already paid for, do not re-introduce:
 
 - **`bookProgressValue` is a tri-state enum (0/1/2), not a fraction.** Averaging

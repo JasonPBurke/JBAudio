@@ -197,8 +197,11 @@ Sharpened by ticket 06 (2026-08-02); no longer provisional.
   sort authority**; canonical only *seeds* it, at create and at insert — so a
   wrong number is cosmetic, never structural, and the wizard's drag step survives
   as pre-sorted rather than redundant. Schema **v32 → v33**: two optional columns
-  on `series_books` — `canonical_number` (string, normalised on write, holds
-  `12.5`/`14b`/`1-3`, float-parsed only for seeding and range-collapse) and
+  on `series_books` — `canonical_number` (**a nullable NUMBER since
+  [10](issues/10-correction-surface.md) superseded this — originally a string
+  holding `12.5`/`14b`/`1-3`, until the letter forms were found to force an
+  alphabetic keyboard on every edit**; float-parsed for seeding and
+  range-collapse) and
   `canonical_source` (`'user' | 'detected'`; rescans refresh `detected`, never
   touch `user`). **No placeholders for un-owned books**; gaps read from the
   header range (`#1, 3-4, 8`, already built — needs a width cap or it eats the
@@ -373,20 +376,63 @@ Sharpened by ticket 06 (2026-08-02); no longer provisional.
   this is the table's first default-ON boolean and a migration leaves every
   existing tester `null`.
 
+- [10 — Correction surface: where does fixing a series actually happen?](issues/10-correction-surface.md)
+  — **Correction IS the existing edit screen**, grown by three things: **series
+  artwork**, a **per-row canonical number** and **`Sort by number`**. Rename is
+  02's commonest repair and still costs 5 taps; a dedicated rename dialog was
+  offered and **rejected** for one-surface-one-validation. **Two visible routes,
+  one word: `wrench` + `Edit series`** on both the detail row and a ⋮ that
+  mirrors `titleDetails`. **08's "⋮ only" ruling is superseded** — 08 never built
+  a ⋮, it built the wrench row — and **`Fix this series` is retired**, since it
+  presumes breakage on the 98.3% of detected series that are correct and on every
+  hand-made playlist. **07's number override is sited here** and editing a number
+  deliberately **does not resort** (position keeps sole sort authority);
+  **`Sort by number` re-seeds order** on demand, NULLS LAST and stable. **Bulk
+  numbering ships but is gated to fully-unnumbered series** — 09's *bulk creates,
+  per-item destroys* rules out renumbering over existing values, and "fill blanks
+  only" was rejected because on `1, _, _, 8` it manufactures false canonical data
+  (07: *blank beats misleading*). **Artwork lives in the editor** as a pressable
+  cover + `ImagePlus`, parity with `editTitleDetails` (the app's only entry to
+  `/coverArtSearch`); **`replaceBookArtwork` generalises to `replaceArtwork`**,
+  **immediate-write is KEPT plus a confirm-BEFORE-apply** (deferring is
+  incoherent — `RNFS.unlink` runs before the DB write, so the old cover is
+  already gone), and **"pick a member's cover" is DROPPED** — web search subsumes
+  it, so series art has exactly one override mechanism. **Book-first gets a read
+  plus one shortcut**: a series line on `titleDetails` and an always-present
+  `Add to series…`, but **no book-first remove**. Two findings worth keeping:
+  **`Sort by number` silently changes the series cover** (08's art-follows-reorder
+  rule, working as specified and reading like a bug — pinned art probably needs
+  to look pinned, which is 11's), and **07's string-valued number forecloses the
+  Android number pad** (`14b`, `1-3` need letters). **That one AMENDS 07**: the
+  driver dropped the letter forms rather than the keypad (`14b` renames to
+  `14.1`), so the field is a **`decimal-pad`** and `canonical_number` becomes a
+  **nullable NUMBER** — structural rather than conventional, and most of 07's
+  normalisation collapses to a parse. **Ranges are the casualty** (an omnibus
+  can no longer say `1-3`), and there is a **locale trap**: `decimal-pad` shows
+  the locale's separator, so `parseFloat('14,1')` silently returns `14`.
+  **Costs zero NEW schema** (07's column changes type, none is added). Inherits
+  the not-09-aware editor, and notes that `Save`'s `exitGroup()` — which pops the
+  **whole series stack** — is **correct today** (no detail screen exists; the
+  library really is the previous screen) and becomes wrong the moment 11 lands
+  one, making it a constraint on 11's routing rather than a live bug.
+
 ## Not yet specified
 
 In scope, but not yet sharp enough to ticket. Graduates as the frontier advances.
 
-- **`titleDetails` integration** — what series info a book's detail screen shows,
-  and whether membership can be edited book-first rather than series-first.
-  **09 adds a precedent worth copying**: the sibling `Remove Auto-Chapters` item
-  already lives in this screen's overflow menu, `disabled` at 0.4 opacity when it
-  does not apply — so a per-book series action has an established home and an
-  established disabled-state convention. May merge into
-  [10](issues/10-correction-surface.md), which owns the book-first-vs-series-first
-  question.
+- **`titleDetails` integration — series half SETTLED by 10, layout still fog.**
+  10 ruled the shape: a **series line** (name + 07's canonical number, tapping
+  through to series detail, rendering a *list* because multi-membership is real)
+  plus **`Add to series…`** in the overflow, which is always present because it
+  has no inapplicable state. **No book-first remove** — removal is series-scoped
+  under 09's `membership = 'excluded'`. What is still fog is only where the line
+  physically sits on a screen whose hero is a mesh gradient and a large cover.
+  **The disabled-state convention this item used to recommend is reversed** —
+  see Out of scope.
 - **Consolidated schema decisions** — **canonical number settled by 07**
-  (`series_books.canonical_number` + `canonical_source`, schema v33). **Detection
+  (`series_books.canonical_number` + `canonical_source`, schema v33), with
+  **10 changing `canonical_number`'s TYPE from string to nullable number** —
+  no column added or removed, so the running total below is unaffected. **Detection
   confidence settled by 02**: a tier (`certain`/`likely`/`possible`/`guess`) plus
   a reason string, never a float — so the column is small and the `why` trail is
   what any explanatory UI reads. **Edition settled by 06 and it costs nothing** —
@@ -485,6 +531,18 @@ Ruled beyond this destination. Does not graduate.
   is designed for them. **Consequence worth holding:** delete-and-rebuild is now
   the sanctioned repair of last resort, so deletion, 09's `suppressed_series`
   restore path, and the wizard all sit on a load-bearing route.
+
+- **Retrofitting the app-wide "inapplicable menu item" convention.**
+  Driver-raised 2026-08-04 while resolving
+  [10](issues/10-correction-surface.md): an overflow item that does not apply
+  should be **absent, not disabled at 0.4 opacity**, reversing the
+  `Remove Auto-Chapters` precedent (`titleDetails.tsx:346-370`) this map had
+  recorded as the pattern to copy. **The new convention binds this effort** —
+  10's series line on `titleDetails` is absent when a book is in no series — but
+  changing `Remove Auto-Chapters` itself is a book-screen change, not a series
+  one. No two-conventions-in-one-menu problem is created in the meantime:
+  10's `Add to series…` has **no** inapplicable state, because multi-membership
+  means any book can always join another series.
 
 - **Sidecar-driven general book metadata** (`.nfo`/`.opf` → Author, Narrator,
   Title). Driver-raised 2026-08-02 and consciously deferred: this map ends at a

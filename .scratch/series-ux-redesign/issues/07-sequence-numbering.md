@@ -135,6 +135,33 @@ Rejected: a **float column** (`14b` and `1-3` become unrepresentable, and both
 are real in this library) and a **two-column sort-value/display-label pair**
 (two fields that can drift, for a value that no longer drives sorting).
 
+> ### ⚠ SUPERSEDED by ticket 10 (driver, 2026-08-04) — the float column WINS
+>
+> **`canonical_number` is a nullable NUMBER, not a string.** 10 built the edit
+> field this decision implies and found a cost this ticket could not have seen:
+> **Android's numeric input types exclude letters**, so a column that must hold
+> `14b` forces a full **alphabetic keyboard** on a mostly-numeric field — paid on
+> every single number edit, forever.
+>
+> The driver ruled the letter forms are too uncommon to buy that with: **`14b`
+> renames to `14.1`**. `12.5` and `0.5` are unaffected — a float holds them
+> natively.
+>
+> **The rejection reasoning above is not wrong, it is outbid.** `14b` and `1-3`
+> *are* real in this library; ranges are the genuine casualty (an omnibus of
+> books 1–3 now carries one number). That was accepted knowingly.
+>
+> Consequences: the write-normalisation here (strip `#`, `Book `, `Volume `,
+> leading zeros) collapses into a **parse**; 03's
+> `CAST(sequence AS FLOAT) NULLS LAST` becomes a plain numeric sort, nulls last;
+> and the pure float-parsing helper this section specifies is still needed, now
+> for **input** rather than for sort. Watch the **locale trap** 10 logged:
+> `decimal-pad` renders the locale's separator, so `parseFloat('14,1')` silently
+> returns `14`.
+>
+> Also settled by 10: the **"Sort by number" action** this section left in the
+> fog now lives in the **series edit screen**, beside the name field.
+
 **6. Are gaps rendered? → No placeholders. The header carries the range.**
 
 Never render a book the user does not own — 03 found no app anywhere does this,

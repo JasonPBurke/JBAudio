@@ -44,6 +44,7 @@ import {
   CoverShape,
 } from './seriesFacts';
 import { CoverCluster, OriginChip, CompletionBar } from './seriesCardParts';
+import ProtoSeriesEdit from './ProtoSeriesEdit';
 
 /** Square box every row cover is fitted into, so titles stay left-aligned. */
 const ROW_COVER_BOX = 46;
@@ -89,6 +90,7 @@ const ProtoSeriesDetail = ({
   const { colors: themeColors } = useTheme();
   const insets = useSafeAreaInsets();
 
+  const [editing, setEditing] = useState(false);
   const [titleExpanded, setTitleExpanded] = useState(false);
   // Whether the name actually overflows `TITLE_LINE_CAP`. Measured off-screen
   // rather than inferred: a `<Text>` with `numberOfLines` reports only the
@@ -283,16 +285,26 @@ const ProtoSeriesDetail = ({
                 gate (detection just creates the series), so what a detected
                 series still owes the user is a way to FIX it — which is
                 ticket 10's surface, and this is the anchor 08 has to leave it.
+
+                Ticket 10 (driver, 2026-08-04) kept this as a SECOND, visible
+                route alongside the ⋮ menu that mirrors `titleDetails`. Both
+                land on the same editor, so both carry the SAME word: the
+                original `Fix this series` promised a repair on a hand-made
+                playlist where nothing is broken, and on the 98.3% of detected
+                series that are already correct. The wrench GLYPH is kept —
+                driver's call — as the signal that this is the correction
+                affordance; only the word changed.
               */}
               <Pressable
                 style={styles.fixRow}
+                onPress={() => setEditing(true)}
                 android_ripple={{
                   color: withOpacity(themeColors.divider, 0.16),
                 }}
               >
                 <Wrench size={15} color={themeColors.textMuted} />
                 <Text style={[styles.fixLabel, { color: themeColors.textMuted }]}>
-                  Fix this series
+                  Edit series
                 </Text>
               </Pressable>
 
@@ -305,6 +317,13 @@ const ProtoSeriesDetail = ({
             </View>
           }
         />
+
+        {editing && (
+          <ProtoSeriesEdit
+            series={series}
+            onClose={() => setEditing(false)}
+          />
+        )}
       </View>
     </Modal>
   );
