@@ -339,6 +339,40 @@ Sharpened by ticket 06 (2026-08-02); no longer provisional.
   font scale, or the detail screen's transition (prototype used a `Modal`, not a
   route).
 
+- [12 — Series display setting: the backdrop toggle](issues/12-series-display-setting.md)
+  — **`Series Backgrounds`, in `Appearance → Display Settings`, default ON,
+  global, not Pro-gated, browse row only.** Default-ON was chosen on **which
+  dissatisfied user can rescue themselves** — a user irritated by the backdrop
+  hunts through settings, a user seeing the quiet row never learns the richer one
+  exists — *against* the fact that 08 measured `Blend quiet ctr` as the most
+  legible of the fourteen. Sited beside `Number of Columns` because that card
+  already holds the same species of preference and `Auto Accent from Cover` one
+  card down is already a cover-derived boolean; the accepted cost is a **split
+  brain** (detection in `Manage Library`, presentation in `Appearance`). A
+  browse-screen control was rejected as **unprecedented** — `numColumns` has no
+  on-screen control anywhere in `src/`. **Naming constraint worth keeping: the
+  cover cluster shows in BOTH states**, so any label reading "show cover art"
+  names something the toggle does not control. Global and not-Pro-gated are
+  **entailments, not choices** — `settings` is a single-row table so per-library
+  is inexpressible, and gating a default-ON setting would charge users to turn
+  *off* the busier read. **Scrim stays 0.42 in both states**: 08's re-tune
+  premise does not survive — the glyph never sat on the backdrop, it sits on the
+  front cover in both states, and a toggle-dependent scrim would make legibility
+  vary by preference (08's own theme-coupling bug, repeated). **Ruling that
+  binds 11: a series artwork override with cover-art search WILL ship**, parallel
+  to `/coverArtSearch` — the driver's dialog copy promises it, so 11 *designs* it
+  rather than deciding it; it must ship before or with that copy, and **with the
+  toggle OFF the override has nowhere to appear on browse** (the cluster is book
+  covers, not series art). **Correction to 08 and to 12's own constraints: this
+  IS a schema change** — every setting is a column on the `settings` table, so it
+  costs one boolean + a migration; the series running total is untouched but
+  neither ticket may claim zero schema cost. Build effort inherits two traps:
+  `CompactSettingsRow` needs **`description` AND `onInfoPress`** (its control
+  slot is taken by the switch — the reason `timer.tsx` has two info-icon shapes),
+  and the getter must **invert the house `=== true` idiom** to `!== false`, since
+  this is the table's first default-ON boolean and a migration leaves every
+  existing tester `null`.
+
 ## Not yet specified
 
 In scope, but not yet sharp enough to ticket. Graduates as the frontier advances.
@@ -365,14 +399,20 @@ In scope, but not yet sharp enough to ticket. Graduates as the frontier advances
   value, keeping 06's "records creation only" intact. **09 also ruled an edit does
   NOT promote `origin`.** Still open: where 02's confidence tier physically lands,
   and **[11](issues/11-series-detail-contents.md) will add more** — a series
-  **artwork override** (art derives from the first book and *follows* a reorder,
-  so only an override needs storing) and a **series description**, which 08's
+  **artwork override**, which **12 has now committed** (art derives from the first
+  book and *follows* a reorder, so only an override needs storing; 11 designs it,
+  it no longer decides whether it exists) and a **series description**, which 08's
   session confirmed must be rescan-protected like `name` and therefore needs a
   `*_source` companion under 09's per-aspect model. Whether these ship as one
   migration or several is the remaining coherence question; the running total is
   **five columns across two tables plus one new two-column table** (07's two and
   09's one on `series_books`, 06's one and 09's one on `series`, and 09's
   `suppressed_series`) — **plus whatever 11 lands**.
+  **Counted separately, and previously miscounted as free: display preferences
+  are columns on the `settings` table.** 12 adds
+  `series_backgrounds_enabled` there, so "this is a client setting, not schema"
+  (08 and 12 both said it) is false — it is a different table, not no table. Any
+  further display toggle this effort invents carries the same migration cost.
 - **Wizard flow shape as fallback** — the 3-step funnel may be wrong once the
   review surface absorbs part of its job. Fold in the defects logged in
   [05](issues/05-wizard-presentation.md): the inactive Next/Save button renders

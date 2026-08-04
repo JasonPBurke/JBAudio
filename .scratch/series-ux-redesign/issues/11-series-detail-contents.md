@@ -93,6 +93,27 @@ shed has to land here or be lost.
   the `Book` objects `DerivedSeries.books` already carries, which is what the
   prototype does.
 
+- **12 made the artwork override binding, and gave it a ship-order.** Decision 1
+  above was already driver-confirmed; what changed is that
+  [12](12-series-display-setting.md)'s shipped `Series Backgrounds` info copy
+  **promises it in the product** — *"you can search and replace the series art
+  used as the background"*, and its **"by default"** only parses if the override
+  exists. So this screen no longer decides *whether* the override exists, only
+  how it works, and the build effort must ship it **before or with** that dialog
+  or the copy describes something the user cannot do.
+
+- **12's interaction worth knowing before siting the override's entry point:**
+  with `Series Backgrounds` **OFF**, a series artwork override has **nowhere to
+  appear on the browse screen** — 08's cluster renders *book* covers, not series
+  art — so in that state the override is visible only on this screen. The
+  override's value is therefore partly gated by a display preference the user set
+  elsewhere.
+
+- **12 also fixed the setting's reach at the browse row only**, deliberately so
+  this ticket is not pre-committed: whatever header this screen lands does **not**
+  have to work in two states. If a design here *wants* governing by that toggle,
+  widening it is a fresh decision, not an inherited one.
+
 ## Notes
 
 04's harness takes a new variant by copying a file and adding one row;

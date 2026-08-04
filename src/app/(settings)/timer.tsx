@@ -426,6 +426,8 @@ const TimerSettingsScreen = () => {
         <SettingsCard title='Shake to Reset Timer' icon={Vibrate}>
           <CompactSettingsRow
             label='Enable Shake to Reset'
+            onInfoPress={() => setShakeInfoVisible(true)}
+            showDivider={false}
             control={
               <ToggleSwitch
                 value={shakeEnabledValue}
@@ -436,22 +438,6 @@ const TimerSettingsScreen = () => {
                   off: themeColors.modalBackground,
                 }}
               />
-            }
-          />
-          <CompactSettingsRow
-            label='How it works'
-            control={
-              <Pressable
-                onPress={() => setShakeInfoVisible(true)}
-                hitSlop={10}
-                style={styles.infoButton}
-              >
-                <Info
-                  color={themeColors.textMuted}
-                  size={16}
-                  strokeWidth={1.5}
-                />
-              </Pressable>
             }
           />
         </SettingsCard>
