@@ -156,6 +156,26 @@ Two traps already paid for, do not re-introduce:
   right-align every layer, the front one occludes the rest, and a 22-book series
   draws as one lone cover. See `CoverCluster`.
 
+## The series line (ticket 14) — `ProtoSeriesLine.tsx`
+
+Four placements of the series line on the REAL `titleDetails` route, cycled from
+a pink pill bottom-left (`Off (control)` / `Subheading` / `Byline` / `Chips` /
+`4th card`). Not a `ProtoPanel` knob — that panel is bound to the library
+screen's rendered series list, and 14 has exactly one knob.
+
+**`Subheading` is the ruling.** The other three are kept so the A/B survives.
+Two things it does that the others do not, both driver rulings and both amending
+ticket 10: it shows **ONE** series (largest DETECTED; user-created fallback keeps
+"first created"), and it is **STATIC** — not tappable.
+
+Two traps if you touch it:
+
+- **`subheadingRow`'s `marginTop: -17` is load-bearing.** `bookInfoColumn` sets
+  `gap: 20` between every child; the target gap is the one `Read by` has above
+  the narrator's name, which is *no gap at all*. The 20dp below is deliberate.
+- **The control is not cosmetic.** `Off` is how you see that `titleDetails` has
+  no vertical slack — `Continue Listening` sits exactly at the fold.
+
 ## Adding a variant
 
 1. Copy `variants/BaselineSeriesHome.tsx`, change what you are testing.
@@ -172,6 +192,12 @@ Three edits in `src/app/(drawer)/(library)/index.tsx`, all marked `THROWAWAY`:
 - `useDerivedSeries()` → `useSeriesSource()`
 - `<SeriesHome …>` → `<SeriesProtoSlot …>`
 - the two imports for those
+
+Plus **four** throwaway mounts and one import in `src/app/titleDetails.tsx`
+(ticket 14), all marked `THROWAWAY`: `<ProtoSeriesLine slot='title'>` under the
+book title, `slot='text'` under Author/Narrator, `slot='cards'` inside the info
+card row, `<ProtoAddToSeriesMenuItem>` in the overflow, and
+`<ProtoSeriesLinePill>` at the screen root.
 
 Plus two files ticket 13 needed, because a route cannot live in `src/prototypes/`:
 
@@ -193,8 +219,15 @@ The one production cost is a single Zustand selector over a store that never cha
 rm -rf src/prototypes src/app/seriesDetail.tsx
 ```
 
-then remove the `seriesDetail` `<Stack.Screen>` from `src/app/_layout.tsx`, and
+then remove the four `THROWAWAY` mounts and the `@/prototypes/ProtoSeriesLine`
+import from `src/app/titleDetails.tsx`, remove the `seriesDetail`
+`<Stack.Screen>` from `src/app/_layout.tsx`, and
 in `src/app/(drawer)/(library)/index.tsx` restore the three `THROWAWAY` sites:
 re-import `SeriesHome` from `@/components/SeriesHome` and `useDerivedSeries` from
 `@/store/seriesStore`, and put both back at their use sites. `src/components/SeriesHome.tsx`
 was never modified, so there is nothing to revert there.
+
+**DO NOT revert the `TableOfContents` icon on `Remove Auto-Chapters`**
+(`titleDetails.tsx`). It looks like harness fallout and is not: ticket 14 found
+`Layers` doing double duty — the library's Series-view toggle AND that row's
+glyph — and the driver ruled series keeps `Layers`. That change **ships**.

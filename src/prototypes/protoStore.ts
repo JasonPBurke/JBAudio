@@ -63,6 +63,38 @@ export type EditorTarget = 'real' | 'proto';
  */
 export type RowMode = 'whole' | 'split';
 
+/**
+ * TICKET 14 — where the series line sits on `titleDetails`.
+ *
+ * Ticket 10 settled the content; only the position is open, and the three
+ * candidates are the three species of row the screen already has (identity
+ * byline / tag chip / metadata card), plus `subheading`, which the driver
+ * asked for after seeing the first three. `off` is a real option here, not just
+ * a disabled state — it is the control, and flipping to it is how you see what
+ * the variant actually cost the screen.
+ *
+ * `subheading` is the ONLY one that shows a single series rather than a list —
+ * see `primaryMembership` in ProtoSeriesLine.tsx for why that is a departure
+ * from ticket 10 and not a rendering shortcut.
+ */
+export type SeriesLineVariant =
+  | 'off'
+  | 'subheading'
+  | 'byline'
+  | 'chips'
+  | 'card';
+
+export const SERIES_LINE_VARIANTS: {
+  id: SeriesLineVariant;
+  label: string;
+}[] = [
+  { id: 'off', label: 'Off (control)' },
+  { id: 'subheading', label: 'Subheading' },
+  { id: 'byline', label: 'Byline' },
+  { id: 'chips', label: 'Chips' },
+  { id: 'card', label: '4th card' },
+];
+
 type ProtoState = {
   dataPreset: DataPreset;
   variantId: string;
@@ -75,6 +107,8 @@ type ProtoState = {
   seriesBackgrounds: boolean;
   /** See `RowMode`. Carries the glyph with it — they are one choice. */
   rowMode: RowMode;
+  /** Ticket 14's only knob. See `SeriesLineVariant`. */
+  seriesLineVariant: SeriesLineVariant;
   editorTarget: EditorTarget;
   /**
    * Synthetic stand-in for 11's `series.artwork` column, keyed by series id.
@@ -89,6 +123,7 @@ type ProtoState = {
   setPanelOpen: (open: boolean) => void;
   setSeriesBackgrounds: (on: boolean) => void;
   setRowMode: (m: RowMode) => void;
+  setSeriesLineVariant: (v: SeriesLineVariant) => void;
   setEditorTarget: (t: EditorTarget) => void;
   setPinned: (seriesId: string, pinned: boolean) => void;
   /** "Clear synthetic series" — nothing was ever written to the DB, so this is a
@@ -106,6 +141,8 @@ export const useProtoStore = create<ProtoState>()(
       // Driver's ruling, 2026-08-04 (ticket 13). `whole` is kept in the
       // switcher so the A/B survives, but `split` is now the spec.
       rowMode: 'split',
+      // Starts on the control so the first look is the screen as it ships.
+      seriesLineVariant: 'off',
       editorTarget: 'real',
       pinnedSeries: {},
       setDataPreset: (dataPreset) => set({ dataPreset }),
@@ -113,6 +150,7 @@ export const useProtoStore = create<ProtoState>()(
       setPanelOpen: (panelOpen) => set({ panelOpen }),
       setSeriesBackgrounds: (seriesBackgrounds) => set({ seriesBackgrounds }),
       setRowMode: (rowMode) => set({ rowMode }),
+      setSeriesLineVariant: (seriesLineVariant) => set({ seriesLineVariant }),
       setEditorTarget: (editorTarget) => set({ editorTarget }),
       setPinned: (seriesId, pinned) =>
         set((s) => ({
@@ -128,6 +166,7 @@ export const useProtoStore = create<ProtoState>()(
         variantId: s.variantId,
         seriesBackgrounds: s.seriesBackgrounds,
         rowMode: s.rowMode,
+        seriesLineVariant: s.seriesLineVariant,
         editorTarget: s.editorTarget,
         pinnedSeries: s.pinnedSeries,
       }),

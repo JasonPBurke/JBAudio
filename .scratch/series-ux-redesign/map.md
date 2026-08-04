@@ -21,6 +21,24 @@ Validated by **throwaway** prototypes on the `Pixel_7_Pro` emulator.
 **Implementation is a separate effort** — this map produces decisions, not
 shipped UI.
 
+> **Amendment, 2026-08-04 — the destination's own framing has drifted and this
+> records it rather than silently rewriting it.** "Review-and-correction as its
+> centre of gravity" is no longer true.
+> [02](issues/02-detection-cascade.md) measured grouping at **98.3% purity with
+> 0 standalones swept**, and [09](issues/09-auto-generate-series-setting.md)
+> therefore replaced the review queue with a **settings toggle**; correction
+> became the *existing edit screen* grown by three things
+> ([10](issues/10-correction-surface.md)), not a new surface. The effort's real
+> centre of gravity turned out to be **presentation** — 08, 11, 12 and 13 are
+> four of the thirteen resolutions and all of the built work. The **scope** the
+> destination fixes is unchanged (same six areas, same fallback wizard), so this
+> is descriptive drift, not a redrawn destination. Driver may redraw if they
+> disagree.
+>
+> **The spec named in the first line does not exist as a document.** Decisions-so-far
+> is an *index*, deliberately. Writing `spec.md` is now
+> [19](issues/19-write-the-spec.md), the map's closing ticket.
+
 ## Notes
 
 ### Domain
@@ -529,99 +547,64 @@ Sharpened by ticket 06 (2026-08-02); no longer provisional.
   fabricated progress** to real values (`reconcileProgress`'s `hasMix`).
   Costs **no schema**. tsc 0 / eslint 0 / jest 484.
 
+- [14 — `titleDetails` integration: where does the series line sit?](issues/14-titledetails-integration.md)
+  — **A STATIC subheading under the book title — `Book 8 of Discworld` — showing
+  exactly ONE series, the largest DETECTED one.** Four variants built on the real
+  route. **AMENDS [10](issues/10-correction-surface.md) in two places**: 10 said
+  the line "renders a LIST because multi-membership is real" and "taps through to
+  series detail", and it now does **neither** — *Guards! Guards!* reads
+  `Book 8 of Discworld` and never mentions Night Watch 1 here. Driver's rule was
+  *"derived series, or the first series created by the user"*; the tiebreak it was
+  silent on — **two DETECTED series, the real case** — resolves as **largest
+  wins**, because detected series have no meaningful creation order (it is scan
+  order) so size is the only signal, while the user-created fallback keeps
+  "first created" *because* its order is meaningful. **The asymmetry is the
+  ruling.** Static because a subheading reading as prose has nowhere to put an
+  affordance cue without becoming a field again — the thing that made it win.
+  **The framing measurement: there is NO vertical slack** — in the control
+  `Continue Listening` sits *exactly* at the fold, so every variant spends space
+  that does not exist. **`4th card` was the only free option and could not be
+  used**: zero vertical cost, but it drops the series NAME (`#6` — of what?),
+  truncates to `Series +…`, and fails 10's content ruling outright. It beat three
+  structurally different rivals, each asserting a different answer to *what kind
+  of thing is a series* (identity/byline · tag/chip · metadata/card); the
+  subheading asserts a fourth — **part of the title block, the way a printed
+  cover does it**. **`Add to series…` sits under `Edit Book Details`.**
+  **`Layers` was found doing double duty** — the library's Series toggle AND
+  `Remove Auto-Chapters`' glyph, which would have put identical icons on adjacent
+  rows — so **auto-chapters moves to `TableOfContents`**; that one import plus one
+  element in `titleDetails.tsx` is the ticket's **only real-code change**.
+  **Trap for [19](issues/19-write-the-spec.md): the `marginTop: -17` is
+  load-bearing** — `bookInfoColumn`'s `gap: 20` made the line its own block, and
+  the driver's target was the `Read by`→narrator gap, which is *no gap at all*;
+  the 20dp below is deliberately kept. **Round trip discharged** from the
+  opposite direction to 13. Costs **no schema**. tsc 0 / eslint 0.
+
 ## Not yet specified
 
 In scope, but not yet sharp enough to ticket. Graduates as the frontier advances.
 
-- **`titleDetails` integration — series half SETTLED by 10, layout still fog.**
-  10 ruled the shape: a **series line** (name + 07's canonical number, tapping
-  through to series detail, rendering a *list* because multi-membership is real)
-  plus **`Add to series…`** in the overflow, which is always present because it
-  has no inapplicable state. **No book-first remove** — removal is series-scoped
-  under 09's `membership = 'excluded'`. What is still fog is only where the line
-  physically sits on a screen whose hero is a mesh gradient and a large cover.
-  **The disabled-state convention this item used to recommend is reversed** —
-  see Out of scope. **[13](issues/13-detail-sheet-prototype.md) closes the loop
-  in the other direction and removes the last technical unknown**: the series
-  detail sheet now routes INTO `titleDetails` (the row's text half), and
-  `formSheet`-over-`formSheet` was measured clean on device, so the two screens
-  can point at each other without a navigation problem. Whoever sites the series
-  line should know it is a **round trip**, not a one-way exit.
-- **Consolidated schema decisions** — **canonical number settled by 07**
-  (`series_books.canonical_number` + `canonical_source`, schema v33), with
-  **10 changing `canonical_number`'s TYPE from string to nullable number** —
-  no column added or removed, so the running total below is unaffected. **Detection
-  confidence settled by 02**: a tier (`certain`/`likely`/`possible`/`guess`) plus
-  a reason string, never a float — so the column is small and the `why` trail is
-  what any explanatory UI reads. **Edition settled by 06 and it costs nothing** —
-  identity is `name`, so there is no `edition` column and no grouping table;
-  06 adds exactly one column, **`series.origin` (`'detected' | 'user'`)**.
-  **Override markers settled by 09**: `series.name_source` and
-  `series_books.membership` (`'detected' | 'user' | 'excluded'`, the third value
-  being the removal tombstone), plus a **`suppressed_series(name, created_at)`
-  table** — 09 explicitly declined to overload `origin` with a `'suppressed'`
-  value, keeping 06's "records creation only" intact. **09 also ruled an edit does
-  NOT promote `origin`.** **[11](issues/11-series-detail-contents.md) has now
-  landed, and it landed LESS than expected**: the **artwork override is ONE
-  nullable column, `series.artwork`, with NO `*_source` companion** — nothing ever
-  *detects* series art (02's cascade produces names, groupings and numbers; online
-  lookup for series identity is out of scope; art is derived at render time), so a
-  source column would be a pure function of its neighbour's nullity, and the
-  presence of the path is itself the marker. The **series description was DROPPED
-  entirely** (out of scope), taking its column *and* its `*_source` companion with
-  it. Still open: only **where 02's confidence tier physically lands**. Whether
-  these ship as one migration or several is the remaining coherence question; the
-  running total is **six columns across two tables plus one new two-column table**
-  (07's two and 09's one on `series_books`, 06's one, 09's one and 11's one on
-  `series`, and 09's `suppressed_series`).
-  **Counted separately, and previously miscounted as free: display preferences
-  are columns on the `settings` table.** 12 adds
-  `series_backgrounds_enabled` there, so "this is a client setting, not schema"
-  (08 and 12 both said it) is false — it is a different table, not no table. Any
-  further display toggle this effort invents carries the same migration cost.
-- **Wizard flow shape as fallback** — the 3-step funnel may be wrong once the
-  review surface absorbs part of its job. Fold in the defects logged in
-  [05](issues/05-wizard-presentation.md): the inactive Next/Save button renders
-  with an **invisible label**, the wizard has no app header, and every step has a
-  large dead vertical region.
-- **Tablet / large-screen behaviour** — this app has a history of tablet layout
-  bugs; every browse variant eventually needs a tablet answer. **08's second
-  pass changes what this has to cover** (the peek row and the 96dp band it used
-  to reference are both gone): the row is now a fixed-width 100.8dp cluster
-  beside a `flex: 1` text column, so a tablet spends *all* its extra width on
-  text and none on covers — a very long line with a very small picture. The
-  84dp cluster, the 2-line name cap and the single-column list are all
-  phone-shaped decisions a tablet will test.
-- **Light theme** — 08's first pass deferred it; its second pass found and fixed
-  the first defect (a glyph coloured from the theme while sitting on a scrim the
-  component itself paints, invisible in light mode). **The trap is now on
-  record** — anything drawn on a surface the component darkens must be coloured
-  against that surface, not the palette — but no systematic light-theme pass has
-  been done. Font scale and animation are likewise still untouched.
-  **11 raises the stakes**: its detail hero is a scrimmed backdrop painted by the
-  component itself — the exact construct the defect lived in — so this screen
-  repeats the trap at full size. **13 built that hero and defused the trap
-  rather than tripping it** — the gradient is derived from
-  `themeColors.background`, so text on it stays a theme colour legitimately, and
-  the play-glyph house style removed the palette-vs-artwork conflict entirely.
-  **But 13 found a NEW light/dark defect of the same family**: a `formSheet`
-  whose route renders `null` shows the platform's **white** container, because
-  `titleDetails`-style options set no `contentStyle` background. Any screen
-  copying those options inherits it. **The systematic light-theme pass is still
-  undone**, and font scale and animation remain untouched.
+> **2026-08-04 — six of the eight patches below graduated into tickets 14–20**
+> once the thirteenth resolution landed and the frontier emptied. Each graduated
+> patch was **cleared from this section** and its accumulated context carried
+> into the ticket body, so it now lives in exactly one place. What is left below
+> is the genuine residue: two patches nobody has sharpened, and one question
+> (animation) that was riding along inside a patch that graduated without it.
+
+- **Animation.** The only piece of the old *Light theme / font scale / animation*
+  patch that did **not** graduate — deliberately. Nobody has yet stated what the
+  animation question *is*: [13](issues/13-detail-sheet-prototype.md) measured the
+  sheet transitions on a real route and they were clean, 08 chose a row with no
+  expansion to animate, and no ticket has asked for motion anywhere. It stays fog
+  because it fails the graduation test — the question cannot be phrased sharply,
+  not because it cannot be answered.
 - **Re-verifying the existing series logic** — assumed correct, never re-checked
-  against the redesign's assumptions.
-- **Recommended (not enforced) library structure** — driver-raised 2026-08-01,
-  waiting on 02's numbers. **Those numbers are now in and they weaken the case:**
-  folders are already used without a consent switch, self-validation rejects the
-  bad ones on evidence, and Conservative reaches 98.3% purity with 0 false
-  positives. The residual gap is books whose *tags* say nothing and whose folder
-  no sibling corroborates (Gentlemen Bastards, Founders Trilogy, Drenai) — a
-  recommendation would help exactly those. **09 narrows this a lot**: Full
-  fidelity is now user-visible as `Also group by folder name`, so folder naming
-  has become a thing the user can deliberately opt into, and that switch's caption
-  is the natural home for any advice. What remains is only whether the app should
-  *proactively* recommend a structure anywhere beyond that one caption.
+  against the redesign's assumptions. Stayed fog on 2026-08-04 rather than
+  graduating: nobody can yet say *which* assumptions are load-bearing enough to
+  be worth checking, and the honest reading is that this belongs to the
+  **implementation** effort (it verifies code, not a decision) — which would make
+  it out of scope rather than fog. Left in scope pending a driver ruling, because
+  the map should not quietly shed work it once claimed.
 
 - **Corpus re-pull without the per-directory cap** — 01 probed at most 2 files
   per directory, so the 12 flat multi-book folders contributed 24 units where 59
