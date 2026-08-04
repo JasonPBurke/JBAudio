@@ -344,7 +344,10 @@ Sharpened by ticket 06 (2026-08-02); no longer provisional.
 
 - [12 — Series display setting: the backdrop toggle](issues/12-series-display-setting.md)
   — **`Series Backgrounds`, in `Appearance → Display Settings`, default ON,
-  global, not Pro-gated, browse row only.** Default-ON was chosen on **which
+  global, not Pro-gated, browse row only** — **reach WIDENED by
+  [11](issues/11-series-detail-contents.md) to also govern the detail hero, at
+  near-zero cost because both of that hero's states were already designed.**
+  Default-ON was chosen on **which
   dissatisfied user can rescue themselves** — a user irritated by the backdrop
   hunts through settings, a user seeing the quiet row never learns the richer one
   exists — *against* the fact that 08 measured `Blend quiet ctr` as the most
@@ -415,6 +418,46 @@ Sharpened by ticket 06 (2026-08-02); no longer provisional.
   **whole series stack** — is **correct today** (no detail screen exists; the
   library really is the previous screen) and becomes wrong the moment 11 lands
   one, making it a constraint on 11's routing rather than a live bug.
+  **AMENDED BY [11](issues/11-series-detail-contents.md) in two places: the ⋮ is
+  GONE** (the driver removed it entirely rather than choose its contents, so the
+  wrench row is the sole route to the editor and "two visible routes, one word"
+  is now one), **and it was `Delete`'s exit that broke, not `Save`'s** — 11's
+  root-sibling routing makes `Save`/`Cancel` correct by construction and leaves
+  `handleDelete` popping onto the sheet of a deleted series.
+
+- [11 — Series detail screen: what does it hold?](issues/11-series-detail-contents.md)
+  — **A `formSheet` whose rows play, with no ⋮ and no back chevron.** Decided by
+  grilling alone; **nothing was built** — verification is
+  [13](issues/13-detail-sheet-prototype.md). The ticket was **half-dead on
+  arrival**: 10 resolved a day after it was written and took four of its six
+  decisions. **Presentation is a `formSheet` matching `titleDetails`**, the app's
+  existing detail-screen-for-an-object — 05's push ruling explicitly does *not*
+  transfer, because the wizard is a task flow and this is a container. That
+  **forces a root-sibling route** (a screen inside `series/` cannot be a
+  root-level sheet), which **resolves 10's `Save` handover for free**: the editor's
+  `exitGroup()` pops the group and lands back on the sheet, no code change. The
+  editor **stays in the group** (option A) making `Edit series` the app's first
+  opaque push launched from a live sheet — a known `react-native-screens` rough
+  edge on Android, hence 13; **fallback (C)** is documented, not chosen. **Rows
+  play**: the whole row, body and image, starts/continues that book, so the
+  screen has **no route to `titleDetails` at all** — which in turn forces
+  **restart-from-zero on finished rows**, since `handleBookPlay` has no
+  `Finished` case and would otherwise drop you at the last few seconds with no
+  escape (`BookGridItem` retrofit ruled **out of scope**). **The ⋮ was deleted
+  rather than filled** — one item duplicating a visible row is not worth its
+  pixels; it returns when split/merge does. **The description was DROPPED
+  entirely** (out of scope), removing two of the columns the schema section
+  promised. Artwork override is **one nullable column, `series.artwork`** — no
+  `*_source`, because nothing ever *detects* series art, so a source column would
+  be a pure function of its neighbour's nullity. **The hero gets 08's scrimmed
+  backdrop and DOES honour `Series Backgrounds`** — amending 12, at near-zero cost
+  because both states were already designed (ON = 08's browse treatment, OFF = the
+  flat prototype hero). **Pinned art rides the fan's front card**, which was
+  already `books[0]`'s cover by construction, so `series.artwork ?? books[0].artwork`
+  is one expression and 08 is untouched; the **editor gains a caption** that
+  indicates pinned-vs-derived *and* reverts, answering 10's "pinned art needs to
+  look pinned". Header is a **grab handle only** — the 48dp nav row goes.
+  Schema: **one column**. Graduates [13](issues/13-detail-sheet-prototype.md).
 
 ## Not yet specified
 
@@ -443,17 +486,19 @@ In scope, but not yet sharp enough to ticket. Graduates as the frontier advances
   being the removal tombstone), plus a **`suppressed_series(name, created_at)`
   table** — 09 explicitly declined to overload `origin` with a `'suppressed'`
   value, keeping 06's "records creation only" intact. **09 also ruled an edit does
-  NOT promote `origin`.** Still open: where 02's confidence tier physically lands,
-  and **[11](issues/11-series-detail-contents.md) will add more** — a series
-  **artwork override**, which **12 has now committed** (art derives from the first
-  book and *follows* a reorder, so only an override needs storing; 11 designs it,
-  it no longer decides whether it exists) and a **series description**, which 08's
-  session confirmed must be rescan-protected like `name` and therefore needs a
-  `*_source` companion under 09's per-aspect model. Whether these ship as one
-  migration or several is the remaining coherence question; the running total is
-  **five columns across two tables plus one new two-column table** (07's two and
-  09's one on `series_books`, 06's one and 09's one on `series`, and 09's
-  `suppressed_series`) — **plus whatever 11 lands**.
+  NOT promote `origin`.** **[11](issues/11-series-detail-contents.md) has now
+  landed, and it landed LESS than expected**: the **artwork override is ONE
+  nullable column, `series.artwork`, with NO `*_source` companion** — nothing ever
+  *detects* series art (02's cascade produces names, groupings and numbers; online
+  lookup for series identity is out of scope; art is derived at render time), so a
+  source column would be a pure function of its neighbour's nullity, and the
+  presence of the path is itself the marker. The **series description was DROPPED
+  entirely** (out of scope), taking its column *and* its `*_source` companion with
+  it. Still open: only **where 02's confidence tier physically lands**. Whether
+  these ship as one migration or several is the remaining coherence question; the
+  running total is **six columns across two tables plus one new two-column table**
+  (07's two and 09's one on `series_books`, 06's one, 09's one and 11's one on
+  `series`, and 09's `suppressed_series`).
   **Counted separately, and previously miscounted as free: display preferences
   are columns on the `settings` table.** 12 adds
   `series_backgrounds_enabled` there, so "this is a client setting, not schema"
@@ -478,11 +523,9 @@ In scope, but not yet sharp enough to ticket. Graduates as the frontier advances
   record** — anything drawn on a surface the component darkens must be coloured
   against that surface, not the palette — but no systematic light-theme pass has
   been done. Font scale and animation are likewise still untouched.
-- **The series detail screen's transition** — 08 prototyped it as a `Modal`, so
-  push-vs-sheet is untested *by construction*. 05 chose push for the wizard on a
-  "you have left the library" argument that may not transfer to a detail screen,
-  which is not a modal task flow. Belongs with
-  [11](issues/11-series-detail-contents.md) or just after it.
+  **11 raises the stakes**: its detail hero is a scrimmed backdrop painted by the
+  component itself — the exact construct the defect lived in — so this screen
+  repeats the trap at full size.
 - **Re-verifying the existing series logic** — assumed correct, never re-checked
   against the redesign's assumptions.
 - **Recommended (not enforced) library structure** — driver-raised 2026-08-01,
@@ -561,3 +604,20 @@ Ruled beyond this destination. Does not graduate.
   (`scanLibrary.ts:201-207`). Do **not** read 07's demotion of `.nfo`
   `Position in Series` as a verdict on the format — that was one field, n=1,
   and wrong in its single instance.
+
+- **A series description.** Driver-raised on 2026-08-03 and driver-**dropped** on
+  2026-08-04 while resolving [11](issues/11-series-detail-contents.md):
+  *"drop the description all together."* It was the only item on 11's list that
+  added a feature rather than deciding a presentation, and it dragged a column, a
+  `*_source` companion (08's session had confirmed it must be rescan-protected
+  like `name`) and an editor field behind it. Withdrawn from the schema section,
+  which had already promised it.
+
+- **Retrofitting restart-from-zero to `BookGridItem`.** Driver-raised 2026-08-04
+  in the same breath as ruling it *in* for
+  [11](issues/11-series-detail-contents.md)'s book rows. `handleBookPlay` has no
+  `Finished` case (`handleBookPlay.ts:44-68`), so a finished book resumes at its
+  last few seconds everywhere in the app. 11 diverges deliberately because it has
+  no route to `titleDetails` and therefore no escape hatch; the library grid keeps
+  the old behaviour until someone changes it. **A known, accepted inconsistency**
+  — same book, two surfaces, two behaviours — not an oversight.
