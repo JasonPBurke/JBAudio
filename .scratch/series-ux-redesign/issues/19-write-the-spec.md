@@ -28,6 +28,14 @@ The destination names six areas. All six must be present, organised by
 1. **Detection** — 02's precedence waterfall, the number-collision edition split,
    the Conservative/Full levels, 09's `Series Detection` settings card and its
    reconcile-not-wipe contract.
+
+   **Must carry [20](20-recommended-library-structure.md)'s rule verbatim:**
+   *self-validation is never relaxed on the assumption that users have been told
+   how to name folders.* Folder evidence corroborates against the library's own
+   tags on its own merits, always. The app ships **no** folder-structure
+   recommendation (20), and if one is ever added it does not license the detector
+   to trust folders more. This is in the map's Notes as a standing preference,
+   but a build engineer reads the spec, not the map — hence it is stated here.
 2. **Browse** — 08's row, 12's `Series Backgrounds` toggle.
 3. **Series detail** — 11 as amended by 13: `formSheet`, split rows, the hero.
 4. **Correction / editor** — 10 as amended by 11 and 13.

@@ -643,6 +643,42 @@ Sharpened by ticket 06 (2026-08-02); no longer provisional.
   tsc 0 / eslint 0. Unblocks [16](issues/16-geometry-stress-tablet-fontscale.md),
   [17](issues/17-light-theme-pass.md), [18](issues/18-schema-consolidation.md).
 
+- [20 — Does the app proactively recommend a folder structure?](issues/20-recommended-library-structure.md)
+  — **No. No recommendation anywhere, and no copy changes at all** — 09's caption
+  and Info dialog ship exactly as written. **The ticket's own premise was
+  refuted**: it named Gentlemen Bastards / Founders Trilogy / Drenai as the books
+  a recommendation would help, but 09 describes them as *"folders named correctly
+  but tags say nothing"* — their folders are **already** in the recommended shape,
+  so the **toggle** recovers them and renaming advice does nothing. The population
+  structural advice would actually serve is bad tags **AND** bad folders **AND**
+  willingness to reorganise files the app can only read — a slice of 01's ~4%
+  dark, not the ~4%. **Advice is also inert at the default**: Conservative
+  self-validates every folder cluster against its members' tags, so a flawless
+  `{Author}/{Series}/{Book}` tree with no series tags yields **zero** series —
+  making the only useful sentence a *targeting hint for an existing control*, not
+  a filing convention. **Surface inventory, checked not assumed —
+  two of the four candidate sites DO NOT EXIST**: there is **no onboarding
+  anywhere in `src/`**, and **`Linking.openURL` appears nowhere**, so a docs link
+  would be the app's first outbound link; both are net-new features, not sites.
+  **The ticket missed the one surface that fits — `(settings)/help.tsx` is live
+  and populated** (6 FAQs + 8 tips, reached from `DrawerContent.tsx:153`); it was
+  offered and declined with the recommendation, but **do not re-derive that it
+  exists**. **The caption stays generic because the true rule is not sayable**:
+  02 rejects folders on *evidence*, not naming style (`Dennis E. Taylor` refused
+  because its albums say "Bobiverse"; `Discworld (2022)` trusted because 25/39 of
+  its own albums say "Discworld" — same code, opposite verdicts), and Full's one
+  bad group, `Enders Game`, is a **franchise** folder, not an author one — so an
+  applicability clause was drafted and **rejected as less accurate than
+  `May occasionally group a folder that isn't a series`**. The decoupling trap
+  **dissolves rather than being managed** (no prior is ever issued), and the
+  guarantee is carried into [19](issues/19-write-the-spec.md) as a Detection rule
+  — *self-validation is never relaxed on the assumption that users have been told
+  how to name folders* — because a build engineer reads the spec, not this map.
+  **Incidental, not actioned:** `(settings)/faq.tsx` is an orphaned
+  "coming soon" stub with **no route to it**; dead settings code, not series work.
+  Costs **zero**: no copy, no schema, no code, no new surface — 19's brief is the
+  only artifact changed.
+
 ## Not yet specified
 
 In scope, but not yet sharp enough to ticket. Graduates as the frontier advances.
