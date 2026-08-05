@@ -623,11 +623,20 @@ Sharpened by ticket 06 (2026-08-02); no longer provisional.
   route's parent change. **Correction to this map: the wizard was NOT the app's
   only opaque push** — `(settings)` (`_layout.tsx:276`) is one too, and is now
   the last. **`Add to series…` is join-only** (no `New series…` row), keeping
-  book-first austere per 10. **Driver's change, built and verified: `X` and
-  `+ Add books` are INVERSES** — `X` never exits the flow, which forced back into
-  a strict one-stage walk (`Books → Authors → closed → leave`; without the last
-  leg back traps the user on the Order stage) and exposed a newly-reachable empty
-  state whose copy now reads `Add books to get started.`
+  book-first austere per 10. **Two driver changes, built and verified on device.
+  (a) `X` and `+ Add books` are INVERSES** — `X` never exits the flow; this
+  exposed a newly-reachable empty state whose copy now reads
+  `Add books to get started.` **(b) BACK IS CANCEL** — the chevron and the
+  hardware/gesture back both leave the editor, like the footer's `Cancel`.
+  A stage-walking version (`Books → Authors → closed → leave`) was built first
+  and **rejected**: it made one gesture mean "undo one step" three times then
+  "abandon everything" on the fourth, with nothing on screen marking which press
+  you were on. The two affordances are therefore **split** — `X` keeps the
+  editor, back leaves it — so every route out of the screen means one thing.
+  **Carried consequence, flagged not fixed:** `Books → Authors` has no direct
+  affordance (it is `X` then `+ Add books`, which re-runs `clearAuthors()` and
+  loses the author selection); a chevron in the panel's own header restores it,
+  ~5 lines, if it reads wrong in use.
   **Deletes `src/app/series/create/{authors,books,order}.tsx` — all three** —
   and **dissolves the `books.tsx`-shared-with-edit problem rather than solving
   it**, which also closes the one leg 13 left untested. Costs **no schema**.

@@ -160,23 +160,27 @@ export default function VariantE({ onExit }: { onExit: () => void }) {
   }, []);
 
   /**
-   * Back is a strict one-stage-at-a-time walk: Books → Authors → panel closed →
-   * leave. The last leg matters — without it, back on the Order stage would call
-   * `dismissPanel()` on an already-closed panel, do nothing visible, and trap
-   * the user on a screen whose only exit is the footer.
+   * BACK IS CANCEL. Driver's rule, 2026-08-05: the header chevron and the
+   * hardware/gesture back both leave the editor, exactly as the footer's
+   * `Cancel` does — they never step back through the panel.
+   *
+   * This deliberately splits the two affordances rather than overloading one:
+   * `X` closes the panel and keeps the editor, back leaves the editor entirely.
+   * Every route out of the screen therefore means the same thing, which is what
+   * the previous stage-walking version could not promise — there, back meant
+   * "undo one step" three times and then "abandon everything" on the fourth,
+   * with nothing on screen marking which press you were on.
+   *
+   * KNOWN CONSEQUENCE, flagged not fixed: `Books → Authors` now has no direct
+   * affordance. Getting there is `X` then `+ Add books`, which is two taps and
+   * re-runs `clearAuthors()`, so the author selection is lost. A chevron in the
+   * panel's own header would restore it (variant G proved the pattern) but was
+   * not asked for.
    */
   const back = useCallback(() => {
-    if (panelStep === 'books') {
-      setPanelStep('authors');
-      return true;
-    }
-    if (panelStep === 'authors') {
-      dismissPanel();
-      return true;
-    }
     onExit();
     return true;
-  }, [panelStep, dismissPanel, onExit]);
+  }, [onExit]);
   useHardwareBack(back);
 
   /* ----------------------------------------------------------- footer --- */

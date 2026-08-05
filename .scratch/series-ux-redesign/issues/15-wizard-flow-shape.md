@@ -831,20 +831,40 @@ mean two different things depending on invisible state — dismiss, or abandon t
 whole series — and picked the destructive reading exactly when the user has least
 context.
 
-Two things fell out of it, both fixed:
+**A new empty state became reachable** as a result, and read wrong: with a closed
+panel and no books, the subtitle instructed you to *"Drag to order. Number them
+if you want to."* over an empty list. That state was previously impossible.
+Now **`Add books to get started.`**
 
-- **Back had to become a strict one-stage walk** — `Books → Authors → panel
-  closed → leave`. Without that last leg, back on the Order stage calls
-  `dismissPanel()` on an already-closed panel, does nothing visible, and **traps
-  the user on a screen whose only exit is the footer**.
-- **A new empty state became reachable** and read wrong: with a closed panel and
-  no books, the subtitle instructed you to *"Drag to order. Number them if you
-  want to."* over an empty list. That state was previously impossible. Now
-  **`Add books to get started.`**
+### 6. BACK IS CANCEL — second driver change, same session
 
-Verified on device (`emulator-5554`), all four legs: `X` on an empty list stays
-in the editor; `+ Add books` reopens on Authors with the footer back to `Next`;
-back closes the panel and stays; back again exits to the library.
+**The header chevron and the hardware/gesture back both leave the editor,
+exactly as the footer's `Cancel` does.** Neither steps back through the panel.
+
+This **replaces an intermediate stage-walking version** built earlier in the
+session (`Books → Authors → panel closed → leave`), which is recorded because it
+is the option that was rejected: it made one gesture mean "undo one step" three
+times and then "abandon everything" on the fourth, **with nothing on screen
+marking which press you were on**. Splitting the two affordances is what removes
+that:
+
+| | |
+| --- | --- |
+| `X` | closes the panel, **keeps** the editor |
+| back / chevron / `Cancel` | **leaves** the editor |
+
+Every route out of the screen now means one thing.
+
+**KNOWN CONSEQUENCE, flagged and not fixed because it was not asked for:**
+`Books → Authors` has **no direct affordance**. Getting back is `X` then
+`+ Add books`, which is two taps and re-runs `clearAuthors()`, **so the author
+selection is lost**. A chevron in the panel's own header restores it — variant G
+proved the pattern works — and is a ~5-line change if it reads wrong in use.
+
+Verified on device (`emulator-5554`), five legs: `X` on an empty list stays in
+the editor; `+ Add books` reopens on Authors with the footer back to `Next`;
+hardware back from the Authors step exits to the library in **one** press; the
+header chevron does the same; and `X` still keeps the editor, so the split holds.
 
 ### Consequences that follow necessarily
 
