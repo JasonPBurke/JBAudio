@@ -16,6 +16,7 @@ import { useSeriesDraftStore } from '@/store/seriesDraftStore';
 // `src/prototypes/` when the effort ends — see src/prototypes/README.md.
 import { useSeriesSource } from '@/prototypes/useSeriesSource';
 import SeriesProtoSlot from '@/prototypes/SeriesProtoSlot';
+import { ProtoWizardPill } from '@/prototypes/wizard/ProtoWizard';
 import {
   countSeriesByState,
   filterSeriesBySearch,
@@ -346,6 +347,10 @@ const LibraryScreen = ({ navigation }: any) => {
       {toggleView === 1 && (
         <CreateSeriesFab isVisible={isVisible} onPress={handleCreateSeries} />
       )}
+      {/* THROWAWAY (ticket 15): launches the create-flow prototype. A SECOND
+          entry point on purpose — the FAB above still opens the real wizard,
+          which is the UNFIXED control for 05's three defects. */}
+      {toggleView === 1 && <ProtoWizardPill />}
       <FloatingPlayer />
     </View>
   );

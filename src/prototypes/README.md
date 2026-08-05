@@ -176,6 +176,75 @@ Two traps if you touch it:
 - **The control is not cosmetic.** `Off` is how you see that `titleDetails` has
   no vertical slack — `Continue Listening` sits exactly at the fold.
 
+## The create flow (ticket 15) — `wizard/`
+
+Create-flow shapes on the throwaway route `src/app/seriesCreateProto.tsx`,
+reached from a pink pill bottom-left on the Series view. A second `‹ ›` pill
+inside the route cycles them.
+
+| Variant | Shape | Screens |
+| --- | --- | --- |
+| **`E · Editor + author panel`** | editor surface; `Add books` runs `Authors → Books` in a panel; Order in the list | 2 taps of Next |
+| **`F · Author accordion`** | same surface; tap an author and their books unfold in place — no Authors step | 1 tap of Next |
+| `A · 3 steps (fixed)` | today's `Authors → Books → Order`, 05's defects fixed | 3 |
+| `B · Pick → Arrange` | the Authors STEP becomes a search FIELD | 2 |
+| `C · One screen` | name + search + an inline reorderable selection | 1 |
+| `D · Create-then-edit` | a name prompt, then the editor | prompt + editor |
+
+**Status: UNDECIDED.** The shape will be a version of E or F; which one, and what
+exactly it looks like, is not yet known. **A–D were rejected on 2026-08-04** and
+stay in the switcher unchanged as the comparison record — rewriting a rejected
+variant destroys the evidence for why it was rejected. **E and F are the live
+pair**, and they differ in exactly one place: the panel. Everything below the identity row is literally the same
+code (`editorShell.tsx`), which is what makes them readable as an A/B rather than
+as two designs — **so fixes belong in `editorShell.tsx`, never in one variant.**
+
+Five things worth not re-deriving:
+
+- **The "screen jumps on every selection" bug is structural.** The picker panel
+  and the ordered list share one `ScrollView`, so anything committed above the
+  panel *must* move it. E stages selections until `Next`: measured at **547,334
+  changed pixels per tap in D vs 28,488 in E**, and 0 above the panel.
+- **E's numbering rule is the driver's, and it is the schema's.** Boxes start
+  empty; `Sort by number` puts blanks last (alphabetical among themselves); an
+  untouched list is numbered `1..n` from its final drag order at save. Blank means
+  `canonical_number = null`, matching ticket 07 — and `Sort by number` stays a
+  MANUAL action, because 07 gave `position` sole sort authority.
+- **Density is NOT what decides E vs F, and two mitigations are CLOSED.** A single
+  flick reaches the bottom of the author list, so no A-Z rail. And a filter/search
+  field is worse than scrolling: it re-scopes the surface, so building a list
+  spanning 10 authors becomes 10 × filter → select → clear. **That argument also
+  retroactively explains why B's search field lost** — search is a filter — and
+  why E and F are immune: staging keeps your selections when you change author.
+- **What actually separates E from F:** F saves exactly **one** press, always (a
+  constant, not a growing saving). E is the only one that ever puts all candidate
+  books on **one** surface. So E suits many-author picks, F suits single-author
+  ones — which is the same axis as "what is the wizard for", still unanswered.
+- **`fontSize.base` is 20 in this repo, not 16** (`sm` is 16, `xs` is 12), and
+  E's 13px cells are a literal because nothing sits below 16. F using `base` looks
+  like an oversight and isn't — it was "corrected" to 15 once and reverted as too
+  small. **Do not shrink F's rows again.**
+
+- **Step 1 of the shipping wizard is a filter, not a stage.**
+  `selectedAuthorNames` reaches the validator and the `rows` builder and nothing
+  else; `createSeries(name, orderedBookKeys)` never sees it.
+- **05's "large dead vertical region" is NOT a layout bug.** This was claimed
+  while building (missing `flex: 1` on the wizard's `FlatList`s) and **refuted
+  on device** — the shipping footer is already pinned. The void is the wizard
+  having too little on each screen.
+- **Switching variants resets the draft**, on purpose. Two shapes compared in
+  two different states is not an A/B.
+
+Steps are component state, not routes — a deliberate fidelity limit, since 05
+settled presentation and 15 forbids reopening it. Hardware back is wired to
+"previous step" via `useHardwareBack`. Nothing writes to the database.
+
+**`authorPad` is a harness knob, not a feature.** E's author grid exists to answer
+"can two columns carry 50–100 authors?", and this device has eight. The pink chip
+under the grid pads it to ~100 with **non-selectable, dimmed** synthetic names —
+non-selectable because they carry no books, so a padded pick can never produce an
+empty book step. Persisted, and ON by default.
+
 ## Adding a variant
 
 1. Copy `variants/BaselineSeriesHome.tsx`, change what you are testing.
@@ -216,12 +285,14 @@ The one production cost is a single Zustand selector over a store that never cha
 ## Deleting it
 
 ```
-rm -rf src/prototypes src/app/seriesDetail.tsx
+rm -rf src/prototypes src/app/seriesDetail.tsx src/app/seriesCreateProto.tsx
 ```
 
 then remove the four `THROWAWAY` mounts and the `@/prototypes/ProtoSeriesLine`
-import from `src/app/titleDetails.tsx`, remove the `seriesDetail`
-`<Stack.Screen>` from `src/app/_layout.tsx`, and
+import from `src/app/titleDetails.tsx`, remove the `seriesDetail` **and
+`seriesCreateProto`** `<Stack.Screen>`s from `src/app/_layout.tsx`, remove the
+`<ProtoWizardPill />` mount and its import from
+`src/app/(drawer)/(library)/index.tsx` (ticket 15), and
 in `src/app/(drawer)/(library)/index.tsx` restore the three `THROWAWAY` sites:
 re-import `SeriesHome` from `@/components/SeriesHome` and `useDerivedSeries` from
 `@/store/seriesStore`, and put both back at their use sites. `src/components/SeriesHome.tsx`

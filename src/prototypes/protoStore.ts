@@ -95,6 +95,70 @@ export const SERIES_LINE_VARIANTS: {
   { id: 'card', label: '4th card' },
 ];
 
+/**
+ * TICKET 15 — what shape is the create flow, now that the wizard is a fallback?
+ *
+ * Four structurally opposed answers, not four skins. `steps3` is the control
+ * (today's funnel with 05's three defects fixed, so the funnel is judged
+ * polished rather than judged shabby); the other three each delete something:
+ *
+ *   'steps3'  Authors → Books → Order. Today's shape, defects fixed.
+ *   'steps2'  Pick → Arrange. The Authors STEP becomes a search FIELD —
+ *             `selectedAuthorNames` never reaches the DB (`createSeries` takes
+ *             name + keys only), so step 1 was always a filter wearing a step's
+ *             clothes.
+ *   'single'  One screen: name + search + an inline reorderable selection.
+ *             No steps at all. Writes nothing until `Create`.
+ *   'thenEdit' Name prompt → land in the editor. Deletes all three wizard
+ *             screens and reuses the surface ticket 10 already grew.
+ *
+ * Held in memory, per the harness rule — `createSeries` is never called. That
+ * matters most for `thenEdit`: the naive version of it writes the series at the
+ * name prompt, and `deleteEmptySeries()` runs on every scan
+ * (`scanLibrary.ts:964`), so an abandoned create would silently vanish. This
+ * prototype defers the write to `Save` instead; see the ticket's answer.
+ *
+ * A–D were all REJECTED on device on 2026-08-04 ("none of these are fully
+ * correct"), and E was specified by the driver out of their parts — D's single
+ * editor surface, A's author picker, C's numbers-on-the-left, plus a staging
+ * rule and a numbering rule that were neither offered nor in any of the four:
+ *
+ *   'authorFirst' Editor surface; `Add books` expands a panel that runs
+ *                 Authors → Books; Order happens in the list. Selection is
+ *                 STAGED until Next, so the list never shoves the panel.
+ *                 Numbers start EMPTY, blanks sort last, and an untouched list
+ *                 is numbered 1..n from its final order at save.
+ *
+ * A–D are kept in the switcher unchanged. They are the comparison record, and
+ * rewriting a rejected variant destroys the evidence for why it was rejected.
+ *
+ * F is E's only live rival. It changes ONE thing — the panel's two steps become
+ * an accordion, so tapping an author unfolds their books in place and `Next` is
+ * pressed once instead of twice. Everything below the panel is literally the
+ * same code (`editorShell.tsx`), which is what makes the pair readable as an
+ * A/B rather than as two designs.
+ */
+export type WizardVariant =
+  | 'steps3'
+  | 'steps2'
+  | 'single'
+  | 'thenEdit'
+  | 'authorFirst'
+  | 'accordion';
+
+export const WIZARD_VARIANTS: {
+  id: WizardVariant;
+  label: string;
+  screens: string;
+}[] = [
+  { id: 'authorFirst', label: 'E · Editor + author panel', screens: '2 taps of Next' },
+  { id: 'accordion', label: 'F · Author accordion', screens: '1 tap of Next' },
+  { id: 'steps3', label: 'A · 3 steps (fixed)', screens: '3 screens' },
+  { id: 'steps2', label: 'B · Pick → Arrange', screens: '2 screens' },
+  { id: 'single', label: 'C · One screen', screens: '1 screen' },
+  { id: 'thenEdit', label: 'D · Create-then-edit', screens: 'prompt + editor' },
+];
+
 type ProtoState = {
   dataPreset: DataPreset;
   variantId: string;
@@ -109,6 +173,15 @@ type ProtoState = {
   rowMode: RowMode;
   /** Ticket 14's only knob. See `SeriesLineVariant`. */
   seriesLineVariant: SeriesLineVariant;
+  /** Ticket 15's shape knob. See `WizardVariant`. */
+  wizardVariant: WizardVariant;
+  /**
+   * Variant E only. Pads the author grid to ~100 entries with non-selectable
+   * synthetic names, because the question E's grid exists to answer — "can two
+   * columns carry 50-100 authors?" — cannot be answered against the eight-book
+   * emulator corpus. See `useAuthorCells` in wizard/wizardShared.tsx.
+   */
+  authorPad: boolean;
   editorTarget: EditorTarget;
   /**
    * Synthetic stand-in for 11's `series.artwork` column, keyed by series id.
@@ -124,6 +197,8 @@ type ProtoState = {
   setSeriesBackgrounds: (on: boolean) => void;
   setRowMode: (m: RowMode) => void;
   setSeriesLineVariant: (v: SeriesLineVariant) => void;
+  setWizardVariant: (v: WizardVariant) => void;
+  setAuthorPad: (on: boolean) => void;
   setEditorTarget: (t: EditorTarget) => void;
   setPinned: (seriesId: string, pinned: boolean) => void;
   /** "Clear synthetic series" — nothing was ever written to the DB, so this is a
@@ -143,6 +218,12 @@ export const useProtoStore = create<ProtoState>()(
       rowMode: 'split',
       // Starts on the control so the first look is the screen as it ships.
       seriesLineVariant: 'off',
+      // A–D are all rejected, so the control is no longer the useful landing
+      // spot — E is the live proposal and A–D are now the reference behind it.
+      wizardVariant: 'authorFirst',
+      // Starts padded: the density question is the reason the grid exists, and
+      // the real corpus cannot pose it.
+      authorPad: true,
       editorTarget: 'real',
       pinnedSeries: {},
       setDataPreset: (dataPreset) => set({ dataPreset }),
@@ -151,6 +232,8 @@ export const useProtoStore = create<ProtoState>()(
       setSeriesBackgrounds: (seriesBackgrounds) => set({ seriesBackgrounds }),
       setRowMode: (rowMode) => set({ rowMode }),
       setSeriesLineVariant: (seriesLineVariant) => set({ seriesLineVariant }),
+      setWizardVariant: (wizardVariant) => set({ wizardVariant }),
+      setAuthorPad: (authorPad) => set({ authorPad }),
       setEditorTarget: (editorTarget) => set({ editorTarget }),
       setPinned: (seriesId, pinned) =>
         set((s) => ({
@@ -167,6 +250,8 @@ export const useProtoStore = create<ProtoState>()(
         seriesBackgrounds: s.seriesBackgrounds,
         rowMode: s.rowMode,
         seriesLineVariant: s.seriesLineVariant,
+        wizardVariant: s.wizardVariant,
+        authorPad: s.authorPad,
         editorTarget: s.editorTarget,
         pinnedSeries: s.pinnedSeries,
       }),

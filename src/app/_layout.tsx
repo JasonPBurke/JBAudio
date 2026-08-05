@@ -312,6 +312,20 @@ const RootNavigation = () => {
             sheetShouldOverflowTopInset: true,
           }}
         />
+        {/*
+          THROWAWAY — ticket 15 (wizard flow shape).
+          Delete with `rm -rf src/prototypes src/app/seriesCreateProto.tsx`.
+
+          Options match the real `series` group above, deliberately: ticket 05
+          settled the wizard's presentation as an opaque full-screen push and
+          15 forbids reopening it, so this route must not read differently.
+        */}
+        <Stack.Screen
+          name='seriesCreateProto'
+          options={{
+            animation: 'slide_from_right',
+          }}
+        />
       </Stack>
     </BottomSheetModalProvider>
   );
