@@ -99,10 +99,23 @@ Sharpened by ticket 06 (2026-08-02); no longer provisional.
   inference is a thing the most mature implementation deliberately declined. Any
   path rule needs an explicit confidence penalty and an escape hatch, not
   cleverness.
-- **The wizard is the only opaque full-screen push in the app**
-  (`src/app/_layout.tsx:288`). Every other focused flow is `formSheet` or
-  `transparentModal`. This is the leading explanation for "jarring", and plausibly
-  also the clipped-row bug's trigger (a push detaches the screen underneath).
+- ~~**The wizard is the only opaque full-screen push in the app**
+  (`src/app/_layout.tsx:288`).~~ **BOTH HALVES OF THIS ARE NOW WRONG — corrected
+  by [15](issues/15-wizard-flow-shape.md), 2026-08-05.**
+  1. It was never the *only* one: **`(settings)` (`_layout.tsx:276`) is also a
+     bare `slide_from_left` with no `presentation`**, so "every other focused
+     flow is `formSheet` or `transparentModal`" was false when written.
+  2. The wizard is no longer a push at all — 15 moved the create/edit surface to
+     a root `transparentModal`. **`(settings)` is now the app's last opaque
+     push.**
+
+  What survives: a push does detach the screen underneath, and 13 measured the
+  consequence (library flashes ~165 ms, sheet re-presents). The "jarring"
+  complaint that opened 05 was **not** explained by the push — 05 built the
+  `formSheet` alternative and the driver chose the push anyway; 15 traced the
+  complaint to **shape**, not presentation (§3: the wizard had too little on each
+  screen). The clipped-row-bug conjecture was **refuted** — 05's `formSheet` test
+  was hypothesis 6, and 08 dissolved the construct entirely (see Out of scope).
 - Emulator: `Pixel_7_Pro` = `emulator-5554`. Corpus is 8 books across 5 tagging
   conventions. Real library is **350+ titles**, including Discworld 41 × 2
   editions = 82 books.
@@ -579,6 +592,47 @@ Sharpened by ticket 06 (2026-08-02); no longer provisional.
   the driver's target was the `Read by`→narrator gap, which is *no gap at all*;
   the 20dp below is deliberately kept. **Round trip discharged** from the
   opposite direction to 13. Costs **no schema**. tsc 0 / eslint 0.
+
+- [15 — Wizard flow shape: does the 3-step funnel survive as the fallback?](issues/15-wizard-flow-shape.md)
+  — **The wizard stops being a wizard: it is the EDITOR with an on-demand picker
+  panel (variant E), on ONE route, presented as a root `transparentModal`.**
+  Seven variants across three sessions; A–D, F and G all rejected. **The
+  three-session deadlock broke on a question nobody had answered — what the
+  wizard is FOR — and the answer is HAND-BUILDING PLAYLISTS**, decided on the
+  asymmetry of being wrong (choosing E when the case is rescue costs **+1 press,
+  constant**; choosing F when the case is a playlist costs 10 expand/collapse
+  cycles *and* no surface showing all candidates), plus volumes nobody had
+  composed: 01's ~4%-dark against 02's 19 series/179 books puts the whole rescue
+  path at **≈7 books in a 350-title library, once**. Rescue and
+  delete-and-rebuild still work, they are just not what the shape serves.
+  **E needed NO change under that reading** — the blank-box numbering rule is
+  already playlist-shaped, and the author multi-select survives the closed
+  filter/search ruling *because* it is a **non-modal volume reducer** (10 authors
+  turns ~350 books into ~50 rows). **F lost on a constant** (one press, never
+  growing); **G — a bottom-sheet picker, built because the driver wanted it
+  compared rather than argued away — lost because a covering sheet HIDES THE
+  RUNNING LIST**, which costs most in the incremental multi-author case the shape
+  was just optimised for. **The bottom-sheet picker is now CLOSED.**
+  **AMENDS 05 and overturns this ticket's own "already settled" clause:** that
+  clause dismissed 13's finding because "the wizard launches from the library,
+  not a sheet" — sound for a three-route wizard, dead the moment create and edit
+  are one surface, since 13 had already moved the editor to a root
+  `transparentModal`. 05 is not reopened: it bought *full-screen opaque content
+  with a Save/Cancel footer*, not a slide, and `editTitleDetails` is already a
+  `transparentModal` reading as a full takeover — only the transition and the
+  route's parent change. **Correction to this map: the wizard was NOT the app's
+  only opaque push** — `(settings)` (`_layout.tsx:276`) is one too, and is now
+  the last. **`Add to series…` is join-only** (no `New series…` row), keeping
+  book-first austere per 10. **Driver's change, built and verified: `X` and
+  `+ Add books` are INVERSES** — `X` never exits the flow, which forced back into
+  a strict one-stage walk (`Books → Authors → closed → leave`; without the last
+  leg back traps the user on the Order stage) and exposed a newly-reachable empty
+  state whose copy now reads `Add books to get started.`
+  **Deletes `src/app/series/create/{authors,books,order}.tsx` — all three** —
+  and **dissolves the `books.tsx`-shared-with-edit problem rather than solving
+  it**, which also closes the one leg 13 left untested. Costs **no schema**.
+  tsc 0 / eslint 0. Unblocks [16](issues/16-geometry-stress-tablet-fontscale.md),
+  [17](issues/17-light-theme-pass.md), [18](issues/18-schema-consolidation.md).
 
 ## Not yet specified
 

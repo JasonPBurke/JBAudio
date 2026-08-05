@@ -144,7 +144,8 @@ export type WizardVariant =
   | 'single'
   | 'thenEdit'
   | 'authorFirst'
-  | 'accordion';
+  | 'accordion'
+  | 'sheetPicker';
 
 export const WIZARD_VARIANTS: {
   id: WizardVariant;
@@ -152,6 +153,7 @@ export const WIZARD_VARIANTS: {
   screens: string;
 }[] = [
   { id: 'authorFirst', label: 'E · Editor + author panel', screens: '2 taps of Next' },
+  { id: 'sheetPicker', label: 'G · E, picker in a sheet', screens: '2 taps of Next' },
   { id: 'accordion', label: 'F · Author accordion', screens: '1 tap of Next' },
   { id: 'steps3', label: 'A · 3 steps (fixed)', screens: '3 screens' },
   { id: 'steps2', label: 'B · Pick → Arrange', screens: '2 screens' },

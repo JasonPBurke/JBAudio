@@ -1,11 +1,17 @@
 # 15 — Wizard flow shape: does the 3-step funnel survive as the fallback?
 
 Type: prototype
-Status: open — **UNDECIDED**, awaiting the driver's pick between variants E and F
+Status: resolved — 2026-08-05. **Variant E**, one route, root `transparentModal`. See `## Answer`.
 Blocked by: (none)
 Parent: [map.md](../map.md)
 
-## Where this stands — 2026-08-04
+> **RESOLVED 2026-08-05 — the answer is at the bottom, under `## Answer`.**
+> Everything between here and there is the evidence trail, left intact and
+> unedited. Where an earlier section contradicts the answer it has been marked,
+> not rewritten — including this ticket's own "already settled" clause on
+> presentation, which the answer overturns.
+
+## Where this stands — 2026-08-04 *(superseded)*
 
 **The shape will be a version of E or F. Which one, and what exactly it looks
 like, is not yet known.** Nothing below is a decision; the claim is released so
@@ -64,6 +70,11 @@ Concretely:
    large dead vertical region**.
 
 ## What is already settled and must not be reopened
+
+> **The first bullet below is OVERTURNED by this ticket's own answer.** It was
+> sound for a three-route wizard and dies with E, which merges create into the
+> editor — see `## Answer`, decision 3. Left in place because the reasoning it
+> records is why the overturn needed an argument rather than a preference.
 
 - **Presentation is a full-screen opaque push.** 05 chose it deliberately — the
   driver wanted the "you have left the library" signal — and
@@ -547,6 +558,320 @@ Assets: `compare-E-vs-F.png`, `compare-F-row-metrics.png`.
 - **`authorPad` is a harness knob, not a feature**: it pads the grid to ~100 with
   non-selectable dimmed synthetic authors, because the density question cannot be
   posed against an 8-book corpus. Toggle is the pink chip under the grid.
+
+---
+
+## Session 2026-08-05 — four decisions taken, and variant G built
+
+The driver settled the four open questions by grilling before anything was
+built. Recorded here in the order they were asked, because each one narrowed the
+next.
+
+### 1. What the wizard is FOR — **hand-building playlists**
+
+Answer (a) of three offered; the driver added *"with the understanding that C
+collapses into A"*, so "serve both equally" is not a third position.
+
+The ticket had left this unstated across three sessions. It was decided on
+**asymmetry of being wrong**, not on a guess about habits:
+
+| | picked E, real case is rescue | picked F, real case is playlist |
+| --- | --- | --- |
+| cost | **+1 press.** Constant, forever. | 10 expand/collapse cycles, and **no surface ever shows all candidates at once** |
+
+Supported by volumetrics composed from 01 and 02, which nobody had put together:
+~4% of in-series books are dark to every signal, and 02 emits 19 series / 179
+books — so the rescue path covers **≈7 books across the whole 350-title library**,
+once, and then only on newly-acquired dark books. Playlists are unbounded.
+
+**Rescue and delete-and-rebuild still work. They are simply not what the shape
+is optimised for.**
+
+### 2. **Variant E wins. F is rejected.**
+
+Follows from 1: F's saving is one press, a constant; E's advantage grows with
+author count and it is the only shape that ever puts all candidate books on one
+surface. F stays in the harness as the comparison record.
+
+Also confirmed while checking, rather than assumed: **E needs no change under the
+playlist reading.** The numbering rule (blank boxes → `1..n` from drag order) is
+already playlist-shaped since a Favorites list has no published sequence; the
+author multi-select is a **non-modal volume reducer** (10 authors turns ~350
+books into ~50 rows) which is why it survives the closed filter/search ruling;
+and `openPicker`'s `clearAuthors()` is right, because a second pass is a genuinely
+new "which authors now?" question.
+
+### 3. Presentation — **one route, root `transparentModal`, from everywhere**
+
+**This AMENDS 05 and overturns this ticket's own "already settled" clause.**
+
+That clause said the wizard is an opaque full-screen push and that
+[13](13-detail-sheet-prototype.md)'s finding "does not touch it, because the
+wizard is launched from the library, not from a sheet." **That reasoning was
+sound for a three-route wizard and dies with E**, which merges create into the
+editor — and 13 already moved `series/edit/[id]` to a root `transparentModal`
+because an opaque push over a live sheet flashes the library ~165 ms and
+re-presents the sheet. One surface, two launch contexts, two rulings.
+
+Two options were put; the driver took (ii):
+
+- (i) two routes sharing `editorShell`, create pushes / edit cross-fades
+- **(ii) one route, `transparentModal` everywhere** ← chosen
+
+**(ii) does not reopen 05.** What 05 bought was *full-screen opaque content with
+a Save/Cancel footer* rather than a partial-height sheet you can see the library
+behind — `editTitleDetails` is already a `transparentModal` at `#2c2c2cdc`
+(`_layout.tsx:265`) and reads as a full takeover. Only the transition and the
+route's parent change.
+
+**Factual correction to the map**, which this ruling would otherwise inherit: the
+map records the wizard as "the only opaque full-screen push in the app
+(`_layout.tsx:288`)". **`(settings)` at `_layout.tsx:276` is also a bare
+`slide_from_left` with no `presentation`, so it is one too.** Adopting (ii)
+therefore leaves `(settings)` as the app's last opaque push, not zero.
+
+### 4. **`Add to series…` is join-only** — no `New series…` row
+
+10 and 14 both specify it only as *join another series* and neither says whether
+its picker can create one. It never mattered before, because create was a
+three-route push that could not launch from `titleDetails`' `formSheet`; under
+(ii) it could. The driver ruled it out: book-first stays austere, consistent with
+10's refusal of book-first remove.
+
+### Consequences that follow necessarily
+
+- **`src/app/series/create/{authors,books,order}.tsx` are all three deleted.**
+  Their `seriesDraftStore` resets move onto the editor — 13 established
+  `series/_layout.tsx` is a bare `<Stack>` owning no store lifetime, so nothing
+  is orphaned.
+- **The `books.tsx`-shared-with-edit problem dissolves rather than being solved.**
+  The editor *is* the surface, so the panel serves both legs. That was §6's
+  charge against D; E takes the benefit without the cost.
+- `handleCreateSeries` (`(library)/index.tsx:250`) and the editor's `Add books`
+  (`series/edit/[id].tsx:238`) — **both of which navigate to
+  `/series/create/authors` today** — retarget to the one editor route.
+- **05's three defects are discharged** in the winner: fixed header, outlined and
+  labelled inactive button, and the dead vertical region dissolved by the shape
+  change rather than by a layout fix (§3's correction stands).
+
+---
+
+## Variant G — E's flow with the picker in a bottom sheet
+
+Built this session at the driver's request. **The driver's instruction was "I
+want to build it and compare", against a recommendation to drop it** — so this is
+an open comparison, not a formality.
+
+G holds E's shape fixed (two steps, same staging, same `editorShell` from the
+identity row down) and changes **one** thing: the picker is a presented
+`BottomSheetModal` covering the editor rather than a panel inside it. Same
+discipline F used — one variable, so it reads as an A/B.
+
+### What G confirms
+
+**The mode ambiguity is gone, structurally.** In E the footer's `Next` silently
+becomes `Save` when the panel closes. In G the editor's footer reads **`Save` for
+the entire flow** and the sheet carries its own `Next`; no label ever changes
+meaning, because one surface is covering the other. Verified —
+`03-G-editor-after-commit.png`.
+
+The jump claim is **not** re-tested, because there is nothing left to test: E's
+staging already measured it away (28,488 px vs D's 547,334, 0 differing pixels
+above the panel). A covering sheet is a second solution to a solved problem.
+
+### What G costs — the finding that matters
+
+**The sheet hides the running list.** Asset:
+`hybrid-G/compare-E-vs-G-second-pass.png`, shot at identical state — second pass,
+Books step, one book already in, same corpus, same two authors selected.
+
+- **E** — identity row, the ordered list, and the panel are all on one surface.
+  You can see what you have assembled while adding to it.
+- **G** — the sheet covers everything. The book already in the series is
+  invisible; only the dimmed header shows above the sheet.
+
+**This lands squarely on decision 1.** A multi-author Favorites list is built
+*incrementally*, which is exactly when seeing the running list matters most — so
+the presentation costs the most in the case the shape was just optimised for.
+
+*(Reading note: `hybrid-E/16-E-already-in.png` predates the driver's fix 2, so it
+still shows the old `Minus` in the row's tail. The trash badge at the card's
+top-left IS present in G — see `03-G-editor-after-commit.png`. Not a difference
+between the variants.)*
+
+### One deliberate divergence, surfaced rather than hidden
+
+**Back means dismiss, not step back.** `@gorhom/bottom-sheet` registers its own
+back handler when the sheet opens, so making hardware back walk Books → Authors
+would mean racing RN's `BackHandler` registration order. G puts stepping back
+where a sheet puts it — a chevron in the sheet's own header — and lets back,
+pan-down and backdrop-tap all mean dismiss. That is not separable from the
+presentation, so judge it as part of G.
+
+G also **does not exit the flow on dismiss** the way E's `dismissPanel` does when
+`ordered` is empty. In G the editor is not a dead end behind the sheet — it keeps
+`Cancel`, `Save` and `Add books` — and making a pan-down abandon everything would
+be a surprise.
+
+### Two defects found and fixed during the build
+
+1. **`BottomSheetView` sizes to its content**, so at a fixed 88% snap point the
+   author grid ran past the sheet's bottom edge and pushed the footer entirely
+   off-screen. A plain `flex: 1` `View` takes the sheet's height. (`BottomSheetView`
+   exists for `enableDynamicSizing`; with fixed snap points it is the wrong
+   component.)
+2. Dismissing onto an empty list exited the route, which also made the variant
+   unreachable in the harness — the switcher pill sits *under* the sheet's portal.
+
+### Fidelity limit specific to G
+
+The harness route is a plain push, so this does **not** reproduce the stack
+decision 3 implies. Shipped, a sheet picker would be
+**sheet → `transparentModal` → (library | `formSheet`)** — three deep, which
+nothing in this app has ever built. 13 proved `formSheet` over `formSheet`, not
+this. **A clean result here is not evidence that the three-deep stack behaves.**
+
+### Where G's code is
+
+- `src/prototypes/wizard/VariantG.tsx` — the only new file. Reuses `editorShell`
+  untouched, and lifts E's `AuthorCellView` and breadcrumb verbatim (neither is
+  what G tests).
+- `protoStore.ts` gained `'sheetPicker'`; `ProtoWizard.tsx` gained one import and
+  one dispatch line. Pill order is now **E · G · F · A · B · C · D**.
+- Harness knob inside the sheet's Books step: **`staged` ⇄ `commit on tap`**. If
+  the list is covered, committing on every tap cannot be seen, so staging may not
+  survive the presentation change — that is testable rather than arguable. If
+  `commit on tap` reads fine, the shipped version drops the staging buffer.
+- Assets: `assets/15-wizard-flow-shape/hybrid-G/`.
+
+tsc 0 errors, eslint 0 errors.
+
+### G was driven, then REJECTED — the inline panel wins
+
+The driver flipped between E and G on device and chose **E**. G's one confirmed
+benefit (no label ever changes meaning) did not outweigh the cost the build
+surfaced: **the sheet hides the running list**, and a playlist is built
+incrementally, so the presentation costs most in exactly the case decision 1
+optimises for.
+
+G stays in the harness as the comparison record, exactly as A–D and F do.
+`compare-E-vs-G-second-pass.png` is the shot that decided it.
+
+**The bottom-sheet picker is now CLOSED — do not re-offer it.** It was the last
+item on the "still open" list, it was built rather than argued away, and it lost
+on evidence.
+
+---
+
+## Answer
+
+**The wizard stops being a wizard.** It becomes the **editor with an on-demand
+picker panel** — variant **E** — reached by **one route**, presented as a **root
+`transparentModal`** from every launch context.
+
+### 1. What it is FOR: hand-building playlists
+
+Stated at last, after three sessions of being deferred. Rescue (the ~4% dark
+books) and delete-and-rebuild still work; they are simply **not what the shape is
+optimised for**.
+
+Decided on **asymmetry of being wrong**, not on predicted habits: choosing E when
+the real case is rescue costs **+1 press, constant, forever**; choosing F when
+the real case is a playlist costs 10 expand/collapse cycles **and no surface that
+ever shows all candidates at once**. Corroborated by volumes nobody had composed
+before — 01's ~4%-dark against 02's 19 series / 179 books puts the rescue path at
+**≈7 books across the whole 350-title library**, once. Playlists are unbounded.
+
+*(Driver's exact framing: "A with the understanding that C collapses into A" —
+so "serve both equally" is not a surviving third position.)*
+
+### 2. The shape: variant E. F and G rejected
+
+- **F** loses because its saving is **one press, a constant**, while E's
+  advantage grows with author count.
+- **G** loses because a covering sheet **hides the running list**.
+- **E needs no change under the playlist reading** — verified, not assumed. The
+  numbering rule is already playlist-shaped (a Favorites list has no published
+  sequence, and blank → `1..n` from drag order is exactly right); the author
+  multi-select is a **non-modal volume reducer** (10 authors turns ~350 books
+  into ~50 rows), which is *why* it survives the closed filter/search ruling; and
+  `clearAuthors()` on reopen is correct because a second pass is a new question.
+
+### 3. Presentation: ONE route, root `transparentModal` — **this AMENDS 05**
+
+E merges create into the editor, and [13](13-detail-sheet-prototype.md) had
+already moved `series/edit/[id]` to a root `transparentModal`. One surface, two
+launch contexts, two conflicting rulings. Two options were put; the driver chose
+**one route, one presentation, everywhere**.
+
+**It does not reopen 05.** What 05 bought was *full-screen opaque content with a
+Save/Cancel footer* rather than a partial-height sheet with the library visible
+behind it — `editTitleDetails` is already a `transparentModal` at `#2c2c2cdc`
+(`_layout.tsx:265`) and reads as a full takeover. Only the **transition and the
+route's parent** change.
+
+**Factual correction to the map:** it records the wizard as "the only opaque
+full-screen push in the app (`_layout.tsx:288`)". **`(settings)` at
+`_layout.tsx:276` is a bare `slide_from_left` with no `presentation`, so it is
+one too.** This change leaves `(settings)` as the last opaque push, not zero.
+
+### 4. `Add to series…` is join-only
+
+No `New series…` row. 10 and 14 both specify it as *join another series* and
+neither said whether its picker could create one; it never mattered while create
+was an unreachable-from-a-sheet push. Book-first stays austere, consistent with
+10's refusal of book-first remove.
+
+### 5. `X` closes the panel and stays — driver's change, built and verified
+
+**`X` and `+ Add books` are now inverses.** `X` no longer exits the flow when
+nothing has been added; it always closes the panel onto the editor, which keeps
+its own `Cancel`, `Save` and `+ Add books`. The old behaviour made one button
+mean two different things depending on invisible state — dismiss, or abandon the
+whole series — and picked the destructive reading exactly when the user has least
+context.
+
+Two things fell out of it, both fixed:
+
+- **Back had to become a strict one-stage walk** — `Books → Authors → panel
+  closed → leave`. Without that last leg, back on the Order stage calls
+  `dismissPanel()` on an already-closed panel, does nothing visible, and **traps
+  the user on a screen whose only exit is the footer**.
+- **A new empty state became reachable** and read wrong: with a closed panel and
+  no books, the subtitle instructed you to *"Drag to order. Number them if you
+  want to."* over an empty list. That state was previously impossible. Now
+  **`Add books to get started.`**
+
+Verified on device (`emulator-5554`), all four legs: `X` on an empty list stays
+in the editor; `+ Add books` reopens on Authors with the footer back to `Next`;
+back closes the panel and stays; back again exits to the library.
+
+### Consequences that follow necessarily
+
+- **`src/app/series/create/{authors,books,order}.tsx` are all three deleted.**
+  Their `seriesDraftStore` resets move onto the editor — 13 established
+  `series/_layout.tsx` is a bare `<Stack>` owning no store lifetime, so nothing
+  is orphaned.
+- **`books.tsx`-shared-with-edit dissolves rather than being solved.** The editor
+  *is* the surface, so the panel serves both legs — §6's charge against D, taken
+  as a benefit without the cost. **This also closes the one leg 13 left
+  untested**, since `Add books` no longer navigates anywhere.
+- `handleCreateSeries` (`(library)/index.tsx:250`) and the editor's `Add books`
+  (`series/edit/[id].tsx:238`) — **both navigate to `/series/create/authors`
+  today** — retarget to the single editor route.
+- **05's three defects are discharged**: fixed header, outlined-and-labelled
+  inactive button, and the dead vertical region dissolved by the shape change
+  rather than by a layout fix (§3's correction stands).
+- **Carried unchanged, do not reopen:** staged selection, the blank-box numbering
+  rule with `1..n` from drag order on save, `Sort by number` pinned right and a
+  manual action only, the `Trash2` badge at the card's top-left in `textMuted`
+  carrying its own scrim, no book totals, no name prompt, Order in the main list,
+  `Delete Series` absent from the create pass.
+
+### Costs no schema.
+
+tsc 0 errors, eslint 0 errors. Unblocks [16](16-geometry-stress-tablet-fontscale.md),
+[17](17-light-theme-pass.md) and [18](18-schema-consolidation.md).
 
 ### Fidelity limits
 

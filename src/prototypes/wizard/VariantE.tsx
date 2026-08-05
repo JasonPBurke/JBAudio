@@ -138,24 +138,45 @@ export default function VariantE({ onExit }: { onExit: () => void }) {
     setPanelStep('closed');
   }, [ordered, staged, setOrdered]);
 
-  /** Abandon the pass. Only leaves the flow if there is nothing behind it. */
+  /**
+   * The panel's `X`: close the panel and STAY in the editor — always, including
+   * when nothing has been added yet.
+   *
+   * Driver's rule, 2026-08-05: `X` should do exactly what closing the panel does
+   * after a successful pass, so that `X` and `+ Add books` are inverses of each
+   * other. This REPLACES the earlier "only leaves the flow if there is nothing
+   * behind it" behaviour, which made one button mean two different things
+   * depending on invisible state — dismiss the panel, or abandon the whole
+   * series — and picked the destructive reading at exactly the moment the user
+   * has the least context.
+   *
+   * The editor is not a dead end behind the panel: it keeps its own `Cancel`,
+   * its own `Save` and the `+ Add books` button, so there is always a way out
+   * and always a way back in.
+   */
   const dismissPanel = useCallback(() => {
     setStaged([]);
-    if (ordered.length > 0) {
-      setPanelStep('closed');
-      return;
-    }
-    onExit();
-  }, [ordered.length, onExit]);
+    setPanelStep('closed');
+  }, []);
 
+  /**
+   * Back is a strict one-stage-at-a-time walk: Books → Authors → panel closed →
+   * leave. The last leg matters — without it, back on the Order stage would call
+   * `dismissPanel()` on an already-closed panel, do nothing visible, and trap
+   * the user on a screen whose only exit is the footer.
+   */
   const back = useCallback(() => {
     if (panelStep === 'books') {
       setPanelStep('authors');
       return true;
     }
-    dismissPanel();
+    if (panelStep === 'authors') {
+      dismissPanel();
+      return true;
+    }
+    onExit();
     return true;
-  }, [panelStep, dismissPanel]);
+  }, [panelStep, dismissPanel, onExit]);
   useHardwareBack(back);
 
   /* ----------------------------------------------------------- footer --- */
@@ -216,7 +237,14 @@ export default function VariantE({ onExit }: { onExit: () => void }) {
             ? 'Whose books are in this series?'
             : panelStep === 'books'
               ? 'Tap the books that belong in it.'
-              : 'Drag to order. Number them if you want to.'
+              : // The empty case only became REACHABLE with the 2026-08-05 `X`
+                // change — before it, a closed panel implied at least one book,
+                // because dismissing with none exited the flow. Without this
+                // branch the screen instructs you to drag and number a list
+                // that is not there.
+                ordered.length === 0
+                ? 'Add books to get started.'
+                : 'Drag to order. Number them if you want to.'
         }
         onBack={back}
       />

@@ -26,6 +26,7 @@ import VariantC from './VariantC';
 import VariantD from './VariantD';
 import VariantE from './VariantE';
 import VariantF from './VariantF';
+import VariantG from './VariantG';
 import { useWizardDraft } from './wizardShared';
 
 export default function ProtoWizard() {
@@ -77,6 +78,7 @@ export default function ProtoWizard() {
         {variant === 'thenEdit' && <VariantD onExit={onExit} />}
         {variant === 'authorFirst' && <VariantE onExit={onExit} />}
         {variant === 'accordion' && <VariantF onExit={onExit} />}
+        {variant === 'sheetPicker' && <VariantG onExit={onExit} />}
       </View>
 
       <View
