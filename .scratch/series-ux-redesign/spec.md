@@ -831,11 +831,11 @@ the harness cleanup.**
 ### G · Schema and migration
 
 *Source: [18](issues/18-schema-consolidation.md) — its `## Answer` is the canonical column
-list; this section copies it and adds nothing.*
+list; this section copies it and **amends it once**, see G1a.*
 
-**G1 — One migration, appended as `toVersion: 33`.** Seven columns across three tables plus
-one new table. **Zero indexes.** The schema definition bumps 32 → 33 and carries the
-identical shape.
+**G1 — One migration, appended as `toVersion: 33`.** Thirteen columns across four tables
+plus two new tables, and **one index** (see G1b). The schema definition bumps 32 → 33 and
+carries the identical shape.
 
 ```
 addColumns  series_books
@@ -853,8 +853,90 @@ createTable suppressed_series                       -- 09
   created_at                  number
 
 addColumns  settings
-  series_backgrounds_enabled  boolean  isOptional   -- 12, default ON
+  series_backgrounds_enabled      boolean  isOptional  -- 12, default ON
+  series_detection_enabled        boolean  isOptional  -- 09/A9, default ON
+  series_folder_grouping_enabled  boolean  isOptional  -- A3, default OFF
+
+addColumns  books                                       -- G1b, tag capture
+  series                          string   isOptional   -- extra.SERIES   6.6%
+  part                            number   isOptional   -- extra.PART     5.9%
+  grouping                        string   isOptional   -- Grouping       5.6%
+  file_format                     string   isOptional   -- 99.7%, already
+                                                        --   extracted, dropped
+
+createTable book_tags                                   -- G1b
+  book_id                         string   isIndexed
+  raw_json                        string
+  captured_at                     number
 ```
+
+**G1a — AMENDMENT (2026-08-06, driver-approved): the settings columns are three, not
+one.** 18's `## Answer` counted 12's display boolean and stopped there; **the
+`Series Detection` card's own two toggles were never given columns by any ticket.** 09
+decided the card's behaviour and 18 decided the column list, and the pair fell between
+them — 09's "09's two" meant `name_source` and `membership`.
+
+They are not optional to add. **K1 is the binding fact: settings in this app ARE schema**,
+one column per preference on a single-row table, and A9 anchors OFF-behaviour on the
+`autoChapterInterval = null` precedent, which is itself a column. There is no existing
+column either toggle could ride.
+
+It had to be settled *before* the migration was written rather than after, because **G3
+lets this branch claim exactly one version number.** Discovering the gap at the settings
+ticket would have forced a v34 — the outcome G3 exists to prevent.
+
+**Consequence for K1:** `series_backgrounds_enabled` is no longer the table's only
+default-ON boolean. **`series_detection_enabled` is the second, and needs the same
+inverted getter (`!== false`, fallback `true`) at its own site.** Copy-pasting the
+house `=== true` idiom now ships the wrong default in two places instead of one.
+`series_folder_grouping_enabled` is default-OFF and takes the ordinary idiom.
+
+**G1b — AMENDMENT (2026-08-06, driver-approved): the scan captures the tags it currently
+discards.** The detector's two highest-trust signals — `extra.SERIES` and `Grouping` —
+**were never persisted by anything**, and §A1's "already reachable from JS" is true of the
+*turbomodule* but not of the *database*: `extractMetadataFromResult` is a funnel that drops
+them. Without this the cascade would run on a strictly poorer input than the corpus it was
+measured against.
+
+Four queryable columns on `books`, plus a **side table holding the whole General track and
+its `extra` bag as JSON**. Fill rates are measured against the 304-record device pull.
+
+- **The blob is a side table, not a `books` column, and that is load-bearing.**
+  WatermelonDB loads a model's **full raw record** into memory, and the library store
+  observes seventeen `books` columns across the entire library. A ~2 KB JSON string per
+  book on that table would ride every library query. On `book_tags` it is read only when
+  something asks for it. Cost measured: mean **2,011 bytes** per record, ~**0.70 MB** for
+  350 books.
+- **Capture is wider than detection needs, deliberately.** A later feature that *displays*
+  a file's metadata is out of scope here, but the blob means that feature costs **no
+  migration and no second pass over the library** — it reads what is already stored. This
+  is the whole reason the blob beats a wider column list: a column can only hold a tag
+  somebody predicted.
+- **`book_tags.book_id` is the one index, and G6's rule permits it** — it is a foreign key
+  on a table that grows with the library, which is exactly the shape G6 says the existing
+  six indexed columns have. **G6's "no new indexes" governs the Series columns and is
+  otherwise unchanged.**
+- **NO BACKFILL SHIPS. Driver ruling: the app is in closed testing, wiping and re-adding a
+  library is acceptable, and a `Re-read Library Tags` settings action was rejected as
+  "forcing the user to perform actions the code should have already taken care of."** The
+  automatic alternative was costed and is *not* cheap: `processDirectoryFiles` **creates**
+  book and chapter records from MediaInfo output and has no update-existing path, so a
+  silent top-up needs its own update-only pass — the same work as the button, minus the
+  button. Neither ships. Existing rows fill when their files are scanned as new.
+- **Not backfilling is safe, and this is measured, not assumed.** Re-running the real
+  pipeline with `SERIES`/`Grouping`/`PART` nulled out — i.e. exactly what an un-re-imported
+  library looks like — leaves **series count, coverage and 98.3% grouping purity
+  byte-identical**; only canonical-number accuracy moves, **96.4% → 93.5%** (~5 books).
+  The tag signals are a *number* refinement on this library, not a *grouping* one, because
+  the same books' albums parse anyway.
+- **`SUBTITLE` is NOT captured as a column but IS in the blob.** It was nearly dismissed as
+  derivable from `SERIES` + `PART`; **2 of its 17 real records carry a `SUBTITLE` with
+  neither** (`'Hierarchy, Book 1'`). Independent signal, too thin to build on, free to keep.
+- **Free correction owed to the repo, in the same funnel:** `mediainfo.ts` reads
+  `general.rldt` as a `releaseDate` fallback. Real data always nests it at
+  `general.extra.rldt` — **0/304 top-level, 47/304 under `extra`** — so that branch has
+  never fired. The same shape on `general.nrt` is harmless only because `extra?.nrt` sits
+  second in the same `||` chain. **Fix `rldt` when capture is written.**
 
 **G2 — Appended, not a rewrite of v32.** Rewriting v32 was live (no real device has ever
 run it) and was **offered and rejected** for append-only, which is the discipline that
@@ -862,7 +944,7 @@ survives being *wrong* about who has what. Consequences, all verified: real devi
 31 → 32 → 33 and v33 runs against **zero rows** (v32 creates the tables empty); **emulators
 need no wipe**; v33 is uncontested across every local branch.
 
-**G3 — Everything rides one block, including the settings boolean.** Multi-table
+**G3 — Everything rides one block, including all three settings booleans.** Multi-table
 migrations are already house style. The "whole model at once vs ship-per-feature" framing
 is a false alternative: a migration lands **optional columns**, not UI, so features still
 ship incrementally on top of one block. The real axis was how many version numbers this
@@ -899,7 +981,9 @@ that makes the whole promise structural. Nullable is also the only *honest* opti
 K10. An SQL backfill step was offered and rejected: it is a no-op on every real device and
 buys only tidier emulator data, at the cost of SQL on a surface that fails silently.
 
-**G6 — No new indexes.** The six existing indexed columns are all foreign keys on tables
+**G6 — No new indexes on the Series columns.** (`book_tags.book_id` is indexed and is the
+one exception — G1b explains why it satisfies this rule rather than breaking it.)
+The six existing indexed columns are all foreign keys on tables
 that grow with the library, plus one lookup key; none of the new columns is that shape.
 The suppression table is read **once into a set per detection run** (a batch, ~28
 candidates, realistically 0–20 suppressed rows); `membership` is always filtered inside one
@@ -1127,6 +1211,11 @@ a cache in front of the DB queries. Every existing boolean getter reads `=== tru
 no-record case. `Series Backgrounds` is the table's **first default-ON boolean**, so
 copy-pasting that idiom ships every existing tester the opposite of the chosen default,
 silently. **It must read `!== false`, with `true` as the fallback.**
+
+**Per G1a there are now TWO default-ON booleans** — `series_backgrounds_enabled` and
+`series_detection_enabled` — so the inverted getter is needed at **two** sites. Getting
+either wrong is silent: the user sees a switch rendered OFF that they never turned off,
+and in detection's case an empty Series tab that reads as a broken feature.
 
 A migration backfill was considered — with a migration now available to ride — and **dies
 on a fact**: the settings-record seeder only seeds three fields, so **every optional

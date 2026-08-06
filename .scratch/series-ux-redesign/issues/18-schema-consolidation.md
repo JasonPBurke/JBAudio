@@ -357,3 +357,35 @@ since v3. **Correct the comment when v33 is written**, so nobody trusts
 - **Fresh installs never run migrations at all** — WatermelonDB builds from
   `schema.ts` directly. Every nullability decision above concerns upgrade paths
   only.
+
+---
+
+## Amendment — 2026-08-06 (driver-approved, during `/to-tickets`)
+
+**This ticket's column list is short by two. It is nine columns, not seven.** The
+canonical list now lives in the spec at **[§G1 + §G1a](../spec.md)**; read it
+there, not here.
+
+The `Series Detection` card's own two toggles were never given columns by any
+ticket — 09 decided the card's *behaviour*, this ticket decided the *column
+list*, and the pair fell between them ("09's two" here meant `name_source` and
+`membership`). Added to the same `toVersion: 33` block:
+
+```
+addColumns  settings
+  series_detection_enabled        boolean  isOptional  -- 09/A9, default ON
+  series_folder_grouping_enabled  boolean  isOptional  -- A3,    default OFF
+```
+
+They are not optional. **K1 is binding: settings in this app ARE schema**, one
+column per preference, and A9 anchors OFF-behaviour on the
+`autoChapterInterval = null` precedent — itself a column. Nothing existing could
+carry either toggle.
+
+Caught **before** the migration was written, which is the only time it was cheap:
+decision 2 above lets this branch claim exactly one version number, so finding
+this at the settings ticket would have forced a v34.
+
+**Knock-on:** `series_detection_enabled` is a **second** default-ON boolean, so
+K1's inverted getter (`!== false`, fallback `true`) is now needed at **two**
+sites, not one.

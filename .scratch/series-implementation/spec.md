@@ -46,5 +46,44 @@ exists.
 
 ## Status
 
-No tickets yet. Next step is `/to-tickets` against the spec path above — which the driver
-must type (`disable-model-invocation: true`).
+**18 tickets, written 2026-08-06, all `ready-for-agent`.** Work the **frontier**: any
+ticket whose blockers are all resolved. [01](issues/01-schema-v33.md) and
+[03](issues/03-detect-series-seam.md) both have none and can start in parallel — 03 touches
+no database, no React Native and no device.
+
+```
+01 schema v33 ──┬─ 02 capture tags ─┐
+                │                   ├─ 04 units ─┐
+03 detectSeries ┴───────────────────┘            ├─ 06 detection runs ─┬─ 07 detection card ─┐
+                └─ 05 reconcile ──────────────────┘                    │                     ├─ 09 delete/restore ─┐
+                                                                       └─ 17 titleDetails    │                     │
+01 ─┬─ 08 backgrounds ─┬─ 10 browse row ─── 11 detail sheet ─── 12 editor route ─┬─ 13 picker │                     │
+    └─────────────────-┘                                                         ├─ 14 numbers                      │
+                                                                                 ├─ 15 artwork                      │
+                                                                                 └─ 16 detection-aware save/delete ─┘
+
+18 harness deletion ← blocked by 10, 11, 12, 13, 14, 15, 17
+```
+
+**Three amendments were made to the spec while these tickets were written**, all
+driver-approved, all edited into `series-ux-redesign/spec.md` in place rather than recorded
+only here:
+
+- **§G1a** — the column list was **short by two**. The `Series Detection` card's own
+  toggles had no columns: 09 decided the card's behaviour, 18 decided the column list, and
+  the pair fell between them. Caught before the migration was written, which was the only
+  time it was cheap — G3 lets this branch claim exactly one version number.
+- **§G1b** — the scan **captures the tags it currently discards**. §A1's "already reachable
+  from JS" is true of the turbomodule and false of the database; `extra.SERIES` and
+  `Grouping` were never persisted by anything. Four columns plus a raw-tag side table.
+- **§G6** — narrowed to "no new indexes *on the Series columns*", since `book_tags.book_id`
+  is one, and satisfies G6's own stated rule rather than breaking it.
+
+**No backfill ships** (driver ruling, §G1b). Existing books fill when their files are
+scanned as new. That is safe rather than lucky: with the tag columns null, detection's
+series count, coverage and 98.3% grouping purity are **byte-identical** and only
+canonical-number accuracy moves, 96.4% → 93.5%. [03](issues/03-detect-series-seam.md)
+asserts exactly that, so the property cannot silently rot.
+
+Baseline at the time of writing, verified: `tsc` **0 errors** · jest **58 suites / 484
+tests green**.
