@@ -987,7 +987,12 @@ Ruled beyond this destination. Does not graduate.
   `editTitleDetails` itself is the follow-on effort's.
 
 - **Merging to `main`.** Both series branches stay open.
-- **The implementation itself.** This map ends at an approved spec.
+- **The implementation itself.** This map ends at an approved spec. **That spec is now
+  approved, and implementation has its own effort directory:
+  `.scratch/series-implementation/`, whose `issues/` are numbered from `01`
+  independently of this one's.** The design spec is NOT copied there — it stays
+  [`spec.md`](spec.md) here and is amended in place, so there is one source of truth for
+  both efforts.
 - **Auto-generating series from an online database** (Audible/Goodreads lookup).
   Local signals only. *(Note: 11 does allow an online **cover art** lookup for a
   series, parallel to the existing `/coverArtSearch`. That is artwork, not series

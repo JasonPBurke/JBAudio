@@ -8,6 +8,9 @@ Written: 2026-08-06 · resolves [19](issues/19-write-the-spec.md)
 definition of done is met and the map is closed. Amendments are edits to this file, in
 place; it is never reissued.
 Map (the argument, ticket by ticket): [map.md](map.md)
+Implementation tickets: **[`../series-implementation/`](../series-implementation/spec.md)**
+— a separate effort with its own `issues/`, numbered from `01`. This file stays the single
+source of truth for both; it is edited in place, never copied there.
 
 ---
 
