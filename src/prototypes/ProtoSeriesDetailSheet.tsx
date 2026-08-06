@@ -33,7 +33,13 @@
  * are real, and those were always real (see README's first constraint).
  */
 import React, { memo, useCallback, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import FastImage from '@d11/react-native-fast-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -72,15 +78,38 @@ import {
   OriginChip,
   CompletionBar,
   CLUSTER_MAX_LAYERS,
+  CONTENT_CAP,
 } from './seriesCardParts';
 import ProtoSeriesEdit from './ProtoSeriesEdit';
 
 /** Square box every row cover is fitted into, so titles stay left-aligned. */
 const ROW_COVER_BOX = 46;
 
-/** Cluster size on the hero. 08 used 84 on the browse row; a detail hero can
- *  afford more, and 104 was the first prototype's figure the driver saw. */
+/**
+ * Cluster size on the hero AT PHONE WIDTH. 08 used 84 on the browse row; a
+ * detail hero can afford more, and 104 was the first prototype's figure the
+ * driver saw.
+ *
+ * TICKET 16 — this is now a REFERENCE value, not the rendered one. The browse
+ * row's cluster scales with width (`CLUSTER_SHARE` of the content cap), so
+ * leaving the hero at a literal 104 inverted the hierarchy on a tablet: the
+ * browse fan reached 147dp while the hero stayed at 124.8dp, making the
+ * OVERVIEW's artwork larger than the DETAIL's. `heroClusterSize()` applies the
+ * same cap fraction so the two scale together and the hero keeps its 1.24×
+ * lead at every width. Driver caught this after 16 was resolved.
+ */
 const HERO_CLUSTER = 104;
+
+/**
+ * The hero's cluster size at a given screen width. Same shape as the browse
+ * row's rule and deliberately expressed the same way — a fraction of
+ * `CONTENT_CAP` anchored on the 411dp phone value, so a phone is unchanged.
+ */
+function heroClusterSize(width: number): number {
+  return (
+    Math.round(Math.min(width, CONTENT_CAP) * (HERO_CLUSTER / 411) * 10) / 10
+  );
+}
 
 /**
  * Lines of series name shown before the title truncates and becomes tappable.
@@ -135,6 +164,8 @@ const ProtoSeriesDetailSheet = ({ series }: { series: DerivedSeries }) => {
   const { colors: themeColors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const heroCluster = heroClusterSize(width);
 
   const seriesBackgrounds = useProtoStore((s) => s.seriesBackgrounds);
   const editorTarget = useProtoStore((s) => s.editorTarget);
@@ -324,7 +355,7 @@ const ProtoSeriesDetailSheet = ({ series }: { series: DerivedSeries }) => {
 
             <View style={styles.hero}>
               <View style={styles.heroTop}>
-                <CoverCluster covers={cluster} size={HERO_CLUSTER} />
+                <CoverCluster covers={cluster} size={heroCluster} />
                 <View style={styles.heroText}>
                   {titleOverflows ? (
                     <Pressable
@@ -733,6 +764,14 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     borderWidth: 1,
   },
+  /*
+   * TICKET 16: this page is deliberately NOT capped at `CONTENT_CAP`, unlike
+   * the browse row. It was built capped and reverted on sight (driver,
+   * 2026-08-05): the browse row bleeds its backdrop and hairline the full
+   * width, so the cap there is invisible, whereas this page has no full-bleed
+   * paint to absorb it and reads as content shoved into the left 600dp.
+   * The gulf the cap was meant to close is fixed by `rowText` instead.
+   */
   hero: {
     paddingHorizontal: screenPadding.horizontal,
     paddingTop: 8,
@@ -853,8 +892,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
   },
+  /*
+   * TICKET 16 — `flexShrink` rather than `flex: 1` (driver, 2026-08-05). With
+   * `flex: 1` the text block ate all remaining width and shoved the finished
+   * `Check` against the far edge: measured at 416dp past the end of the title
+   * on an 800dp tablet, so the eye had to cross the whole row to associate a
+   * tick with the book it marks. Shrinking to content instead parks the tick
+   * immediately after the title at every width.
+   *
+   * The tick is an INDICATOR, which is why it may travel. The wizard's radio
+   * and the order screen's drag grabber are TARGETS and deliberately keep the
+   * screen edge, where they are predictable to reach.
+   */
   rowText: {
-    flex: 1,
+    flexShrink: 1,
     marginLeft: 12,
     marginRight: 8,
   },

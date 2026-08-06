@@ -47,6 +47,18 @@ Plus the cross-cutting results from 16 (tablet, font scale) and 17 (light theme)
 
 ## How to write it
 
+**Resolve this by invoking `/to-spec` — not by writing the document freehand.**
+The driver has to type it: `/to-spec` is `disable-model-invocation: true`, so no
+session can reach it on its own, and a fresh one has no conversation to
+synthesise. Point it at this ticket and at [map.md](../map.md). It supplies what
+this ticket does not — the spec template (Problem Statement · Solution · User
+Stories · Implementation Decisions · Testing Decisions · Out of Scope · Further
+Notes) and a **seams** step: sketch the test seams, prefer existing ones, agree
+them with the driver *before* writing. This ticket is the **content** contract;
+`/to-spec` is the **shape**. It closes nothing — resolution is the tracker's own
+procedure (`docs/agents/issue-tracker.md` § Wayfinding operations). Then
+`/to-tickets` on the spec, in the same context window.
+
 - **State decisions, not their history.** The map records *reversals* (08's
   row-height ruling reversed, 11's "no route to `titleDetails`" reversed by 13,
   10's ⋮ deleted by 11, 12's scrim mechanism amended by 13, `BookGridItem`'s

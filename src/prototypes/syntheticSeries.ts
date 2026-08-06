@@ -320,5 +320,23 @@ export function collapseNumberRange(
     }
   }
   flush();
-  return parts.join(', ');
+
+  /*
+   * TICKET 16 — the cap 07 asked for, with an actual number. 07's stated reason
+   * ("or it eats the series name") is DEAD: 08 moved the range off the title
+   * line onto the meta line, so it can only ever eat itself. What the cap
+   * actually has to do is cut at a RUN BOUNDARY instead of mid-number, because
+   * this function was previously unbounded — a user owning alternating volumes
+   * of a 41-book series emitted ~70 characters.
+   *
+   * THREE is measured, not chosen: `#1-4, 4.5, 5-8` is three runs and is
+   * exactly what fitted on device at 411dp / font scale 2.0 behind a
+   * `9 books · ` prefix. Every wider or smaller-font configuration has room to
+   * spare, so three runs never reads as cramped.
+   */
+  const shown = parts.slice(0, RANGE_RUN_CAP).join(', ');
+  return parts.length > RANGE_RUN_CAP ? `${shown}…` : shown;
 }
+
+/** Maximum comma-separated runs in a collapsed canonical range (ticket 16). */
+export const RANGE_RUN_CAP = 3;

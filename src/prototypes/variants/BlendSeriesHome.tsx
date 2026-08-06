@@ -54,7 +54,13 @@
  * `BooksGrid` are untouched.
  */
 import React, { memo, useCallback, useMemo, useRef } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
 import FastImage from '@d11/react-native-fast-image';
@@ -69,11 +75,17 @@ import { withOpacity } from '@/helpers/colorUtils';
 import { useResetScrollOnTabChange } from '@/hooks/useResetScrollOnTabChange';
 import type { DerivedSeries } from '@/helpers/seriesAssembly';
 import type { VariantProps } from '../variantProps';
-import { getSeriesFacts, seriesMetaLine, SeriesFacts } from '../seriesFacts';
+import {
+  getSeriesFacts,
+  seriesCountLine,
+  seriesMetaLine,
+  SeriesFacts,
+} from '../seriesFacts';
 import {
   CoverCluster,
   CompletionBar,
   CLUSTER_MAX_LAYERS,
+  CONTENT_CAP,
   coverClusterWidth,
 } from '../seriesCardParts';
 /*
@@ -99,17 +111,56 @@ const TEXT_GAP = 14;
 const CARD_PADDING = 12;
 
 /**
- * Where a row separator starts. `BooksList.tsx:103` hard-codes `marginLeft: 75`
- * to clear its 75dp cover so the rule begins under the TEXT — same intent here,
- * but derived, because the cluster's drawn width is `size` plus every layer's
- * peek (~101dp at size 84), not `size`.
+ * Cover size as a fraction of the capped content width. `84 / 411` reproduces
+ * today's phone value EXACTLY, so a phone renders bit-for-bit what it renders
+ * now; at the cap it yields ~122.6dp, a ~147dp cluster, holding the artwork at
+ * the same 24.5% of the row it occupies on a phone instead of decaying to 7.9%.
  *
- * Uses the MAX layer count, not the per-series count: a 1-book series draws a
- * narrower cluster, and an inset that moved row-to-row would read as a
- * rendering fault rather than a rule.
+ * Type is deliberately NOT scaled with width. Material and HIG both hold the
+ * type scale constant across window size classes, and `normalizeSize.ts:49-62`
+ * documents this repo already paying for a width-derived multiplier once.
  */
-const SEPARATOR_INSET =
-  screenPadding.horizontal + coverClusterWidth(CLUSTER_SIZE) + TEXT_GAP;
+const CLUSTER_SHARE = CLUSTER_SIZE / 411;
+
+/** Width-derived geometry for one row. Phone values are unchanged by design. */
+function useRowGeometry() {
+  const { width } = useWindowDimensions();
+  return useMemo(() => {
+    const cap = Math.min(width, CONTENT_CAP);
+    const coverSize = Math.round(cap * CLUSTER_SHARE * 10) / 10;
+    return {
+      cap,
+      coverSize,
+      /*
+       * Where a row separator starts. `BooksList.tsx:103` hard-codes
+       * `marginLeft: 75` to clear its 75dp cover so the rule begins under the
+       * TEXT — same intent here, but derived, because the cluster's drawn width
+       * is `size` plus every layer's peek, not `size`. Uses the MAX layer count,
+       * not the per-series count: a 1-book series draws a narrower cluster, and
+       * an inset that moved row-to-row would read as a rendering fault.
+       */
+      separatorInset:
+        screenPadding.horizontal + coverClusterWidth(coverSize) + TEXT_GAP,
+    };
+  }, [width]);
+}
+
+/**
+ * TICKET 16 — sacrifice order for the meta line. At font scale 2.0 on a 411dp
+ * phone the single-line `N books · M finished · #range` truncates, and because
+ * the range is LAST it is always the casualty: `6 books · 2 finished · #1…`.
+ *
+ * `M finished` goes first instead. It is the only redundant segment — the
+ * completion bar renders `2/6` directly beneath it — whereas the range has no
+ * other home on browse. 08 anticipated exactly this when it restored the tally
+ * on 2026-08-03, recording `seriesCountLine` as "the lever if that reverses".
+ *
+ * The threshold is a PROTOTYPE PROXY for a measured rule. The shipping version
+ * should drop the segment when the line actually overflows (the map's own
+ * "measure, don't infer overflow" gotcha); 1.3 is simply where it starts to on
+ * the narrowest supported width.
+ */
+const TALLY_DROP_FONT_SCALE = 1.3;
 
 type Container = 'card' | 'separator';
 
@@ -201,18 +252,24 @@ const BlendSeriesHome = ({
    * line instead of trailing off. Card mode passes undefined: its rows are
    * bounded objects already and a rule between them would double the edge.
    */
+  /*
+   * TICKET 16: the inset follows the cluster, which now grows with width, so
+   * the rule still starts under the text on a tablet. The rule's RIGHT end is
+   * deliberately left alone — the hairline is paint, and paint stays full-bleed.
+   */
+  const { separatorInset } = useRowGeometry();
   const Divider = useCallback(
     () => (
       <View
         style={{
           ...utilsStyles.itemSeparator,
           marginVertical: 9,
-          marginLeft: SEPARATOR_INSET,
+          marginLeft: separatorInset,
           borderColor: themeColors.textMuted,
         }}
       />
     ),
-    [themeColors.textMuted],
+    [themeColors.textMuted, separatorInset],
   );
 
   return (
@@ -261,6 +318,8 @@ const BlendRow = memo(function BlendRow({
   onOpenDetail: (series: DerivedSeries) => void;
 }) {
   const { colors: themeColors } = useTheme();
+  const { cap, coverSize } = useRowGeometry();
+  const { fontScale } = useWindowDimensions();
   const handlePress = useCallback(
     () => onOpenDetail(series),
     [series, onOpenDetail],
@@ -344,7 +403,13 @@ const BlendRow = memo(function BlendRow({
           </>
         )}
 
-        <View style={styles.rowContent}>
+        {/*
+          TICKET 16: `maxWidth` + `flex-start` is the whole tablet adaptation.
+          The row's Pressable and its backdrop still span the device; only this
+          box stops at 600dp, anchored left so the heaviest scrim stays under
+          the text.
+        */}
+        <View style={[styles.rowContent, { maxWidth: cap }]}>
           {playSlot === 'below' ? (
             /*
              * The pill moves out of the text row entirely and tucks under the
@@ -355,7 +420,7 @@ const BlendRow = memo(function BlendRow({
              * makes the row FIXED again: a 2-line title no longer changes it.
              */
             <View style={styles.coverColumn}>
-              <CoverCluster covers={facts.cluster} size={CLUSTER_SIZE} />
+              <CoverCluster covers={facts.cluster} size={coverSize} />
               <PlayPill
                 label={playLabel}
                 seriesName={series.name}
@@ -366,7 +431,7 @@ const BlendRow = memo(function BlendRow({
           ) : (
             <CoverCluster
               covers={facts.cluster}
-              size={CLUSTER_SIZE}
+              size={coverSize}
               overlayAlign={overlayStyle === 'center' ? 'center' : 'corner'}
               /*
                * WAS 0.42 FOR THE CENTRED GLYPH — now 0 (driver, 2026-08-04,
@@ -414,7 +479,9 @@ const BlendRow = memo(function BlendRow({
               numberOfLines={1}
               style={[styles.meta, { color: themeColors.textMuted }]}
             >
-              {seriesMetaLine(facts)}
+              {fontScale >= TALLY_DROP_FONT_SCALE
+                ? seriesCountLine(facts)
+                : seriesMetaLine(facts)}
               {facts.range !== '' ? ` · #${facts.range}` : ''}
             </Text>
 

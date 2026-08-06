@@ -302,3 +302,71 @@ was never modified, so there is nothing to revert there.
 (`titleDetails.tsx`). It looks like harness fallout and is not: ticket 14 found
 `Layers` doing double duty — the library's Series-view toggle AND that row's
 glyph — and the driver ruled series keeps `Layers`. That change **ships**.
+
+## Tablet width and font scale (ticket 16)
+
+Resolved 2026-08-05 and **built into the harness**, so anything added from here
+inherits it. `CONTENT_CAP = 600` lives in `seriesCardParts.tsx`.
+
+**The rule.** The **browse row's** content caps at `min(width, 600)dp` and stays
+**left**-anchored; the cover cluster is a constant `CLUSTER_SIZE / 411` of that
+cap. `variants/BlendSeriesHome.tsx` derives both in `useRowGeometry()`.
+
+**The cap is browse-row ONLY.** It was applied to the series info page too, built,
+and reverted on sight — *"the entire page's content is now restricted"*. The two
+surfaces absorb it differently: the browse row bleeds its backdrop and hairline
+the full width so the cap sits inside paint and is nearly invisible, while the
+info page has **no full-bleed paint** and the same rule reads as content shoved
+into the left 600dp. Nothing was lost, because the cap was never what fixed the
+info page's defect — see `rowText` below.
+
+**Cluster SIZING still scales on both surfaces**, and that is a different rule
+from the layout cap. `heroClusterSize()` in `ProtoSeriesDetailSheet.tsx` uses the
+hero's own anchor (`HERO_CLUSTER / 411`) against the same clamp, so the hero fan
+keeps its 1.24× lead over the browse fan at every width. **Scaling one and not
+the other inverts the hierarchy** — that shipped for about ten minutes and the
+driver caught it: the browse fan hit 147dp while the hero stayed 124.8dp, making
+the *overview's* artwork bigger than the *detail's*. Any new cluster takes its
+phone size divided by 411 — never a literal.
+
+Four things not to re-derive:
+
+- **The cap is a no-op on a phone, by construction.** `84 / 411` reproduces
+  today's cover size exactly at 411dp; it was verified against a pre-change
+  capture. If a phone layout ever moves, the fraction is wrong, not the cap.
+- **PAINT IS NOT CAPPED.** The backdrop and the hairline rule still bleed to
+  both screen edges — capping them puts visible edges on the row and reads as
+  the card 08 measured and rejected. Left-anchoring (not centring) is equally
+  deliberate: it keeps the heaviest part of the scrim under the text.
+- **Type is never scaled with width**, only padding and the leading visual.
+  Material and HIG both hold the type scale constant across window size classes,
+  and `normalizeSize.ts:49-62` records this repo paying for a width multiplier
+  once. Note **no Series surface calls `normalizeSize`** at all.
+- **The wizard is exempt.** The book picker's radio and the order screen's drag
+  grabber are *targets* and keep the screen edge. The info page's finished ✓ is
+  an *indicator*, so `rowText` is **`flexShrink: 1`** (not `flex: 1`) and the tick
+  sits against the title — this alone closes the 416dp gulf the cap was aimed at,
+  at any width, which is why reverting the cap cost nothing.
+
+`TALLY_DROP_FONT_SCALE = 1.3` in `BlendSeriesHome.tsx` drops `M finished` from
+the meta line so the canonical range survives. **The threshold is a prototype
+proxy** — the shipping rule should drop the segment when the line actually
+overflows. `RANGE_RUN_CAP = 3` in `syntheticSeries.ts` bounds the range itself;
+before this it was unbounded and an alternating 41-book series emitted ~70 chars.
+
+### Running the tablet AVDs
+
+`Pixel_Tablet` (800×1280dp) and `7_Tablet` (**sw635dp at 272dpi** — not the
+540dp its `config.ini` density implies). Both needed setting up:
+
+```
+adb -s <serial> install -r -d android/app/build/outputs/apk/debug/app-debug.apk
+adb -s <serial> reverse tcp:8081 tcp:8081
+adb -s <serial> shell am start -a android.intent.action.VIEW \
+  -d "sonicbooks://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081"
+```
+
+**`10.0.2.2:8081` does NOT work on a second emulator** — Expo only wires
+`adb reverse` for devices attached when it starts, so use the reverse plus
+`localhost`. Each tablet carries its own small library (9 and 11 books), which is
+enough: synthetic series reference real book ids, so any pool will do.

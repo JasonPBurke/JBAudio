@@ -679,6 +679,76 @@ Sharpened by ticket 06 (2026-08-02); no longer provisional.
   Costs **zero**: no copy, no schema, no code, no new surface — 19's brief is the
   only artifact changed.
 
+- [16 — Geometry stress: tablet width and font scale](issues/16-geometry-stress-tablet-fontscale.md)
+  — **Series content caps at `min(width, 600)dp`, left-aligned, with the cover
+  cluster held at a constant 24.5% of that cap. Type is NEVER scaled with
+  width.** Built and verified on the phone and **both** tablets. 600 is Android's
+  **sw600dp breakpoint** — content never grows past the width at which the
+  platform stops calling the device a phone — and the cluster fraction
+  (`CLUSTER_SIZE / 411`) **reproduces today's 84dp cover exactly at 411dp**, so
+  the rule is a verified **no-op on a phone** and yields a 147dp cluster at the
+  cap. **The two stresses turned out NOT to break the row the same way, which
+  this ticket assumed**: at 800dp nothing truncates at any font scale (the width
+  absorbs it) while the artwork decays to **7.9%** of the row; at 411dp / fs 2.0
+  the row grows **141 → 265dp (+88%)**, density falls 4.5 → 2.8, and the meta
+  line truncates. Width is a *proportion* problem, font scale an *overflow* one.
+  **MULTI-COLUMN IS CLOSED BY ARITHMETIC**: the app is portrait-locked
+  (`app.json:6`, `AndroidManifest.xml:26`) so the ceiling is 800dp, while two
+  columns need ~822dp for phone parity — single column is a **consequence**, and
+  the ticket's "these are different products" branch has nothing live in it.
+  **PAINT STAYS FULL-BLEED** — backdrop and hairline still span the device and
+  the content is LEFT-anchored, both deliberately: a capped painted band has
+  edges and reads as the card 08 measured and rejected, and left-anchoring keeps
+  the heaviest scrim under the text where 08 put it after `Rich header` had every
+  title fighting its own cover. **TYPE MAY NOT SCALE** (driver asked directly):
+  Material 3 and HIG hold the type scale constant across window size classes, it
+  collides with a lever the user already set, and `normalizeSize.ts:49-62`
+  records this repo paying for a width-derived multiplier once — **padding and
+  the leading visual may scale, type may not.** **THE BACKDROP IS NOT A DEFECT
+  and the claim that it was is WITHDRAWN** — the session reported it as breaking
+  and the driver refuted it: text legibility *improves* with width (the gradient
+  is a fraction of width while the text ends at a fixed ~364dp, so its right end
+  sits on 0.59 → 0.86 → 0.92 opacity), and a busy band is a property of the cover
+  with two shipped correction paths (12's toggle, 11/12's artwork override).
+  **Do not re-raise it.** Scope is **browse row + series info page; the wizard is
+  EXEMPT** — the driver ruled the book picker's radio and the order screen's
+  grabber are *targets* wanting a predictable screen edge, while the info page's
+  finished ✓ is an *indicator* and was pushed to the title (`rowText`
+  `flex: 1` → **`flexShrink: 1`**, killing a measured **416dp** gulf).
+  **Font scale: `M finished` is dropped BEFORE the range truncates** — it is the
+  only redundant segment (`CompletionBar` renders `2/6` beneath it) and 08 had
+  already named `seriesCountLine` as "the lever if that reverses", so no new
+  helper was needed; `6 books · 2 finished · #1…` becomes `6 books · #1-6`.
+  **The canonical range caps at THREE runs** — measured, not chosen:
+  `#1-4, 4.5, 5-8` is exactly what fitted at 411dp / fs 2.0 behind `9 books · `.
+  `collapseNumberRange` had **no cap at all** before (an alternating 41-book
+  series emitted ~70 chars). **07's reason for the cap is DEAD** — 08 moved the
+  range off the title line, so it can only eat itself; the cap's real job is to
+  cut at a **run boundary**, which is why a character budget lost.
+  Two things that **passed untouched**: **14's subheading** (the `marginTop: -17`
+  is scale-invariant, because the `gap: 20` it cancels is also fixed dp — do not
+  re-check), and **browse-row name truncation**, ruled intended by the driver with
+  the info page's tap-to-expand as the escape hatch (real, built,
+  `ProtoSeriesDetailSheet.tsx:144-152`). Also **corrected**: `7_Tablet` runs
+  **sw635dp at 272dpi**, not the 540dp its `config.ini` implies, so both tablets
+  are ≥ sw600dp — and it is moot, because **no Series surface calls
+  `normalizeSize`** at all.
+  **Two same-day corrections, both driver-caught on sight.** (a) Scaling the
+  browse cluster alone **inverted the artwork hierarchy** — the hero's literal
+  `HERO_CLUSTER = 104` left the *overview's* fan (147dp) bigger than the
+  *detail's* (124.8dp), where a phone has the hero deliberately 1.24× larger. So
+  **every Series cluster is now a fixed fraction of `min(width, CONTENT_CAP)`
+  anchored on its own 411dp value** — a new cluster means picking its phone size
+  and dividing by 411, never a literal. (b) **The cap does NOT apply to the info
+  page**; it was built there, looked at and reverted — *"the entire page's
+  content is now restricted"*. **The cap lands differently on the two surfaces
+  and that is the finding**: the browse row bleeds paint the full width so the
+  cap is invisible inside it, while the info page has no full-bleed paint to
+  absorb it and reads as content shoved left. Nothing was lost, because the
+  416dp title-to-✓ gulf is closed by **`rowText: flexShrink` alone** — the cap
+  was never what fixed it. **`CONTENT_CAP` is therefore BROWSE-ROW ONLY.**
+  Costs **zero schema**; tsc 0 / eslint 0.
+
 ## Not yet specified
 
 In scope, but not yet sharp enough to ticket. Graduates as the frontier advances.
@@ -724,6 +794,20 @@ Ruled beyond this destination. Does not graduate.
   treated as a **dividend, not an argument** — the variant was chosen on how it
   reads. **Not a root-cause fix**: if that construct is ever reintroduced
   anywhere, the bug is unexplained and comes back with it.
+- **Two book-screen defects at large font scale.** Found while resolving
+  [16](issues/16-geometry-stress-tablet-fontscale.md) and **not actioned** —
+  neither is a Series surface, and this map ends at a Series spec. Both are
+  **driver-confirmed** and both have the same cause: a fixed-height container
+  holding text that scales.
+  1. **The library search field clips its placeholder vertically** at
+     `font_scale 2.0` — the top of `Search books, authors…` is cut by the tab
+     strip above it.
+  2. **`titleDetails`' info card clips its labels** — `Releas`, `Chapte`.
+
+  These are **shipping** defects, visible without any of this map's work.
+  Recorded here and in project memory so the follow-on effort does not have to
+  rediscover them.
+
 - **Merging to `main`.** Both series branches stay open.
 - **The implementation itself.** This map ends at an approved spec.
 - **Auto-generating series from an online database** (Audible/Goodreads lookup).

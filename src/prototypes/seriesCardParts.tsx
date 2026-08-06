@@ -54,6 +54,21 @@ const PEEK_FRACTION = 0.1;
 export const CLUSTER_MAX_LAYERS = 3;
 
 /**
+ * TICKET 16 — the width at which Series content stops growing (driver,
+ * 2026-08-05). Android's sw600dp breakpoint: the content never gets wider than
+ * the point at which the platform stops calling the device a phone.
+ *
+ * Content only. PAINT — the browse row's backdrop and its hairline rule — still
+ * bleeds to both screen edges, so 08's full-bleed no-card ruling survives, and
+ * the content stays LEFT-anchored so the backdrop's left-heavy scrim keeps
+ * sitting under the text where 08 tuned it.
+ *
+ * A phone is 411dp and therefore never reaches this, by design: the rule is a
+ * no-op below 600dp and every phone layout is bit-for-bit what it was.
+ */
+export const CONTENT_CAP = 600;
+
+/**
  * The cluster's box width — CONSTANT for a given `size`, regardless of how many
  * covers a series has or what shape they are.
  *
