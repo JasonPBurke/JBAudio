@@ -2,8 +2,8 @@
 
 Type: prototype
 Status: resolved — 2026-08-05. **Series line FIXED (1.20:1 → ~4.8:1); `PILLAR`
-acceptance REPORTED BROKEN (1.15:1 dark vs 17.08:1 light); glyph, hero, editor
-and wizard PASS.** See `## Answer`.
+acceptance RE-CONFIRMED — the value is NOT derivable, do not re-raise; glyph,
+hero, editor and wizard PASS.** See `## Answer`.
 Blocked by: 14, 15 (both resolved)
 Parent: [map.md](../map.md)
 
@@ -72,10 +72,16 @@ written checklist item for the implementation effort.
 
 ## Answer
 
-**Resolved 2026-08-05. Two defects found, one FIXED in place; the `PILLAR`
-acceptance is REPORTED BROKEN; everything else passes. The effort's rule holds
-wherever it was applied — what this pass found is the places it was never
-applied, plus one thing the rule does not cover at all.**
+**Resolved 2026-08-05. One defect found and FIXED in place; the `PILLAR`
+acceptance is RE-CONFIRMED on new grounds after first being reported broken;
+everything else passes. The effort's rule holds wherever it was applied — what
+this pass found is the places it was never applied.**
+
+**Two conclusions in this answer were reversed by the driver during the session
+and are recorded as reversals, not quietly rewritten:** §2's `PILLAR` verdict
+(broken → holds, on evidence this pass had not looked for), and §1's token choice
+(`lightText` → `lightTextMuted`). The superseded reasoning is kept in place where
+it is still instructive.
 
 Measured on `Pixel_7_Pro`, light theme, `Blend sep ctr` / `Blend quiet ctr`,
 `Stress ×15`. Contrast figures are WCAG ratios sampled from device screenshots
@@ -115,9 +121,15 @@ exactly the property a component-painted surface needs.
 reason. A build engineer reaching for "the light theme token" will pick these and
 be right by accident, or avoid them and be wrong.
 
-### 2. `PILLAR` — ACCEPTANCE DOES NOT HOLD IN LIGHT THEME
+### 2. `PILLAR` — ACCEPTANCE **RE-CONFIRMED**, on new grounds
 
-Reported broken, as the ticket permits. Geometry untouched.
+> **This section's conclusion was REVERSED during the session.** It was first
+> reported broken; the driver then supplied evidence this pass had not looked
+> for, and the acceptance **holds**. Both halves are kept, in order, because the
+> measurement is still true and only its *significance* changed — and because the
+> refutation is the reusable part.
+
+Geometry untouched throughout.
 
 | | `PILLAR` `#0B0B0B` vs the row it sits on |
 | --- | --- |
@@ -139,36 +151,69 @@ constant against it. The map's two previously-declined fixes are unchanged in
 cost (crop-to-fill loses the edges of tall art; theme-background reintroduces the
 white hole).
 
-#### DRIVER'S RULING (2026-08-05): the pillar STAYS STATIC
+#### DRIVER'S RULING (2026-08-05): STATIC, AND THE VALUE IS NOT DERIVABLE
 
-*"I want the Pillars to be static despite light/dark mode, but if we need to
-tweak that constant we will."* **This overrules this session's recommendation**,
-which was that the pillar be theme-relative (near its own ground in each theme).
-Recorded as the ruling; the recommendation is kept above only so the reasoning
-behind the trade is not lost.
+*"I want the Pillars to be static despite light/dark mode."* Then the refutation
+that settles it:
 
-**What static costs, measured, so the tweak is informed.** One constant has to
-serve two grounds at opposite ends of the range, so it cannot be near both — the
-number that matters is the **worst** of the two:
+> *"A different square cover is going to bring whatever color that cover has at
+> its edges (bright white, yellow, dark orange, etc) so there is no consistency
+> that we are chasing here… the selected cover for Mistborn has inbuilt pillars
+> that are part of the actual cover that came with the book… no matter what we
+> choose on the pillar color, the logic we used to choose it is just refuted by
+> random book covers that rode along."*
 
-| value | vs dark row | vs light row | worst | reads as |
-| --- | --- | --- | --- | --- |
-| `#0B0B0B` (today) | 1.15:1 | 17.08:1 | 17.1 | invisible in dark, **black slab in light** |
-| `#131313` (the noted candidate) | 1.09:1 | 16.12:1 | 16.1 | **no material change** — do not expect one |
-| `#3A3A3A` | 1.50:1 | 9.87:1 | 9.9 | still a strong band in light |
-| `#757575` | 3.70:1 | 4.00:1 | **4.0** | a visible grey matte in **both** themes |
+**Checked, not taken on trust, and it is correct.** `Mistborn: Era Two`'s front
+cover (*Summer Knight*) is a **square JPEG with the portrait artwork composited
+onto its own dark navy matte** — a letterbox that **ships inside the image file**
+(`assets/17-light-theme/09-baked-in-matte-vs-drawn-pillar.png`):
 
-**`#757575` is the balance point** (luminance 0.179 — the value that equalises
-both ratios) and is the best any single constant can do. **The trade it makes is
-real and should be made knowingly**: it never produces a hole or a slab, but it
-also gives up the property that made the pillar unremarkable for fourteen
-variants — in dark theme it stops being *invisible* and becomes a permanently
-visible matte. That is a legitimate house style (photo viewers use exactly it),
-just not a free improvement.
+| | colour | vs the light row |
+| --- | --- | --- |
+| baked into the artwork (*Summer Knight*) | `rgb(23,32,43)` | **14.26:1** |
+| drawn by the app (`PILLAR` on *Mort*) | `rgb(11,11,11)` | 17.08:1 |
 
-**Value NOT yet chosen.** `PILLAR` remains `#0B0B0B`, with `//#131313` noted in
-`seriesCardParts.tsx` as a candidate. Picking it is the implementation effort's;
-geometry stays out of scope either way.
+They differ by **1.20:1 — visually the same object.** So the light row *already*
+carries a near-black slab that this map has no control over, on a series where
+`PILLAR` never ran. **And the driver adds that other covers carry baked-in
+pillars in different colours again**, which is what makes the argument
+conclusive rather than merely mitigating.
+
+**This kills BOTH candidate rationales, including the one this session was about
+to offer as a save.**
+
+1. *"Match the row's ground"* (the theme-relative recommendation) — dead: the row
+   already contains arbitrary cover-edge colours and arbitrary baked-in mattes,
+   so there is no ground-consistency to protect.
+2. *"Match the baked-in mattes, which are near-black, so keep `#0B0B0B`"* — also
+   dead, and this session had it queued as the refinement. It only works if
+   baked-in mattes are consistently dark. **They are not.** Had `PILLAR` moved to
+   the balance point `#757575`, it would have sat **3.57:1 from Summer Knight's
+   matte** — app-drawn and publisher-drawn letterboxes visibly disagreeing on one
+   screen, which is *worse* than the status quo.
+
+**The conclusion is therefore not "accept it anyway" but "the value is not
+derivable at all".** No rule can be written, because the inputs are arbitrary
+third-party JPEGs. `PILLAR` is cosmetic, any constant is as defensible as any
+other, and 08's original reasoning was never wrong so much as **inapplicable** —
+it derived a constant from a consistency that does not exist.
+
+**`PILLAR` stays `#0B0B0B`.** `//#131313` is noted in `seriesCardParts.tsx` as a
+candidate; for the record it is **not a meaningful change** (16.12:1 vs 17.08:1
+on a light row), so it should be chosen on taste, not on this analysis.
+
+**DO NOT RE-RAISE**, on the same footing as 16's backdrop ruling. A later session
+will re-measure 17.08:1 and re-report it as a defect; it is not one, and the
+reason is above.
+
+#### What the measurement is still good for
+
+The 1.15:1-vs-17.08:1 pair is retained because it explains, exactly, **why
+nobody remarked on the pillarboxing through all fourteen of 08's variants** —
+they were dark-theme variants, where the pillar is *invisible*, not merely
+tolerable. That is a fact about how this effort's evidence was gathered, and it
+generalises past `PILLAR`: **every visual acceptance on this map before 2026-08-05
+was made from dark-theme screenshots.**
 
 ### 3. The backdrop's cost is UNCONDITIONAL in light theme
 

@@ -750,7 +750,7 @@ Sharpened by ticket 06 (2026-08-02); no longer provisional.
   Costs **zero schema**; tsc 0 / eslint 0.
 
 - [17 — Light theme pass over the Series surfaces](issues/17-light-theme-pass.md)
-  — **One defect found and FIXED, `PILLAR`'s acceptance REPORTED BROKEN, and the
+  — **One defect found and FIXED, `PILLAR`'s acceptance RE-CONFIRMED, and the
   rest passes. The rule holds wherever it was applied; what this found is where
   it never was.** **The series line on `titleDetails` was 08's bug for the THIRD
   time** — that screen paints an **artwork-derived mesh that is dark in BOTH
@@ -764,19 +764,28 @@ Sharpened by ticket 06 (2026-08-02); no longer provisional.
   theme"** — they live in `colorTokens.shared`, which `useTheme` spreads OVER the
   per-scheme tokens (`useTheme.ts:35-36`), so they are theme-invariant **by
   construction**, which is exactly what a component-painted surface needs.
-  **`PILLAR` `#0B0B0B` is 1.15:1 on a dark row and 17.08:1 on a light one** —
-  that pair is both why fourteen variants never remarked on it and why it is now
-  unmissable, worst at hero size. **The irony is the finding: it was chosen as a
-  fixed near-black precisely to avoid "a white hole in light theme" and produced a
-  black hole.** **DRIVER RULED THE PILLAR STAYS STATIC** (*"static despite
-  light/dark mode, but if we need to tweak that constant we will"*), overruling
-  this session's theme-relative recommendation. **The value is NOT yet chosen and
-  `#131313` is not it** — measured at 16.12:1 against today's 17.08:1, no material
-  change. One constant cannot be near both grounds, so the honest choice is
-  **`#757575`, the balance point at ~4:1 both ways** — which never produces a hole
-  or a slab but **gives up the invisibility in dark theme** that kept the pillar
-  unremarked through fourteen variants. A real trade, to be made knowingly.
-  Geometry untouched; picking the value is the implementation effort's. **The backdrop's cost
+**`PILLAR`'s ACCEPTANCE HOLDS IN LIGHT THEME TOO — reported broken mid-session
+  and REVERSED by the driver on evidence this pass had not looked for. DO NOT
+  RE-RAISE**, on the same footing as 16's backdrop ruling: a later session will
+  re-measure `#0B0B0B` at 1.15:1 on a dark row and **17.08:1 on a light one** and
+  re-report it as a defect. It is not one. **Some covers ship their letterbox
+  INSIDE the JPEG** — `Mistborn: Era Two`'s *Summer Knight* is a square image
+  matted onto its own dark navy, measuring 14.26:1 against the light row and
+  **1.20:1 from the app's own pillar, i.e. the same object** — **and other covers
+  carry baked-in pillars in different colours again.** So **the value is NOT
+  DERIVABLE**: "match the row's ground" dies because cover edges are arbitrary,
+  and "match the baked-in mattes, so keep near-black" (this session's queued
+  save) dies because those mattes are not consistent either — the balance point
+  `#757575` would have sat 3.57:1 from *Summer Knight*'s matte, making app-drawn
+  and publisher-drawn letterboxes visibly disagree on one screen. 08's reasoning
+  was never wrong so much as **inapplicable**: it derived a constant from a
+  consistency that does not exist. **`PILLAR` stays `#0B0B0B`**; `//#131313` is
+  noted in the file but is **not a meaningful change** (16.12:1), so pick on
+  taste, not analysis. What the measurement IS still good for: it explains why
+  pillarboxing went unremarked through all fourteen of 08's variants — they were
+  **dark-theme** variants, where the pillar is *invisible*, not merely tolerable.
+  **Generalise that: every visual acceptance on this map before 2026-08-05 was
+  made from dark-theme screenshots.** **The backdrop's cost
   is UNCONDITIONAL in light theme — and this is NOT the width claim 16 refuted
   and withdrew, which stays closed.** The themes are asymmetric because
   `textMuted` is: dark starts at **12.62:1** (2.8× AA) so the backdrop only
