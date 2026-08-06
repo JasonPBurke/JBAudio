@@ -47,7 +47,7 @@ const getSubscriptionStatus = (
   return {
     title: 'Free Plan',
     subtitle: 'Upgrade to unlock all features',
-    badgeColor: '#6B7280',
+    badgeColor: '#4B5563',
     badgeText: 'FREE',
   };
 };

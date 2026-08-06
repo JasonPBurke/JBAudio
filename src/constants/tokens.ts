@@ -19,7 +19,7 @@ export const colorTokens = {
     modalBackground: '#d8dee9', //#E8E8E8
     modalBackgroundWithOpacity: '#d8dee9bf',
     text: '#1C1C1C',
-    textMuted: '#6B7280', //#a0a9ba
+    textMuted: '#4B5563', //#6B7280, #4B5563
     icon: '#374151',
     maximumTrackTintColor: 'rgba(107, 114, 128, 0.4)',
     chapterActive: '#6d6d6dbf', //#a0a9babf
