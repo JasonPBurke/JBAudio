@@ -813,6 +813,63 @@ Sharpened by ticket 06 (2026-08-02); no longer provisional.
   `editTitleDetails`" would import that literal — a live trap, not a past one.**
   Costs **zero schema**; tsc 0 / eslint 0.
 
+- [18 — Schema consolidation: one migration or several, and where does confidence land?](issues/18-schema-consolidation.md)
+  — **The confidence tier DOES NOT SHIP; ONE migration, APPENDED as `toVersion: 33`;
+  7 columns across 3 tables + 1 new table; ZERO indexes; every enum column
+  NULLABLE and coalesced toward `'user'`.** The ticket's `## Answer` holds the
+  **canonical column list — 19 copies it, nothing re-derives it**, and the map's
+  old running total (*"6 columns across 2 tables"*) was always short by one: it
+  never counted 12's `settings` boolean. **02's confidence tier stays a
+  description of the ALGORITHM, not the schema** — the tier and `why` trail go to
+  the scan log; nothing persists. Its only consumer was the review queue, which
+  09 deleted, and no surface displays it (08 no browse chip, 11 none on the sheet,
+  10 none in the editor, 14 a static subheading). The one live counter-argument —
+  un-creating folder-derived series when `Also group by folder name` goes OFF —
+  **dies on 09's own rule** (*bulk creates, per-item destroys*; there is no bulk
+  destroy in `src/`), so nothing ever needs to ask which series came from a
+  folder. **Driver clarification that reframed the migration question: NO REAL
+  DEVICE HAS EVER RUN v32 — emulators only**, which made rewriting v32 live (real
+  devices would take one 31 → 32 step). **Rewrite was OFFERED and REJECTED for
+  append-only**, which survives being wrong about who has what — a device at
+  `user_version 32` never re-runs 32, and the map records that a failed migration
+  is silent. **Consequences: v33 runs against ZERO ROWS on every real device**
+  (v32 creates the tables empty), **and emulators need NO WIPE** — which is why
+  the null-coalesce is live code from day one, not a theoretical path.
+  The ticket's *"whole model at once vs ship-per-feature"* framing is **rejected
+  as a false alternative** — a migration lands optional columns, not UI, so
+  features still ship incrementally on top of one block; the real axis was how
+  many version numbers this branch claims from a namespace shared with `main`.
+  **NOTHING IS RENAMED**: there are **FOUR** provenance columns, not three, and
+  the split is a rule — **`<x>_source` names the provenance of the column beside
+  it; a bare noun (`origin`, `membership`) is a column whose value IS its own
+  provenance**, because the row's existence is the value. Goes in `schema.ts` as
+  a comment. `membership = 'excluded'` reading as a contradiction is a **known
+  wart, kept**: `membership_source` would lie, `'removed'` collides with 09's
+  `Removed Series`, and splitting is the sixth column 09 rejected.
+  **THE MOST TRANSFERABLE FINDING — `addColumns` SILENTLY DROPS `defaultValue`**
+  (its signature destructures only `{table, columns, unsafeSql}`); existing rows
+  are filled by `nullValue()` → `null` if optional, else `''`/`0`/`false`. **So a
+  non-optional enum backfills to `''` — a lie the type system cannot see.** Hence
+  nullable everywhere, and **null coalesces to `'user'`, the PROTECTIVE
+  direction** (a row read as `'detected'` is eligible for regeneration to clobber
+  — abstention bias applied to schema); `canonical_source` alone takes no
+  coalesce, since null just means no number is set. **This makes
+  `migrations.ts:588`/`:600`'s `@ts-ignore: WatermelonDB expects defaultValue
+  here` a FALSE COMMENT** — those v3 columns were filled by `nullValue()`, which
+  coincidentally agrees; **correct it when v33 is written.** **12's `!== false`
+  getter SURVIVES and is more right than 12 knew**: `ensureSettingsRecord()`
+  leaves optional settings null on FRESH installs too, so a backfill would fix
+  only half the paths and would need the default at two more creation sites, one
+  guarding a "required non-nullable" invariant. **`canonical_number` costs no
+  type-change migration** — 07's string form never existed in a shipped schema,
+  so 10's NUMBER lands on first appearance. **`suppressed_series.name` must be
+  de-duplicated in JS** — WatermelonDB has no unique-constraint support at all.
+  Also verified: **the test suite is already version-agnostic on purpose**
+  (`seriesSchema.test.ts:3-8`, burned by the last renumber), so v33 costs no test
+  churn; and fresh installs never run migrations. Costs **zero code today** —
+  this is a decision, not a build. **Unblocks [19](issues/19-write-the-spec.md),
+  the map's closing ticket, which is now the WHOLE frontier.**
+
 ## Not yet specified
 
 In scope, but not yet sharp enough to ticket. Graduates as the frontier advances.

@@ -2,7 +2,7 @@
 
 Type: task
 Status: open
-Blocked by: 14, 15, 16, 17, 18, 20
+Blocked by: 14, 15, 16, 17, 18, 20 (ALL resolved — 19 is the whole frontier)
 Parent: [map.md](../map.md)
 
 ## Question
