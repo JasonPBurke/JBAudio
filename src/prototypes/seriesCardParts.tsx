@@ -91,7 +91,7 @@ export function coverClusterWidth(size: number): number {
  * rather than `themeColors.background`: the point is to read as a cover's own
  * letterbox, and on a light theme a white pillar would read as a hole.
  */
-const PILLAR = '#0B0B0B';
+const PILLAR = '#0B0B0B'; //#131313
 
 /**
  * The width the ARTWORK is drawn at inside its square layer box. Height is

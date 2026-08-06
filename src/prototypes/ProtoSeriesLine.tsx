@@ -38,7 +38,11 @@ import { ChevronRight, Layers } from 'lucide-react-native';
 import { colors, fontSize } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { useSeriesSource } from './useSeriesSource';
-import { useProtoStore, SERIES_LINE_VARIANTS, SeriesLineVariant } from './protoStore';
+import {
+  useProtoStore,
+  SERIES_LINE_VARIANTS,
+  SeriesLineVariant,
+} from './protoStore';
 import type { ProtoSeries } from './syntheticSeries';
 
 const DETAIL_ROUTE = '/seriesDetail';
@@ -164,6 +168,33 @@ function primaryMembership(items: Membership[]): Membership | null {
  *
  * Recorded rather than assumed, because 10 is a closed ticket.
  */
+/*
+ * TICKET 17 — ONE fixed light colour for the WHOLE string (driver, 2026-08-05:
+ * "that text should be the same as the title's text color… the entire string",
+ * then softened to `lightTextMuted` on sight).
+ *
+ * This was `themeColors.textMuted` + `themeColors.text`, and it was 08's bug for
+ * the third time: `titleDetails` paints an artwork-derived mesh gradient that is
+ * dark in BOTH themes, so text on it must be coloured against that surface, not
+ * against the palette. In light theme the theme tokens flipped to dark grey on a
+ * still-dark ground and the line measured **1.20:1** — effectively invisible —
+ * against 9.10:1 for the `Read by` value beside it.
+ *
+ * The `light*` tokens are the right family because they live in
+ * `colorTokens.shared`, which `useTheme` spreads OVER the per-scheme tokens
+ * (`useTheme.ts:35-36`), so they are identical in both themes BY CONSTRUCTION.
+ * NAMING TRAP: `lightText` means "light-COLOURED text", NOT "text for the light
+ * theme" — `titleDetails.tsx:535` already uses it for the book title for exactly
+ * this reason.
+ *
+ * `lightTextMuted` rather than the title's `lightText`: the driver wanted the
+ * subheading to sit below the title in the hierarchy, which the old two-tone
+ * treatment had been buying with `textMuted`. Same structural property, one
+ * step down in weight.
+ *
+ * AMENDS 14's two-tone treatment: the separately-coloured `Book N of ` prefix is
+ * gone. One colour, one string.
+ */
 const SeriesSubheading = ({ items }: { items: Membership[] }) => {
   const { colors: themeColors } = useTheme();
   const m = primaryMembership(items);
@@ -171,11 +202,11 @@ const SeriesSubheading = ({ items }: { items: Membership[] }) => {
   return (
     <View style={styles.subheadingRow}>
       <Text
-        style={[styles.subheading, { color: themeColors.textMuted }]}
+        style={[styles.subheading, { color: themeColors.lightTextMuted }]}
         numberOfLines={1}
       >
         {m.number === null ? 'Part of ' : `Book ${m.number} of `}
-        <Text style={{ color: themeColors.text }}>{m.name}</Text>
+        {m.name}
       </Text>
     </View>
   );
@@ -203,7 +234,11 @@ const SeriesByline = ({ items }: { items: Membership[] }) => {
           style={styles.bylineRow}
           hitSlop={6}
         >
-          <Layers size={15} color={themeColors.textMuted} strokeWidth={1.8} />
+          <Layers
+            size={15}
+            color={themeColors.textMuted}
+            strokeWidth={1.8}
+          />
           <Text
             style={[styles.bylineName, { color: themeColors.text }]}
             numberOfLines={1}
@@ -211,11 +246,17 @@ const SeriesByline = ({ items }: { items: Membership[] }) => {
             {m.name}
           </Text>
           {numberLabel(m) ? (
-            <Text style={[styles.bylineNum, { color: themeColors.textMuted }]}>
+            <Text
+              style={[styles.bylineNum, { color: themeColors.textMuted }]}
+            >
               {numberLabel(m)}
             </Text>
           ) : null}
-          <ChevronRight size={15} color={themeColors.textMuted} strokeWidth={1.8} />
+          <ChevronRight
+            size={15}
+            color={themeColors.textMuted}
+            strokeWidth={1.8}
+          />
         </Pressable>
       ))}
     </View>
@@ -245,7 +286,10 @@ const SeriesChips = ({ items }: { items: Membership[] }) => {
           hitSlop={4}
         >
           <Layers size={13} color={themeColors.text} strokeWidth={2} />
-          <Text style={[styles.chipText, { color: themeColors.text }]} numberOfLines={1}>
+          <Text
+            style={[styles.chipText, { color: themeColors.text }]}
+            numberOfLines={1}
+          >
             {m.name}
             {numberLabel(m) ? ` · ${m.number}` : ''}
           </Text>
@@ -353,7 +397,11 @@ const ProtoSeriesLine = ({
  * prototype skill. Shows the membership count too, because "does this book even
  * have a series" is the first thing you check when a variant renders nothing.
  */
-export const ProtoSeriesLinePill = ({ bookId }: { bookId: string | undefined }) => {
+export const ProtoSeriesLinePill = ({
+  bookId,
+}: {
+  bookId: string | undefined;
+}) => {
   const variant = useProtoStore((s) => s.seriesLineVariant);
   const setVariant = useProtoStore((s) => s.setSeriesLineVariant);
   const items = useMemberships(bookId);
@@ -368,13 +416,22 @@ export const ProtoSeriesLinePill = ({ bookId }: { bookId: string | undefined }) 
 
   return (
     <View style={styles.pill} pointerEvents='box-none'>
-      <Pressable onPress={() => step(-1)} style={styles.pillArrow} hitSlop={10}>
+      <Pressable
+        onPress={() => step(-1)}
+        style={styles.pillArrow}
+        hitSlop={10}
+      >
         <Text style={styles.pillArrowText}>‹</Text>
       </Pressable>
       <Text style={styles.pillLabel}>
-        14 · {SERIES_LINE_VARIANTS[idx]?.label ?? variant} · {items.length} series
+        14 · {SERIES_LINE_VARIANTS[idx]?.label ?? variant} · {items.length}{' '}
+        series
       </Text>
-      <Pressable onPress={() => step(1)} style={styles.pillArrow} hitSlop={10}>
+      <Pressable
+        onPress={() => step(1)}
+        style={styles.pillArrow}
+        hitSlop={10}
+      >
         <Text style={styles.pillArrowText}>›</Text>
       </Pressable>
     </View>
@@ -395,7 +452,11 @@ export const ProtoSeriesLinePill = ({ bookId }: { bookId: string | undefined }) 
  *
  * Read-only stub — the prototype skill's rule. The real one opens a picker.
  */
-export const ProtoAddToSeriesMenuItem = ({ onPress }: { onPress: () => void }) => {
+export const ProtoAddToSeriesMenuItem = ({
+  onPress,
+}: {
+  onPress: () => void;
+}) => {
   const { colors: themeColors } = useTheme();
   // Gated on the same knob so `Off (control)` really is the shipping screen —
   // otherwise the control would already carry half the feature.

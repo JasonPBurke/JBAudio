@@ -749,6 +749,61 @@ Sharpened by ticket 06 (2026-08-02); no longer provisional.
   was never what fixed it. **`CONTENT_CAP` is therefore BROWSE-ROW ONLY.**
   Costs **zero schema**; tsc 0 / eslint 0.
 
+- [17 — Light theme pass over the Series surfaces](issues/17-light-theme-pass.md)
+  — **One defect found and FIXED, `PILLAR`'s acceptance REPORTED BROKEN, and the
+  rest passes. The rule holds wherever it was applied; what this found is where
+  it never was.** **The series line on `titleDetails` was 08's bug for the THIRD
+  time** — that screen paints an **artwork-derived mesh that is dark in BOTH
+  themes**, and 14 drew on it with `themeColors.textMuted`/`.text`, measuring
+  **1.20:1** in light against 9.10:1 for the `Read by` beside it. Fixed to
+  **`lightTextMuted` for the WHOLE string** (driver: *"the same as the title's
+  text color… the entire string"*, then softened from `lightText` on sight),
+  **1.20 → ~4.8:1**. **AMENDS 14: the two-tone `Book N of ` prefix is gone — one
+  colour, one string.** **NAMING TRAP worth more than the fix: `lightText` /
+  `lightTextMuted` / `lightIcon` mean "light-COLOURED", NOT "for the light
+  theme"** — they live in `colorTokens.shared`, which `useTheme` spreads OVER the
+  per-scheme tokens (`useTheme.ts:35-36`), so they are theme-invariant **by
+  construction**, which is exactly what a component-painted surface needs.
+  **`PILLAR` `#0B0B0B` is 1.15:1 on a dark row and 17.08:1 on a light one** —
+  that pair is both why fourteen variants never remarked on it and why it is now
+  unmissable, worst at hero size. **The irony is the finding: it was chosen as a
+  fixed near-black precisely to avoid "a white hole in light theme" and produced a
+  black hole.** **DRIVER RULED THE PILLAR STAYS STATIC** (*"static despite
+  light/dark mode, but if we need to tweak that constant we will"*), overruling
+  this session's theme-relative recommendation. **The value is NOT yet chosen and
+  `#131313` is not it** — measured at 16.12:1 against today's 17.08:1, no material
+  change. One constant cannot be near both grounds, so the honest choice is
+  **`#757575`, the balance point at ~4:1 both ways** — which never produces a hole
+  or a slab but **gives up the invisibility in dark theme** that kept the pillar
+  unremarked through fourteen variants. A real trade, to be made knowingly.
+  Geometry untouched; picking the value is the implementation effort's. **The backdrop's cost
+  is UNCONDITIONAL in light theme — and this is NOT the width claim 16 refuted
+  and withdrew, which stays closed.** The themes are asymmetric because
+  `textMuted` is: dark starts at **12.62:1** (2.8× AA) so the backdrop only
+  breaks on a BRIGHT cover (measured 1.77:1 on one, 8.6–11.9:1 on three), while
+  light starts at **4.19:1 — already below AA before anything is painted** — so
+  all four rows fail at 2.0–2.3:1 regardless of cover. **12's toggle rescues it
+  (back to 4.19:1); the artwork override does NOT**, since no image restores
+  contrast the palette never had. **All four `shared` accent tokens fail on the
+  light background** (`success` 1.54:1 → `Series complete`, `danger` 2.59:1 →
+  `Delete Series`, `primary` 1.53:1, `warning` 1.30:1) against 5.7–11.4:1 on
+  dark — structural, since `shared` is spread over the scheme and all four were
+  picked against `#1C1C1C`; `primary` is currently MASKED by auto-accent.
+  **PASSES, do not re-check: the play glyph** (08/13's house style is the one
+  place the rule was consciously applied and the one place nothing broke),
+  **the detail hero** (its gradient is built FROM `themeColors.background`, so
+  its text is legitimately themed — and the bottom fade holds), **and the editor
+  and wizard E**, which cannot exhibit this bug family at all because they
+  **paint no surface** — the same structural reason 16 found the wizard exempt.
+  **Two named surfaces DO NOT EXIST**: 09's `Series Detection` card and
+  `Removed Series` list were never built, so they were argued-correct, not
+  tested. **The `contentStyle` hazard is CONFIRMED and worse than predicted —
+  `_layout.tsx` holds THREE different answers**: `player` themes it,
+  **`editTitleDetails` HARDCODES `#2c2c2cdc`**, and `titleDetails`/`chapterList`/
+  `seriesDetail` set none. **15's "editor becomes a `transparentModal` matching
+  `editTitleDetails`" would import that literal — a live trap, not a past one.**
+  Costs **zero schema**; tsc 0 / eslint 0.
+
 ## Not yet specified
 
 In scope, but not yet sharp enough to ticket. Graduates as the frontier advances.
@@ -807,6 +862,20 @@ Ruled beyond this destination. Does not graduate.
   These are **shipping** defects, visible without any of this map's work.
   Recorded here and in project memory so the follow-on effort does not have to
   rediscover them.
+
+- **`editTitleDetails`' hardcoded `contentStyle`.** Found while resolving
+  [17](issues/17-light-theme-pass.md) and **not actioned** — same grounds as the
+  two font-scale defects above: a book screen, and this map ends at a Series
+  spec. `_layout.tsx:265` sets `contentStyle: { backgroundColor: '#2c2c2cdc' }`,
+  a **fixed dark literal on a shipping route**, so the screen keeps a dark scrim
+  in light theme while `player` (`:239`) themes the same property correctly.
+
+  **It is out of scope but NOT inert**, and that is the difference from the
+  entries above: [15](issues/15-wizard-flow-shape.md) ruled the series editor
+  becomes a root `transparentModal` **matching `editTitleDetails`**, so copying
+  that route's options wholesale imports the literal into a Series surface. 17
+  carries this as an explicit checklist item for the build. Fixing
+  `editTitleDetails` itself is the follow-on effort's.
 
 - **Merging to `main`.** Both series branches stay open.
 - **The implementation itself.** This map ends at an approved spec.
