@@ -870,6 +870,49 @@ Sharpened by ticket 06 (2026-08-02); no longer provisional.
   this is a decision, not a build. **Unblocks [19](issues/19-write-the-spec.md),
   the map's closing ticket, which is now the WHOLE frontier.**
 
+- [19 — Write the spec](issues/19-write-the-spec.md)
+  — **[`spec.md`](spec.md) EXISTS** (`ready-for-agent`), written 2026-08-06 via
+  `/to-spec` against this map and every ticket's `## Answer`, and
+  **DRIVER-APPROVED the same day. THE DESTINATION IS REACHED AND THIS MAP IS
+  CLOSED** — amendments are edits to `spec.md` in place, never a reissue.
+  Organised **by surface, not
+  by ticket** — A Detection · B Browse · C Series detail · D Correction/editor ·
+  E Create-edit surface · F `titleDetails` · G Schema, plus **H geometry** (16),
+  **I theme** (17), **J routing consolidated** and **K traps (K1–K16)**; 76 user
+  stories on the same spine. **Final state only** — every reversal this map
+  records (08's row height, 11's no-route-to-`titleDetails`, 10's ⋮, 12's scrim
+  mechanism, `BookGridItem`'s restart-from-zero) is stated as the surviving
+  decision with a link back for the argument. **SEAMS, agreed with the driver
+  before writing: TWO new pure ones and no others** —
+  `detectSeries(units, {alsoGroupByFolder}) -> proposals` and
+  `reconcileSeries(proposals, existing, suppressed) -> write plan`, with the DB
+  write behind them untested; two rather than one *deliberately*, because a
+  grouping-purity regression and a provenance-safety regression are different
+  failures and one assertion would hide the second behind the first. Follows the
+  repo's own idiom — `seriesMembershipDiff` was extracted from `seriesQueries`
+  precisely so it could be tested without the native adapter, and that helper is
+  **untouched** (it serves the editor's save path). **Driver ruled 02's corpus
+  becomes a CHECKED-IN FIXTURE** (`units.json` + `ground_truth.json`, ~208KB)
+  with threshold assertions, so 98.3% purity and 0-standalones-swept become
+  tests rather than claims — with the two caveats encoded beside it: the ground
+  truth is **authored, not derived**, and **coverage figures are lower bounds
+  while accuracy figures are not** (assert accuracy, never coverage).
+  **`@testing-library/react-native` is NOT installed and the spec recommends
+  against it here** — it has no layout engine and no pixels, so it cannot assert
+  contrast, dp geometry, the glyph fill or sheet transitions, while adopting an
+  RN preset drags in mocks for Reanimated/worklets, FlashList, FastImage,
+  sortables, RNTP and the WatermelonDB adapter and risks the green 484 suite on
+  an unmerged branch. Deferred with a **named trigger**: if 13's split row
+  targets, 15's `X`-vs-back split or 13's delete-exit routing regresses, it
+  becomes its own **up-front infrastructure ticket**, never a mid-feature
+  bolt-on. **Two corrections to 19's own brief:** the cleanup is no longer
+  *"`rm -rf src/prototypes` plus three commented lines"* (that predates 13/14/15
+  — `src/prototypes/README.md` is authoritative, and the `TableOfContents` icon
+  on `Remove Auto-Chapters` SHIPS and must not be reverted with the harness),
+  and **08 has no `assets/` directory** — it was judged live on device, so the
+  spec cites 13's and 17's captures as the winning row's surviving evidence.
+  Costs **zero code**. The map is complete.
+
 ## Not yet specified
 
 In scope, but not yet sharp enough to ticket. Graduates as the frontier advances.

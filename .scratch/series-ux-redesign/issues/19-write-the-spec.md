@@ -1,7 +1,7 @@
 # 19 — Write the spec
 
 Type: task
-Status: open
+Status: resolved
 Blocked by: 14, 15, 16, 17, 18, 20 (ALL resolved — 19 is the whole frontier)
 Parent: [map.md](../map.md)
 
@@ -99,3 +99,92 @@ out of scope.
 
 `spec.md` exists, covers all seven areas above, and the driver approves it. At
 that point every ticket is closed and the map is complete.
+
+## Answer
+
+Resolved 2026-08-06 by invoking `/to-spec` against this ticket and
+[map.md](../map.md), then zooming into the `## Answer` of every ticket the map's
+Decisions-so-far links. **[`../spec.md`](../spec.md) exists**, labelled
+`ready-for-agent`, and was **APPROVED BY THE DRIVER on 2026-08-06**. The
+definition of done below is therefore met: **every ticket is closed and the map
+is complete.** Amendments are edits to `spec.md` in place; it is never reissued.
+Next step is `/to-tickets` on the spec — which the driver must type
+(`disable-model-invocation: true`), and which needs a **numbering decision
+first**: it publishes to `issues/NN-slug.md` from `01`, and `01`–`20` here are
+this effort's decision record.
+
+### Shape
+
+`/to-spec`'s template, with the **seven areas organised by surface** inside
+`Implementation Decisions` — A Detection · B Browse · C Series detail ·
+D Correction/editor · E Create-edit surface · F `titleDetails` · G Schema —
+plus **H geometry** (16), **I theme** (17), **J routing consolidated**, and
+**K traps**. 76 user stories grouped by the same surfaces.
+
+### Seams — agreed with the driver before writing, per `/to-spec` step 2
+
+**Two new pure seams and no others**, following the repo's existing extraction
+idiom (`seriesMembershipDiff` was pulled out of `seriesQueries` precisely so it
+could be tested without the native adapter):
+
+```
+detectSeries(units, { alsoGroupByFolder })          -> ProposedSeries[]
+reconcileSeries(proposals, existingRows, suppressed) -> write plan
+seriesQueries.applyPlan(plan)                        -- IO only, untested
+```
+
+Two rather than one **deliberately**: a grouping-purity regression and a
+provenance-safety regression are different failures, and folding them into one
+assertion hides the second behind the first.
+
+**Driver ruled the 02 corpus becomes a checked-in fixture** —
+`units.json` + `ground_truth.json` (~208KB) with threshold assertions, so
+98.3% purity and 0-standalones-swept stop being ticket claims and start being
+tests. The spec encodes the two caveats that make it safe to keep: the ground
+truth is **authored, not derived** (so it cannot prove folders are trustworthy
+in general), and **coverage figures are lower bounds** while accuracy figures
+are not — assert accuracy, never coverage.
+
+**Third seam question (presentation) came back as a question, not a choice:**
+*"If installing @testing-library/react-native will help us, I will install it."*
+Answered in the spec as a costed deferral rather than a yes/no. It **cannot**
+assert what this effort actually decided — no layout engine, no pixels, so no
+contrast ratios, no dp geometry, no glyph fill, no sheet transitions — while
+installing it means adopting an RN jest preset plus transforms and mocks for
+Reanimated/worklets, FlashList, FastImage, sortables, RNTP and the WatermelonDB
+adapter, risking a green 484-test suite on an unmerged branch. **What it would
+genuinely buy is named** (13's split row targets, 15's `X`-vs-back split, 13's
+delete-exit routing), with the trigger stated: if one of those regresses in
+practice, it becomes its **own up-front infrastructure ticket** for the
+implementation effort, never a mid-feature bolt-on. Pure string/geometry
+helpers get jest either way — range cap, meta-line sacrifice order, next-up
+states, `primaryMembership`, cluster-size rule, canonical-number parse.
+
+### Two things this ticket's brief got wrong, corrected in the spec
+
+1. **The harness cleanup is no longer "`rm -rf src/prototypes` plus three
+   commented lines"** — that figure predates 13, 14 and 15, which added two
+   throwaway routes, two `<Stack.Screen>` entries, four mounts on
+   `titleDetails` and a wizard pill. `src/prototypes/README.md` holds the
+   authoritative recipe and the spec points at it, restating only the part that
+   is a **ruling rather than a revert**: the `TableOfContents` icon on
+   `Remove Auto-Chapters` ships (14) and must not be reverted with the harness.
+2. **08 has no `assets/` directory** — its fourteen variants were judged live on
+   device. The spec therefore cites 13's and 17's captures as the surviving
+   image evidence for the winning row rather than inventing a citation.
+
+### Also carried, because a build engineer reads the spec and not the map
+
+20's guarantee **verbatim** (self-validation is never relaxed on the assumption
+that users have been told how to name folders); 18's column list **copied, not
+re-derived**; 16 rulings that were made and **withdrawn** (the backdrop-vs-width
+claim) marked do-not-re-raise alongside 17's `PILLAR`; and the two out-of-scope
+items that are **commitments rather than exclusions** —
+`BookGridItem` restart-from-zero as a carried fix, and delete-and-rebuild being
+sanctioned, which is what makes 13's white-sheet delete bug a **blocker rather
+than polish**.
+
+**16 traps** are carried as their own section (K1–K16), including the seven this
+ticket listed plus `addColumns` dropping `defaultValue`, the `light*` token
+naming trap, the cover-stack occlusion rule, the tri-state progress value, and
+measure-don't-infer-overflow.
