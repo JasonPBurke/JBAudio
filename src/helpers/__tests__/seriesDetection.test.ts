@@ -254,17 +254,36 @@ describe('A2 · folders corroborated by numbers rather than names', () => {
     expect(namesOf(units)).toEqual(['The Age of Madness', 'The First Law']);
   });
 
-  test('a top-level folder is the author level and never names a series', () => {
-    // Three books, so the uncorroborated-size gate would ACCEPT this folder at
-    // full fidelity, and no artist tag, so the author-folder trap cannot fire.
-    // Only the depth rule can refuse it.
+  test('the author level is refused because its books name it as their author', () => {
+    // Three books, so the uncorroborated-size gate would otherwise ACCEPT this
+    // folder at full fidelity. What refuses it is the tags, not its depth.
     const units = [
-      unit({ rel: 'Josiah Bancroft/Senlin Ascends', album: 'Senlin Ascends' }),
-      unit({ rel: 'Josiah Bancroft/Arm of the Sphinx', album: 'Arm of the Sphinx' }),
-      unit({ rel: 'Josiah Bancroft/The Hod King', album: 'The Hod King' }),
+      unit({ rel: 'Josiah Bancroft/Senlin Ascends', album: 'Senlin Ascends', artist: 'Josiah Bancroft' }),
+      unit({ rel: 'Josiah Bancroft/Arm of the Sphinx', album: 'Arm of the Sphinx', artist: 'Josiah Bancroft' }),
+      unit({ rel: 'Josiah Bancroft/The Hod King', album: 'The Hod King', artist: 'Josiah Bancroft' }),
     ];
 
     expect(detectSeries(units, { alsoGroupByFolder: true })).toEqual([]);
+  });
+
+  test('depth is not evidence: the same folder is judged the same at any depth', () => {
+    // The accepted cost of having no depth rule. With no author tag there is
+    // nothing to refuse this folder with, so full fidelity takes it — and that
+    // is true at depth 1 and depth 2 ALIKE. Detection must not depend on where
+    // the user happened to point their library root.
+    const books = ['Senlin Ascends', 'Arm of the Sphinx', 'The Hod King'];
+    const atDepth = (prefix: string) =>
+      books.map((title) => unit({ rel: `${prefix}${title}`, album: title }));
+
+    const shallow = detectSeries(atDepth('Josiah Bancroft/'), { alsoGroupByFolder: true });
+    const deep = detectSeries(atDepth('Audiobooks/Josiah Bancroft/'), { alsoGroupByFolder: true });
+
+    expect(shallow.map((p) => p.name)).toEqual(['Josiah Bancroft']);
+    expect(deep.map((p) => p.name)).toEqual(shallow.map((p) => p.name));
+    expect(deep[0].books.map((b) => b.why)).toEqual(shallow[0].books.map((b) => b.why));
+    // Conservative fidelity refuses it either way — this only reaches the user
+    // who has opted into folder grouping.
+    expect(detectSeries(atDepth('Josiah Bancroft/'))).toEqual([]);
   });
 });
 

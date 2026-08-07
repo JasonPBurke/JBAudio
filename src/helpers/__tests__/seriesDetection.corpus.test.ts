@@ -2,6 +2,7 @@ import { detectSeries, type ProposedSeries } from '@/helpers/seriesDetection';
 import {
   corpusUnits,
   truthFor,
+  truthKey,
   type CorpusUnit,
   type GroundTruth,
 } from '@/helpers/__fixtures__/seriesCorpus';
@@ -191,6 +192,70 @@ describe('the named forcing cases, on the real library', () => {
       .filter((p) => p.name.startsWith('Discworld'))
       .flatMap((p) => p.books.map((b) => b.unit.rel));
     expect(discworldBooks).not.toContain(spinOff?.books[0].unit.rel);
+  });
+});
+
+describe('detection does not depend on where the library root is pointed', () => {
+  /**
+   * A user who adds `/Audiobooks/Terry Pratchett` as their library folder must
+   * get the same series as one who adds `/Audiobooks` — the folder rules are
+   * about what a directory CONTAINS, and the root is not a fact about the
+   * books. This is what a depth-1 special case costs, and it is why there is
+   * no such case in `folderClusters`.
+   */
+  const topLevel = (u: CorpusUnit) => u.rel.split('/')[0];
+  const tops = [...new Set(corpusUnits.map(topLevel))].sort();
+
+  /** One author's books, re-rooted as if the user pointed at that folder. */
+  const reroot = (top: string): CorpusUnit[] =>
+    corpusUnits
+      .filter((u) => topLevel(u) === top)
+      .map((u) => ({ ...u, rel: u.rel.slice(top.length + 1) }))
+      .filter((u) => u.rel.length > 0);
+
+  /** The partition of books into groups, ignoring what each group is called. */
+  const grouping = (proposals: Proposal[], strip: number) =>
+    proposals
+      .map((p) => p.books.map((b) => truthKey(b.unit).slice(strip)).sort().join(' | '))
+      .filter((s) => s.length > 0)
+      .sort();
+
+  test.each([false, true])('grouping is invariant under re-rooting (full=%s)', (full) => {
+    const whole = detectSeries(corpusUnits, { alsoGroupByFolder: full });
+    let compared = 0;
+
+    for (const top of tops) {
+      const units = reroot(top);
+      if (units.length < 2) continue;
+      compared++;
+
+      const mine = whole
+        .map((p) => ({ ...p, books: p.books.filter((b) => topLevel(b.unit) === top) }))
+        .filter((p) => p.books.length > 0);
+
+      expect({ [top]: grouping(detectSeries(units, { alsoGroupByFolder: full }), 0) }).toEqual({
+        [top]: grouping(mine, top.length + 1),
+      });
+    }
+
+    expect(compared).toBe(24);
+  });
+
+  test('A4 · the edition split survives a library rooted at the author folder', () => {
+    const pratchett = reroot('Terry Pratchett');
+    expect(pratchett).toHaveLength(98);
+
+    const proposals = detectSeries(pratchett);
+    const sizes = Object.fromEntries(proposals.map((p) => [p.name, p.books.length]));
+
+    // A merged `Discworld[47]` here is the signature of the old depth-1 guard:
+    // it hid the two edition folders from the cluster pass entirely.
+    expect(sizes).toEqual({
+      Bromeliad: 3,
+      Discworld: 41,
+      'Discworld (2022)': 39,
+      'Long Earth': 5,
+    });
   });
 });
 

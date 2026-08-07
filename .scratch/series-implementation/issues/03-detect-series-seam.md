@@ -167,6 +167,41 @@ units legitimately share one `rel` when their folder holds several books (`flat`
 this wrong changes what clusters and silently misfeeds the folder-number rule — it cost a
 round trip here, on synthetic fixtures.
 
+### Amended 2026-08-07 — the depth-1 guard is removed
+
+[04](04-detection-units.md) found that `folderClusters` skipped depth-1 directories
+(*"depth 1 is the author level"*), ported verbatim from `cascade.js:169` and appearing in no
+spec section, ticket or ADR. **Removed.** The driver's finding reproduced here exactly, both
+halves:
+
+- **No number moves.** 19/179 and 28/213 at both fidelities, same names, same members. The
+  whole corpus test file needed no edit.
+- **"Depth 1" is a fact about the ROOT, not the library.** Re-rooting each top-level corpus
+  folder in turn, 12 of 19 candidates detected differently with the guard on, all worse —
+  headline: Terry Pratchett as a library root gave one merged `Discworld[47]`, i.e. **A4's
+  edition split silently stopped working**.
+
+What replaced it is stronger than the table: with the guard gone, **grouping is perfectly
+invariant under re-rooting** — for all 24 top-level folders, at both fidelities, the books a
+folder's own library produces are partitioned exactly as the whole-corpus run partitions
+them. That is now the test (`test.each` over both fidelities), plus the Pratchett case as a
+readable assertion, plus a `NOTE` in `folderClusters` explaining the absence. All four fail
+when the line is pasted back — mutation-checked, not assumed.
+
+**The cost is written down as a test, not a comment.** 03's own
+*"a top-level folder is the author level and never names a series"* was the guard's only
+test, and it is replaced by two: the author level is refused **by `isAuthorish`, on the
+tags, at any depth** — which is the defence that actually works, since `artist` carries the
+book's author — and *depth is not evidence*, which pins the accepted regression: an author
+folder whose books have **no author tag** is now accepted at **full fidelity only**, exactly
+as the identical folder one level down always was. Conservative fidelity refuses it either
+way.
+
+Deliberately **not** done: tightening `number-corroborated`, which is the rule that actually
+lets a folder become a series on numbers alone, at conservative fidelity, at every depth.
+That is a real exposure but a separate question, and it is the one change here that would
+move corpus totals — 03's numbers and 04's round trip would have to be updated together.
+
 ### Not done, deliberately
 
 The `alb.bracket`, `alb.name-num-paren` and `alb.author-mangled` rules are ported but have

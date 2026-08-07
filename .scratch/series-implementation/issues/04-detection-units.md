@@ -215,6 +215,12 @@ to change is `number-corroborated`, at every depth — not this line.
 **Not changed here.** `seriesDetection.ts` is 03's resolved, 64-test module. **Driver's
 call**; if it is taken, see *Does 04 have to move?* below.
 
+> **Taken, 2026-08-07.** The guard is removed in [03](03-detect-series-seam.md#answer),
+> which reproduced both halves of the finding and replaced it with a stronger property:
+> grouping is now **invariant under re-rooting** for all 24 top-level corpus folders at both
+> fidelities, pinned by tests that a re-added guard fails. 04 needed no edit, as predicted
+> below — its round trip still passes untouched.
+
 ### Does 04 have to move if 03 changes? No.
 
 Checked rather than assumed, because 04 is blocked by 03:

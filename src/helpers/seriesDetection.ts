@@ -307,6 +307,22 @@ const MIN_CLUSTER_SIZE = 2;
 /** Cluster size at which an uncorroborated folder is accepted, at full fidelity. */
 const UNCORROBORATED_MIN_SIZE = 3;
 
+/**
+ * NOTE — every directory is judged by the same rules, and DEPTH IS NEVER
+ * CONSULTED. The research harness skipped depth 1 as "the author level", and
+ * that line was ported here and then removed: depth 1 is a fact about where the
+ * user pointed their library root, not about the books. A user who adds
+ * `/Audiobooks/Terry Pratchett` rather than `/Audiobooks` had their Discworld
+ * editions merged into one 47-book series — A4's split silently stopped
+ * working, and 11 of the other 18 re-rooted corpus folders were worse too.
+ * Removing it is byte-identical on the corpus, and
+ * `seriesDetection.corpus.test.ts` now pins the invariance.
+ *
+ * The author level is still refused — by `isAuthorish` below, on the tags,
+ * which works at every depth. What the depth rule additionally caught was an
+ * author folder whose books carry NO author tag; at full fidelity that is now
+ * accepted, exactly as the identical folder one level down always was.
+ */
 function folderClusters(
   units: readonly DetectionUnit[],
   portables: Signal[][],
@@ -324,8 +340,6 @@ function folderClusters(
   const clusters: Cluster[] = [];
   for (const [dir, idxs] of byDir) {
     if (idxs.length < MIN_CLUSTER_SIZE) continue;
-    // Depth 1 is the author level; it never names a series.
-    if (dir.split('/').length === 1) continue;
 
     const display = cleanDirName(dir.split('/').pop() ?? '');
     const key = normKey(display);
