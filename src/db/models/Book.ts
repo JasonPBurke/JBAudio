@@ -10,6 +10,7 @@ import {
 import { Associations } from '@nozbe/watermelondb/Model';
 import Author from './Author';
 import Chapter from './Chapter';
+import BookTag from './BookTag';
 import { BookEditableFields } from '@/types/Book';
 
 export default class Book extends Model {
@@ -17,6 +18,7 @@ export default class Book extends Model {
   static associations: Associations = {
     authors: { type: 'belongs_to', key: 'author_id' },
     chapters: { type: 'has_many', foreignKey: 'book_id' },
+    book_tags: { type: 'has_many', foreignKey: 'book_id' },
   };
 
   @text('title') title!: string;
@@ -57,8 +59,22 @@ export default class Book extends Model {
   @date('last_played_at') lastPlayedAt!: Date | null;
   @date('finished_at') finishedAt!: Date | null;
 
+  // Tags captured from the file itself. Null on every book imported before
+  // v33 and deliberately not backfilled — they fill when a file is scanned as
+  // new. Detection tolerates their absence: without them its grouping is
+  // unchanged and only canonical-number accuracy moves.
+  //
+  // NOTE: `series` is the RAW TAG off the file. It is NOT series membership —
+  // that lives in series_books, keyed by the book's structural key, and a book
+  // can belong to a series whose name this tag never mentions.
+  @text('series') series!: string | null;
+  @field('part') part!: number | null;
+  @text('grouping') grouping!: string | null;
+  @text('file_format') fileFormat!: string | null;
+
   @relation('authors', 'author_id') author!: Author;
   @children('chapters') chapters!: Chapter[];
+  @children('book_tags') bookTags!: BookTag[];
 
   @writer async updateCurrentChapterProgress(progress: number) {
     await this.update((book) => {

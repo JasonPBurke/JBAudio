@@ -10,6 +10,8 @@ import Settings from './models/Settings';
 import Footprint from './models/Footprint';
 import Series from './models/Series';
 import SeriesBook from './models/SeriesBook';
+import SuppressedSeries from './models/SuppressedSeries';
+import BookTag from './models/BookTag';
 
 // First, create the adapter to the underlying database:
 const adapter = new SQLiteAdapter({
@@ -39,6 +41,8 @@ const database = new Database({
     Footprint,
     Series,
     SeriesBook,
+    SuppressedSeries,
+    BookTag,
   ],
 });
 

@@ -38,6 +38,24 @@ export default class Settings extends Model {
   @field('playback_rate') playbackRate!: number | null;
   @field('last_non_default_rate') lastNonDefaultRate!: number | null;
 
+  // Series preferences. Null is their normal state — not just after the v33
+  // migration, but on a FRESH install too, since the settings seeder only
+  // seeds three fields — so the default belongs in the getter that reads them.
+  //
+  // TRAP: the first two are default-ON, and the house getter idiom
+  // (`x === true`, falling back to false) hard-codes default-OFF into both the
+  // null case and the no-record case. They need `x !== false` with a `true`
+  // fallback. Getting it wrong is silent: the user sees a switch rendered OFF
+  // that they never turned off, and for detection, an empty Series tab that
+  // reads as a broken feature.
+  @field('series_backgrounds_enabled') seriesBackgroundsEnabled!:
+    | boolean
+    | null; // default ON
+  @field('series_detection_enabled') seriesDetectionEnabled!: boolean | null; // default ON
+  @field('series_folder_grouping_enabled') seriesFolderGroupingEnabled!:
+    | boolean
+    | null; // default OFF
+
   // Canonical accessor: returns the full library folder entries (path + SAF tree URI).
   // Performs a one-shot migration from the legacy `string[]` shape — if detected, the
   // entries are treated as empty and the user must re-add folders to grant SAF access.
