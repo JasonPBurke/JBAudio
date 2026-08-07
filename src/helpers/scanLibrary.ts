@@ -71,6 +71,19 @@ export type ScannedChapter = {
   codec?: string;
   bitrate?: number;
   copyright?: string;
+  /**
+   * Tags read off the file itself. Book-level values carried on a per-file
+   * record, exactly like bitrate/sampleRate/codec above: grouping keeps the
+   * first file's and never revisits it. Verified against the real corpus —
+   * SERIES/PART/Grouping are identical across a book's files in 6/6 genuine
+   * chapter-split directories.
+   */
+  series?: string;
+  part?: number;
+  grouping?: string;
+  fileFormat?: string;
+  /** The whole General track as JSON, bound for `book_tags.raw_json`. */
+  rawTagsJson?: string;
   artworkUri: null;
   totalTrackCount: number;
   coverBase64: string | null;
@@ -132,6 +145,12 @@ function groupChaptersIntoBooks(
             copyright: chapter.copyright,
             codec: chapter.codec,
             totalTrackCount: chapter.totalTrackCount,
+            // Tags off the file. First file wins, same as bitrate/codec above.
+            series: chapter.series,
+            part: chapter.part,
+            grouping: chapter.grouping,
+            fileFormat: chapter.fileFormat,
+            rawTagsJson: chapter.rawTagsJson,
             ctime: chapter.ctime,
             mtime: chapter.mtime || null,
             // Scan-state only (not persisted): tells applyCueChaptersToBooks
@@ -555,6 +574,11 @@ function buildBookMetadata(
     codec: metadata.codec,
     bitrate: metadata.bitrate,
     copyright: metadata.copyright,
+    series: metadata.series,
+    part: metadata.part,
+    grouping: metadata.grouping,
+    fileFormat: metadata.fileFormat,
+    rawTagsJson: metadata.rawTagsJson,
     artworkUri: null,
     totalTrackCount: chapterInfo.totalTracks,
     coverBase64: metadata.cover || null,

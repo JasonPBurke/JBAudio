@@ -4,9 +4,18 @@ import {
   getMediaInfoNoCover,
   MediaInfoResult,
 } from '../lib/mediainfoAdapter';
+import { captureBookTags, readReleaseDate } from './generalTags';
 
 export type ExtractedMetadata = {
   fileFormat?: string;
+  /** `extra.SERIES` — the raw tag off the file, not series membership. */
+  series?: string;
+  /** `extra.PART`. */
+  part?: number;
+  /** Top-level `Grouping` (iTunes `©grp`). */
+  grouping?: string;
+  /** The whole General track as JSON, bound for `book_tags.raw_json`. */
+  rawTagsJson?: string;
   durationMs?: number;
   title?: string;
   album?: string;
@@ -93,13 +102,11 @@ export function extractMetadataFromResult(
   const durationMs = durationInSeconds
     ? durationInSeconds * 1000
     : undefined;
-  const fileFormat = general.Format;
-  const releaseDate =
-    general.Recorded_Date ||
-    general.rldt ||
-    general.Original_Date ||
-    general.Tagged_Date ||
-    general.Original_Year;
+  // Everything this funnel used to drop on the floor, plus fileFormat, which
+  // it computed and then nobody read. See generalTags.ts — the logic lives
+  // there because nothing in this file is reachable from jest.
+  const tags = captureBookTags(general);
+  const releaseDate = readReleaseDate(general);
   const description =
     general.Title_More || general.extra?.comment || general.Comment;
   const title = general.Track || general.Title || general.Album;
@@ -177,7 +184,11 @@ export function extractMetadataFromResult(
   }
 
   return {
-    fileFormat,
+    fileFormat: tags.fileFormat,
+    series: tags.series,
+    part: tags.part,
+    grouping: tags.grouping,
+    rawTagsJson: tags.rawJson,
     durationMs,
     title,
     album,
