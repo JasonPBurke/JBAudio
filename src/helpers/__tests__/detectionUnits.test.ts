@@ -29,6 +29,9 @@ const row = (over: Partial<DetectionBookRow> = {}): DetectionBookRow => ({
   series: null,
   part: null,
   grouping: null,
+  // Carried for ticket 02's fill-rate measurement only; the assembly ignores
+  // it, which the "never reaches a unit" test below pins.
+  fileFormat: 'MPEG-4',
   ...over,
 });
 
@@ -204,6 +207,20 @@ describe('buildDetectionUnits — tags', () => {
     );
     expect(units[0].album).toBe('The Martian');
   });
+
+  it('never leaks fileFormat into a unit — it is measurement, not signal', () => {
+    // `file_format` rides on DetectionBookRow so ticket 02's fourth fill rate
+    // can be counted from the read that already happens. It is not a detection
+    // signal and no cascade rule may ever see it. This is the structural pin
+    // behind that claim: if someone maps it through, this fails rather than
+    // silently changing what the folder and album rules cluster on.
+    const { units } = buildDetectionUnits(
+      [row({ fileFormat: 'MPEG-4' })],
+      [ROOT],
+    );
+    expect(Object.values(units[0])).not.toContain('MPEG-4');
+    expect(units[0]).not.toHaveProperty('fileFormat');
+  });
 });
 
 describe('the corpus round trip', () => {
@@ -223,6 +240,8 @@ describe('the corpus round trip', () => {
     series: u.series ?? null,
     part: u.part == null ? null : Number(u.part),
     grouping: u.grouping ?? null,
+    // Not in the corpus and not a detection signal — see `DetectionBookRow`.
+    fileFormat: null,
   }));
 
   const built = buildDetectionUnits(rows, [CORPUS_ROOT]);

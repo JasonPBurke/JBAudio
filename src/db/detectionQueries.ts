@@ -26,6 +26,27 @@ import {
   type DetectionBookRow,
 } from '@/helpers/detectionUnits';
 
+/**
+ * How many books carry each of the four columns ticket 02 populates, counted
+ * over the rows that were read — NOT over units.
+ *
+ * Two reasons it is counted here rather than in the probe. It is the only place
+ * that still holds `DetectionBookRow`s: `loadLibraryDetectionUnits` returns
+ * units, and `file_format` is not a detection signal so it must never be put on
+ * one to make it visible. And the count must be RAW non-null, matching 02's
+ * criterion and the `sqlite3 … sum(series is not null)` fallback — units have
+ * been through `sanitise()`, which nulls the `Unknown Author` sentinels and
+ * would under-report.
+ */
+export type TagFillCounts = {
+  /** Denominator: rows read, i.e. books that had a first chapter. */
+  rows: number;
+  fileFormat: number;
+  series: number;
+  part: number;
+  grouping: number;
+};
+
 export type LoadDetectionUnitsResult = BuildDetectionUnitsResult & {
   /** Books in the database, before any were dropped. */
   bookCount: number;
@@ -33,7 +54,17 @@ export type LoadDetectionUnitsResult = BuildDetectionUnitsResult & {
   roots: string[];
   /** Wall-clock ms for the read plus the assembly. */
   elapsedMs: number;
+  /** Ticket 02's fresh-scan fill rates. Measurement, not detection input. */
+  tagFill: TagFillCounts;
 };
+
+const countTagFill = (rows: readonly DetectionBookRow[]): TagFillCounts => ({
+  rows: rows.length,
+  fileFormat: rows.filter((r) => r.fileFormat != null).length,
+  series: rows.filter((r) => r.series != null).length,
+  part: rows.filter((r) => r.part != null).length,
+  grouping: rows.filter((r) => r.grouping != null).length,
+});
 
 /**
  * Each book's first file path — its structural key.
@@ -98,6 +129,8 @@ export async function loadDetectionBookRows(): Promise<DetectionBookRow[]> {
       series: book.series,
       part: book.part,
       grouping: book.grouping,
+      // Measurement only — see the field's note on `DetectionBookRow`.
+      fileFormat: book.fileFormat,
     });
   }
   return rows;
@@ -127,5 +160,6 @@ export async function loadLibraryDetectionUnits(): Promise<LoadDetectionUnitsRes
     bookCount,
     roots,
     elapsedMs: Date.now() - startedAt,
+    tagFill: countTagFill(rows),
   };
 }

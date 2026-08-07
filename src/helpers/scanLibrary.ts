@@ -1000,8 +1000,43 @@ async function removeMissingFiles(
   }
 }
 
+/**
+ * Phase timings for one scan, logged at the end.
+ *
+ * WHY A BREAKDOWN AND NOT JUST A TOTAL. Two scan totals are not comparable on
+ * their own, because this scan is INCREMENTAL: it runs MediaInfo only on files
+ * not already in the chapters table, so a wiped rescan does thousands of files
+ * and a repeat scan does none. The log therefore prints `N files, M new`
+ * alongside the times — without `M`, "scan time did not regress" is unfalsifiable.
+ *
+ * Added for ticket 02's *"scan time does not regress measurably"*, which had
+ * nothing to read and no baseline to read against. The first run of this
+ * establishes the baseline; it cannot retroactively prove the absence of a
+ * regression, and 02's answer should say so rather than imply a comparison.
+ */
+type ScanPhaseTimings = {
+  enumerateMs: number;
+  existingUrlsMs: number;
+  processMs: number;
+  cleanupMs: number;
+  totalMs: number;
+  files: number;
+  newFiles: number;
+};
+
+function logScanTimings(t: ScanPhaseTimings): void {
+  const per = t.newFiles ? (t.processMs / t.newFiles).toFixed(1) : 'n/a';
+  console.log(
+    `[scan] ${t.totalMs}ms total · ${t.files} files, ${t.newFiles} new ` +
+      `(${per}ms/new file) — enumerate ${t.enumerateMs}ms · ` +
+      `existing-urls ${t.existingUrlsMs}ms · process ${t.processMs}ms · ` +
+      `cleanup ${t.cleanupMs}ms`,
+  );
+}
+
 export async function scanLibrary(): Promise<void> {
   booksWithCoverExtracted.clear();
+  const scanStartedAt = Date.now();
 
   const libraryEntries = await getLibraryFolderEntries();
 
@@ -1024,8 +1059,10 @@ export async function scanLibrary(): Promise<void> {
 
   useScanProgressStore.getState().startScan();
 
+  const enumerateStartedAt = Date.now();
   const { filesByDir, contexts, allFiles, nonFileUriSkipped } =
     await enumerateAudioViaMediaStore(libraryEntries);
+  const enumerateMs = Date.now() - enumerateStartedAt;
 
   if (nonFileUriSkipped > 0) {
     console.warn(
@@ -1036,6 +1073,7 @@ export async function scanLibrary(): Promise<void> {
   // Bulk existence lookup: one chunked Q.oneOf query per ~500 paths instead of
   // a per-file fetchCount on the unindexed chapters.url column. Chunk size 500
   // stays well under SQLite's default SQLITE_MAX_VARIABLE_NUMBER (999).
+  const existingUrlsStartedAt = Date.now();
   const existingUrls = new Set<string>();
   const EXIST_CHUNK_SIZE = 500;
   const chaptersCollection = database.get<ChapterModel>('chapters');
@@ -1049,6 +1087,12 @@ export async function scanLibrary(): Promise<void> {
     }
   }
 
+  const existingUrlsMs = Date.now() - existingUrlsStartedAt;
+  // Counted BEFORE processing, because that is what the times must be read per:
+  // an unchanged library has newFiles === 0 and no MediaInfo work to time.
+  const newFiles = allFiles.filter((f) => !existingUrls.has(f)).length;
+
+  const processStartedAt = Date.now();
   const sortedDirs = Array.from(filesByDir.keys()).sort();
   for (const dir of sortedDirs) {
     const files = filesByDir.get(dir)!;
@@ -1061,6 +1105,9 @@ export async function scanLibrary(): Promise<void> {
       existingUrls,
     );
   }
+
+  const processMs = Date.now() - processStartedAt;
+  const cleanupStartedAt = Date.now();
 
   // Guard against the catastrophic "MediaStore returned nothing" case — if
   // allFiles is empty but the user has configured libraries, skip cleanup
@@ -1077,7 +1124,19 @@ export async function scanLibrary(): Promise<void> {
     );
   }
 
+  const cleanupMs = Date.now() - cleanupStartedAt;
+
   await setLastScanAt(Date.now());
+
+  logScanTimings({
+    enumerateMs,
+    existingUrlsMs,
+    processMs,
+    cleanupMs,
+    totalMs: Date.now() - scanStartedAt,
+    files: allFiles.length,
+    newFiles,
+  });
 
   useScanProgressStore.getState().endScan();
 }

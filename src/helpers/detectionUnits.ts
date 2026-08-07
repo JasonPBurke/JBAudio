@@ -57,6 +57,18 @@ export type DetectionBookRow = {
   /** `books.part` — `extra.PART`, a number because 15.5 is a real value. */
   part: number | null;
   grouping: string | null;
+  /**
+   * `books.file_format`. **NOT A DETECTION SIGNAL** — `buildDetectionUnits`
+   * reads it nowhere and it must never reach a `DetectionUnit`. It rides on the
+   * row purely so ticket 02's fourth fill rate can be measured from the read
+   * that already happens; see `tagFill` in `detectionQueries.ts`.
+   *
+   * Required rather than optional on purpose: WatermelonDB's `sanitizedRaw`
+   * fills a column you forgot with `null` and says nothing, which is the silent
+   * failure class 02 exists to fix. A required field makes forgetting it a
+   * `tsc` error instead of a wrong percentage.
+   */
+  fileFormat: string | null;
 };
 
 /**

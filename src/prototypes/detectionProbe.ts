@@ -104,6 +104,22 @@ export async function runDetectionProbe(): Promise<void> {
           : ''),
     );
 
+    // Ticket 02's acceptance criterion: a fresh scan populates the four columns
+    // at roughly the surveyed fill rates. Printed with the survey's own figures
+    // beside them so the log can be read without opening the ticket. The
+    // denominator is books that had a first chapter, which is what was read —
+    // it equals `bookCount` unless the header reports `with no chapters`.
+    const { tagFill } = loaded;
+    const pct = (n: number) =>
+      `${tagFill.rows ? ((n / tagFill.rows) * 100).toFixed(1) : '0.0'}%`;
+    console.log(
+      `[detect] tag fill over ${tagFill.rows} books — ` +
+        `file_format ${pct(tagFill.fileFormat)} (~99.7) · ` +
+        `series ${pct(tagFill.series)} (~6.6) · ` +
+        `part ${pct(tagFill.part)} (~5.9) · ` +
+        `grouping ${pct(tagFill.grouping)} (~5.6)`,
+    );
+
     const flat = loaded.units.filter((u) => u.flat).length;
     const tagged = loaded.units.filter((u) => u.series || u.grouping).length;
     const albumless = loaded.units.filter((u) => !u.album).length;
