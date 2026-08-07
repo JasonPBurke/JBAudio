@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/useTheme';
 import { useLibraryStore } from '@/store/library';
 import { withOpacity } from '@/helpers/colorUtils';
+import { runDetectionProbe } from './detectionProbe';
 import { DATA_PRESETS, useProtoStore } from './protoStore';
 import { VARIANTS, resolveVariant } from './variants';
 import { ProtoSeries } from './syntheticSeries';
@@ -71,6 +72,11 @@ const ProtoPanel = ({ rendered }: Props) => {
         lines.join('\n'),
     );
   }, [rendered, slots]);
+
+  // Ticket 04 — the real library through the real cascade, into the Metro log.
+  const logDetection = useCallback(() => {
+    void runDetectionProbe();
+  }, []);
 
   const toggleOpen = useCallback(
     () => setPanelOpen(!open),
@@ -196,6 +202,13 @@ const ProtoPanel = ({ rendered }: Props) => {
           onPress={clearSynthetic}
           disabled={!synthetic}
         />
+        {/*
+          TICKET 04's dev entry point. Unlike everything else in this panel it
+          ignores the dataset knob entirely — it reads the REAL database and
+          runs the REAL cascade, so its output can be diffed against
+          SERIES_LISTING.txt. Writes nothing; that is ticket 06.
+        */}
+        <Chip label='Detect series (log)' active={false} onPress={logDetection} />
       </View>
     </View>
   );

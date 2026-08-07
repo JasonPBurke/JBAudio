@@ -39,6 +39,14 @@ import {
   pruneOrphanedSeriesBooks,
   deleteEmptySeries,
 } from '@/db/seriesQueries';
+// The placeholders below are consumed as well as written: series detection
+// treats them as null, since they are absence written down rather than tags.
+// Shared constants so the two sides cannot drift apart silently.
+import {
+  UNKNOWN_AUTHOR,
+  UNKNOWN_BOOK_TITLE,
+  UNKNOWN_NARRATOR,
+} from '@/helpers/detectionUnits';
 
 const DEFAULT_BOOK_ARTWORK_COLORS: ArtworkColors = {
   // average: null, // DEPRECATED: Removed from color extraction
@@ -562,9 +570,12 @@ function buildBookMetadata(
   // year instead of NaN; anything unparseable becomes null, never NaN.
   const parsedYear = Number.parseInt(metadata.releaseDate ?? '', 10);
   return {
-    author: metadata.author || authorBackup || 'Unknown Author',
-    narrator: metadata.narrator || 'Unknown Voice Artist',
-    bookTitle: metadata.album || bookTitleBackup || 'Unknown Book',
+    author: metadata.author || authorBackup || UNKNOWN_AUTHOR,
+    narrator: metadata.narrator || UNKNOWN_NARRATOR,
+    // NOTE: this is where a book's title becomes a FOLDER NAME when the file
+    // carries no album tag, which is why detection has to decide what to do
+    // with `books.title`. See buildDetectionUnits.
+    bookTitle: metadata.album || bookTitleBackup || UNKNOWN_BOOK_TITLE,
     chapterTitle: chapterInfo.title,
     chapterNumber: chapterInfo.number,
     year: Number.isFinite(parsedYear) ? parsedYear : null,

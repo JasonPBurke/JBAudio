@@ -245,6 +245,33 @@ under the grid pads it to ~100 with **non-selectable, dimmed** synthetic names �
 non-selectable because they carry no books, so a padded pick can never produce an
 empty book step. Persisted, and ON by default.
 
+## The detection probe (implementation ticket 04) — `detectionProbe.ts`
+
+The `Detect series (log)` chip in the panel's bottom row. **It is the one control here
+that ignores both knobs**: it reads the REAL database through
+`src/db/detectionQueries.ts` and runs the REAL cascade
+(`src/helpers/seriesDetection.ts`) at both fidelities, printing a listing formatted to
+diff line-for-line against
+`.scratch/series-ux-redesign/research/02-detection-cascade/SERIES_LISTING.txt`.
+
+Writes nothing — the write is implementation ticket 06, which wires the same two modules
+into the scan. **Only `detectionProbe.ts` and the chip are throwaway**;
+`detectionQueries.ts` and `helpers/detectionUnits.ts` are production code 06 consumes, so
+deleting the harness must not take them with it.
+
+Two lines of its output are worth reading before the listing:
+
+- **`OUTSIDE ROOTS`** — books under no configured library folder, dropped rather than
+  given an absolute `rel` (folder-rule depth is load-bearing). Non-zero means stale
+  library settings.
+- **`structural keys: n/n agree with the library store`** — cross-checks the one-query
+  first-chapter read against `bookStructuralKey`. Anything but `n/n` means every
+  membership row 06 writes would be keyed wrong.
+
+Counts run **higher** than `SERIES_LISTING.txt` by design: the research probe sampled at
+most two files per directory. A higher number is the corpus being incomplete; only a
+different *grouping* is a bug.
+
 ## Adding a variant
 
 1. Copy `variants/BaselineSeriesHome.tsx`, change what you are testing.
