@@ -6,6 +6,8 @@ import {
 } from '@nozbe/watermelondb/adapters/sqlite/encodeSchema';
 import { addColumns } from '@nozbe/watermelondb/Schema/migrations';
 
+import type { MigrationStep } from '@nozbe/watermelondb/Schema/migrations';
+
 import migrations from '@/db/migrations';
 import schema from '@/db/schema';
 import Series from '@/db/models/Series';
@@ -36,40 +38,59 @@ const newest = (() => {
   return migration;
 })();
 
-/** Tables the newest migration creates — absent from the database before it runs. */
-const tablesCreatedByNewest = new Set(
-  newest.steps.flatMap(step =>
-    step.type === 'create_table' ? [step.schema.name] : [],
-  ),
-);
+/** Migrations that run to get from `fromVersion` up to the current schema. */
+function migrationsAfter(fromVersion: number) {
+  return migrations.sortedMigrations.filter(m => m.toVersion > fromVersion);
+}
 
-/** Columns the newest migration adds, as `table` -> column names. */
-const columnsAddedByNewest = new Map<string, string[]>(
-  newest.steps.flatMap(step =>
-    step.type === 'add_columns'
-      ? [[step.table, step.columns.map(c => c.name)] as [string, string[]]]
-      : [],
-  ),
-);
+/** Tables created by a set of migrations — absent from the database before they run. */
+function tablesCreatedBy(steps: readonly MigrationStep[]) {
+  return new Set(
+    steps.flatMap(step => (step.type === 'create_table' ? [step.schema.name] : [])),
+  );
+}
+
+/** Columns added by a set of migrations, as `table` -> column names. */
+function columnsAddedBy(steps: readonly MigrationStep[]) {
+  const map = new Map<string, string[]>();
+  for (const step of steps) {
+    if (step.type !== 'add_columns') continue;
+    map.set(step.table, [
+      ...(map.get(step.table) ?? []),
+      ...step.columns.map(c => c.name),
+    ]);
+  }
+  return map;
+}
+
+const tablesCreatedByNewest = tablesCreatedBy(newest.steps);
+const columnsAddedByNewest = columnsAddedBy(newest.steps);
 
 /**
- * The schema as it stood BEFORE the newest migration: today's schema minus
- * everything that migration introduces. Derived rather than hardcoded, so this
- * keeps describing "the previous version" as the schema moves on.
+ * The schema as it stood at `fromVersion`: today's schema minus everything the
+ * migrations after it introduce. Derived rather than hardcoded, so this keeps
+ * describing the old version as the schema moves on.
  */
-function previousSchema() {
+function schemaAtVersion(fromVersion: number) {
+  const steps = migrationsAfter(fromVersion).flatMap(m => m.steps);
+  const created = tablesCreatedBy(steps);
+  const added = columnsAddedBy(steps);
   return appSchema({
-    version: schema.version - 1,
+    version: fromVersion,
     tables: Object.values(schema.tables)
-      .filter(table => !tablesCreatedByNewest.has(table.name))
+      .filter(table => !created.has(table.name))
       .map(table => {
-        const added = new Set(columnsAddedByNewest.get(table.name) ?? []);
+        const addedHere = new Set(added.get(table.name) ?? []);
         return tableSchema({
           name: table.name,
-          columns: table.columnArray.filter(column => !added.has(column.name)),
+          columns: table.columnArray.filter(c => !addedHere.has(c.name)),
         });
       }),
   });
+}
+
+function previousSchema() {
+  return schemaAtVersion(schema.version - 1);
 }
 
 /** Reads a raw SQLite row back through a model's decorated getters. */
@@ -185,6 +206,107 @@ describe('the newest migration, run against a real database of the previous vers
     const [count] = fresh.exec('SELECT COUNT(*) FROM series;');
     expect(count.values[0][0]).toBe(0);
     fresh.close();
+  });
+});
+
+/**
+ * The path a real device actually takes.
+ *
+ * No device has ever run v32 — testers are on a build from main, at v31, which
+ * has no Series feature and therefore NO series tables at all. So the upgrade
+ * runs two migrations back to back: v32 creates the series tables, and v33
+ * immediately alters them. That ordering is the part nothing else exercises,
+ * and getting it wrong is not subtle — it is "table series already exists" or
+ * "no such table: series", mid-upgrade, on a device holding real listening data.
+ */
+describe('a v31 device upgrading straight to the current version', () => {
+  let SQL: Awaited<ReturnType<typeof initSqlJs>>;
+  let db: SqlJsDatabase;
+  const V31 = 31;
+  const stepsFrom31 = migrationsAfter(V31).flatMap(m => m.steps);
+
+  beforeAll(async () => {
+    SQL = await initSqlJs({
+      locateFile: file => resolveModule(`sql.js/dist/${file}`),
+    });
+  });
+
+  beforeEach(() => {
+    db = new SQL.Database();
+    db.run(encodeSchema(schemaAtVersion(V31)));
+    // A tester's library: books and their listening position, no series.
+    db.run(
+      `INSERT INTO books (id, _status, _changed, title, book_duration, total_track_count, created_at, updated_at, book_progress_value, author_id, current_chapter_index, current_chapter_progress)
+       VALUES ('b1', 'synced', '', 'Storm Front', 41000, 1, 1754000000000, 1754000000000, 1, 'a1', 7, 322.5);`,
+    );
+  });
+
+  afterEach(() => {
+    db.close();
+  });
+
+  it('applies both migrations in order without error', () => {
+    expect(() => db.run(encodeMigrationSteps(stepsFrom31))).not.toThrow();
+  });
+
+  it('ends up at exactly the shape a fresh install would have', () => {
+    // The two ways to arrive at this version — migrate up, or install fresh
+    // from schema.ts — must produce the same database. This is the failure a
+    // migration/schema mismatch causes, and it only shows up as two users
+    // disagreeing about a column that exists for one of them.
+    db.run(encodeMigrationSteps(stepsFrom31));
+
+    const fresh = new SQL.Database();
+    fresh.run(encodeSchema(schema));
+
+    const shapeOf = (d: SqlJsDatabase) => {
+      const [tables] = d.exec(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;",
+      );
+      return Object.fromEntries(
+        tables.values.map(([name]) => [
+          String(name),
+          d.exec(`PRAGMA table_info("${String(name)}");`)[0].values
+            .map(row => `${row[1]}:${row[2]}`)
+            .sort(),
+        ]),
+      );
+    };
+
+    expect(shapeOf(db)).toEqual(shapeOf(fresh));
+    fresh.close();
+  });
+
+  it('creates the series tables empty and immediately widens them', () => {
+    // v32 creates them, v33 alters them — so the v33 addColumns runs against
+    // zero rows, which is why no backfill was ever needed for a real device.
+    db.run(encodeMigrationSteps(stepsFrom31));
+
+    for (const table of ['series', 'series_books']) {
+      const [count] = db.exec(`SELECT COUNT(*) FROM ${table};`);
+      expect(count.values[0][0]).toBe(0);
+    }
+    const columns = db.exec('PRAGMA table_info(series_books);')[0].values.map(r => r[1]);
+    expect(columns).toEqual(
+      expect.arrayContaining(['canonical_number', 'canonical_source', 'membership']),
+    );
+  });
+
+  it('leaves the listener\'s library and position untouched', () => {
+    // The whole promise of the upgrade: nothing happens, visibly.
+    db.run(encodeMigrationSteps(stepsFrom31));
+
+    const [book] = db.exec('SELECT * FROM books;');
+    const row = Object.fromEntries(
+      book.columns.map((c, i) => [c, book.values[0][i]]),
+    );
+    expect(row.title).toBe('Storm Front');
+    expect(row.current_chapter_index).toBe(7);
+    expect(row.current_chapter_progress).toBe(322.5);
+    expect(row.book_progress_value).toBe(1);
+    // ...and the new tag columns are simply empty, awaiting a scan.
+    expect(row.series).toBeNull();
+    expect(row.file_format).toBeNull();
   });
 });
 
