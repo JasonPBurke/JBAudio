@@ -304,6 +304,12 @@ books. The demonstrated failure is a wrong **name** on a correct group, which is
 
 ### Device-pending — the two-stage check, and why it is two
 
+> **Runnable procedure: [`../DEVICE-CHECK.md`](../DEVICE-CHECK.md)** (2026-08-07) — the wipe
+> path, the logcat capture, how to read the diff, and the two followups that block
+> [02](02-capture-tags-at-scan.md)'s half. This section is the reasoning; that file is the
+> checklist. **Run both tickets' criteria in one pass** — the wipe 02 requires gives 04
+> full-fidelity input for free.
+
 Both open criteria are about **scale**, so neither can be met on the small emulator
 libraries. But everything in `detectionQueries.ts` is untested by design (it touches the
 adapter), and *that* half is pure pass/fail and needs no scale at all. So the emulator

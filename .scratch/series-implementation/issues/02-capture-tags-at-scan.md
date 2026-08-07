@@ -176,6 +176,23 @@ of the first is covered by the corpus measurement above; what remains unverified
 DB write, which this effort ruled untested by design. Nothing in this ticket adds file I/O
 or a second pass — it rides MediaInfo results the scan already holds.
 
+> **Procedure: [`../DEVICE-CHECK.md`](../DEVICE-CHECK.md)** (2026-08-07). Both criteria are
+> closed by the **same** wiped-and-rescanned run that closes
+> [04](04-detection-units.md)'s two, so run them together — the wipe is required by this
+> ticket (the scan is incremental, so an unchanged library never re-runs the capture) and
+> merely preferable for 04.
+>
+> Two gaps that need settling first, both recorded in §5 there:
+>
+> 1. **Nothing currently prints the four fill rates.** The ticket-04 probe reports
+>    `N carry a SERIES/Grouping tag`, which conflates two of the four columns and omits
+>    `file_format` and `part`. A ~10-line extension to `detectionProbe.ts` fixes it;
+>    otherwise the numbers come from a manual `run-as` + `sqlite3` query.
+> 2. **`scanLibrary.ts` has no timing instrumentation at all**, and no pre-02 baseline was
+>    ever recorded — so "does not regress measurably" has nothing to compare against. This
+>    run can establish a *first baseline*, but the criterion as written implies a comparison
+>    that does not exist and should be re-worded.
+
 ### Not done, deliberately
 
 - **No corpus fixture checked in.** A fill-rate assertion in the style of
