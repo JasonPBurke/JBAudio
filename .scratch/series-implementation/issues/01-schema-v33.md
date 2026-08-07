@@ -2,9 +2,10 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-human — implemented on `worktree-tk-01-schema-v33`, and the v32 → v33
-upgrade is **verified on the Pixel 7 emulator**. Only the v31 → 32 → 33 device path is
-outstanding; there was no device at v31 to run it on.
+**Status:** DONE — implemented on `worktree-tk-01-schema-v33`. Every acceptance criterion is
+met and verified, including **both** upgrade paths: v32 → v33 on the emulator (with existing
+series rows, checked at row level) and **v30 → 31 → 32 → 33 on a physical Pixel 7 Pro
+carrying a 352-book library** (release build, checked at the UI level). Not merged.
 
 **Spec:** [§G](../../series-ux-redesign/spec.md) (G1 is the canonical column list, as
 amended by G1a and G1b). Read §K10 and §K4 before writing a line of this.
@@ -79,10 +80,11 @@ whole feature rests on.
 - [x] An emulator sitting at **v32 with existing series rows** upgrades and launches; those
       rows read `null` in every new column and therefore resolve to `'user'`.
       **VERIFIED on Pixel_7_Pro (Android 15), 2026-08-06** — see the comment below.
-- [ ] A real device at **v31** takes 31 → 32 → 33; v33's `addColumns` on `series` /
+- [x] A real device at **v31** takes 31 → 32 → 33; v33's `addColumns` on `series` /
       `series_books` runs against **zero rows**, because v32 creates those tables empty.
-      **NOT RUN — same reason.** The zero-row case is covered by the same behaviour test
-      ("runs clean against the empty series tables a real device has").
+      **VERIFIED on a physical Pixel 7 Pro, 2026-08-06 — and the real path was longer than
+      this line assumed: the device was at v30, so it took 30 → 31 → 32 → 33.** See the
+      comment below.
 - [x] `tsc` 0 errors · eslint 0 errors · jest green.
 
 ## Known wart, kept — do not "fix" it
@@ -206,3 +208,52 @@ library** — silently, from the user's point of view. Same shape as the old ser
 renumbering wipe. Anyone switching that emulator between branches should expect it.
 
 **Still not run:** the v31 → 32 → 33 path on a real device. No device at v31 was available.
+
+### 2026-08-06 — physical device upgrade VERIFIED (Pixel 7 Pro, Android 16)
+
+A **release** build (`preview` profile, not debuggable) installed over the tester build on a
+real phone holding a **352-book library** with two books part-listened.
+
+**The device was at v30, not v31.** Its build (`versionCode 109`) predates the artwork
+migration; `main`'s HEAD really is at v31, so nothing in §G3 is wrong — but the build on the
+phone was older than the branch it came from. **The path actually exercised was therefore
+30 → 31 → 32 → 33: four versions, one launch**, including main's v31 `unsafeExecuteSql`
+artwork cleanup running against a real library.
+
+```
+[🍉] [SQLite] Database needs migrations
+[🍉] [SQLite] Migrating from version 30 to 33...
+[🍉] [SQLite] Migration successful
+```
+
+That is one migration line for the whole span, not one per version — worth knowing when
+reading a device log, because "Migrating from version 30 to 33" is the *only* line that
+names the range.
+
+**Result: byte-for-byte the same screen before and after.** All (352), Unplayed (350),
+Playing (2), Finished (0); `Rivers of London` at **6h 12m left** and `Addie LaRue` at
+**17h 10m left**, both unchanged; covers intact; the floating player restored its position.
+No `FATAL EXCEPTION`, no ANR, process alive. The upgrade is invisible, which is exactly what
+this ticket promised.
+
+**What this run adds over the emulator run.** A release build rather than a dev client; a
+352-book library rather than 8; the multi-version path rather than a single step; and
+confirmation that **a non-debuggable release build still emits the WatermelonDB log lines to
+logcat** — the library's logger is never silenced, so `adb logcat -s ReactNativeJS` is a
+usable check on a tester's phone.
+
+**What it cannot show.** The build is not debuggable, so `run-as` is refused and the database
+could not be pulled: there is no row-level before/after diff for this device, and no backup
+was possible. Data preservation here is evidenced by the UI (counts and both remaining
+times), not by SQL. The emulator run covers the row-level detail.
+
+**Method note for repeating this.** `adb install -r` on a streamed install can drop the USB
+transport at the end; `adb` then reports `failed to install ... Performing Streamed Install`
+followed by `no devices/emulators found` **even though the install succeeded**. Check
+`dumpsys package <pkg> | grep versionCode` before concluding anything — the install is
+atomic, so a genuine failure leaves the old build in place.
+
+**Hazard, now live on this phone too:** its database is at v33. Installing any older build
+(the Play/closed-testing build, or anything from `main`) makes WatermelonDB find no downward
+path — it logs `Migrations not available for this version range, resetting database instead`
+and **wipes the 352-book library and both listening positions.**
