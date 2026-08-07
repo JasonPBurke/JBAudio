@@ -3,8 +3,10 @@
 **Blocked by:** [02](02-capture-tags-at-scan.md) (the tag columns must be populated),
 [03](03-detect-series-seam.md) (defines the unit shape).
 
-**Status:** ready-for-human — code complete, `tsc`/eslint/jest green; the two
-criteria that need the driver's own device are open. See [## Answer](#answer).
+**Status:** ready-for-human — code complete and committed, `tsc`/eslint/jest green. The two
+remaining criteria both need **one run on the driver's device, wiped and rescanned**; an
+emulator pass is a useful smoke test first but cannot meet either. Procedure:
+*Device-pending — the two-stage check*. See [## Answer](#answer).
 
 **Spec:** [§A1](../../series-ux-redesign/spec.md), §G1b.
 
@@ -59,12 +61,13 @@ Two things to get right rather than assume:
 - [ ] Output on the driver's own library is compared against the research listing
       (`SERIES_LISTING.txt`) and the differences are **explained, not hand-waved** — a
       difference here is either a porting bug or a real library change since the probe.
-      **OPEN — needs the device.** The offline half is done and is stronger than a
-      re-run would have been: see *The round trip* below.
+      **OPEN — needs the driver's device, wiped and rescanned.** The offline half is done
+      and is stronger than a re-run would have been: see *The round trip*. Procedure and
+      how to read the diff: *Device-pending — the two-stage check*, stage 2.
 - [ ] Assembly is measured on the real library and does not add a visible pause. It is a
       DB read plus string work over ~350 books, so a slow result means something is
-      querying per-book. **OPEN on device**; measured off it, and the probe prints the
-      device figure. See *Cost* below.
+      querying per-book. **OPEN on the same run**; measured off-device (*Cost*), and the
+      probe prints the device figure in its header.
 - [x] `tsc` 0 errors · eslint 0 errors · jest green.
 
 ## Note
@@ -238,27 +241,124 @@ Checked rather than assumed, because 04 is blocked by 03:
   untouched, so it fails in exactly one of the two modes. The code comment and the test now
   cite that measurement instead.
 
-The one thing that *would* reach back here is option (c) — tightening
-`number-corroborated`, which can move the corpus totals. Then 03's corpus test and 04's
-round trip need their numbers updated **together**, mechanically. That is the only coupling.
+The one thing that *would* have reached back here is tightening `number-corroborated`,
+which can move the corpus totals. It was reassessed and **closed with no change** — see
+below — so that coupling never fired.
 
-### Device-pending, and exactly how to close it
+### `number-corroborated`: reassessed 2026-08-07, changed nothing
 
-Metro dev build → Library → Series view → the `proto ·` pill → **`Detect series (log)`**.
-It reads the real database, runs the real cascade at both fidelities, and prints a listing
-ordered and formatted to diff against
+Raised here as the rule actually worth looking at once the depth guard went. The answer is
+to leave it at `NUMBER_CORROBORATION_FRAC = 0.6` / `size >= 3`.
+
+**It fires seven times on the corpus, not three.** 03 measured the three that surface as
+proposals; `folderClusters` assigns the mode to four more that `assign` then discards,
+because a member's own name signal outranks a folder cluster and because the **deepest**
+accepted cluster wins. Masked firings still matter — masking is contingent on another rule
+winning. Checked against ground truth, surfaced or not:
+
+| cluster | size | numOk | truth | purity | |
+| --- | --- | --- | --- | --- | --- |
+| `First Law World` | 10 | 10/10 | The First Law ×7 + The Age of Madness ×3 | **70%** | masked |
+| `Steven King` | 9 | **6/9** | The Dark Tower ×8 + 1 standalone | 89% | masked |
+| `The First Law` | 7 | 7/7 | all correct | 100% | **surfaced** |
+| `Memory, Sorrow & Thorn series by Tad Williams` | 4 | 4/4 | all correct | 100% | masked |
+| `Blake Crouch` · `Crouch, Blake - Wayward Pines 1-3` | 3 · 3 | 3/3 | all Wayward Pines | 100% | masked |
+| `The Age of Madness` | 3 | 3/3 | all correct | 100% | **surfaced** |
+
+**Every discriminator considered fails on `First Law World`.** Numbers `1–7`, 100% density,
+starts at 1, one author, `0/10` members carrying any name signal — it is indistinguishable
+from `The First Law` on all four axes and it is 70% pure. `Steven King` at 6/9 = 67% is the
+only cluster where the `0.6` fraction is load-bearing at all, and it is masked, so 03's
+"the constant is unexercised" holds at the level that matters.
+
+**What supplies the precision is not this rule.** `First Law World` loses because `assign`
+prefers the deepest accepted cluster, and the real layout is
+`Joe Abercrombie/First Law World/{01 - The First Law, 02 - The Age of Madness}/…`. The
+threshold contributes nothing to that outcome.
+
+**All three candidate tightenings were built and run end to end:**
+
+| variant | conservative | full |
+| --- | --- | --- |
+| shipped | 19 / 179, purity 98.3%, swept 0 | 28 / 213, 97.2%, 2 |
+| require one author per cluster | identical grouping | identical |
+| fraction `0.6 → 1.0` | identical grouping | identical |
+| `size >= 3` → `>= 4` | **regresses** | identical |
+
+The size gate is the instructive failure: dropping the 3-book `The Age of Madness` cluster
+lets its shallower parent win, and those books return as `"First Law World"[3]` — still
+correctly grouped, but named after a folder. Per A8 the name is an editable default, so the
+cost is a worse default for no gain.
+
+**A regression pin was proposed and then withdrawn as redundant.** Patching the size gate
+into `seriesDetection.ts` and running the suite fails **6 existing tests**, so the tripwire
+is already there. It fires through the canonical-number assertions (a renamed series drops
+its books out of the number-scoring denominator), which points a future reader at
+*numbering* rather than at folder precedence — a misleading message, not missing coverage.
+Not worth a new test.
+
+**Correction to this ticket's earlier framing:** `First Law World` was described here as a
+70-percent-pure ten-book merge waiting to surface. That is what the *cluster* holds, but no
+change was found that surfaces it intact — the size-gate variant produced it with **three**
+books. The demonstrated failure is a wrong **name** on a correct group, which is milder.
+
+### Device-pending — the two-stage check, and why it is two
+
+Both open criteria are about **scale**, so neither can be met on the small emulator
+libraries. But everything in `detectionQueries.ts` is untested by design (it touches the
+adapter), and *that* half is pure pass/fail and needs no scale at all. So the emulator
+is a cheap smoke test that de-risks the real run, not a substitute for it.
+
+Either way the entry point is the same: Metro dev build → Library → Series view → the
+`proto ·` pill → **`Detect series (log)`**. It reads the real database, runs the real
+cascade at both fidelities, and prints a listing ordered and formatted to diff against
 `.scratch/series-ux-redesign/research/02-detection-cascade/SERIES_LISTING.txt`, with the
-`why` trail and confidence on every line. It also prints unit/book counts, the roots, the
-elapsed ms, how many units are `flat` / tagged / album-less, and a **structural-key
-cross-check** against `useLibraryStore` — a mismatch there means the one-query
-first-chapter read has drifted from `bookStructuralKey`, which would key every membership
-row wrong. Nothing is written; the write is [06](06-detection-runs-on-scan.md).
+`why` trail and confidence on every line. Nothing is written; the write is
+[06](06-detection-runs-on-scan.md).
 
-Expect the counts to be **higher** than the listing, not equal: the probe sampled at most
-two files per directory and missed ~35 single-file books in flat multi-book folders, and
-those books now exist as real rows. That is the coverage lower bound the fixture's own
-caveat 2 describes — a *higher* number is the corpus being incomplete, and only a
-**different grouping** is a porting bug.
+#### Stage 1 — `Pixel_7_Pro` emulator (~8 books). Verifies the DB read, not the result.
+
+Read the header lines only. **`0 series` is the CORRECT output on eight unrelated books**
+and must not be read as a failure.
+
+| Log line | What a bad value means |
+| --- | --- |
+| `N units from N books` | equal and non-zero — the four-query read works |
+| `OUTSIDE ROOTS` | should be **absent** entirely; present means stale library settings |
+| `structural keys: n/n agree with the library store` | anything but `n/n` means the `chapter_number = 1` narrowing has drifted from `bookStructuralKey`, and **every membership row 06 writes would be keyed wrong** |
+| `roots: …` | non-empty |
+
+The `OUTSIDE ROOTS` line is the one that looked riskiest and is not: `enumerateAudioViaMediaStore.ts:79-82`
+already filters every scanned file with `fsPath === r.absPath || fsPath.startsWith(r.absPath + '/')`
+against the same `libraryRootAbsPath(entry)` this assembly uses, so every chapter URL in the
+database is under a configured root **by construction, through the same comparison**. A
+`/sdcard` vs `/storage/emulated/0` mismatch cannot arise; only a folder removed from
+settings after import can.
+
+#### Stage 2 — the driver's device, **wiped and rescanned**. This is the acceptance.
+
+The wipe is not incidental. It closes two tickets' device debt in one scan:
+
+- **04** gets full-fidelity input, so the listing diff is apples-to-apples with the probe.
+- **02** still owes *fresh-scan fill rates on real hardware* and *no measurable scan-time
+  regression*, both of which need exactly a wiped library and a full rescan.
+
+Skipping the wipe still gives a valid **grouping** comparison — 03 pinned that tag-stripped
+grouping is byte-identical — but canonical numbers would differ on ~5 books
+(96.4% → 93.5%) for a reason already known, which is noise in the diff that has to be
+explained away every time it is read.
+
+**Reading the diff.** Expect **more** books than `SERIES_LISTING.txt`, not the same: the
+research probe sampled at most two files per directory and missed ~35 single-file books in
+flat multi-book folders, and those books now exist as real rows. That is the coverage lower
+bound the fixture's own caveat 2 describes. **A higher count is the corpus being
+incomplete; only a different GROUPING is a bug** — a series that splits, merges, or
+vanishes. Ballpark: ~19 series conservative, ~28 full.
+
+The second criterion reads off the same header: `N units from N books in Xms` covers the
+read plus the assembly. Pure assembly at 350 books is 0.70 ms on desktop Node (see *Cost*),
+so the DB read dominates; a figure in the tens of ms is expected and a figure in the
+hundreds means something is querying per-book.
 
 ### Not done, deliberately
 
