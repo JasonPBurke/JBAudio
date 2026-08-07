@@ -2,10 +2,7 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** DONE — implemented on `worktree-tk-01-schema-v33`. Every acceptance criterion is
-met and verified, including **both** upgrade paths: v32 → v33 on the emulator (with existing
-series rows, checked at row level) and **v30 → 31 → 32 → 33 on a physical Pixel 7 Pro
-carrying a 352-book library** (release build, checked at the UI level). Not merged.
+**Status:** resolved
 
 **Spec:** [§G](../../series-ux-redesign/spec.md) (G1 is the canonical column list, as
 amended by G1a and G1b). Read §K10 and §K4 before writing a line of this.
@@ -32,7 +29,7 @@ dev-only).
 
 It is **appended, never a rewrite of v32** (§G2). Rewriting was live — no real device has
 ever run v32 — and was offered and rejected, because append-only is the discipline that
-survives being *wrong* about who has what.
+survives being _wrong_ about who has what.
 
 ## The trap that shapes every column
 
@@ -66,10 +63,10 @@ whole feature rests on.
       shared site, not scattered across call sites. `canonical_source` does not coalesce.
 - [x] §G4's provenance-naming rule ships **as a comment in the schema file**, so a reader
       who hits `origin` next to `name_source` infers the pattern instead of
-      reverse-engineering it: *`<x>_source` names the provenance of the column `<x>` beside
-      it; a bare noun names a column whose value IS its own provenance.*
-- [x] The two v3 `addColumns` comments claiming *"WatermelonDB expects defaultValue here for
-      non-optional columns"* are **corrected** — it does not. Those columns were filled by
+      reverse-engineering it: _`<x>_source` names the provenance of the column `<x>` beside
+      it; a bare noun names a column whose value IS its own provenance._
+- [x] The two v3 `addColumns` comments claiming _"WatermelonDB expects defaultValue here for
+      non-optional columns"_ are **corrected** — it does not. Those columns were filled by
       the null-value function, which coincidentally agreed with the written default, which
       is why this went unnoticed since v3.
 - [x] Schema tests extended for the new columns and tables, and they stay
@@ -202,7 +199,7 @@ the emulator adds is that the columns really are NULL on real rows, which is the
 readers were written for.
 
 **HAZARD, now live on that emulator.** Its database is at v33. If an older build (main at
-v31, or v32) is run against it, WatermelonDB finds no migration path *down*, logs
+v31, or v32) is run against it, WatermelonDB finds no migration path _down_, logs
 `Migrations not available for this version range, resetting database instead` and **wipes the
 library** — silently, from the user's point of view. Same shape as the old series-v31
 renumbering wipe. Anyone switching that emulator between branches should expect it.
@@ -227,7 +224,7 @@ artwork cleanup running against a real library.
 ```
 
 That is one migration line for the whole span, not one per version — worth knowing when
-reading a device log, because "Migrating from version 30 to 33" is the *only* line that
+reading a device log, because "Migrating from version 30 to 33" is the _only_ line that
 names the range.
 
 **Result: byte-for-byte the same screen before and after.** All (352), Unplayed (350),
