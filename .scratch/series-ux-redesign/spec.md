@@ -434,6 +434,41 @@ name_source = 'user'              ->  keep the name, reconcile membership
 Hand-ordering survives **for free**, with no ordering flag: canonical seeds `position`
 only at create and at insert, never re-seeding an existing row.
 
+**A10a — matching a proposal to an existing series takes TWO passes, and the second is not
+optional (added by 05).** By name first, on `normalizeSortName` — the same key
+`isDuplicateSeriesName` and the `sort_name` column already use. Then, for proposals that
+matched nothing, by **book overlap** against `origin = 'detected'` series only.
+
+The second pass is what makes the contract's own last line true. Once a user renames a
+detected series, no proposal will ever match it by name again; without continuity the
+relationship ends there, the next scan re-creates the old name from the same books, and
+every one of them sits in **two series at once**. Renaming is the commonest repair there
+is, so the failure is not exotic.
+
+- **This is not a second identity and A15 still stands.** Nothing here is shown to the
+  user, nothing merges, and two series never become one. It answers one internal question:
+  *is this proposal the series I already made?*
+- **Overlap counts every row, tombstones included** — exclusions never reach the detector,
+  so it keeps proposing excluded books, which makes the tombstones the strongest evidence
+  of continuity there is. Counting only visible rows loses a renamed series that carries a
+  few, and the re-created duplicate then carries the excluded books **back in**, walking
+  straight through A11. This was a live defect during the build, not a hypothetical.
+- **Thresholds: ≥ 2 books in common, and more than half the series' rows.** Strict rather
+  than generous, because the two failures are not symmetrical — matching too eagerly
+  removes every detected row the proposal lacks, matching too reluctantly leaves a
+  duplicate series that the user can delete.
+- **A user-origin series is reachable by NAME only.** A playlist that happens to hold three
+  Discworld books is not Discworld.
+
+**A10b — reconcile has no rename verb, and no number-update verb (decided by 05).** The
+plan's only verbs are create, insert and remove-a-detected-row. A detected series keeps the
+name it was created with even when detection would now elect a different one: a series that
+quietly renames itself between scans is alarming in a way a slightly stale name is not, and
+`name_source = 'user'` is then honoured *a fortiori*. Likewise a blank `canonical_number`
+on an existing row is never filled by a later scan — A10's first line says LEAVE IT, and D5
+already settled that blank beats misleading. Both are reversible if a real library shows
+they bite.
+
 **A11 — Removals need a tombstone.** `membership = 'excluded'` keeps the join row as a
 hidden marker that blocks re-derivation; display filters exclude it. Without it, a user
 removes four books from a wrong merge, rescans, and gets all four back — the most
@@ -1307,10 +1342,30 @@ H9's meta-line drop.
 **K15 — The disabled-button label is invisible**, on both the editor's `Save` and the
 create surface's `Next`. Confirmed on two screens; still live.
 
-**K16 — Undecided edge case, flagged for the build:** a series whose every membership row
-is `'excluded'` still has rows, so the empty-series reaper keeps it, but it renders with no
-books. Excluding every book one at a time is arguably a delete and should probably
-suppress.
+**K16 — DECIDED (05, 2026-08-06): all-excluded is a stable state. Reconcile neither deletes
+it nor suppresses it.** A series whose every membership row is `'excluded'` still has rows,
+so the empty-series reaper keeps it, and it renders with no books. That was flagged as
+"arguably a delete, should probably suppress"; the build ruled the other way, and
+`reconcileSeries` emits an **empty plan** for such a series.
+
+- **Emptying a series one book at a time is not a delete the user made.** A14's standing
+  rule is *bulk creates, per-item destroys*; inferring a whole-series destroy from a run of
+  per-item ones would be the one place the app inverts it. The escape hatch is already one
+  tap away — `Delete Series` in the editor (D8) — and it confirms in a dialog first, then
+  suppresses correctly per A12.
+- **An empty series is visible and self-correcting. A series that vanished on its own is
+  neither.** Abstention bias, applied to the one verb that cannot be undone.
+- **Emptying is a legitimate step in REBUILDING a series by hand**, which is the only
+  expressible repair for a wrong merge now that split/merge are out of scope (09).
+- **The delete-on-empty decision stays where it already lives**: `updateSeries` deletes a
+  series when its last book goes (`seriesQueries.ts:81`), and D9.1 already requires that
+  path to suppress instead. That is an explicit user save. Reconcile must not duplicate it
+  by inference.
+- ⚠ **`deleteEmptySeries()` must keep counting excluded rows.** It counts every
+  `series_books` row, so an all-excluded series survives — this is correct and must not be
+  "fixed" to ignore tombstones. Doing so deletes the series, deletes its tombstones with
+  it, and the very next detection run re-creates the series with every removed book back
+  inside: the A11 failure, amplified.
 
 ---
 
