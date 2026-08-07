@@ -2,8 +2,9 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-human — implemented on `worktree-tk-01-schema-v33`; everything below is
-done and verified except the two on-device upgrade checks, which need a build.
+**Status:** ready-for-human — implemented on `worktree-tk-01-schema-v33`, and the v32 → v33
+upgrade is **verified on the Pixel 7 emulator**. Only the v31 → 32 → 33 device path is
+outstanding; there was no device at v31 to run it on.
 
 **Spec:** [§G](../../series-ux-redesign/spec.md) (G1 is the canonical column list, as
 amended by G1a and G1b). Read §K10 and §K4 before writing a line of this.
@@ -75,13 +76,9 @@ whole feature rests on.
       was burned once by pinning `schema.version === 31` and breaking when series
       renumbered to 32.
 - [x] Migration/schema coherence is asserted generically, not against the number 33.
-- [ ] An emulator sitting at **v32 with existing series rows** upgrades and launches; those
+- [x] An emulator sitting at **v32 with existing series rows** upgrades and launches; those
       rows read `null` in every new column and therefore resolve to `'user'`.
-      **NOT RUN — needs a native build.** The SQL half of it is proved in jest instead:
-      `schemaMigrationV33.behavior.test.ts` builds a real v32 SQLite database, inserts a
-      series + membership + book, runs the adapter's own generated migration SQL, and reads
-      the result back through the model getters. What that cannot show is that the app
-      *launches* afterwards.
+      **VERIFIED on Pixel_7_Pro (Android 15), 2026-08-06** — see the comment below.
 - [ ] A real device at **v31** takes 31 → 32 → 33; v33's `addColumns` on `series` /
       `series_books` runs against **zero rows**, because v32 creates those tables empty.
       **NOT RUN — same reason.** The zero-row case is covered by the same behaviour test
@@ -157,3 +154,55 @@ Nothing is missing from this branch; the baseline line is just not reproducible 
 **What is left.** Only the two device/emulator upgrade checks, marked above. Everything they
 would prove about the SQL is proved in jest; what remains unproven is that the app launches
 after the upgrade.
+
+### 2026-08-06 — emulator upgrade VERIFIED (Pixel_7_Pro, Android 15)
+
+**No native build was needed, and that is worth recording.** Schema and migrations are
+declared in JS and handed to the adapter, so pointing the installed dev client at Metro
+running from this worktree is enough to make the real migration run against the real
+database. `npx expo start --dev-client` in the worktree, then
+`adb shell am start -a android.intent.action.VIEW -d "sonicbooks://expo-development-client/?url=http%3A%2F%2F10.0.2.2%3A8081"`.
+
+**The starting state was genuinely the acceptance case**, not a fixture: `user_version = 32`
+with **4 hand-made series, 11 membership rows, 8 books, 267 chapters**, and neither new table
+present.
+
+**The app's own log:**
+
+```
+[🍉] [SQLite] Database needs migrations
+[🍉] [SQLite] Migrating from version 32 to 33...
+[🍉] [SQLite] Migration successful
+```
+
+**Verified by diffing the database pulled before and after** (`PRAGMA user_version`, row
+counts, row values, every new column, indexes):
+
+- `user_version` 32 → 33
+- row counts unchanged on all seven pre-existing tables; the `series` and `series_books`
+  rows are **value-identical**, not merely equal in number
+- all 13 new columns exist and are **NULL on every pre-existing row** — 4 series, 11
+  membership rows, 8 books, 1 settings row. Nothing was backfilled, as designed
+- `suppressed_series` and `book_tags` created, both empty
+- exactly one new index on a real column, `book_tags_book_id`; no index on any Series
+  column. (The two new tables also get WatermelonDB's automatic `__status` index, which is
+  not an index on a Series column and is not what §G6 governs.)
+
+**And it launches.** No `FATAL EXCEPTION`, process alive, `MainActivity` resumed, library
+renders with real data (8 books, matching the table). With the Series screen switched to the
+real database it lists **all 4 series with the right names and the right book counts**
+(1 + 2 + 4 + 4 = 11) — so the migrated tables are read back through the models correctly,
+which is the part the SQL-level test could not show.
+
+The `'user'` resolution itself has no UI to observe — nothing reads these columns yet, by
+design — so it stays covered by `seriesProvenance.test.ts` and `seriesModels.test.ts`. What
+the emulator adds is that the columns really are NULL on real rows, which is the input those
+readers were written for.
+
+**HAZARD, now live on that emulator.** Its database is at v33. If an older build (main at
+v31, or v32) is run against it, WatermelonDB finds no migration path *down*, logs
+`Migrations not available for this version range, resetting database instead` and **wipes the
+library** — silently, from the user's point of view. Same shape as the old series-v31
+renumbering wipe. Anyone switching that emulator between branches should expect it.
+
+**Still not run:** the v31 → 32 → 33 path on a real device. No device at v31 was available.
