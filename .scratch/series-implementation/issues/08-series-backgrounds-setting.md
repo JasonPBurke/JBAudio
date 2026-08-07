@@ -2,7 +2,7 @@
 
 **Blocked by:** [01](01-schema-v33.md).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **Spec:** [§B9, B10](../../series-ux-redesign/spec.md), §K1, §K2.
 
@@ -69,3 +69,82 @@ handles both paths in one expression at one site.**
 
 **Every future change to the Series row must work in both states.** Any later variant that
 only reads well over a backdrop is ruled out by this decision.
+
+## Answer
+
+Shipped as specified. Four files: the getter + setter in `src/db/settingsQueries.ts`, the
+cached copy in `src/store/settingsStore.ts`, the row in `src/app/(settings)/general.tsx`,
+and a new `src/db/__tests__/seriesBackgroundsSetting.test.ts`.
+
+`tsc` 0 errors · eslint 0 errors (one pre-existing `exhaustive-deps` warning on the
+untouched `autoAccent` effect, present at HEAD) · jest **413/413 green across 38 suites**.
+
+### The null is real, and now measured rather than asserted
+
+K1 claims every optional setting is `null` on a fresh install because the seeder writes
+only three fields. That was taken on trust everywhere it appears. It is now **observed**: a
+real WatermelonDB built on schema v33 (LokiJS adapter, in jest), with a settings record
+created exactly the way `ensureSettingsRecord` creates it, reads
+`seriesBackgroundsEnabled === null`. The ruling that killed the migration backfill rests on
+a fact that has been executed, not just reasoned about.
+
+### The store default is a SECOND instance of the same trap
+
+Not in the ticket, found while wiring it. The DB getter is only half the default: anything
+reading `useSettingsStore` **before `initializeSettings` resolves** sees the store's own
+seed value. Seeding it `false` — the value every other boolean in that store uses — renders
+the switch OFF and pops the backdrop in a frame later, for a user who never turned it off.
+Identical silent failure, one layer up, and invisible to a test that only covers the query.
+
+Both the DB path and the store seed are now tested. `settingsStore.test.ts` asserts on
+`getInitialState()`, so the assertion is about the seed itself and cannot be fooled by test
+ordering.
+
+### The tests are proven to have teeth
+
+The four getter cases pass, but passing is not evidence — an unconditional `return true`
+passes three of them. Two independent checks:
+
+1. **The `false` case** discriminates against `return true` (the setting must be
+   turn-off-able).
+2. **A mutation check**: the getter was temporarily rewritten to the house idiom
+   (`=== true`, fallback `false`) — the exact K1 bug — and the null and no-record tests
+   both failed, then passed again on restore. The test that exists to catch this bug has
+   been shown to catch this bug.
+
+### Device-pending
+
+One acceptance criterion is not closeable from jest: *"the preference survives an app
+restart and reads ON for a tester whose row predates the column."* The logic behind it is
+covered (the pre-existing row **is** the null path), and the write rides the shipped
+`updateSetting` idiom — but persistence-across-restart and the real upgraded row are device
+claims. Per [[native-changes-need-native-rebuild]] the schema is JS, so a Metro reload runs
+the real migration; no native rebuild needed to check it.
+
+### For 07, which has the same trap
+
+**G1a means the inverted getter is needed at TWO sites, not one.**
+`series_detection_enabled` is the second default-ON boolean and is **not** touched here —
+it belongs to 07's `Series Detection` card. Copying `getSeriesBackgroundsEnabled` verbatim
+is the right move; copying the house `=== true` idiom next to it ships an empty Series tab
+that reads as a broken feature. `series_folder_grouping_enabled` is default-OFF and takes
+the ordinary idiom.
+
+### Test infrastructure, for whoever picks up the next ticket
+
+- **A fresh worktree has no `node_modules`.** Symlink the parent repo's or jest crawls for
+  minutes per run instead of ~1s. This is not a jest misconfiguration.
+- **Do not boot WatermelonDB's LokiJS adapter in a committed test.** It works and it is
+  fast (0.53s, real decorators, real queries), but it leaves something alive that stops
+  jest exiting — the suite hangs until killed, and `--detectOpenHandles` hangs with it. It
+  was used as a throwaway probe to establish the null above, then removed. The committed
+  test fakes the `@/db` boundary instead.
+- `settingsQueries.ts` imports RNFS at module scope; it ships untransformed ESM, so any
+  test importing that module must mock `@dr.pogodin/react-native-fs`.
+
+### Not done, deliberately
+
+- **No test for the setter.** It is a one-line `updateSetting` call on an idiom already
+  exercised by every other setting; the spec singles out the getter, and testing the write
+  through the fake would test the fake.
+- **Nothing renders the preference yet** — 10 and 11 are its consumers, as the ticket says.

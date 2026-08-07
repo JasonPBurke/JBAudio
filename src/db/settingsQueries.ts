@@ -533,6 +533,34 @@ export async function setShakeToResetEnabled(
   });
 }
 
+/**
+ * The settings table's first default-ON boolean.
+ *
+ * DELIBERATELY NOT the `=== true` / fallback-`false` idiom every other boolean
+ * getter above uses. Both the null case (the column's state on a fresh install,
+ * since `ensureSettingsRecord` seeds only three fields) and the no-record case
+ * mean "the user has never expressed a preference", which for this setting is
+ * ON. The house idiom would read both as OFF and silently strip the backdrop
+ * from every existing tester. Covered by seriesBackgroundsSetting.test.ts.
+ */
+export async function getSeriesBackgroundsEnabled(): Promise<boolean> {
+  const settingsCollection = database.collections.get<Settings>('settings');
+  const settingsRecord = await settingsCollection.query().fetch();
+
+  if (settingsRecord.length > 0) {
+    return settingsRecord[0].seriesBackgroundsEnabled !== false;
+  }
+  return true;
+}
+
+export async function setSeriesBackgroundsEnabled(
+  enabled: boolean,
+): Promise<void> {
+  return updateSetting((record) => {
+    record.seriesBackgroundsEnabled = enabled;
+  });
+}
+
 export async function getLastScanAt(): Promise<number | null> {
   const settingsCollection = database.collections.get<Settings>('settings');
   const settingsRecord = await settingsCollection.query().fetch();

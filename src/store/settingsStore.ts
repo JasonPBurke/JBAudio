@@ -15,6 +15,8 @@ import {
   updatePlaybackRate,
   getLastNonDefaultRate,
   updateLastNonDefaultRate,
+  getSeriesBackgroundsEnabled,
+  setSeriesBackgroundsEnabled as setSeriesBackgroundsEnabledInDB,
 } from '@/db/settingsQueries';
 
 interface SettingsState {
@@ -25,6 +27,8 @@ interface SettingsState {
   playbackRate: number;
   /** Last speed the user set that wasn't 1x — the icon tap toggles back to it. */
   lastNonDefaultRate: number | null;
+  /** Cover backdrop behind the Series browse row. Default ON — see below. */
+  seriesBackgroundsEnabled: boolean;
   isInitialized: boolean;
   initializeSettings: () => Promise<void>;
   setNumColumns: (newNumColumns: number) => Promise<void>;
@@ -32,6 +36,7 @@ interface SettingsState {
   setSkipForwardDuration: (value: number) => Promise<void>;
   setShakeToResetEnabled: (enabled: boolean) => Promise<void>;
   setPlaybackRate: (value: number) => Promise<void>;
+  setSeriesBackgroundsEnabled: (enabled: boolean) => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -41,6 +46,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   shakeToResetEnabled: false,
   playbackRate: 1.0,
   lastNonDefaultRate: null,
+  // Must be `true`, not `false`. Anything reading the store before
+  // `initializeSettings` resolves sees this, so a `false` seed renders the
+  // switch OFF and pops the backdrop in a frame later for a user who never
+  // turned it off — the same silent default-OFF trap the DB getter avoids.
+  seriesBackgroundsEnabled: true,
   isInitialized: false,
   initializeSettings: async () => {
     if (get().isInitialized) return;
@@ -51,6 +61,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       shakeToReset,
       rate,
       lastRate,
+      seriesBackgrounds,
     ] = await Promise.all([
       getNumColumns(),
       getSkipBackDuration(),
@@ -58,6 +69,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       getShakeToResetEnabled(),
       getPlaybackRate(),
       getLastNonDefaultRate(),
+      getSeriesBackgroundsEnabled(),
     ]);
     set({
       numColumns: numColumnsFromDB ?? 2,
@@ -66,6 +78,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       shakeToResetEnabled: shakeToReset,
       playbackRate: quantizeRate(rate),
       lastNonDefaultRate: lastRate !== null ? quantizeRate(lastRate) : null,
+      seriesBackgroundsEnabled: seriesBackgrounds,
       isInitialized: true,
     });
   },
@@ -86,6 +99,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setShakeToResetEnabled: async (enabled: boolean) => {
     set({ shakeToResetEnabled: enabled });
     await setShakeToResetEnabledInDB(enabled);
+  },
+  setSeriesBackgroundsEnabled: async (enabled: boolean) => {
+    set({ seriesBackgroundsEnabled: enabled });
+    await setSeriesBackgroundsEnabledInDB(enabled);
   },
   setPlaybackRate: async (value: number) => {
     const rate = quantizeRate(value);

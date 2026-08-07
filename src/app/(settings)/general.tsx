@@ -24,6 +24,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useRequiresPro } from '@/hooks/useRequiresPro';
 import { ProBadge } from '@/components/ProBadge';
 import ProFeaturePopup from '@/modals/ProFeaturePopup';
+import InfoDialogPopup from '@/modals/InfoDialogPopup';
 import ToggleSwitch from '@/components/animations/ToggleSwitch';
 import { ArtworkColors } from '@/helpers/gradientColorSorter';
 
@@ -33,6 +34,33 @@ const GeneralSettingsScreen = () => {
   const { isProUser: hasProAccess, hasPurchasedPro } = useRequiresPro();
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
   const [showProPopup, setShowProPopup] = useState(false);
+
+  // Series backgrounds — global, default ON, deliberately not Pro-gated:
+  // gating a default-ON setting would charge the user to turn something off.
+  const seriesBackgroundsEnabled = useSettingsStore(
+    (s) => s.seriesBackgroundsEnabled,
+  );
+  const setSeriesBackgroundsEnabled = useSettingsStore(
+    (s) => s.setSeriesBackgroundsEnabled,
+  );
+  const [seriesBackgroundsInfoVisible, setSeriesBackgroundsInfoVisible] =
+    useState(false);
+  const seriesBackgroundsToggleValue = useSharedValue(
+    seriesBackgroundsEnabled ? 1 : 0,
+  );
+
+  const seriesBackgroundsInfo =
+    "When enabled, each series in your library will use the first book's cover as the series background by default. You can search and replace the series art used as the background without it changing your books covers.";
+
+  useEffect(() => {
+    seriesBackgroundsToggleValue.value = seriesBackgroundsEnabled ? 1 : 0;
+  }, [seriesBackgroundsEnabled, seriesBackgroundsToggleValue]);
+
+  const handleSeriesBackgroundsToggle = async () => {
+    const newValue = !seriesBackgroundsEnabled;
+    seriesBackgroundsToggleValue.set(newValue ? 1 : 0);
+    await setSeriesBackgroundsEnabled(newValue);
+  };
 
   // Auto accent state
   const autoAccentEnabled = useThemeStore((s) => s.autoAccentEnabled);
@@ -114,6 +142,24 @@ const GeneralSettingsScreen = () => {
               />
             </View>
           </View>
+
+          <CompactSettingsRow
+            label='Series Backgrounds'
+            description="Show each series' cover art behind it in your library"
+            onInfoPress={() => setSeriesBackgroundsInfoVisible(true)}
+            showDivider={false}
+            control={
+              <ToggleSwitch
+                value={seriesBackgroundsToggleValue}
+                onPress={handleSeriesBackgroundsToggle}
+                style={{ width: 72, height: 36, padding: 5 }}
+                trackColors={{
+                  on: themeColors.primary,
+                  off: themeColors.modalBackground,
+                }}
+              />
+            }
+          />
         </SettingsCard>
 
         <SettingsCard
@@ -200,6 +246,13 @@ const GeneralSettingsScreen = () => {
       <ProFeaturePopup
         isVisible={showProPopup}
         onClose={() => setShowProPopup(false)}
+      />
+
+      <InfoDialogPopup
+        isVisible={seriesBackgroundsInfoVisible}
+        onClose={() => setSeriesBackgroundsInfoVisible(false)}
+        title='Series Backgrounds'
+        message={seriesBackgroundsInfo}
       />
     </View>
   );

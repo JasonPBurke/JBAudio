@@ -1,4 +1,5 @@
 import TrackPlayer, { Capability } from 'react-native-track-player';
+import { getSeriesBackgroundsEnabled } from '@/db/settingsQueries';
 import { useSettingsStore } from '../settingsStore';
 
 jest.mock('react-native-track-player', () => ({
@@ -25,10 +26,14 @@ jest.mock('@/db/settingsQueries', () => ({
   getSkipBackDuration: jest.fn().mockResolvedValue(30),
   getSkipForwardDuration: jest.fn().mockResolvedValue(30),
   getShakeToResetEnabled: jest.fn().mockResolvedValue(false),
+  getPlaybackRate: jest.fn().mockResolvedValue(1.0),
+  getLastNonDefaultRate: jest.fn().mockResolvedValue(null),
+  getSeriesBackgroundsEnabled: jest.fn().mockResolvedValue(true),
   updateSkipBackDuration: jest.fn().mockResolvedValue(undefined),
   updateSkipForwardDuration: jest.fn().mockResolvedValue(undefined),
   setNumColumns: jest.fn().mockResolvedValue(undefined),
   setShakeToResetEnabled: jest.fn().mockResolvedValue(undefined),
+  setSeriesBackgroundsEnabled: jest.fn().mockResolvedValue(undefined),
 }));
 
 const lastUpdateOptionsCall = () => {
@@ -42,6 +47,27 @@ beforeEach(() => {
   useSettingsStore.setState({
     skipBackDuration: 30,
     skipForwardDuration: 30,
+  });
+});
+
+describe('Series Backgrounds is default-ON in the store too (K1)', () => {
+  // The DB getter is only half the default. Anything reading the store before
+  // `initializeSettings` resolves sees this value, so seeding it `false` would
+  // render the switch OFF — and pop the backdrop in a frame later — for a user
+  // who never turned it off. Same silent failure, one layer up.
+  it('reads ON before initializeSettings has resolved', () => {
+    expect(useSettingsStore.getInitialState().seriesBackgroundsEnabled).toBe(
+      true,
+    );
+  });
+
+  it('takes the stored value once settings load', async () => {
+    (getSeriesBackgroundsEnabled as jest.Mock).mockResolvedValue(false);
+    useSettingsStore.setState({ isInitialized: false });
+
+    await useSettingsStore.getState().initializeSettings();
+
+    expect(useSettingsStore.getState().seriesBackgroundsEnabled).toBe(false);
   });
 });
 
