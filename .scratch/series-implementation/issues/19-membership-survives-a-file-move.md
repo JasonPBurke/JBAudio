@@ -7,7 +7,11 @@ Nothing else. It can run now.
 criterion is mirrored onto 06 and closed on the run that validates 06, the way
 [02](02-capture-tags-at-scan.md)'s and [04](04-detection-units.md)'s were.
 
-**Status:** ready-for-agent
+**Status:** ready-for-agent — **desk work COMPLETE, 2026-08-08** (see [*Answer*](#answer)). Six of
+the seven acceptance criteria are met (uncommitted on `feature/series-styling`); the ticket is open
+**only** on the device criterion, which is already mirrored onto
+[06](06-detection-runs-on-scan.md) and closes on 06's device run. **Do not re-implement the desk
+work.**
 
 **Spec:** none — this is **not** a spec gap. Found on 2026-08-07 while closing
 [02](02-capture-tags-at-scan.md)'s and [04](04-detection-units.md)'s device criteria
@@ -222,38 +226,38 @@ record of one completed run* — its title, its four-criterion table and its res
 
 ## Acceptance criteria
 
-- [ ] The ruling is recorded as an **ADR** in `docs/adr/`. The directory does not exist yet —
+- [x] The ruling is recorded as an **ADR** in `docs/adr/`. The directory does not exist yet —
       this bootstraps it, per `CLAUDE.md`'s lazy-creation rule, and is therefore ADR **0001**.
       It must name what `book_key` identifies, state that a file move ends a book's series
       membership, and state that a hand-made series does not outlive its last member.
-- [ ] **Both** prune sites carry a comment stating the ruling and why: `pruneOrphanedSeriesBooks`
+- [x] **Both** prune sites carry a comment stating the ruling and why: `pruneOrphanedSeriesBooks`
       in the series queries, and the inlined prune inside `removeLibraryFolder` in the settings
       queries. A reader must not have to re-derive that provenance was considered and rejected,
       and must not be left guessing which of the two implementations is authoritative.
-- [ ] Each row of *What actually breaks* has a stated expected outcome the reader can check
+- [x] Each row of *What actually breaks* has a stated expected outcome the reader can check
       against the code. The two rows this ticket does not fix — the odd first-file rename, and
       the added intro — say **why** they are out, and the added-intro row points at
       `NOTE-book-split.md`.
-- [ ] **The ADR states both guards** and, in particular, that renaming the configured root
+- [x] **The ADR states both guards** and, in particular, that renaming the configured root
       folder and moving its contents out have **opposite** outcomes. That asymmetry is the single
       least guessable thing here, and the guards are the reason the ruling is narrower than
       *"a scan can delete your playlists"*. Neither guard is refactored, simplified or removed
       by this ticket.
-- [ ] **A pure unit test covers the prune's decision.** The decision must be extracted from the
+- [x] **A pure unit test covers the prune's decision.** The decision must be extracted from the
       query into a pure function taking membership rows plus the live key set and returning the
       rows to destroy — `seriesMembershipDiff` is the precedent, and this effort's testing
       decisions leave the IO untested, so any conditional has to live somewhere testable. The
       test must pin that provenance is **deliberately ignored**: a `'user'` row and an
       `'excluded'` row with dead keys are both destroyed, and a failing assertion here means
       someone has quietly implemented A.
-- [ ] The same pure function backs **both** call sites. Two copies of a rule is how the two
+- [x] The same pure function backs **both** call sites. Two copies of a rule is how the two
       sites drifted in the first place.
 - [ ] **Device criterion, deferred to the 06 run:** move a book's folder on a device with a
       detected series, rescan, and the series comes back **complete** — the moved book present
       at its new path, no duplicate series, nothing left behind. Already mirrored onto
       [06](06-detection-runs-on-scan.md)'s criteria at triage, so this ticket writes no device
       document; it stays open on this one line until 06's run reports back.
-- [ ] `tsc` 0 errors · eslint 0 errors · jest green.
+- [x] `tsc` 0 errors · eslint 0 errors · jest green.
 
 ## Not in scope
 
@@ -273,6 +277,70 @@ record of one completed run* — its title, its four-criterion table and its res
 - **Any change to detection.** 03/04/05 are resolved and correct; this is about what happens to
   rows *after* they are written.
 - **Re-keying, and provenance-aware pruning.** Rejected above with reasons. Do not re-raise.
+
+## Answer
+
+**Desk work done 2026-08-08 on `feature/series-styling`, uncommitted.** Six of seven criteria met.
+The behaviour the ticket describes is unchanged; it is now stated once, tested once, and rejected
+option A is pinned by an assertion.
+
+### What was built
+
+| file | what |
+| --- | --- |
+| `docs/adr/0001-series-membership-is-keyed-by-file-path.md` | **new, and bootstraps `docs/adr/`.** Carries the ruling, the eight-row scenario table, both guards and the rename-vs-move asymmetry, and A/B with their rejection reasons |
+| `src/db/seriesOrphanPrune.ts` | **new.** `selectOrphanedMemberships(rows, liveKeys)` — pure, no `@/db` import, no provenance branch |
+| `src/db/__tests__/seriesOrphanPrune.test.ts` | **new.** 8 tests. The load-bearing one asserts a `'user'` row, an `'excluded'` row, a `'detected'` row and a `membership: null` row with dead keys are **all** destroyed |
+| `src/db/seriesQueries.ts` | `pruneOrphanedSeriesBooks` and `deleteEmptySeries` now delegate; the former carries the ruling comment |
+| `src/db/settingsQueries.ts` | `removeLibraryFolder`'s inlined prune now delegates and carries the matching comment |
+| `src/helpers/scanLibrary.ts` | comment only — what the `orphanedBooks.length > 0` gate means, and that the two guards above it are load-bearing |
+
+### Two things decided while implementing, both worth reading
+
+**1 · A second pure function was needed: `selectEmptySeriesIds`.** The empty-series reaper is the
+other half of the ruling (*a hand-made series does not outlive its last member*) and it also
+existed twice — as `deleteEmptySeries` in the series queries and as the `remainingBySeries` counter
+inside `removeLibraryFolder`. It could not be deduplicated by simply calling `deleteEmptySeries`
+from the second site: that site runs inside an open `database.write` and the helper opens its own,
+which nests a writer. Extracting the decision was the only way to leave one copy of it. Both sites
+now call both functions.
+
+**2 · One behavioural delta at the folder-Remove site, stated rather than buried.** The Agent Brief
+specifies the shared function takes *"the set of live structural keys"*, and both sites now pass
+one. `removeLibraryFolder` previously destroyed rows matching the **removed** keys; it now destroys
+rows not matching a **live** key. Those differ in exactly one case: a membership row that was
+*already* dangling for an unrelated reason (the first-file-rename row of the table above) is now
+destroyed by a folder removal, where before it survived — and could, if it was the last row, take
+its series with it.
+
+This was deliberate. The alternative — passing a synthetic "keys I am not removing" set — is
+behaviour-identical but re-encodes the old site-local rule at the call site under the new
+function's name, which is what criterion 6 exists to prevent. The delta is also *toward* the
+ruling, not away from it: it is the same outcome the next scan would have reached anyway (the
+ticket's own table says the stale row "is destroyed later, by the first unrelated scan that orphans
+any book"), and the site's `removedKeys.size > 0` gate is unchanged, so it cannot fire when the
+removal took no books. Flagged because the Brief says *"identical runtime behaviour"*, and this is
+the one place that is not strictly true.
+
+### Neither guard was touched
+
+`removeMissingFiles`' missing-root skip and its empty-enumeration bail are byte-for-byte unchanged.
+The only edit in `scanLibrary.ts` is a comment saying they are load-bearing, so the next reader does
+not tidy them.
+
+### Verification
+
+- `tsc --noEmit` — **0 errors**
+- `eslint` on all five changed/new files — **0 errors, 0 warnings**
+- `jest` — **40 suites, 451 tests, all green** (the new suite is 8 of them). A full `npx jest` also
+  walks two stale `.claude/worktrees/` checkouts and reports 2 pre-existing failures in
+  *their* copies of `seriesDetection.test.ts`; nothing in `src/` fails, and no file in a worktree
+  was touched.
+
+### What is left
+
+Only the device criterion, which is 06's to close. **Nothing was appended to `DEVICE-CHECK.md`** —
+it stays a closed record of 02's and 04's run, per *Sequencing*.
 
 ## Comments
 

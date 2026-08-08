@@ -990,6 +990,23 @@ async function removeMissingFiles(
   // post-scan state), never mid-scan. A live key = any surviving chapter url:
   // file paths are unique per book, so a surviving first file means its book
   // survived.
+  //
+  // WHAT THE GATE MEANS. `orphanedBooks.length > 0` is not an optimisation
+  // guard around a cheap call — it is the scan's whole trigger for touching
+  // series at all. A scan in which no book was orphaned NEVER prunes, so a
+  // membership row can dangle indefinitely (rename only the first file of a
+  // multi-file book: the book survives, nothing orphans, and the row is left
+  // pointing at a dead path until some later, unrelated scan orphans any book).
+  // A dangling row is harmless in the meantime — `assembleDerivedSeries` skips
+  // keys it cannot resolve — and this is deliberate: see
+  // `docs/adr/0001-series-membership-is-keyed-by-file-path.md`. Do not "fix" it
+  // by pruning unconditionally; that makes every scan rewrite the join table.
+  //
+  // Also note the two guards ABOVE, which decide whether anything reaches this
+  // point: a configured root that is missing from disk is skipped wholesale, and
+  // an empty enumeration skips cleanup entirely. They are why renaming your
+  // library folder destroys nothing while moving its contents out of it destroys
+  // everything. Both are load-bearing. Neither may be tidied up.
   if (orphanedBooks.length > 0) {
     const liveKeys = new Set<string>();
     for (const chapter of allChapters) {

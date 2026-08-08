@@ -7,6 +7,10 @@ import SeriesBook from '@/db/models/SeriesBook';
 import { SeriesRow, MembershipRow } from '@/helpers/seriesAssembly';
 import { computeMembershipDiff } from '@/db/seriesMembershipDiff';
 import {
+  selectOrphanedMemberships,
+  selectEmptySeriesIds,
+} from '@/db/seriesOrphanPrune';
+import {
   normalizeSortName,
   SeriesNameConflictError,
 } from '@/helpers/seriesName';
@@ -181,14 +185,33 @@ export function observeSeriesData(): Observable<{
 
 /**
  * Delete membership rows whose structural key is no longer backed by a live
- * book. Called from the scan-cleanup and library-path-removal flows so the
- * join table doesn't accumulate dangling references.
+ * book. Called from the scan-cleanup flow so the join table doesn't accumulate
+ * dangling references.
+ *
+ * PROVENANCE IS DELIBERATELY IGNORED, and the destruction is permanent — no
+ * soft delete, no tombstone, no undo. A `membership: 'user'` row a person built
+ * by hand, and an `'excluded'` tombstone meaning "this book is not in this
+ * series", are destroyed exactly like a `'detected'` row. That is the ruling,
+ * not an oversight: `book_key` is the book's first file path, so a moved or
+ * renamed book is a different book, and a file move ENDS its series membership.
+ * `deleteEmptySeries` then removes any series left with no members, so a
+ * hand-made series does not outlive its last member.
+ *
+ * A provenance-aware prune (keep 'user' and 'excluded', prune only 'detected')
+ * was considered and REJECTED — it leaves empty playlists rendered in the
+ * browse list and lets a ghost series block its own name. Do not re-raise; see
+ * `docs/adr/0001-series-membership-is-keyed-by-file-path.md`.
+ *
+ * THIS IS NOT THE ONLY PRUNE SITE. `removeLibraryFolder` in settingsQueries
+ * must inline its own copy (it runs inside one write batch and cannot call into
+ * here without nesting a writer). Neither site owns the rule: both delegate to
+ * `seriesOrphanPrune`, which is authoritative. Change it there, not here.
  */
 export async function pruneOrphanedSeriesBooks(
   liveKeys: Set<string>,
 ): Promise<void> {
   const all = await database.get<SeriesBook>('series_books').query().fetch();
-  const orphans = all.filter((m) => !liveKeys.has(m.bookKey));
+  const orphans = selectOrphanedMemberships(all, liveKeys);
   if (orphans.length === 0) return;
   await database.write(async () => {
     await database.batch(orphans.map((m) => m.prepareDestroyPermanently()));
@@ -205,8 +228,13 @@ export async function deleteEmptySeries(): Promise<void> {
     .get<SeriesBook>('series_books')
     .query()
     .fetch();
-  const nonEmpty = new Set(memberModels.map((m) => (m._raw as any).series_id));
-  const empties = seriesModels.filter((s) => !nonEmpty.has(s.id));
+  const emptyIds = new Set(
+    selectEmptySeriesIds(
+      seriesModels.map((s) => s.id),
+      memberModels.map((m) => ({ seriesId: (m._raw as any).series_id })),
+    ),
+  );
+  const empties = seriesModels.filter((s) => emptyIds.has(s.id));
   if (empties.length === 0) return;
   await database.write(async () => {
     await database.batch(empties.map((s) => s.prepareDestroyPermanently()));

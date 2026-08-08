@@ -6,6 +6,10 @@ import { Q } from '@nozbe/watermelondb';
 import Book from '@/db/models/Book';
 import Series from '@/db/models/Series';
 import SeriesBook from '@/db/models/SeriesBook';
+import {
+  selectOrphanedMemberships,
+  selectEmptySeriesIds,
+} from '@/db/seriesOrphanPrune';
 import * as RNFS from '@dr.pogodin/react-native-fs';
 
 export async function ensureSettingsRecord(): Promise<void> {
@@ -266,17 +270,20 @@ export const removeLibraryFolder = async (folderPath: string) => {
     const allBooks = await booksCollection.query().fetch();
 
     const booksToDelete = [];
-    // Structural keys (first-file paths) of the books being removed — used to
-    // prune dangling series membership below.
+    // Structural keys (first-file paths), split into the books being removed
+    // and the books that survive. Both sets are needed below: `removedKeys`
+    // only gates whether the series reconcile runs at all, while `liveKeys` is
+    // what the prune decision actually reads.
     const removedKeys = new Set<string>();
+    const liveKeys = new Set<string>();
     for (const book of allBooks) {
       const chapters = await (book.chapters as any).fetch();
-      if (
-        chapters.length > 0 &&
-        chapters[0].url.startsWith(absoluteFolderPath)
-      ) {
+      if (chapters.length === 0) continue;
+      if (chapters[0].url.startsWith(absoluteFolderPath)) {
         booksToDelete.push(book);
         removedKeys.add(chapters[0].url);
+      } else {
+        liveKeys.add(chapters[0].url);
       }
     }
 
@@ -293,33 +300,49 @@ export const removeLibraryFolder = async (folderPath: string) => {
     }
 
     // 4. Series resilience (same atomic batch — no nested write): drop
-    // series_books rows referencing the removed books' structural keys, then
+    // series_books rows whose structural key no longer backs a live book, then
     // auto-delete any series left with zero remaining membership.
+    //
+    // THE SECOND OF TWO PRUNE SITES. The other is `pruneOrphanedSeriesBooks` in
+    // seriesQueries, called at the end of a scan. Neither owns the rule and the
+    // two are NOT independent implementations to be reconciled by whoever finds
+    // them: both delegate to `seriesOrphanPrune`, which is authoritative. This
+    // site inlines the batching only because it runs inside an open
+    // `database.write` and calling the seriesQueries helpers would nest a
+    // writer. Change the decision there; change the plumbing here.
+    //
+    // PROVENANCE IS DELIBERATELY IGNORED here as it is there — a hand-made
+    // ('user') row and an 'excluded' tombstone are destroyed like a 'detected'
+    // one, and a series that loses its last member ceases to exist, name and
+    // ordering included. This site is the more obviously deliberate of the two:
+    // the user tapped a button whose dialog says "remove this folder and all of
+    // its books from your library". See
+    // `docs/adr/0001-series-membership-is-keyed-by-file-path.md`.
     if (removedKeys.size > 0) {
       const allSeriesBooks = await database
         .get<SeriesBook>('series_books')
         .query()
         .fetch();
-      const remainingBySeries = new Map<string, number>();
-      const seriesBooksToRemove: SeriesBook[] = [];
-      for (const sb of allSeriesBooks) {
-        const seriesId = (sb._raw as any).series_id;
-        if (removedKeys.has(sb.bookKey)) {
-          seriesBooksToRemove.push(sb);
-        } else {
-          remainingBySeries.set(
-            seriesId,
-            (remainingBySeries.get(seriesId) ?? 0) + 1,
-          );
-        }
-      }
+      const seriesBooksToRemove = selectOrphanedMemberships(
+        allSeriesBooks,
+        liveKeys,
+      );
       if (seriesBooksToRemove.length > 0) {
+        const removedRowIds = new Set(seriesBooksToRemove.map((sb) => sb.id));
         for (const sb of seriesBooksToRemove) {
           deletions.push(sb.prepareDestroyPermanently());
         }
         const allSeries = await database.get<Series>('series').query().fetch();
+        const emptyIds = new Set(
+          selectEmptySeriesIds(
+            allSeries.map((s) => s.id),
+            allSeriesBooks
+              .filter((sb) => !removedRowIds.has(sb.id))
+              .map((sb) => ({ seriesId: (sb._raw as any).series_id })),
+          ),
+        );
         for (const s of allSeries) {
-          if (!remainingBySeries.get(s.id)) {
+          if (emptyIds.has(s.id)) {
             deletions.push(s.prepareDestroyPermanently());
           }
         }
