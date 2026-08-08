@@ -46,10 +46,17 @@ exists.
 
 ## Status
 
-**18 tickets, written 2026-08-06, all `ready-for-agent`.** Work the **frontier**: any
-ticket whose blockers are all resolved. [01](issues/01-schema-v33.md) and
-[03](issues/03-detect-series-seam.md) both have none and can start in parallel — 03 touches
-no database, no React Native and no device.
+**18 tickets, written 2026-08-06** — plus [19](issues/19-membership-survives-a-file-move.md),
+added 2026-08-07 and the only one that is **`needs-triage` rather than `ready-for-agent`**: it
+carries a decision the driver has to make, not an implementation.
+
+**Resolved: 01, 02, 03, 04, 05, 08.** [02](issues/02-capture-tags-at-scan.md) and
+[04](issues/04-detection-units.md) are **device-verified** (2026-08-07, wiped and rescanned
+real library) — see [`DEVICE-CHECK.md`](DEVICE-CHECK.md) §8–§9.
+
+Work the **frontier**: any ticket whose blockers are all resolved.
+[06](issues/06-detection-runs-on-scan.md) is now unblocked (01, 04, 05 all resolved) and is the
+next end-to-end slice.
 
 ```
 01 schema v33 ──┬─ 02 capture tags ─┐
@@ -63,7 +70,16 @@ no database, no React Native and no device.
                                                                                  └─ 16 detection-aware save/delete ─┘
 
 18 harness deletion ← blocked by 10, 11, 12, 13, 14, 15, 17
+
+19 membership survives a file move ← blocked only by 01; SHOULD LAND BEFORE 12-16
 ```
+
+**19 sits outside the graph on purpose.** It blocks nothing and nothing blocks it but 01, yet it
+should be settled **before the editor tickets (12–16)** ship: the editor exists to hand-build
+playlists, and hand-built membership rows are destroyed by the scan's orphan prune when files
+move, with nothing to regenerate them. Detected series self-heal; authored ones do not. It is
+`needs-triage` because it states a decision (provenance-aware prune / re-key on move / accept
+the loss explicitly) rather than pre-deciding one.
 
 **Three amendments were made to the spec while these tickets were written**, all
 driver-approved, all edited into `series-ux-redesign/spec.md` in place rather than recorded

@@ -42,7 +42,13 @@ It must not make decisions. If a conditional shows up inside `applyPlan`, it bel
 - [ ] **A second scan changes nothing** — no duplicate series, no churn, no reordering.
       This is the idempotence [05](05-reconcile-series-seam.md) proved, now observed on a
       device.
-- [ ] A hand-made series is **untouched** by a scan: same name, same members, same order.
+- [ ] A hand-made series is **untouched** by a scan **in which no files moved**: same name,
+      same members, same order. The qualifier is load-bearing and is **not** a narrowing of
+      ambition — see [19](19-membership-survives-a-file-move.md). A scan that *does* see moved
+      files destroys hand-made membership rows **before any code in this ticket runs**, because
+      the orphan prune above is upstream of detection and does not consult provenance. That is
+      not fixable here and must not be tested for here; without this qualifier the criterion
+      reads as covering a case it silently does not.
 - [ ] Detection off → a scan creates no series and **leaves existing ones exactly as they
       are**. Preference changes never destroy data.
 - [ ] The upgrade path is **additive**: an existing tester with hand-made series scans and
