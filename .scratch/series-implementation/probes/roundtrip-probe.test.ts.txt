@@ -1,0 +1,260 @@
+/**
+ * THROWAWAY PROBE — ticket 06. Kept as a `.txt` ON PURPOSE.
+ *
+ * TO RUN IT:
+ *   cp .scratch/series-implementation/probes/roundtrip-probe.test.ts.txt \
+ *      src/db/__tests__/zz-probe.test.ts
+ *   npx jest src/db/__tests__/zz-probe.test.ts --forceExit
+ *   rm src/db/__tests__/zz-probe.test.ts        # <- do not leave it there
+ *
+ * WHY IT IS NOT A COMMITTED TEST. It boots a real WatermelonDB (LokiJS
+ * adapter, schema v33), and that adapter leaves something alive which stops
+ * jest exiting — the suite hangs until killed, and `--detectOpenHandles` hangs
+ * with it. `--forceExit` is why the recipe above works. Ticket 08 measured
+ * this; do not "promote" this file into the suite.
+ *
+ * WHAT IT BUYS, which the two pure seams cannot: the REAL `applyPlan` write is
+ * read back by the REAL `loadExistingSeries`, so the second reconcile sees
+ * exactly what the first one wrote. A forgotten `origin = 'detected'` leaves
+ * both pure seams green and freezes the feature — the next scan reads the
+ * series as user-owned and skips it forever. Here it fails immediately.
+ *
+ * RESULT, 2026-08-08 (all four cases green):
+ *   - 298 corpus units -> 19 series / 179 books, provenance round-trips as
+ *     detected/detected/detected/detected;
+ *   - a second reconcile plans nothing and the fingerprint is identical;
+ *   - a hand-made series (null provenance) is untouched;
+ *   - a moved book: the real prune drops Discworld 41 -> 40, the rescan plan
+ *     inserts exactly 1, and the series is back to 41 in the SAME row with no
+ *     duplicate (ticket 19's device criterion, on desk);
+ *   - a suppressed name is not recreated (18 of 19 created).
+ *
+ * These are DESK results on the 298-unit research corpus. The device criteria
+ * are still device criteria — this is the real library's shape, not the real
+ * library.
+ */
+
+jest.mock('@dr.pogodin/react-native-fs', () => ({
+  ExternalStorageDirectoryPath: '/storage/emulated/0',
+}));
+
+jest.mock('@/db', () => {
+  const { Database } = require('@nozbe/watermelondb');
+  const LokiJSAdapter =
+    require('@nozbe/watermelondb/adapters/lokijs').default ??
+    require('@nozbe/watermelondb/adapters/lokijs');
+  const schema = require('@/db/schema').default ?? require('@/db/schema');
+  const modelClasses = [
+    require('@/db/models/Author').default,
+    require('@/db/models/Book').default,
+    require('@/db/models/Chapter').default,
+    require('@/db/models/Settings').default,
+    require('@/db/models/Footprint').default,
+    require('@/db/models/Series').default,
+    require('@/db/models/SeriesBook').default,
+    require('@/db/models/SuppressedSeries').default,
+    require('@/db/models/BookTag').default,
+  ];
+  const adapter = new LokiJSAdapter({
+    schema,
+    useWebWorker: false,
+    useIncrementalIndexedDB: false,
+  });
+  const db = new Database({ adapter, modelClasses });
+  return { __esModule: true, default: db };
+});
+
+import {
+  applyPlan,
+  loadExistingSeries,
+  createSeries,
+} from '@/db/seriesQueries';
+import { reconcileSeries, type KeyedUnit } from '@/db/seriesReconcile';
+import { detectSeries, type ProposedSeries } from '@/helpers/seriesDetection';
+import { corpusUnits } from '@/helpers/__fixtures__/seriesCorpus';
+
+const keyed: KeyedUnit[] = corpusUnits.map((u) => ({
+  ...u,
+  bookKey: `/lib/${u.rel}/${u.file ?? u.album ?? Math.random()}`,
+}));
+
+const summarise = (label: string, plan: ReturnType<typeof reconcileSeries>) =>
+  `${label}: create ${plan.createSeries.length} · insert ${plan.insertRows.length} · ` +
+  `remove ${plan.removeRows.length} · skipped ${plan.skipped.length}`;
+
+describe('detect -> reconcile -> applyPlan -> read back -> reconcile', () => {
+  it('is idempotent through a real database', async () => {
+    expect(new Set(keyed.map((k) => k.bookKey)).size).toBe(keyed.length);
+
+    const proposals = detectSeries(keyed, {}) as ProposedSeries<KeyedUnit>[];
+    const placed = proposals.reduce((n, s) => n + s.books.length, 0);
+    console.log(
+      `\nPASS 1 — ${keyed.length} units -> ${proposals.length} series, ${placed} books placed`,
+    );
+
+    const plan1 = reconcileSeries(proposals, [], []);
+    console.log(summarise('  plan 1', plan1));
+    const written1 = await applyPlan(plan1);
+    console.log(`  wrote ${JSON.stringify(written1)}`);
+
+    const after1 = await loadExistingSeries();
+    console.log(
+      `  read back ${after1.length} series, ` +
+        `${after1.reduce((n, s) => n + s.books.length, 0)} membership rows`,
+    );
+    console.log(
+      `  provenance: origin=${after1[0]?.origin} nameSource=${after1[0]?.nameSource} ` +
+        `membership=${after1[0]?.books[0]?.membership} ` +
+        `canonicalSource=${after1[0]?.books[0]?.canonicalSource} ` +
+        `canonicalNumber=${after1[0]?.books[0]?.canonicalNumber}`,
+    );
+
+    // THE CRITERION: a second scan changes nothing.
+    const plan2 = reconcileSeries(proposals, after1, []);
+    console.log(summarise('  plan 2 (rescan)', plan2));
+    const written2 = await applyPlan(plan2);
+    console.log(`  wrote ${JSON.stringify(written2)}`);
+
+    expect(plan2.createSeries).toHaveLength(0);
+    expect(plan2.insertRows).toHaveLength(0);
+    expect(plan2.removeRows).toHaveLength(0);
+    expect(plan2.skipped).toHaveLength(0);
+
+    const after2 = await loadExistingSeries();
+    expect(after2.length).toBe(after1.length);
+    expect(after2.reduce((n, s) => n + s.books.length, 0)).toBe(
+      after1.reduce((n, s) => n + s.books.length, 0),
+    );
+
+    // Order is untouched too — same keys in the same positions.
+    const fingerprint = (rows: typeof after1) =>
+      rows
+        .map(
+          (s) =>
+            `${s.name}:${[...s.books]
+              .sort((a, b) => a.position - b.position)
+              .map((b) => `${b.position}=${b.bookKey}`)
+              .join(',')}`,
+        )
+        .sort()
+        .join('|');
+    expect(fingerprint(after2)).toBe(fingerprint(after1));
+    console.log('  PASS 2 — identical fingerprint, no churn\n');
+
+    // Top 6 by size, for the eyeball check against the research listing.
+    console.log(
+      [...after1]
+        .sort((a, b) => b.books.length - a.books.length)
+        .slice(0, 8)
+        .map((s) => `    ${String(s.books.length).padStart(3)}  ${s.name}`)
+        .join('\n'),
+    );
+  });
+
+  it('leaves a hand-made series alone', async () => {
+    const proposals = detectSeries(keyed, {}) as ProposedSeries<KeyedUnit>[];
+    const biggest = [...proposals].sort(
+      (a, b) => b.books.length - a.books.length,
+    )[0];
+
+    // A playlist the user built by hand, holding some of the same books.
+    const handMadeId = await createSeries('My Bedtime Playlist', [
+      biggest.books[0].unit.bookKey,
+      biggest.books[1].unit.bookKey,
+    ]);
+
+    const before = (await loadExistingSeries()).find((s) => s.id === handMadeId)!;
+    console.log(
+      `\nHAND-MADE — "${before.name}" origin=${before.origin} ` +
+        `membership=${before.books[0].membership} (both null => 'user')`,
+    );
+
+    const existing = await loadExistingSeries();
+    const plan = reconcileSeries(proposals, existing, []);
+    console.log(summarise('  plan', plan));
+    await applyPlan(plan);
+
+    const after = (await loadExistingSeries()).find((s) => s.id === handMadeId)!;
+    expect(after.name).toBe('My Bedtime Playlist');
+    expect(after.books.map((b) => b.bookKey).sort()).toEqual(
+      before.books.map((b) => b.bookKey).sort(),
+    );
+    expect(after.books.map((b) => b.position)).toEqual(
+      before.books.map((b) => b.position),
+    );
+    console.log('  untouched: same name, same members, same order\n');
+  });
+
+  // Ticket 19's device criterion, simulated on desk: move a book's folder,
+  // let the REAL orphan prune destroy its membership row, rescan, and the
+  // series must come back complete with no duplicate.
+  it('re-adds a moved book to its existing series', async () => {
+    const proposals = detectSeries(keyed, {}) as ProposedSeries<KeyedUnit>[];
+    const target = [...proposals].sort(
+      (a, b) => b.books.length - a.books.length,
+    )[0];
+    const seriesName = target.name;
+    const before = (await loadExistingSeries()).find(
+      (s) => s.name === seriesName,
+    )!;
+    const sizeBefore = before.books.length;
+
+    // Pick a book whose directory holds only it, so moving it cannot change
+    // what else groups.
+    const dirCounts = new Map<string, number>();
+    for (const u of keyed) dirCounts.set(u.rel, (dirCounts.get(u.rel) ?? 0) + 1);
+    const mover = target.books.find(
+      (b) => (dirCounts.get(b.unit.rel) ?? 0) === 1,
+    )!.unit;
+    const oldKey = mover.bookKey;
+    const movedRel = `${mover.rel} (moved)`;
+    const newKey = `/lib/${movedRel}/${mover.file}`;
+    console.log(`\nMOVED — "${seriesName}" ${sizeBefore} books\n  ${oldKey}\n  -> ${newKey}`);
+
+    // The scan's view after the move: the old key is gone from disk.
+    const movedUnits: KeyedUnit[] = keyed.map((u) =>
+      u.bookKey === oldKey ? { ...u, rel: movedRel, bookKey: newKey } : u,
+    );
+    const liveKeys = new Set(movedUnits.map((u) => u.bookKey));
+
+    const { pruneOrphanedSeriesBooks } = require('@/db/seriesQueries');
+    await pruneOrphanedSeriesBooks(liveKeys);
+    const pruned = (await loadExistingSeries()).find(
+      (s) => s.name === seriesName,
+    )!;
+    console.log(`  after prune: ${pruned.books.length} books (was ${sizeBefore})`);
+    expect(pruned.books.length).toBe(sizeBefore - 1);
+
+    const rescan = detectSeries(movedUnits, {}) as ProposedSeries<KeyedUnit>[];
+    const plan = reconcileSeries(rescan, await loadExistingSeries(), []);
+    console.log(`  ${summarise('rescan plan', plan)}`);
+    await applyPlan(plan);
+
+    const all = await loadExistingSeries();
+    const matches = all.filter((s) => s.name === seriesName);
+    const after = matches[0];
+    console.log(
+      `  after rescan: ${after.books.length} books · ` +
+        `${matches.length} series named "${seriesName}" · ` +
+        `same row: ${after.id === before.id}`,
+    );
+    expect(matches).toHaveLength(1);
+    expect(after.id).toBe(before.id);
+    expect(after.books.length).toBe(sizeBefore);
+    expect(after.books.map((b) => b.bookKey)).toContain(newKey);
+    expect(after.books.map((b) => b.bookKey)).not.toContain(oldKey);
+    console.log('  complete: moved book present at its new path, no duplicate\n');
+  });
+
+  it('does not recreate a suppressed series', async () => {
+    const proposals = detectSeries(keyed, {}) as ProposedSeries<KeyedUnit>[];
+    const victim = proposals[0].name;
+    const plan = reconcileSeries(proposals, [], [victim]);
+    console.log(
+      `\nSUPPRESSED — "${victim}" -> ` +
+        `${plan.skipped.filter((s) => s.reason === 'suppressed').length} skipped, ` +
+        `${plan.createSeries.length} created (of ${proposals.length} proposals)\n`,
+    );
+    expect(plan.createSeries.map((s) => s.name)).not.toContain(victim);
+  });
+});

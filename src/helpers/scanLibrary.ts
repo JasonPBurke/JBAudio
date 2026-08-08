@@ -39,6 +39,7 @@ import {
   pruneOrphanedSeriesBooks,
   deleteEmptySeries,
 } from '@/db/seriesQueries';
+import { runSeriesDetection } from '@/db/seriesDetectionRun';
 // The placeholders below are consumed as well as written: series detection
 // treats them as null, since they are absence written down rather than tags.
 // Shared constants so the two sides cannot drift apart silently.
@@ -1036,6 +1037,14 @@ type ScanPhaseTimings = {
   existingUrlsMs: number;
   processMs: number;
   cleanupMs: number;
+  /**
+   * Series detection. Its own phase because it is the one phase that does NOT
+   * scale with `newFiles` — it is a batch over every book in the library, so
+   * it costs the same on a rescan that imports nothing, and folding it into
+   * `cleanup` would make an unchanged-library rescan look like a regression
+   * with no way to see why.
+   */
+  detectMs: number;
   totalMs: number;
   files: number;
   newFiles: number;
@@ -1051,7 +1060,7 @@ function logScanTimings(t: ScanPhaseTimings): void {
     `[scan] ${t.totalMs}ms total · ${t.files} files, ${t.newFiles} new ` +
       `(${per}) — enumerate ${t.enumerateMs}ms · ` +
       `existing-urls ${t.existingUrlsMs}ms · process ${t.processMs}ms · ` +
-      `cleanup ${t.cleanupMs}ms`,
+      `cleanup ${t.cleanupMs}ms · detect ${t.detectMs}ms`,
   );
 }
 
@@ -1147,6 +1156,24 @@ export async function scanLibrary(): Promise<void> {
 
   const cleanupMs = Date.now() - cleanupStartedAt;
 
+  // Series detection, LAST and on the stable post-scan state.
+  //
+  // The position is the requirement, not a convenience. Detection reads the
+  // whole library out of the database (the scan is incremental, so this scan's
+  // output is not the library), and it must see the state a user would see:
+  // every new book imported, every dead chapter/book/author removed, and the
+  // orphan prune plus empty-series reaper inside `removeMissingFiles` already
+  // done. Run mid-scan it would propose series over a half-updated library and
+  // then reconcile against its own mistakes on the next pass.
+  //
+  // Before `endScan()` on purpose: the progress indicator stays up while the
+  // Series shelf is being written, rather than the list mutating under a user
+  // who has just been told the scan finished. `runSeriesDetection` never
+  // throws, so `endScan()` below is unconditional.
+  const detectStartedAt = Date.now();
+  await runSeriesDetection();
+  const detectMs = Date.now() - detectStartedAt;
+
   await setLastScanAt(Date.now());
 
   logScanTimings({
@@ -1154,6 +1181,7 @@ export async function scanLibrary(): Promise<void> {
     existingUrlsMs,
     processMs,
     cleanupMs,
+    detectMs,
     totalMs: Date.now() - scanStartedAt,
     files: allFiles.length,
     newFiles,

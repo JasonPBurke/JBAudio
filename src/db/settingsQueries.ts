@@ -584,6 +584,47 @@ export async function setSeriesBackgroundsEnabled(
   });
 }
 
+/**
+ * §A9 — `Enable Series Detection`. **ON by default**, and therefore the SECOND
+ * getter in this module that must invert the house idiom (see
+ * `getSeriesBackgroundsEnabled` above for the full reasoning).
+ *
+ * Getting this one wrong is worse than getting the backdrop wrong: `=== true`
+ * would read every existing tester's null column as OFF, and the whole feature
+ * — the thing that fills the Series shelf without the user doing anything —
+ * would simply never run, with no error and nothing in the log to explain it.
+ *
+ * The setter is ticket 07's, along with the card that calls it.
+ */
+export async function getSeriesDetectionEnabled(): Promise<boolean> {
+  const settingsCollection = database.collections.get<Settings>('settings');
+  const settingsRecord = await settingsCollection.query().fetch();
+
+  if (settingsRecord.length > 0) {
+    return settingsRecord[0].seriesDetectionEnabled !== false;
+  }
+  return true;
+}
+
+/**
+ * §A3 / §A9 — `Also group by folder name`, the sub-option. **OFF by default**,
+ * so this one KEEPS the house idiom, and the difference from the getter above
+ * is deliberate rather than an inconsistency: conservative fidelity is what
+ * abstention bias (A7) asks for, and full fidelity is a choice the user makes.
+ *
+ * Kept immediately below its sibling so the two defaults are read together —
+ * either one copied onto the other is a bug.
+ */
+export async function getSeriesFolderGroupingEnabled(): Promise<boolean> {
+  const settingsCollection = database.collections.get<Settings>('settings');
+  const settingsRecord = await settingsCollection.query().fetch();
+
+  if (settingsRecord.length > 0) {
+    return settingsRecord[0].seriesFolderGroupingEnabled === true;
+  }
+  return false;
+}
+
 export async function getLastScanAt(): Promise<number | null> {
   const settingsCollection = database.collections.get<Settings>('settings');
   const settingsRecord = await settingsCollection.query().fetch();

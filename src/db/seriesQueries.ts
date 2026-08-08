@@ -10,6 +10,12 @@ import {
   selectOrphanedMemberships,
   selectEmptySeriesIds,
 } from '@/db/seriesOrphanPrune';
+import type {
+  ExistingSeries,
+  PlannedMember,
+  ReconcilePlan,
+} from '@/db/seriesReconcile';
+import SuppressedSeries from '@/db/models/SuppressedSeries';
 import {
   normalizeSortName,
   SeriesNameConflictError,
@@ -181,6 +187,188 @@ export function observeSeriesData(): Observable<{
         })),
     })),
   );
+}
+
+/**
+ * Every series and its membership rows, in the shape `reconcileSeries` reads.
+ *
+ * TWO QUERIES, JOINED IN MEMORY. A per-series membership fetch over ~28 series
+ * is the shape `detectionQueries` was written to avoid, and this runs in the
+ * same pass.
+ *
+ * The provenance columns are handed over RAW, not through the resolvers in
+ * `seriesProvenance.ts`. That is not an oversight: `reconcileSeries` is a pure
+ * module that must be testable against exactly what the database holds, and
+ * what it holds on every device the moment v33 lands is `null` in all four
+ * columns. It does its own coalescing (G5), and its tests pin the null case.
+ */
+export async function loadExistingSeries(): Promise<ExistingSeries[]> {
+  const [seriesModels, memberModels] = await Promise.all([
+    database.get<Series>('series').query().fetch(),
+    database.get<SeriesBook>('series_books').query().fetch(),
+  ]);
+
+  const booksBySeriesId = new Map<string, ExistingSeries['books']>();
+  for (const member of memberModels) {
+    const seriesId = (member._raw as any).series_id;
+    if (!seriesId) continue;
+    const list = booksBySeriesId.get(seriesId) ?? [];
+    list.push({
+      bookKey: member.bookKey,
+      position: member.position,
+      canonicalNumber: member.canonicalNumber,
+      canonicalSource: member.canonicalSourceRaw,
+      membership: member.membershipRaw,
+    });
+    booksBySeriesId.set(seriesId, list);
+  }
+
+  return seriesModels.map((series) => ({
+    id: series.id,
+    name: series.name,
+    origin: series.originRaw,
+    nameSource: series.nameSourceRaw,
+    books: booksBySeriesId.get(series.id) ?? [],
+  }));
+}
+
+/**
+ * A13 — the names the user has deleted, which detection must consult before
+ * creating anything. Read once per run into a list, never queried per
+ * candidate: G6's reasoning for leaving this table unindexed depends on it.
+ *
+ * Duplicates are returned as they are stored. There is no unique constraint
+ * anywhere in this DB library (G7), so two rows for one name are possible, and
+ * `reconcileSeries` normalises the list into a set anyway.
+ */
+export async function loadSuppressedSeriesNames(): Promise<string[]> {
+  const rows = await database
+    .get<SuppressedSeries>('suppressed_series')
+    .query()
+    .fetch();
+  return rows.map((row) => row.name);
+}
+
+/** Build one `series_books` row from a planned member. Copies, never decides. */
+function prepareMemberRow(
+  seriesId: string,
+  member: PlannedMember,
+  now: Date,
+): SeriesBook {
+  return database.get<SeriesBook>('series_books').prepareCreate((sb) => {
+    (sb._raw as any).series_id = seriesId;
+    sb.bookKey = member.bookKey;
+    sb.position = member.position;
+    sb.canonicalNumber = member.canonicalNumber;
+    sb.canonicalSource = member.canonicalSource;
+    sb.membership = member.membership;
+    sb.createdAt = now;
+  });
+}
+
+/** What one `applyPlan` call wrote. Counts, for the scan log. */
+export type ApplyPlanResult = {
+  seriesCreated: number;
+  /** Membership rows written for those new series. */
+  rowsCreated: number;
+  /** Membership rows added to series that already existed. */
+  rowsInserted: number;
+  rowsRemoved: number;
+};
+
+/**
+ * Write a reconcile plan. **IO ONLY, AND DELIBERATELY UNTESTED** — that is the
+ * entire point of putting two pure seams in front of it.
+ *
+ * IT MUST NOT MAKE DECISIONS. No provenance is read here, no name is compared,
+ * no row is skipped on a rule: every verb in the plan is executed exactly as
+ * written. If a conditional that answers *"should this row change?"* ever
+ * appears below, it belongs in `reconcileSeries`, where jest can see it. The
+ * branches that are here answer *"is there anything to do"* and *"which model
+ * is this key pair"*, which is batching and lookup.
+ *
+ * Two things it does NOT do, both on purpose:
+ *
+ *  - **No `assertSeriesNameAvailable`.** A create only reaches here for a name
+ *    that matched no existing series under `normalizeSortName` — reconcile's
+ *    first pass claims or skips every name that did — so the check could only
+ *    ever throw on a name detection is entitled to use, aborting the whole run.
+ *    A15's disambiguation is what keeps detected names apart.
+ *  - **No empty-series reaper.** It already ran earlier in the scan, and it
+ *    cannot be needed here: rows are only ever removed from a series a
+ *    proposal MATCHED, and a proposal carries at least two books (A5), so
+ *    something is always inserted or already present. A plan cannot empty a
+ *    series. A14 stands regardless — bulk actions create; they never destroy.
+ *
+ * Everything lands in ONE batch inside ONE writer, so a crash mid-scan cannot
+ * leave a series row without its members.
+ */
+export async function applyPlan(plan: ReconcilePlan): Promise<ApplyPlanResult> {
+  const result: ApplyPlanResult = {
+    seriesCreated: plan.createSeries.length,
+    rowsCreated: plan.createSeries.reduce((n, s) => n + s.books.length, 0),
+    rowsInserted: plan.insertRows.length,
+    rowsRemoved: 0,
+  };
+
+  // One fetch of the whole join table rather than a chunked `Q.oneOf` over
+  // series ids — it is a few hundred rows, the prune above already reads it
+  // this way, and it sidesteps SQLITE_MAX_VARIABLE_NUMBER entirely.
+  let removals: SeriesBook[] = [];
+  if (plan.removeRows.length > 0) {
+    const targets = new Set(
+      plan.removeRows.map((r) => `${r.seriesId} ${r.bookKey}`),
+    );
+    const all = await database.get<SeriesBook>('series_books').query().fetch();
+    removals = all.filter((row) =>
+      targets.has(`${(row._raw as any).series_id} ${row.bookKey}`),
+    );
+    result.rowsRemoved = removals.length;
+  }
+
+  if (
+    result.seriesCreated === 0 &&
+    result.rowsInserted === 0 &&
+    result.rowsRemoved === 0
+  ) {
+    // The idempotent case, and the common one: a rescan of an unchanged
+    // library plans nothing, so it opens no writer at all.
+    return result;
+  }
+
+  await database.write(async () => {
+    const now = new Date();
+    const ops: any[] = [];
+
+    for (const planned of plan.createSeries) {
+      // prepareCreate assigns the id up front, which is what lets a series and
+      // its members share one batch instead of one write per series.
+      const series = database.get<Series>('series').prepareCreate((s) => {
+        s.name = planned.name;
+        s.sortName = normalizeSortName(planned.name);
+        s.origin = planned.origin;
+        s.nameSource = planned.nameSource;
+        s.createdAt = now;
+        s.updatedAt = now;
+      });
+      ops.push(series);
+      for (const member of planned.books) {
+        ops.push(prepareMemberRow(series.id, member, now));
+      }
+    }
+
+    for (const row of plan.insertRows) {
+      ops.push(prepareMemberRow(row.seriesId, row, now));
+    }
+
+    for (const row of removals) {
+      ops.push(row.prepareDestroyPermanently());
+    }
+
+    await database.batch(ops);
+  });
+
+  return result;
 }
 
 /**
