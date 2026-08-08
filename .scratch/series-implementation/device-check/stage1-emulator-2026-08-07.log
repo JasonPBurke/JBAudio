@@ -1,0 +1,72 @@
+08-07 19:21:12.886  6201  6318 I ReactNativeJS: [scan] 243ms total · 50 files, 0 new (n/ams/new file) — enumerate 97ms · existing-urls 2ms · process 1ms · cleanup 131ms
+08-07 19:21:41.969  6201  6318 I ReactNativeJS: [detect] 7 units from 7 books in 4ms
+08-07 19:21:41.969  6201  6318 I ReactNativeJS: [detect] roots: /storage/emulated/0/Audiobooks
+08-07 19:21:41.971  6201  6318 I ReactNativeJS: [detect] structural keys: 7/7 agree with the library store
+08-07 19:21:41.974  6201  6318 I ReactNativeJS: [detect] tag fill over 7 books — file_format 0.0% (~99.7) · series 0.0% (~6.6) · part 0.0% (~5.9) · grouping 0.0% (~5.6)
+08-07 19:21:41.977  6201  6318 I ReactNativeJS: [detect] 0 units in multi-book directories (flat) · 0 carry a SERIES/Grouping tag · 0 have no album
+08-07 19:21:41.990  6201  6318 I ReactNativeJS: [detect] CONSERVATIVE (tags + self-validated folders) — 1 series, 3 books placed
+08-07 19:21:41.997  6201  6318 I ReactNativeJS: [detect] FULL (+ uncorroborated folders) — 1 series, 3 books placed
+08-07 19:21:46.598  6201  6318 I ReactNativeJS: [detect] 7 units from 7 books in 1ms
+08-07 19:21:46.598  6201  6318 I ReactNativeJS: [detect] roots: /storage/emulated/0/Audiobooks
+08-07 19:21:46.601  6201  6318 I ReactNativeJS: [detect] structural keys: 7/7 agree with the library store
+08-07 19:21:46.603  6201  6318 I ReactNativeJS: [detect] tag fill over 7 books — file_format 0.0% (~99.7) · series 0.0% (~6.6) · part 0.0% (~5.9) · grouping 0.0% (~5.6)
+08-07 19:21:46.607  6201  6318 I ReactNativeJS: [detect] 0 units in multi-book directories (flat) · 0 carry a SERIES/Grouping tag · 0 have no album
+08-07 19:21:46.612  6201  6318 I ReactNativeJS: [detect] CONSERVATIVE (tags + self-validated folders) — 1 series, 3 books placed
+08-07 19:21:46.630  6201  6318 I ReactNativeJS: [detect] FULL (+ uncorroborated folders) — 1 series, 3 books placed
+08-07 19:21:56.049  6201  6318 I ReactNativeJS: [detect] 7 units from 7 books in 2ms
+08-07 19:21:56.049  6201  6318 I ReactNativeJS: [detect] roots: /storage/emulated/0/Audiobooks
+08-07 19:21:56.052  6201  6318 I ReactNativeJS: [detect] structural keys: 7/7 agree with the library store
+08-07 19:21:56.059  6201  6318 I ReactNativeJS: [detect] tag fill over 7 books — file_format 0.0% (~99.7) · series 0.0% (~6.6) · part 0.0% (~5.9) · grouping 0.0% (~5.6)
+08-07 19:21:56.062  6201  6318 I ReactNativeJS: [detect] 0 units in multi-book directories (flat) · 0 carry a SERIES/Grouping tag · 0 have no album
+08-07 19:21:56.067  6201  6318 I ReactNativeJS: [detect] CONSERVATIVE (tags + self-validated folders) — 1 series, 3 books placed
+08-07 19:21:56.077  6201  6318 I ReactNativeJS: [detect] FULL (+ uncorroborated folders) — 1 series, 3 books placed
+08-07 19:22:14.964  6201  6318 I ReactNativeJS: [detect] 7 units from 7 books in 1ms
+08-07 19:22:14.964  6201  6318 I ReactNativeJS: [detect] roots: /storage/emulated/0/Audiobooks
+08-07 19:22:14.967  6201  6318 I ReactNativeJS: [detect] structural keys: 7/7 agree with the library store
+08-07 19:22:14.970  6201  6318 I ReactNativeJS: [detect] tag fill over 7 books — file_format 0.0% (~99.7) · series 0.0% (~6.6) · part 0.0% (~5.9) · grouping 0.0% (~5.6)
+08-07 19:22:14.972  6201  6318 I ReactNativeJS: [detect] 0 units in multi-book directories (flat) · 0 carry a SERIES/Grouping tag · 0 have no album
+08-07 19:22:14.977  6201  6318 I ReactNativeJS: [detect] CONSERVATIVE (tags + self-validated folders) — 1 series, 3 books placed
+08-07 19:22:14.985  6201  6318 I ReactNativeJS: [detect] FULL (+ uncorroborated folders) — 1 series, 3 books placed
+08-07 19:22:15.614  6201  6318 I ReactNativeJS: [detect] 7 units from 7 books in 1ms
+08-07 19:22:15.614  6201  6318 I ReactNativeJS: [detect] roots: /storage/emulated/0/Audiobooks
+08-07 19:22:15.617  6201  6318 I ReactNativeJS: [detect] structural keys: 7/7 agree with the library store
+08-07 19:22:15.621  6201  6318 I ReactNativeJS: [detect] tag fill over 7 books — file_format 0.0% (~99.7) · series 0.0% (~6.6) · part 0.0% (~5.9) · grouping 0.0% (~5.6)
+08-07 19:22:15.624  6201  6318 I ReactNativeJS: [detect] 0 units in multi-book directories (flat) · 0 carry a SERIES/Grouping tag · 0 have no album
+08-07 19:22:15.628  6201  6318 I ReactNativeJS: [detect] CONSERVATIVE (tags + self-validated folders) — 1 series, 3 books placed
+08-07 19:22:15.639  6201  6318 I ReactNativeJS: [detect] FULL (+ uncorroborated folders) — 1 series, 3 books placed
+08-07 19:22:16.014  6201  6318 I ReactNativeJS: [detect] 7 units from 7 books in 1ms
+08-07 19:22:16.014  6201  6318 I ReactNativeJS: [detect] roots: /storage/emulated/0/Audiobooks
+08-07 19:22:16.016  6201  6318 I ReactNativeJS: [detect] structural keys: 7/7 agree with the library store
+08-07 19:22:16.019  6201  6318 I ReactNativeJS: [detect] tag fill over 7 books — file_format 0.0% (~99.7) · series 0.0% (~6.6) · part 0.0% (~5.9) · grouping 0.0% (~5.6)
+08-07 19:22:16.022  6201  6318 I ReactNativeJS: [detect] 0 units in multi-book directories (flat) · 0 carry a SERIES/Grouping tag · 0 have no album
+08-07 19:22:16.027  6201  6318 I ReactNativeJS: [detect] CONSERVATIVE (tags + self-validated folders) — 1 series, 3 books placed
+08-07 19:22:16.034  6201  6318 I ReactNativeJS: [detect] FULL (+ uncorroborated folders) — 1 series, 3 books placed
+08-07 19:22:16.447  6201  6318 I ReactNativeJS: [detect] 7 units from 7 books in 1ms
+08-07 19:22:16.447  6201  6318 I ReactNativeJS: [detect] roots: /storage/emulated/0/Audiobooks
+08-07 19:22:16.450  6201  6318 I ReactNativeJS: [detect] structural keys: 7/7 agree with the library store
+08-07 19:22:16.453  6201  6318 I ReactNativeJS: [detect] tag fill over 7 books — file_format 0.0% (~99.7) · series 0.0% (~6.6) · part 0.0% (~5.9) · grouping 0.0% (~5.6)
+08-07 19:22:16.455  6201  6318 I ReactNativeJS: [detect] 0 units in multi-book directories (flat) · 0 carry a SERIES/Grouping tag · 0 have no album
+08-07 19:22:16.460  6201  6318 I ReactNativeJS: [detect] CONSERVATIVE (tags + self-validated folders) — 1 series, 3 books placed
+08-07 19:22:16.467  6201  6318 I ReactNativeJS: [detect] FULL (+ uncorroborated folders) — 1 series, 3 books placed
+08-07 19:22:20.130  6201  6318 I ReactNativeJS: [detect] 7 units from 7 books in 0ms
+08-07 19:22:20.130  6201  6318 I ReactNativeJS: [detect] roots: /storage/emulated/0/Audiobooks
+08-07 19:22:20.133  6201  6318 I ReactNativeJS: [detect] structural keys: 7/7 agree with the library store
+08-07 19:22:20.135  6201  6318 I ReactNativeJS: [detect] tag fill over 7 books — file_format 0.0% (~99.7) · series 0.0% (~6.6) · part 0.0% (~5.9) · grouping 0.0% (~5.6)
+08-07 19:22:20.138  6201  6318 I ReactNativeJS: [detect] 0 units in multi-book directories (flat) · 0 carry a SERIES/Grouping tag · 0 have no album
+08-07 19:22:20.141  6201  6318 I ReactNativeJS: [detect] CONSERVATIVE (tags + self-validated folders) — 1 series, 3 books placed
+08-07 19:22:20.148  6201  6318 I ReactNativeJS: [detect] FULL (+ uncorroborated folders) — 1 series, 3 books placed
+08-07 19:22:54.286  6201  6318 I ReactNativeJS: [detect] 7 units from 7 books in 2ms
+08-07 19:22:54.286  6201  6318 I ReactNativeJS: [detect] roots: /storage/emulated/0/Audiobooks
+08-07 19:22:54.290  6201  6318 I ReactNativeJS: [detect] structural keys: 7/7 agree with the library store
+08-07 19:22:54.294  6201  6318 I ReactNativeJS: [detect] tag fill over 7 books — file_format 0.0% (~99.7) · series 0.0% (~6.6) · part 0.0% (~5.9) · grouping 0.0% (~5.6)
+08-07 19:22:54.298  6201  6318 I ReactNativeJS: [detect] 0 units in multi-book directories (flat) · 0 carry a SERIES/Grouping tag · 0 have no album
+08-07 19:22:54.306  6201  6318 I ReactNativeJS: [detect] CONSERVATIVE (tags + self-validated folders) — 1 series, 3 books placed
+08-07 19:22:54.316  6201  6318 I ReactNativeJS: [detect] FULL (+ uncorroborated folders) — 1 series, 3 books placed
+08-07 19:27:16.743  6201  6318 I ReactNativeJS: [scan] 2249ms total · 50 files, 50 new (43.1ms/new file) — enumerate 70ms · existing-urls 0ms · process 2155ms · cleanup 3ms
+08-07 19:29:00.198  6201  6318 I ReactNativeJS: [detect] 7 units from 7 books in 2ms
+08-07 19:29:00.198  6201  6318 I ReactNativeJS: [detect] roots: /storage/emulated/0/Audiobooks
+08-07 19:29:00.201  6201  6318 I ReactNativeJS: [detect] structural keys: 7/7 agree with the library store
+08-07 19:29:00.203  6201  6318 I ReactNativeJS: [detect] tag fill over 7 books — file_format 100.0% (~99.7) · series 0.0% (~6.6) · part 0.0% (~5.9) · grouping 42.9% (~5.6)
+08-07 19:29:00.206  6201  6318 I ReactNativeJS: [detect] 0 units in multi-book directories (flat) · 3 carry a SERIES/Grouping tag · 0 have no album
+08-07 19:29:00.210  6201  6318 I ReactNativeJS: [detect] CONSERVATIVE (tags + self-validated folders) — 1 series, 3 books placed
+08-07 19:29:00.220  6201  6318 I ReactNativeJS: [detect] FULL (+ uncorroborated folders) — 1 series, 3 books placed

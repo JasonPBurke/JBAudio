@@ -210,6 +210,89 @@ argument from the code, not a measurement.
 
 ---
 
+## 8 · Run log — Stage 1, `Pixel_7_Pro`, 2026-08-07
+
+**Both §5 followups shipped before the run** (`7b8b1e1`, `dd8f5b4`), so §5's manual-`sqlite3`
+fallback is no longer needed and (b)'s "no instrumentation exists" is out of date. Full log:
+[`device-check/stage1-emulator-2026-08-07.log`](device-check/stage1-emulator-2026-08-07.log).
+
+**Stage 1 header — PASS, identical across 9 presses.** 7 books, not the 8 in §2: Dresden #8
+was deleted for disk space.
+
+```
+[detect] 7 units from 7 books in 0-4ms
+[detect] roots: /storage/emulated/0/Audiobooks
+[detect] structural keys: 7/7 agree with the library store
+```
+
+No `OUTSIDE ROOTS`, no mismatches, no probe failures. The `7/7` is the criterion that
+mattered — the `chapter_number = 1` narrowing has **not** drifted from `bookStructuralKey`,
+so [06](issues/06-detection-runs-on-scan.md)'s membership rows will be keyed correctly. It
+also detected `The Dresden Files` (3 books, `alb.hash-colon`) identically at both fidelities,
+which §2 did not predict: the cascade runs end to end on device, not just the DB read.
+
+### The emulator was then wiped and rescanned too, deliberately
+
+Not in the original plan. The point was to exercise **02's DB write path — untested by
+design — on 7 throwaway books before the real library's listening progress is destroyed**,
+since a write bug would otherwise surface only *after* an irreversible wipe and force a
+second one. It found no bug, and produced the first end-to-end evidence that 02 works:
+
+| | before wipe | after wipe | target |
+| --- | --- | --- | --- |
+| `file_format` | 0.0% | **100.0%** (7/7) | ~99.7% |
+| `grouping` | 0.0% | **42.9%** (3/7) | ~5.6% |
+| `series` | 0.0% | 0.0% | ~6.6% |
+| `part` | 0.0% | 0.0% | ~5.9% |
+| `book_tags` rows | — | **7** (one per book) | one per book |
+
+**The `0.0%` column on the left is the no-backfill ruling working**, not a defect: that
+library was scanned pre-02. **`series`/`part` staying 0% is not a miss either** — at n=7 the
+~6.6% target predicts **0.46 books**, so zero *is* the expected count; these seven files carry
+no Audible freeform atoms. Assert accuracy, never coverage: nothing here is a rate, it is a
+demonstration that all four columns are reachable and that two of them populate from real
+MediaInfo output. **The percentages that matter are Stage 2's.**
+
+The probe's own printed rates were cross-checked against raw SQL over the pulled DB and agree
+exactly, so the new instrumentation is verified rather than merely running.
+
+**02's cover-art hazard is closed on device.** Its answer warned that naive
+`JSON.stringify(general)` would store a JPEG per book, and that the survey could never have
+caught it (0/304 corpus records carried `Cover_Data`). Measured here: **0 of 7 blobs contain
+`Cover_Data`**, while `Cover` / `Cover_Type` / `Cover_Mime` are kept. Blob mean 2,783 bytes
+(02 measured 1,933 mean / 20,080 max) — same order of magnitude.
+
+### Scan timing — first baseline
+
+```
+before wipe:  [scan]  243ms total ·  50 files,  0 new (nothing rescanned) — enumerate 97ms · existing-urls 2ms · process    1ms · cleanup 131ms
+after wipe:   [scan] 2249ms total ·  50 files, 50 new (43.1ms/new file)   — enumerate 70ms · existing-urls 0ms · process 2155ms · cleanup   3ms
+```
+
+This is why §5(b)'s criterion needed the `M new` normaliser: the same 50-file library scans in
+243 ms or 2,249 ms depending only on how many files are *new*, and the first figure is not a
+scan-time baseline at all. `process` is 96% of a real scan. **These are 50-file numbers and are
+not comparable to Stage 2's ~4,000** — the per-new-file figure (43.1 ms) is the one that
+carries across.
+
+### Still open
+
+Nothing above closes any of the four criteria — all four are properties of **scale**, and this
+is a 7-book library. Stage 2 on the real device remains exactly as specified in §3.
+
+### Two corrections to §1's preconditions
+
+- **A native rebuild was NOT needed, confirmed rather than assumed.** The installed APK
+  predates three native-touching commits (the RNTP patch, `MainActivity.kt`, `build.gradle`),
+  which looked like a violation of §1 — but gradle reports `assembleDebug UP-TO-DATE`, so the
+  compiled inputs are unchanged. §1 is right. `npx patch-package` re-applied all 7 patches
+  cleanly beforehand.
+- **A SIGSEGV in `MountingCoordinator::pullTransaction` during first-surface mount is the
+  emulator window being closed**, not an app fault. It reads as a hard native crash and cost
+  a rebuild cycle to dismiss.
+
+---
+
 ## 7 · Traps — do not re-derive these
 
 - **`0 series` on a small library is correct output**, not a failure. (§2)
