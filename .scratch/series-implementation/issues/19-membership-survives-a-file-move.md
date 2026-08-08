@@ -7,11 +7,10 @@ Nothing else. It can run now.
 criterion is mirrored onto 06 and closed on the run that validates 06, the way
 [02](02-capture-tags-at-scan.md)'s and [04](04-detection-units.md)'s were.
 
-**Status:** ready-for-agent — **desk work COMPLETE, 2026-08-08** (see [*Answer*](#answer)). Six of
-the seven acceptance criteria are met (uncommitted on `feature/series-styling`); the ticket is open
-**only** on the device criterion, which is already mirrored onto
-[06](06-detection-runs-on-scan.md) and closes on 06's device run. **Do not re-implement the desk
-work.**
+**Status:** resolved — **all seven acceptance criteria met, 2026-08-08** (see
+[*Answer*](#answer)). The desk work landed first; the last criterion, the device one, **closed on
+[06](06-detection-runs-on-scan.md)'s device run the same day** — record in
+[`../DEVICE-CHECK-06.md`](../DEVICE-CHECK-06.md) §4. Uncommitted on `feature/series-styling`.
 
 **Spec:** none — this is **not** a spec gap. Found on 2026-08-07 while closing
 [02](02-capture-tags-at-scan.md)'s and [04](04-detection-units.md)'s device criteria
@@ -252,11 +251,28 @@ record of one completed run* — its title, its four-criterion table and its res
       someone has quietly implemented A.
 - [x] The same pure function backs **both** call sites. Two copies of a rule is how the two
       sites drifted in the first place.
-- [ ] **Device criterion, deferred to the 06 run:** move a book's folder on a device with a
+- [x] **Device criterion, deferred to the 06 run — CLOSED 2026-08-08:** move a book's folder on a device with a
       detected series, rescan, and the series comes back **complete** — the moved book present
       at its new path, no duplicate series, nothing left behind. Already mirrored onto
       [06](06-detection-runs-on-scan.md)'s criteria at triage, so this ticket writes no device
       document; it stays open on this one line until 06's run reports back.
+      **STILL OPEN, and the code that closes it now exists (2026-08-08).**
+      [06](06-detection-runs-on-scan.md)'s desk work is complete and this case was simulated
+      end-to-end against a **real WatermelonDB** using the **real `pruneOrphanedSeriesBooks`**:
+      moving one book's folder drops `Discworld` from 41 members to 40 at the prune, the rescan
+      plans **exactly one insert**, and the series returns to 41 **in the same series row** with
+      no duplicate and nothing left behind. Probe and recipe:
+      [`../probes/roundtrip-probe.test.ts.txt`](../probes/roundtrip-probe.test.ts.txt).
+      That is the research corpus, **not** the real library — it made 06's device run a
+      confirmation rather than a discovery.
+      **CLOSED ON DEVICE 2026-08-08** ([`../DEVICE-CHECK-06.md`](../DEVICE-CHECK-06.md) §4):
+      physical Pixel 7 Pro, `Lockwood and Co.` Book 2's folder renamed over adb with MediaStore
+      re-indexed. The prune took the series 4 → 3, the rescan logged
+      `created 0 · inserted 1 · removed 0`, and the series came back to **4 members in the SAME
+      series row** with the book at its new path, **no duplicate**, and **zero rows left on the
+      old path** — one changed line in the whole library fingerprint. The re-added row landed at
+      **position 1.0, back between books 1 and 3**, so the order was restored too, not appended.
+      Moving the folder back and rescanning returned the library byte-identical.
 - [x] `tsc` 0 errors · eslint 0 errors · jest green.
 
 ## Not in scope
