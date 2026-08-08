@@ -3,6 +3,10 @@
 **Found:** 2026-08-07, during the [device check](DEVICE-CHECK.md) Stage 2 run (352 books).
 **Status:** not-planned — recorded, deliberately not investigated. Out of scope for the
 series-implementation effort; the driver's call was to note it and continue.
+**Updated:** 2026-08-08 — a specific, testable **lead** was added below, found while triaging
+[19](issues/19-membership-survives-a-file-move.md). Status is unchanged: still not-planned,
+still not investigated, and the lead is inferred from reading rather than observed. It comes
+with two ways to settle it that cost minutes and touch no code.
 
 ## What was observed
 
@@ -34,6 +38,60 @@ normalised, are both unexamined guesses.
 
 Anyone picking this up should start by establishing the cause, not by adopting the author
 theory above — it was raised and refuted here.
+
+## A lead — added 2026-08-08, INFERRED BY READING, NEVER OBSERVED
+
+Found while triaging [19](issues/19-membership-survives-a-file-move.md), which needed to know
+what happens when a file appears in a directory the app has already scanned. It sharpens one of
+the two "unexamined guesses" above — *the per-directory batching in `processDirectoryFiles`* —
+into something specific and cheap to test. **It is a lead, not a finding. Nobody has run it.**
+
+**The claim: two files of one book that arrive in two DIFFERENT scans can never end up in the
+same `books` row, by construction.** The chain, in `scanLibrary.ts` and `usePopulateDatabase.tsx`:
+
+1. `processDirectoryFiles` filters the directory's files against `existingUrls` — a set built
+   from every chapter row whose url matches an enumerated file — and MediaInfo's **only the
+   remainder**. Files already in the DB never reach grouping.
+2. So `groupChaptersIntoBooks` only ever sees files that are **new in this scan**, and the group
+   it builds carries `bookId = chapter.url` of its first chapter — a brand-new path by
+   construction.
+3. `populateSingleBook` adopts an existing book only when that book already owns a chapter whose
+   url equals the incoming `bookData.bookId`. That path is new, so no existing book can hold it.
+
+**The consequence, if the chain holds:** on an incremental scan `bookRecord` is *always*
+undefined, every processed book is **created fresh**, and its `else` branch — "update existing
+book", together with the `bookAlreadyExisted` tag-blob refresh — is **unreachable on that path**.
+Files arriving later in a directory the app already knows therefore become a **second book row**
+with the same author and title in the same directory. Which is what the Dark Tower row looks like.
+
+**Two details that fit rather than contradict:**
+
+- **The `chapter_number` ranges.** `1–2` and `3–12` are not two independent runs starting at 1,
+  which is what a per-group `index + 1` would produce. Chapter numbers come off the **track tag**
+  (`chapterInfo.number`), so a second batch keeps its real disc numbers. Consistent with two
+  batches of one book, and hard to explain as a single batch that split.
+- **This does not need anything to have been renamed or moved.** Adding disks 03–12 to a folder
+  the app had already scanned with disks 01–02 in it is enough.
+
+**What this lead does NOT explain — do not let it grow.** The **duplicate `authors` rows**. The
+author is looked up by name and reused inside the same `database.write` that creates the book,
+and WatermelonDB serialises writers, so a read-then-create race between two concurrent
+`populateSingleBook` calls is **not** available as an explanation — that was considered here and
+refuted. A second scan should have found `Stephen King` and reused it. **The duplicate authors
+remain unexplained, exactly as this note already says**, and a theory that covers the split is
+not thereby a theory that covers them. Over-claiming is what sank the previous theory.
+
+**Two cheap ways to settle it, before touching any code:**
+
+1. **Read the two rows' `updated_at`.** On create, `books.updated_at` is set to *scan time*
+   (`created_at` is the file's ctime, so it is not the field to read). If the update branch is
+   genuinely unreachable, nothing ever rewrites it — so **materially different `updated_at`
+   values on the two fragments means they were created by two different scans**, which is the
+   lead confirmed. Near-identical values kill it. The DB-pull recipe is in
+   [`DEVICE-CHECK.md`](DEVICE-CHECK.md) — pull `-wal` and `-shm` too, per its traps section.
+2. **Reproduce it directly.** On an emulator: scan a folder holding part of a book, then add the
+   remaining files to that same folder and scan again. A second `books` row is the lead
+   confirmed; one row with all the chapters kills it.
 
 ## Scope of the duplication
 

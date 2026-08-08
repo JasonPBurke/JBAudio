@@ -49,6 +49,16 @@ It must not make decisions. If a conditional shows up inside `applyPlan`, it bel
       the orphan prune above is upstream of detection and does not consult provenance. That is
       not fixable here and must not be tested for here; without this qualifier the criterion
       reads as covering a case it silently does not.
+      **Settled 2026-08-08 (19's triage): that destruction is INTENDED, ruled by the driver,
+      and 19 is documentation only — it changes no behaviour and will not come back and
+      change this.** Provenance-aware pruning and re-keying were both rejected. So this
+      criterion is now permanent rather than provisional: test it with files that did not
+      move, and read the qualifier as the boundary of a decided contract.
+- [ ] **19's deferred device criterion closes on this ticket's device run.** Move a book's
+      folder on a device that has a detected series, rescan, and the series comes back
+      **complete** — the moved book present at its new path, no duplicate series, nothing left
+      behind. 19 cannot close it alone, because the re-adding is this ticket's code — so it
+      was mirrored here at 19's triage. Report the result back to 19, which stays open on it.
 - [ ] Detection off → a scan creates no series and **leaves existing ones exactly as they
       are**. Preference changes never destroy data.
 - [ ] The upgrade path is **additive**: an existing tester with hand-made series scans and

@@ -37,7 +37,9 @@ Closes user stories 5–11.
 
 - [ ] The card lives in `Manage Library` and copy ships **exactly** as ticket 09 §9 wrote
       it — the card description (no trailing period), the `Info` dialog's three paragraphs,
-      and the sub-option caption above.
+      and the sub-option caption above. **One sentence of the third paragraph is subject to
+      an open driver decision handed over by [19](19-membership-survives-a-file-move.md) —
+      see below. Settle it before shipping the copy, do not settle it by shipping.**
 - [ ] `Enable Series Detection` is **ON by default and not Pro-gated.** Gating detection
       would invert the redesign for free users, and an empty Series tab reads as a broken
       feature rather than an upsell.
@@ -77,6 +79,43 @@ row is already retired as their first call site. Use them.
 - **Deliberately unmentioned in the copy:** that two recordings of one series stay
   separate. It is internal machinery the user cannot act on, and naming it invites doubt
   about a case that is already handled.
+
+## One copy decision, handed to this ticket by [19](19-membership-survives-a-file-move.md)
+
+Added at 19's triage, 2026-08-08. **This ticket owns the card, so this ticket owns the
+sentence — 19 changes no behaviour and deliberately did not decide it.**
+
+The `Info` dialog's third paragraph, verbatim from 09 §9:
+
+> Your changes are never overwritten. Renamed series, books you've added or removed,
+> custom ordering and hand-made series are all left alone when your library is scanned
+> again.
+
+19's ruling is that a **file move** destroys exactly those four things: the driver ruled that
+moving or renaming a book's folder ends its series membership, and that moving or renaming the
+library root deletes every hand-made series outright — name, order and all — with a
+user-edited detected series regenerating fresh, its custom name and numbers gone and any book
+the user had removed back in.
+
+So the sentence is **true for every scan of a library whose files have not moved** — which is
+what it was written to promise, and is the case that matters — and **false in the one scenario
+where the files did move**. The tester who hits it is the tester who just tidied their folders,
+which is also the tester most likely to remember reading it.
+
+**The decision is the driver's, and it is a genuine trade, not an oversight to be corrected:**
+
+- **Leave it.** The paragraph is about what *detection* does to your work, and a user who
+  renames their library root is not surprised that the app treats the contents as new. Adding
+  a caveat costs plain-language confidence in the one place the app makes its promise, in
+  exchange for covering a scenario the copy was never about.
+- **Qualify it.** One added clause or sentence in the app's own voice, e.g. *"If you move or
+  rename your book files, the app sees new books — a hand-made series won't follow them."*
+  Honest, and it is the only place the boundary would ever reach a user, since 19 declined an
+  in-app warning. Costs a fourth paragraph's worth of doubt on a card already carrying three.
+
+Whichever way it goes, record it here — the ruling, not just the resulting string — and amend
+09 §9 and `spec.md` **in place** if the wording changes, per this effort's amendment rule. Two
+wordings of one promise in two documents is worse than either wording.
 
 ## No bulk destroy — ever
 
