@@ -1025,10 +1025,14 @@ type ScanPhaseTimings = {
 };
 
 function logScanTimings(t: ScanPhaseTimings): void {
-  const per = t.newFiles ? (t.processMs / t.newFiles).toFixed(1) : 'n/a';
+  // No new files means no MediaInfo work happened, so a per-file figure would
+  // be a division by zero dressed up as a measurement. Say "nothing to time".
+  const per = t.newFiles
+    ? `${(t.processMs / t.newFiles).toFixed(1)}ms/new file`
+    : 'nothing rescanned';
   console.log(
     `[scan] ${t.totalMs}ms total · ${t.files} files, ${t.newFiles} new ` +
-      `(${per}ms/new file) — enumerate ${t.enumerateMs}ms · ` +
+      `(${per}) — enumerate ${t.enumerateMs}ms · ` +
       `existing-urls ${t.existingUrlsMs}ms · process ${t.processMs}ms · ` +
       `cleanup ${t.cleanupMs}ms`,
   );
