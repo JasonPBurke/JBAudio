@@ -77,8 +77,24 @@ const countTagFill = (rows: readonly DetectionBookRow[]): TagFillCounts => ({
  * - `chapter_number = 1` narrows ~40k rows (auto-chapters are numerous) to
  *   roughly one per book before any model is instantiated. Every writer in the
  *   repo numbers from 1 — the scan's `index + 1`, `generateAutoChapters`, and
- *   both single-chapter rebuilds in `autoChapterGenerator` — so a book without
- *   one has no chapters at all.
+ *   both single-chapter rebuilds in `autoChapterGenerator`.
+ *
+ *   THIS DOES NOT MEAN "a book without one has no chapters", which is what
+ *   this comment used to claim. Measured false on the real library
+ *   (2026-08-07, 352 books): `The Dark Tower VI: Song Of Susannah` exists as
+ *   TWO book rows over ONE directory — disks 01-02 and disks 03-12 — and the
+ *   second holds ten chapters numbered 3-12, so it matches nothing here and is
+ *   dropped. The cause of the split is NOT established (both rows carry a
+ *   byte-identical author name, so `groupChaptersIntoBooks`' `author::title`
+ *   key would have merged them); see
+ *   `.scratch/series-implementation/NOTE-book-split.md`.
+ *
+ *   Left as is DELIBERATELY (driver's call, 2026-08-07): it is a scan-side
+ *   defect to be examined separately, and widening this query to a per-book
+ *   `min(chapter_number)` would be a large change made to accommodate a bug
+ *   rather than fix it. The consequence is bounded and counted — such a row
+ *   lands in `keyless` and abstains, exactly like a book outside every library
+ *   root. It is NOT silent.
  * - Where a book has several (per-file chapter numbering), lowest `startMs`
  *   wins and fetch order breaks the tie, which is the store's rule.
  */

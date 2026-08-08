@@ -92,7 +92,16 @@ export type BuildDetectionUnitsResult = {
    * `relativeToRoot`. A non-zero count means stale library settings.
    */
   outsideRoots: number;
-  /** Books with no chapters at all, so no structural key. Also dropped. */
+  /**
+   * Books that yielded no structural key, so nothing downstream could key a
+   * membership row to them. Dropped and counted.
+   *
+   * Usually "no chapters at all" — but not always: a book whose chapters do
+   * not start at `chapter_number = 1` also lands here, because that is how the
+   * caller narrows the chapters table. One such row exists on the real library
+   * and it is a scan-side book split, not a detection fault. See
+   * `firstFilePathByBookId` in `detectionQueries.ts`.
+   */
   keyless: number;
 };
 

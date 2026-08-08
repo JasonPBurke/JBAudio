@@ -24,7 +24,7 @@ Closes user stories 29–30.
 **K1 — settings in this app ARE schema.** Each preference is a column on a **single-row**
 table, and the Zustand store is only a cache in front of the DB queries. **Every existing
 boolean getter reads `=== true` with a `false` fallback**, which hard-codes default-OFF into
-*both* the null case and the no-record case.
+_both_ the null case and the no-record case.
 
 `Series Backgrounds` is the table's **first default-ON boolean**, so copy-pasting that
 idiom ships every existing tester the opposite of the chosen default, **silently**.
@@ -41,16 +41,16 @@ handles both paths in one expression at one site.**
 
 ## Acceptance criteria
 
-- [ ] The toggle lives in `Appearance → Display Settings`, beside `Number of Columns`.
-- [ ] Label, description and info copy ship **exactly** as ticket 12 wrote them.
-- [ ] **Default ON, global, not Pro-gated.**
-- [ ] The getter reads `!== false` with `true` as the fallback, and **is unit-tested on both
+- [x] The toggle lives in `Appearance → Display Settings`, beside `Number of Columns`.
+- [x] Label, description and info copy ship **exactly** as ticket 12 wrote them.
+- [x] **Default ON, global, not Pro-gated.**
+- [x] The getter reads `!== false` with `true` as the fallback, and **is unit-tested on both
       the null path and the no-record path**. This is the test the spec singles out, because
       getting it wrong is silent.
 - [ ] The preference survives an app restart and reads ON for a tester whose row predates
       the column.
-- [ ] Uses the shipped `description` + `onInfoPress` props (K2) rather than a new row shape.
-- [ ] `tsc` 0 errors · eslint 0 errors · jest green.
+- [x] Uses the shipped `description` + `onInfoPress` props (K2) rather than a new row shape.
+- [x] `tsc` 0 errors · eslint 0 errors · jest green.
 
 ## Rulings that close obvious alternatives
 
@@ -59,7 +59,7 @@ handles both paths in one expression at one site.**
   learns the richer one exists.
 - **Global and not-gated are entailments, not choices.** The settings table is a single
   row, so per-library is inexpressible; and gating a default-ON setting charges users to
-  turn something *off*.
+  turn something _off_.
 - **Naming constraint worth keeping:** the cover cluster shows in **both** states, so any
   label reading "show cover art" names something the toggle does not control.
 - **A control on the browse screen itself was rejected as unprecedented** —
@@ -114,8 +114,8 @@ passes three of them. Two independent checks:
 
 ### Device-pending
 
-One acceptance criterion is not closeable from jest: *"the preference survives an app
-restart and reads ON for a tester whose row predates the column."* The logic behind it is
+One acceptance criterion is not closeable from jest: _"the preference survives an app
+restart and reads ON for a tester whose row predates the column."_ The logic behind it is
 covered (the pre-existing row **is** the null path), and the write rides the shipped
 `updateSetting` idiom — but persistence-across-restart and the real upgraded row are device
 claims. Per [[native-changes-need-native-rebuild]] the schema is JS, so a Metro reload runs

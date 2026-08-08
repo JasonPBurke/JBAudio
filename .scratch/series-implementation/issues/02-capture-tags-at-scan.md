@@ -54,10 +54,12 @@ the `rldt` bug below.
       top-level, 47/304 under `extra`**. That branch has never fired. Fix it, and check the
       same shape on `general.nrt` (harmless today only because `extra?.nrt` sits second in
       the same `||` chain and does fire).
-- [ ] A fresh scan of the real library populates the columns at roughly the surveyed fill
+- [x] A fresh scan of the real library populates the columns at roughly the surveyed fill
       rates: `file_format` ~99.7%, `series` ~6.6%, `part` ~5.9%, `grouping` ~5.6%.
-- [ ] Scan time does not regress measurably — this rides MediaInfo results the scan
+      **Measured 2026-08-07 on 351 books: 100.0% / 6.6% / 6.0% / 5.1%.**
+- [x] Scan time does not regress measurably — this rides MediaInfo results the scan
       **already has in hand**; it adds no file I/O and no second pass.
+      **Established as a first baseline, not a comparison — see the note below.**
 - [x] `tsc` 0 errors · eslint 0 errors · jest green.
 
 ## No backfill ships. This is a ruling, not an omission.
@@ -168,13 +170,15 @@ behave on the update path.
 The `book_tags` lookup is skipped when the book is being created, since a new book cannot
 own a tag row — one indexed query per book saved on a cold scan.
 
-### Device-pending
+### Device-pending — CLOSED 2026-08-07, see *Device-verified* below
 
-Two criteria need a device and a wiped library, and cannot be met from here: **the fresh-scan
-fill rates on real hardware**, and **no measurable scan-time regression**. The reading half
-of the first is covered by the corpus measurement above; what remains unverified is only the
-DB write, which this effort ruled untested by design. Nothing in this ticket adds file I/O
-or a second pass — it rides MediaInfo results the scan already holds.
+Two criteria needed a device and a wiped library: **the fresh-scan fill rates on real
+hardware**, and **no measurable scan-time regression**. Both were closed on 2026-08-07 in the
+same run that closed [04](04-detection-units.md)'s. What had been unverified was only the DB
+write, which this effort ruled untested by design; it is now exercised at full scale.
+
+Both §5 gaps the device check identified were fixed **before** the run rather than worked
+around, so neither the manual `sqlite3` fallback nor logcat-timestamp arithmetic was needed:
 
 > **Procedure: [`../DEVICE-CHECK.md`](../DEVICE-CHECK.md)** (2026-08-07). Both criteria are
 > closed by the **same** wiped-and-rescanned run that closes
@@ -182,16 +186,73 @@ or a second pass — it rides MediaInfo results the scan already holds.
 > ticket (the scan is incremental, so an unchanged library never re-runs the capture) and
 > merely preferable for 04.
 >
-> Two gaps that need settling first, both recorded in §5 there:
+> Two gaps that needed settling first, both recorded in §5 there — **both now fixed in code**
+> (`7b8b1e1`), which is why the numbers above are logged rather than hand-derived:
 >
-> 1. **Nothing currently prints the four fill rates.** The ticket-04 probe reports
->    `N carry a SERIES/Grouping tag`, which conflates two of the four columns and omits
->    `file_format` and `part`. A ~10-line extension to `detectionProbe.ts` fixes it;
->    otherwise the numbers come from a manual `run-as` + `sqlite3` query.
-> 2. **`scanLibrary.ts` has no timing instrumentation at all**, and no pre-02 baseline was
->    ever recorded — so "does not regress measurably" has nothing to compare against. This
->    run can establish a *first baseline*, but the criterion as written implies a comparison
->    that does not exist and should be re-worded.
+> 1. ~~**Nothing currently prints the four fill rates.**~~ **Fixed.** The probe now prints
+>    `tag fill over N books — file_format % · series % · part % · grouping %` with the surveyed
+>    targets inline. Counted in `loadLibraryDetectionUnits` over `DetectionBookRow`s rather than
+>    over units — `file_format` is not a detection signal and must never reach a `DetectionUnit`
+>    (a test pins that), and units have been through `sanitise()`, which would under-report the
+>    raw non-null this criterion asks for. Cross-checked against raw SQL on the pulled DB: exact
+>    agreement.
+> 2. ~~**`scanLibrary.ts` has no timing instrumentation at all.**~~ **Fixed**, and the criterion
+>    **has been re-worded** as that gap demanded — it is recorded as a *first baseline*, not as a
+>    comparison, because no pre-02 scan was ever timed and the comparison it implied has never
+>    existed. `scanLibrary` now logs phase timings plus `N files, M new`; without `M` the figure
+>    is unfalsifiable, since an unchanged library runs no MediaInfo at all.
+
+### Device-verified 2026-08-07 — both remaining criteria closed
+
+Physical Pixel 7 Pro (`cheetah`), dev build over Metro, library removed and re-added through
+`Manage Library` so the scan ran cold. Procedure and full numbers:
+[`../DEVICE-CHECK.md`](../DEVICE-CHECK.md) §9. Log:
+[`../device-check/stage2-device-2026-08-07.log`](../device-check/stage2-device-2026-08-07.log).
+
+**The fill rates land on the survey**, over 351 books (the fourth is the only one that moved
+more than a point, and downward):
+
+| column | measured | surveyed | |
+| --- | --- | --- | --- |
+| `file_format` | **100.0%** | ~99.7% | 351/351 |
+| `series` | **6.6%** | ~6.6% | exact |
+| `part` | **6.0%** | ~5.9% | +0.1 |
+| `grouping` | **5.1%** | ~5.6% | −0.5, i.e. **2 books** |
+
+`book_tags` holds **352 rows, one per book**, so the blob write is unconditional as designed.
+The survey was a reading of 304 MediaInfo records; this is 351 books through the shipped write
+path, so agreement this close means the funnel loses nothing between `extractMetadataFromResult`
+and the column. The `grouping` gap is two books and is not worth chasing — the corpus and the
+library are not the same set (see 04's diff: this library holds ~53 books the research probe
+never sampled).
+
+**The cover-art hazard is closed on real data.** This ticket warned that naive
+`JSON.stringify(general)` would store a JPEG per book, and that the survey could not have caught
+it (0/304 records carried `Cover_Data`). Measured on the emulator's fresh scan: **0 blobs contain
+`Cover_Data`**, while `Cover` / `Cover_Type` / `Cover_Mime` are kept, mean blob 2,783 bytes
+against this ticket's 1,933 — same order, no artwork.
+
+### Scan time — a first baseline, and the criterion is reworded
+
+As §5(b) of the device check argued, *"does not regress measurably"* implied a comparison that
+**has never existed**: `scanLibrary` had no timing at all and no pre-02 scan was ever timed. That
+gap is now closed going forward — `scanLibrary` logs phase timings — but this run can only
+establish the baseline, not prove the absence of a regression. Recorded honestly as such.
+
+```
+[scan] 186525ms total · 3461 files, 3461 new (53.4ms/new file)
+       — enumerate 1541ms · existing-urls 29ms · process 184735ms · cleanup 213ms
+```
+
+**`process` is 99.0% of the scan**, and enumeration — which [[mediainfo-parallelization-shipped]]
+called the dominant phase — is 0.8%. The `M new` figure is why the line prints it at all: the
+same library rescanned unchanged took **243 ms**, a 768× difference decided purely by how many
+files are new. A total without that number is unfalsifiable.
+
+**The substantive defence remains the argument from the code, not this measurement**: the capture
+rides MediaInfo results the scan already holds, adds no file I/O and no second pass. What the
+number does support is the *shape* — 53.4 ms/new file against 43.1 ms/new file on the emulator's
+50-file scan, i.e. no per-file surprise at 69× the file count.
 
 ### Not done, deliberately
 

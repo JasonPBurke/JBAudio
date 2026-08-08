@@ -293,6 +293,68 @@ is a 7-book library. Stage 2 on the real device remains exactly as specified in 
 
 ---
 
+## 9 · Run log — Stage 2, physical Pixel 7 Pro, 2026-08-07 · ALL FOUR CRITERIA CLOSED
+
+Dev build over Metro (**required, not merely faster** — the whole prototype harness is
+`__DEV__`-gated at `SeriesProtoSlot.tsx:23`, so a preview build has no `Detect series (log)`
+chip at all). Library removed and re-added through `Manage Library`; verified genuinely empty
+first (0 books, 0 chapters, `user_version: 33`). Full log:
+[`device-check/stage2-device-2026-08-07.log`](device-check/stage2-device-2026-08-07.log).
+
+```
+[scan]   186525ms total · 3461 files, 3461 new (53.4ms/new file)
+         — enumerate 1541ms · existing-urls 29ms · process 184735ms · cleanup 213ms
+[detect] 351 units from 352 books in 47ms · 1 with no chapters
+[detect] structural keys: 351/351 agree with the library store
+[detect] tag fill over 351 books — file_format 100.0% · series 6.6% · part 6.0% · grouping 5.1%
+[detect] CONSERVATIVE — 23 series, 200 books placed
+[detect] FULL         — 32 series, 247 books placed
+```
+
+| Ticket | Criterion | Result |
+| --- | --- | --- |
+| 02 | fill rates ~99.7 / ~6.6 / ~5.9 / ~5.6 | **100.0 / 6.6 / 6.0 / 5.1** ✅ |
+| 02 | scan time no measurable regression | **first baseline**, 53.4 ms/new file ✅ (reworded — see 02) |
+| 04 | listing diff explained | **nothing lost, split or merged** ✅ |
+| 04 | assembly, no visible pause | **47 ms** ✅ |
+
+**04's diff.** Set-compared both directions at both fidelities. Every research series survives;
+`Discworld` **41** + `Discworld (2022)` **39** stay separate, so A4's collision check fires on the
+real library. Growth (+4 series; `Bobiverse` 2→5, `Silo` 2→3, `TMC` 2→3, `Rivers of London` 3→16)
+is books the research probe never sampled — its own caveat 2. The single decrease,
+`Lockwood and Co.` 5→4 losing `#4 The Creeping Shadow`, was **predicted by 04's own corpus
+measurement before the device was touched**, to the exact series and count.
+
+**02's rates land on the survey** — `series` exact, `part` +0.1, `grouping` −0.5 (two books),
+`file_format` 351/351 — and `book_tags` has one row per book. On the emulator's fresh scan, **0
+blobs contained `Cover_Data`**, closing this ticket's cover-art hazard on real data.
+
+**`352 books → 351 units` is explained and is not a detection fault**: `The Dark Tower VI: Song
+Of Susannah` is one book scanned into two rows, the second numbered 3-12 so it matches no
+`chapter_number = 1`. Scan-side defect, recorded in [`NOTE-book-split.md`](NOTE-book-split.md)
+and deliberately not investigated (driver's call). `The Dark Tower` still detects at 8, matching
+the research listing. Two now-false comments were corrected; **no behaviour changed**.
+
+### §5's two gaps were fixed before the run, not worked around
+
+Both shipped in `7b8b1e1`/`dd8f5b4`, so the manual `sqlite3` fallback in §5(a) and the
+logcat-timestamp arithmetic in §5(b) were never needed. §5 is closed.
+
+### Corrections to this document
+
+- **§1 is right: no native rebuild was needed.** The APK predating three native-touching commits
+  looked like a violation; gradle reported `assembleDebug UP-TO-DATE`, so the compiled inputs
+  were unchanged.
+- **§2's "0 series is correct" generalises**: the emulator produced **1** correct series, which is
+  equally fine. Read the header, not the count.
+- **If you pull the DB to verify anything, pull `-wal` and `-shm` too.** `watermelon.db` alone can
+  be days stale and reads exactly like a failed migration — it showed `user_version: 32` with no
+  `book_tags` while the live DB was correctly at 33.
+- **A SIGSEGV in `MountingCoordinator::pullTransaction` at first-surface mount is the emulator
+  window being closed**, not an app fault.
+
+---
+
 ## 7 · Traps — do not re-derive these
 
 - **`0 series` on a small library is correct output**, not a failure. (§2)

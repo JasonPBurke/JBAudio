@@ -3,10 +3,10 @@
 **Blocked by:** [02](02-capture-tags-at-scan.md) (the tag columns must be populated),
 [03](03-detect-series-seam.md) (defines the unit shape).
 
-**Status:** ready-for-human — code complete and committed, `tsc`/eslint/jest green. The two
-remaining criteria both need **one run on the driver's device, wiped and rescanned**; an
-emulator pass is a useful smoke test first but cannot meet either. Procedure:
-*Device-pending — the two-stage check*. See [## Answer](#answer).
+**Status:** resolved — all criteria met. The last two were closed **on device, 2026-08-07**
+(Pixel 7 Pro, library wiped and rescanned): grouping intact against `SERIES_LISTING.txt` with
+every difference explained, assembly **47 ms**, structural keys **351/351**. See
+*Device-verified* in [## Answer](#answer).
 
 **Spec:** [§A1](../../series-ux-redesign/spec.md), §G1b.
 
@@ -58,16 +58,14 @@ Two things to get right rather than assume:
       cannot measure.
 - [x] A dev entry point logs the unit count and the resulting proposals with their `why`
       trails, for the real library.
-- [ ] Output on the driver's own library is compared against the research listing
+- [x] Output on the driver's own library is compared against the research listing
       (`SERIES_LISTING.txt`) and the differences are **explained, not hand-waved** — a
       difference here is either a porting bug or a real library change since the probe.
-      **OPEN — needs the driver's device, wiped and rescanned.** The offline half is done
-      and is stronger than a re-run would have been: see *The round trip*. Procedure and
-      how to read the diff: *Device-pending — the two-stage check*, stage 2.
-- [ ] Assembly is measured on the real library and does not add a visible pause. It is a
+      **Done 2026-08-07: nothing lost, merged or split at either fidelity; every difference
+      accounted for.** See *Device-verified* below.
+- [x] Assembly is measured on the real library and does not add a visible pause. It is a
       DB read plus string work over ~350 books, so a slow result means something is
-      querying per-book. **OPEN on the same run**; measured off-device (*Cost*), and the
-      probe prints the device figure in its header.
+      querying per-book. **47 ms for 351 units from 352 books.**
 - [x] `tsc` 0 errors · eslint 0 errors · jest green.
 
 ## Note
@@ -365,6 +363,80 @@ The second criterion reads off the same header: `N units from N books in Xms` co
 read plus the assembly. Pure assembly at 350 books is 0.70 ms on desktop Node (see *Cost*),
 so the DB read dominates; a figure in the tens of ms is expected and a figure in the
 hundreds means something is querying per-book.
+
+### Device-verified 2026-08-07 — the diff, explained
+
+Physical Pixel 7 Pro, dev build over Metro, library removed and re-added so the scan ran cold
+(which also closed [02](02-capture-tags-at-scan.md)'s two criteria in the same pass, as planned).
+Full numbers in [`../DEVICE-CHECK.md`](../DEVICE-CHECK.md) §9; log at
+[`../device-check/stage2-device-2026-08-07.log`](../device-check/stage2-device-2026-08-07.log).
+
+```
+[detect] 351 units from 352 books in 47ms · 1 with no chapters
+[detect] structural keys: 351/351 agree with the library store
+[detect] 78 units in multi-book directories (flat) · 39 carry a SERIES/Grouping tag · 0 have no album
+```
+
+| | research listing | device | |
+| --- | --- | --- | --- |
+| conservative | 19 series / 179 placed | **23 / 200** | +4 series |
+| full | 28 / 213 | **32 / 247** | +4 series |
+
+**The grouping is intact. That is the criterion, and it passes.** Compared as sets in both
+directions at both fidelities: **no series in the research listing is missing on device, none
+split, none merged.** `Discworld` **41** and `Discworld (2022)` **39** are present and separate —
+A4's collision check, the single most informative thing to look at, firing correctly on the real
+library rather than on a JSON file.
+
+Every difference is one of two causes:
+
+**1 · Books the research probe never saw (all four new series, and three of the four count
+increases).** The probe sampled at most two files per directory, so it missed single-file books
+in flat multi-book folders — its own caveat 2, and the reason coverage figures are a lower bound.
+
+| new on device | conservative | | grew | research → device |
+| --- | --- | --- | --- | --- |
+| `Dungeon Crawler Carl` | 8 | | `Bobiverse` | 2 → 5 |
+| `The Murderbot Diaries` | 4 | | `The Silo Saga` | 2 → 3 |
+| `Lord of the Rings` | 3 | | `TMC` | 2 → 3 |
+| `Red Rising` | 2 | | `Rivers of London` (full only) | 3 → **16** |
+
+**A higher count is the corpus being incomplete, not a regression** — 351 units against the
+corpus's 298. `Rivers of London` at 3 → 16 is the clearest single instance of the sampling gap.
+
+**2 · The one decrease, and it was predicted in advance.** `Lockwood and Co.` **5 → 4**, losing
+`#4 Lockwood & Co. - Book 4 - The Creeping Shadow`. This ticket's own measurement said so before
+the device was touched: *"Letting the fallback through costs exactly one book (`Lockwood and Co.`
+5 → 4) at either fidelity."* The corpus predicted the exact series, the exact count and the exact
+magnitude, and the device reproduced it. It is the accepted cost of letting folder-derived titles
+into the album channel — against the 19 → 14 series the cure was measured to cost.
+
+**Timing: 47 ms** for the four-query read plus assembly over 352 books. The ticket's threshold was
+"tens of ms expected, hundreds means something is querying per-book" — comfortably the former, and
+consistent with the 0.70 ms of pure assembly measured on desktop Node, i.e. the DB read dominates
+as designed.
+
+**`351/351` structural keys** is the cross-check that the `chapter_number = 1` narrowing has not
+drifted from `bookStructuralKey`. It is the device half of what *Not done, deliberately* leaves
+untested, and it passed at full scale — so [06](06-detection-runs-on-scan.md)'s membership rows
+will be keyed correctly.
+
+### The one unit that is not there: `352 books → 351 units`
+
+`The Dark Tower VI: Song Of Susannah` exists as **two `books` rows over one directory** (disks
+01-02 and disks 03-12); the second's chapters are numbered 3-12, match no `chapter_number = 1`
+row, and are dropped. **A scan-side book split, not a detection fault** — recorded and
+deliberately not investigated in [`../NOTE-book-split.md`](../NOTE-book-split.md), driver's call.
+
+Detection's output is unaffected: the other fragment carries `chapter_number = 1`, so
+`The Dark Tower` still detects at **8 books, matching the research listing exactly**.
+
+Two comments were corrected rather than any behaviour changed. `firstFilePathByBookId`'s claim
+that "a book without one has no chapters at all" is now **measured false**, and `keyless` no
+longer describes itself as "no chapters at all". Widening the query to a per-book
+`min(chapter_number)` was considered and rejected: a large change to accommodate a bug rather
+than fix it, and it would hide the very count that made this visible. The effect is bounded,
+counted and printed — not silent.
 
 ### Not done, deliberately
 
