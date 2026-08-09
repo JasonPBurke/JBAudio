@@ -8,7 +8,7 @@
  * if a conditional appears there, it belongs here.
  */
 
-import { normalizeSortName } from '@/helpers/seriesName';
+import { isSameSeriesName, normalizeSortName } from '@/helpers/seriesName';
 import type { DetectionUnit, ProposedSeries } from '@/helpers/seriesDetection';
 
 /** The unit shape reconcile needs: a detection unit that knows its book key. */
@@ -209,13 +209,16 @@ function plannedMembers(candidates: Candidate[]): PlannedMember[] {
  * Returns EVERY match, not the first: G7 records that this DB library has no
  * unique-constraint support anywhere, so a double-delete can genuinely leave
  * two rows, and clearing one would leave the veto standing.
+ *
+ * The row-shaped twin of this — the one the query layer actually writes
+ * through — is `suppressionsMatching` in `seriesSuppression`. Both ask
+ * `isSameSeriesName`, so they cannot disagree about what counts as a match.
  */
 export function suppressionsClearedByCreating(
   name: string,
   suppressedNames: readonly string[],
 ): string[] {
-  const key = normalizeSortName(name);
-  return suppressedNames.filter((n) => normalizeSortName(n) === key);
+  return suppressedNames.filter((n) => isSameSeriesName(n, name));
 }
 
 /**

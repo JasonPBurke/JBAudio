@@ -17,6 +17,11 @@ import type {
 } from '@/db/seriesReconcile';
 import SuppressedSeries from '@/db/models/SuppressedSeries';
 import {
+  groupRemovedSeries,
+  suppressionsMatching,
+  type RemovedSeriesEntry,
+} from '@/db/seriesSuppression';
+import {
   normalizeSortName,
   SeriesNameConflictError,
 } from '@/helpers/seriesName';
@@ -47,6 +52,28 @@ async function assertSeriesNameAvailable(
 }
 
 /**
+ * A13 — the suppression rows a user claiming `name` for themselves must
+ * destroy. MUST be called from inside an open writer; it returns prepared
+ * operations rather than performing them, so the clear rides the same batch as
+ * the create or rename that caused it.
+ *
+ * Without this the veto is invisible AND total. `reconcileSeries` consults
+ * `suppressed_series` in its FIRST pass, before it tries to match a proposal to
+ * an existing series, so a leftover row does not merely stop the name being
+ * re-created — it makes every scan skip the user's own series entirely, and it
+ * silently stops gaining new books forever.
+ */
+async function prepareSuppressionClear(name: string): Promise<SuppressedSeries[]> {
+  const rows = await database
+    .get<SuppressedSeries>('suppressed_series')
+    .query()
+    .fetch();
+  return suppressionsMatching(name, rows).map((row) =>
+    row.prepareDestroyPermanently(),
+  );
+}
+
+/**
  * Create a new series with its ordered membership. `bookKeysInOrder` are
  * structural keys (first file paths). Returns the new series id.
  */
@@ -58,6 +85,9 @@ export async function createSeries(
   let newId = '';
   await database.write(async () => {
     const now = new Date();
+    // A13 — read before the create, so the batch below sees the rows as they
+    // were when the user pressed Save.
+    const clears = await prepareSuppressionClear(name);
     const series = await database.get<Series>('series').create((s) => {
       s.name = name.trim();
       s.sortName = normalizeSortName(name);
@@ -74,7 +104,8 @@ export async function createSeries(
         sb.createdAt = now;
       }),
     );
-    if (rows.length > 0) await database.batch(rows);
+    const ops = [...rows, ...clears];
+    if (ops.length > 0) await database.batch(ops);
   });
   return newId;
 }
@@ -110,6 +141,13 @@ export async function updateSeries(
     const now = new Date();
     const ops: any[] = [];
 
+    // A13, same rule as the create path. A rename is the other way a user
+    // claims a suppressed name for themselves — nothing stops them renaming a
+    // series to one they deleted earlier — and the veto that would sit over it
+    // is the same invisible one. (Reaching this line with the name unchanged
+    // is harmless: clearing a suppression only ever un-blocks.)
+    ops.push(...(await prepareSuppressionClear(name)));
+
     ops.push(
       series.prepareUpdate((s) => {
         s.name = name.trim();
@@ -139,7 +177,28 @@ export async function updateSeries(
   });
 }
 
-/** Delete a series and all its membership rows (books untouched). */
+/**
+ * Delete a series and all its membership rows. **The books are never touched**
+ * — removing a grouping is not a destructive act, and nothing below reads or
+ * writes the `books` table.
+ *
+ * A12 — deleting a DETECTED series also writes its name to `suppressed_series`,
+ * or the next scan quietly recreates the grouping the user just rejected.
+ * Deleting a hand-made one writes nothing, because nothing would recreate it;
+ * `origin` resolves null (every pre-v33 row) to `'user'`, so an upgraded row
+ * cannot accidentally earn a suppression it never needed.
+ *
+ * G7 — the name is de-duplicated here, in JS. This DB library has no unique
+ * constraints, so a second delete of a re-detected series would otherwise
+ * store the name twice and `Removed Series (2)` would sit over a list of one.
+ *
+ * KNOWN BOUNDARY, and it is not fixable from here: the suppression is keyed by
+ * the series' CURRENT name. Delete a detected series the user has renamed and
+ * detection can still re-propose it under its original machine name, because
+ * `name_source = 'user'` records that the name changed but not what it was.
+ * Recovering the old name would need a column to hold it; the user's repair is
+ * to delete the re-created series, which suppresses that name too.
+ */
 export async function deleteSeries(id: string): Promise<void> {
   await database.write(async () => {
     const series = await database.get<Series>('series').find(id);
@@ -147,10 +206,31 @@ export async function deleteSeries(id: string): Promise<void> {
       .get<SeriesBook>('series_books')
       .query(Q.where('series_id', id))
       .fetch();
-    await database.batch([
+
+    const ops: any[] = [
       ...rows.map((r) => r.prepareDestroyPermanently()),
       series.prepareDestroyPermanently(),
-    ]);
+    ];
+
+    if (series.origin === 'detected') {
+      const name = series.name;
+      const existing = await database
+        .get<SuppressedSeries>('suppressed_series')
+        .query()
+        .fetch();
+      if (suppressionsMatching(name, existing).length === 0) {
+        ops.push(
+          database
+            .get<SuppressedSeries>('suppressed_series')
+            .prepareCreate((row) => {
+              row.name = name;
+              row.createdAt = new Date();
+            }),
+        );
+      }
+    }
+
+    await database.batch(ops);
   });
 }
 
@@ -247,6 +327,53 @@ export async function loadSuppressedSeriesNames(): Promise<string[]> {
     .query()
     .fetch();
   return rows.map((row) => row.name);
+}
+
+/**
+ * The `Removed Series` list: one entry per deleted series, each carrying the
+ * row ids a restore has to destroy.
+ *
+ * A separate function from `loadSuppressedSeriesNames` on purpose. That one
+ * feeds the detector, which only ever asks "is this name vetoed?" and wants
+ * the raw list; this one feeds a person, who needs distinct names to read and
+ * stable ids to act on.
+ */
+export async function loadRemovedSeries(): Promise<RemovedSeriesEntry[]> {
+  const rows = await database
+    .get<SuppressedSeries>('suppressed_series')
+    .query()
+    .fetch();
+  return groupRemovedSeries(rows.map((row) => ({ id: row.id, name: row.name })));
+}
+
+/**
+ * Restore removed series by destroying their suppression rows. The next scan
+ * then recreates them, because nothing else was ever kept — a suppression is a
+ * veto, not a copy of the series.
+ *
+ * Takes row ids rather than a name so that `RemovedSeriesEntry` can hand back
+ * exactly the rows it counted; G7's duplicates make "delete the row for this
+ * name" an ambiguous instruction and "delete these rows" an exact one.
+ *
+ * A14 — this is a CREATE, not a bulk destroy, which is why `Restore All` is
+ * allowed to exist where "delete all detected series" is not. The rows it
+ * removes are the app's own veto records, and removing them gives the user
+ * their series back.
+ */
+export async function restoreRemovedSeries(rowIds: string[]): Promise<void> {
+  if (rowIds.length === 0) return;
+  const wanted = new Set(rowIds);
+  // One fetch of the whole table, not a chunked `Q.oneOf` — G6's reasoning for
+  // leaving it unindexed is that it holds a handful of rows.
+  const rows = await database
+    .get<SuppressedSeries>('suppressed_series')
+    .query()
+    .fetch();
+  const targets = rows.filter((row) => wanted.has(row.id));
+  if (targets.length === 0) return;
+  await database.write(async () => {
+    await database.batch(targets.map((row) => row.prepareDestroyPermanently()));
+  });
 }
 
 /** Build one `series_books` row from a planned member. Copies, never decides. */

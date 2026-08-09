@@ -1,0 +1,261 @@
+/**
+ * THROWAWAY PROBE — ticket 09. Kept as a `.txt` ON PURPOSE, same as
+ * `roundtrip-probe.test.ts.txt`, and for the same reason.
+ *
+ * TO RUN IT:
+ *   cp .scratch/series-implementation/probes/suppression-probe.test.ts.txt \
+ *      src/db/__tests__/zz-probe-09.test.ts
+ *   npx jest src/db/__tests__/zz-probe-09.test.ts --forceExit
+ *   rm src/db/__tests__/zz-probe-09.test.ts     # <- do not leave it there
+ *
+ * WHY IT IS NOT A COMMITTED TEST. It boots a real WatermelonDB (LokiJS
+ * adapter, schema v33), which leaves something alive that stops jest exiting.
+ * `--forceExit` is why the recipe above works. Do not "promote" it.
+ *
+ * WHAT IT BUYS, which `seriesSuppression`'s unit tests cannot: the REAL
+ * `deleteSeries` write is read back by the REAL `loadSuppressedSeriesNames`
+ * and handed to the REAL `reconcileSeries`, so "it stays deleted" is observed
+ * rather than inferred. The failure this exists to catch is a suppression row
+ * that is written but not read the same way — the row lands, the count on the
+ * card even goes up, and the next scan recreates the series anyway.
+ *
+ * RESULT, 2026-08-08 (all five cases green):
+ *   - delete a detected series -> 1 suppression row -> a rescan SKIPS it with
+ *     reason 'suppressed' and does not recreate it;
+ *   - Removed Series lists it once -> restore -> the very next rescan brings
+ *     the series back with the same name and the same 41 books;
+ *   - deleting a hand-made series writes NOTHING;
+ *   - a second delete of an already-suppressed name leaves ONE row, not two;
+ *   - hand-creating a suppressed name clears the veto — the rescan's skip
+ *     reason flips from 'suppressed' (never looked) to 'user-owned' (saw it).
+ *   - the `books` table is byte-identical across a delete.
+ *
+ * DESK results on the 298-unit research corpus, not the real library.
+ */
+
+jest.mock('@dr.pogodin/react-native-fs', () => ({
+  ExternalStorageDirectoryPath: '/storage/emulated/0',
+}));
+
+jest.mock('@/db', () => {
+  const { Database } = require('@nozbe/watermelondb');
+  const LokiJSAdapter =
+    require('@nozbe/watermelondb/adapters/lokijs').default ??
+    require('@nozbe/watermelondb/adapters/lokijs');
+  const schema = require('@/db/schema').default ?? require('@/db/schema');
+  const modelClasses = [
+    require('@/db/models/Author').default,
+    require('@/db/models/Book').default,
+    require('@/db/models/Chapter').default,
+    require('@/db/models/Settings').default,
+    require('@/db/models/Footprint').default,
+    require('@/db/models/Series').default,
+    require('@/db/models/SeriesBook').default,
+    require('@/db/models/SuppressedSeries').default,
+    require('@/db/models/BookTag').default,
+  ];
+  const adapter = new LokiJSAdapter({
+    schema,
+    useWebWorker: false,
+    useIncrementalIndexedDB: false,
+  });
+  const db = new Database({ adapter, modelClasses });
+  return { __esModule: true, default: db };
+});
+
+import database from '@/db';
+import {
+  applyPlan,
+  createSeries,
+  deleteSeries,
+  loadExistingSeries,
+  loadRemovedSeries,
+  loadSuppressedSeriesNames,
+  restoreRemovedSeries,
+} from '@/db/seriesQueries';
+import { reconcileSeries, type KeyedUnit } from '@/db/seriesReconcile';
+import { detectSeries, type ProposedSeries } from '@/helpers/seriesDetection';
+import { corpusUnits } from '@/helpers/__fixtures__/seriesCorpus';
+
+const keyed: KeyedUnit[] = corpusUnits.map((u) => ({
+  ...u,
+  bookKey: `/lib/${u.rel}/${u.file ?? u.album ?? Math.random()}`,
+}));
+
+const proposals = () => detectSeries(keyed, {}) as ProposedSeries<KeyedUnit>[];
+
+/** One scan: reconcile against what the DB holds now, and write the plan. */
+const rescan = async () => {
+  const plan = reconcileSeries(
+    proposals(),
+    await loadExistingSeries(),
+    await loadSuppressedSeriesNames(),
+  );
+  await applyPlan(plan);
+  return plan;
+};
+
+const seriesNamed = async (name: string) =>
+  (await loadExistingSeries()).find((s) => s.name === name);
+
+/** Put the suppression table back to empty between cases. */
+const clearSuppressions = async () => {
+  const entries = await loadRemovedSeries();
+  await restoreRemovedSeries(entries.flatMap((e) => e.rowIds));
+};
+
+let biggestName = '';
+
+beforeAll(async () => {
+  await rescan();
+  const all = await loadExistingSeries();
+  biggestName = [...all].sort((a, b) => b.books.length - a.books.length)[0].name;
+  console.log(
+    `\nSEEDED — ${all.length} series, ${all.reduce((n, s) => n + s.books.length, 0)} ` +
+      `membership rows. Target: "${biggestName}"`,
+  );
+});
+
+describe('A12 — delete suppresses, and Removed Series restores', () => {
+  it('a deleted detected series is not recreated by the next scan', async () => {
+    const target = (await seriesNamed(biggestName))!;
+    const size = target.books.length;
+    expect(target.origin).toBe('detected');
+
+    await deleteSeries(target.id);
+
+    expect(await loadSuppressedSeriesNames()).toEqual([biggestName]);
+    expect(await seriesNamed(biggestName)).toBeUndefined();
+    console.log(
+      `  deleted "${biggestName}" (${size} books) -> suppressed_series holds 1 row`,
+    );
+
+    // THE CRITERION. Detection still proposes it every single scan; the
+    // suppression row is the only thing standing between the proposal and a
+    // recreated series.
+    const plan = await rescan();
+    expect(plan.createSeries.map((s) => s.name)).not.toContain(biggestName);
+    expect(plan.skipped).toContainEqual({
+      name: biggestName,
+      reason: 'suppressed',
+    });
+    expect(await seriesNamed(biggestName)).toBeUndefined();
+    console.log('  rescan: skipped as suppressed, still gone');
+
+    // ...and back again.
+    const entries = await loadRemovedSeries();
+    expect(entries).toHaveLength(1);
+    expect(entries[0].name).toBe(biggestName);
+    expect(entries[0].rowIds).toHaveLength(1);
+
+    await restoreRemovedSeries(entries[0].rowIds);
+    expect(await loadSuppressedSeriesNames()).toEqual([]);
+
+    await rescan();
+    const back = await seriesNamed(biggestName);
+    expect(back).toBeDefined();
+    expect(back!.books).toHaveLength(size);
+    console.log(`  restored -> rescan rebuilt it with ${back!.books.length} books\n`);
+  });
+
+  it('deleting a hand-made series writes nothing', async () => {
+    await clearSuppressions();
+    const target = (await seriesNamed(biggestName))!;
+    const id = await createSeries('My Bedtime Playlist', [
+      target.books[0].bookKey,
+      target.books[1].bookKey,
+    ]);
+
+    const made = (await loadExistingSeries()).find((s) => s.id === id)!;
+    expect(made.origin).toBeFalsy(); // null — createSeries stamps no provenance
+
+    await deleteSeries(id);
+
+    expect(await loadSuppressedSeriesNames()).toEqual([]);
+    console.log('  hand-made series deleted, suppressed_series untouched\n');
+  });
+
+  // G7 — there is no unique constraint anywhere in this DB library, so the
+  // only thing stopping a second row is the JS check inside `deleteSeries`.
+  it('deleting a name that is already suppressed leaves ONE row', async () => {
+    await clearSuppressions();
+    const target = (await seriesNamed(biggestName))!;
+
+    // The state a lost restore, or any second delete, would put us in.
+    await database.write(async () => {
+      await database.get('suppressed_series').create((row: any) => {
+        row.name = biggestName;
+        row.createdAt = new Date();
+      });
+    });
+    expect(await loadSuppressedSeriesNames()).toHaveLength(1);
+
+    await deleteSeries(target.id);
+
+    const names = await loadSuppressedSeriesNames();
+    expect(names).toHaveLength(1);
+    expect(await loadRemovedSeries()).toHaveLength(1);
+    console.log('  second delete of a suppressed name: still 1 row, count reads 1\n');
+  });
+
+  // A13 — the veto is consulted in reconcile's FIRST pass, before it tries to
+  // match a proposal to an existing series. A row left behind therefore does
+  // not merely block a re-create: it makes every scan skip the user's own
+  // series without ever looking at it.
+  it('hand-creating a suppressed name lifts the veto', async () => {
+    const suppressedBefore = await loadSuppressedSeriesNames();
+    expect(suppressedBefore).toEqual([biggestName]); // left by the case above
+
+    const vetoed = reconcileSeries(
+      proposals(),
+      await loadExistingSeries(),
+      suppressedBefore,
+    );
+    expect(vetoed.skipped).toContainEqual({
+      name: biggestName,
+      reason: 'suppressed',
+    });
+
+    const keys = keyed.slice(0, 2).map((u) => u.bookKey);
+    await createSeries(biggestName, keys);
+
+    expect(await loadSuppressedSeriesNames()).toEqual([]);
+
+    // The skip reason flips: 'suppressed' means reconcile never looked at the
+    // user's series; 'user-owned' means it saw it and left it alone.
+    const seen = reconcileSeries(
+      proposals(),
+      await loadExistingSeries(),
+      await loadSuppressedSeriesNames(),
+    );
+    expect(seen.skipped).toContainEqual({
+      name: biggestName,
+      reason: 'user-owned',
+    });
+    console.log('  veto cleared on create: skip reason suppressed -> user-owned\n');
+  });
+
+  it('deleting a series does not touch the books table', async () => {
+    await clearSuppressions();
+    let bookIds: string[] = [];
+    await database.write(async () => {
+      const rows = ['Book One', 'Book Two'].map((title) =>
+        database.get('books').prepareCreate((b: any) => {
+          b.title = title;
+          b.createdAt = new Date();
+        }),
+      );
+      await database.batch(rows);
+      bookIds = rows.map((r) => r.id);
+    });
+
+    const before = (await database.get('books').query().fetch()).length;
+    const target = (await seriesNamed(biggestName))!;
+    await deleteSeries(target.id);
+    const after = await database.get('books').query().fetch();
+
+    expect(after).toHaveLength(before);
+    expect(after.map((b) => b.id)).toEqual(expect.arrayContaining(bookIds));
+    console.log(`  ${before} books before, ${after.length} after a delete\n`);
+  });
+});

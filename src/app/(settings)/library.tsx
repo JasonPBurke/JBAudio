@@ -8,10 +8,15 @@ import {
   ScrollView,
 } from 'react-native';
 import { useState, useCallback } from 'react';
-import { useSharedValue } from 'react-native-reanimated';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useFocusEffect } from '@react-navigation/native';
 import { Picker } from '@react-native-picker/picker';
 import {
+  ArchiveRestore,
   Check,
   ChevronRight,
   FolderOpen,
@@ -19,6 +24,7 @@ import {
   FolderPlus,
   Layers,
   TableOfContents,
+  Undo2,
 } from 'lucide-react-native';
 import SettingsHeader from '@/components/SettingsHeader';
 import SettingsCard from '@/components/settings/SettingsCard';
@@ -41,11 +47,15 @@ import {
   setSeriesFolderGroupingEnabled,
 } from '@/db/settingsQueries';
 import {
-  loadSuppressedSeriesNames,
-  normalizeSortName,
+  loadRemovedSeries,
+  restoreRemovedSeries,
 } from '@/db/seriesQueries';
+import type { RemovedSeriesEntry } from '@/db/seriesSuppression';
 import { runSeriesDetection } from '@/db/seriesDetectionRun';
-import { summarizeDetectionRun } from '@/helpers/seriesDetectionSummary';
+import {
+  summarizeDetectionRun,
+  summarizeSeriesRestore,
+} from '@/helpers/seriesDetectionSummary';
 import { applyAutoChaptersToExistingBooks } from '@/helpers/autoChapterGenerator';
 import { directoryPicker } from '@/helpers/directoryPicker';
 import { router } from 'expo-router';
@@ -99,6 +109,22 @@ const SERIES_DETECTION_INFO = [
     'being recreated; you can reverse that from Removed Series.',
 ].join('\n\n');
 
+/**
+ * A12's recovery copy. Two sentences, and it is short BECAUSE restore now runs
+ * detection on the spot: an earlier version had to explain that the series
+ * would return "the next time your library is scanned — or straight away with
+ * Detect Series in Existing Books", which is a caveat and a cross-reference
+ * that a user has to hold in their head. Making the button do what it says
+ * deleted the sentence.
+ */
+const REMOVED_SERIES_DESCRIPTION =
+  'Series you delete are not detected again, so a grouping you rejected ' +
+  'stays rejected. Restoring one brings it straight back.';
+
+const REMOVED_SERIES_EMPTY =
+  "You haven't deleted any series. When you do, they'll be listed here so " +
+  'you can bring them back.';
+
 const LibrarySettingsScreen = () => {
   const { colors: themeColors } = useTheme();
   const { isProUser, hasPurchasedPro } = useRequiresPro();
@@ -121,7 +147,18 @@ const LibrarySettingsScreen = () => {
     useState(true);
   const [folderGroupingEnabled, setFolderGroupingEnabledState] =
     useState(false);
-  const [removedSeriesCount, setRemovedSeriesCount] = useState(0);
+  const [removedSeries, setRemovedSeries] = useState<RemovedSeriesEntry[]>(
+    [],
+  );
+  const [removedExpanded, setRemovedExpanded] = useState(false);
+  // Animated-height expansion, copied from CollapsibleSettingsSection so this
+  // row and `Library Folders` two inches below it roll out identically: a
+  // measured, absolutely-positioned child inside a clipping wrapper whose
+  // height is driven 0→1. The content is ALWAYS mounted — that is what makes
+  // it measurable — and the wrapper's overflow is what hides it.
+  const removedHeight = useSharedValue(0);
+  const [removedContentHeight, setRemovedContentHeight] = useState(0);
+  const [isRestoring, setIsRestoring] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
   const [detectionInfoVisible, setDetectionInfoVisible] = useState(false);
   const seriesDetectionToggleValue = useSharedValue(1);
@@ -136,7 +173,7 @@ const LibrarySettingsScreen = () => {
         const booksWithoutChapters = await getBooksWithoutChapterData();
         const detectionEnabled = await getSeriesDetectionEnabled();
         const folderGrouping = await getSeriesFolderGroupingEnabled();
-        const suppressedNames = await loadSuppressedSeriesNames();
+        const removed = await loadRemovedSeries();
 
         if (isActive) {
           setLibraryFolders(folders);
@@ -153,13 +190,10 @@ const LibrarySettingsScreen = () => {
           seriesDetectionToggleValue.value = detectionEnabled ? 1 : 0;
           setFolderGroupingEnabledState(folderGrouping);
           // G7 — the table has no unique constraint, so a double-delete can
-          // leave two rows for one name. Counting them raw would show
-          // `Removed Series (2)` over a list of one, so the count is of
-          // distinct series identities: `normalizeSortName` is the same key
-          // series identity uses everywhere else (A15).
-          setRemovedSeriesCount(
-            new Set(suppressedNames.map(normalizeSortName)).size,
-          );
+          // leave two rows for one name. `loadRemovedSeries` groups by series
+          // identity, so the count in the label and the lines in the list are
+          // literally the same array and cannot disagree.
+          setRemovedSeries(removed);
         }
       };
       fetchSettings();
@@ -167,7 +201,13 @@ const LibrarySettingsScreen = () => {
       return () => {
         isActive = false;
       };
-    }, []),
+      // Both are `useSharedValue` handles, which reanimated keeps as ONE stable
+      // object for the component's lifetime — the code mutates `.value` rather
+      // than replacing them. So this list can never change identity and the
+      // effect still runs only on focus; they are named purely to satisfy
+      // exhaustive-deps, whose other suggestion (drop the array) would turn a
+      // focus effect into a run-every-render one.
+    }, [autoChapterToggleValue, seriesDetectionToggleValue]),
   );
 
   const handleRemoveFolder = (folderPath: string) => {
@@ -273,6 +313,63 @@ const LibrarySettingsScreen = () => {
     }
   };
 
+  /**
+   * A12's restore, and it does NOT stop at deleting the suppression row.
+   *
+   * The spec says the next scan recreates the series. Waiting for one was
+   * rejected on device: a restore that deletes a veto changes nothing the user
+   * can see, and "it'll come back later" is indistinguishable from "it never
+   * came back" in the two cases where it genuinely never does — detection
+   * switched off, and books that have moved since the delete. Running
+   * detection here turns both into a sentence the user reads immediately.
+   *
+   * `runSeriesDetection` measures 181–643ms on a real 3,461-file library and
+   * never throws, so there is nothing to catch; the flag clears in `finally`.
+   * A14 is untouched — the run is creative-only, and reconcile cannot remove a
+   * series it did not match.
+   */
+  const runRestore = useCallback(
+    async (entries: RemovedSeriesEntry[]) => {
+      if (isRestoring || entries.length === 0) return;
+      setIsRestoring(true);
+      try {
+        await restoreRemovedSeries(
+          entries.flatMap((entry) => entry.rowIds),
+        );
+        const report = summarizeSeriesRestore(
+          entries.map((entry) => entry.name),
+          await runSeriesDetection(),
+        );
+        setRemovedSeries(await loadRemovedSeries());
+        Alert.alert(report.title, report.message, [{ text: 'OK' }]);
+      } finally {
+        setIsRestoring(false);
+      }
+    },
+    [isRestoring],
+  );
+
+  /**
+   * The one bulk action on this card that asks first, and the reason is
+   * reversibility rather than destructiveness: restoring everything is a
+   * single tap, while undoing it costs one confirmed delete per series. Cheap
+   * to do and expensive to undo is exactly when a prompt earns its place.
+   *
+   * A14 still holds — this creates, so the confirm button is not `destructive`
+   * and the copy promises books are untouched rather than warning about them.
+   */
+  const handleRestoreAll = useCallback(() => {
+    Alert.alert(
+      'Restore all removed series?',
+      `This brings back ${removedSeries.length} series and lets detection ` +
+        'group them again. Your books are not affected.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Restore All', onPress: () => runRestore(removedSeries) },
+      ],
+    );
+  }, [removedSeries, runRestore]);
+
   const handleApplyToExisting = async () => {
     if (!isProUser) {
       setShowProPopup(true);
@@ -323,6 +420,33 @@ const LibrarySettingsScreen = () => {
       ],
     );
   };
+
+  // The app's one expand affordance: SectionHeaderBar rotates a ChevronRight
+  // 90° over 200ms, and `Library Folders` sits directly below this card doing
+  // exactly that. Reusing it means the collapsed row is pixel-identical to the
+  // chevron it already had.
+  const removedChevronStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        rotate: withTiming(removedExpanded ? '90deg' : '0deg', {
+          duration: 200,
+        }),
+      },
+    ],
+  }));
+
+  // 300ms, matching CollapsibleSettingsSection exactly — the chevron's 200ms
+  // is also its own, so the two are already paired everywhere else in the app.
+  const removedContentStyle = useAnimatedStyle(() => ({
+    height: removedHeight.value * removedContentHeight,
+    opacity: removedHeight.value,
+  }));
+
+  const toggleRemovedSeries = useCallback(() => {
+    const next = !removedExpanded;
+    removedHeight.value = withTiming(next ? 1 : 0, { duration: 300 });
+    setRemovedExpanded(next);
+  }, [removedExpanded, removedHeight]);
 
   return (
     <View
@@ -567,8 +691,9 @@ const LibrarySettingsScreen = () => {
                       { color: themeColors.textMuted },
                     ]}
                   >
-                    Finds series that have no series tags, using folder names.
-                    May occasionally group a folder that isn&apos;t a series.
+                    Finds series that have no series tags, using folder
+                    names. May occasionally group a folder that isn&apos;t a
+                    series.
                   </Text>
                 </View>
               </Pressable>
@@ -586,7 +711,10 @@ const LibrarySettingsScreen = () => {
               >
                 <Layers size={20} color={themeColors.primary} />
                 <Text
-                  style={[styles.addButtonText, { color: themeColors.primary }]}
+                  style={[
+                    styles.addButtonText,
+                    { color: themeColors.primary },
+                  ]}
                 >
                   {isDetecting
                     ? 'Detecting...'
@@ -597,26 +725,185 @@ const LibrarySettingsScreen = () => {
           )}
 
           {/*
-            The count is suppressed at zero rather than reading `(0)`, but the
-            row itself always shows: A12 rejected the delete-dialog checkbox
-            because a modifier asking for foresight fails exactly when foresight
-            is absent, and the same argument applies to an entry point that only
-            appears once you already need it.
-
-            TICKET 09 OWNS THE LIST AND THIS ROW'S `onPress`. It is deliberately
-            not pressable yet — a chevron that goes nowhere is better than a
-            ripple that goes nowhere, and nothing writes a suppression row until
-            09 lands, so the count is 0 on every device until then.
+            A hairline ABOVE the row, not below it. The row is an entry point,
+            not a trailing part of the detection options, and without the rule
+            it reads as one more line of the block above. Only drawn when that
+            block is showing — with detection off, `Enable Series Detection`
+            already draws its own divider here and two would stack.
           */}
-          <CompactSettingsRow
-            label={
-              removedSeriesCount > 0
-                ? `Removed Series (${removedSeriesCount})`
-                : 'Removed Series'
-            }
-            showDivider={false}
-            control={<ChevronRight size={20} color={themeColors.icon} />}
-          />
+          {seriesDetectionEnabled && (
+            <View
+              style={[
+                styles.rowDivider,
+                { backgroundColor: withOpacity(themeColors.divider, 0.2) },
+              ]}
+            />
+          )}
+
+          {/*
+            The count is suppressed at zero rather than reading `(0)`, but the
+            row itself always shows AND stays expandable at zero: A12 rejected
+            the delete-dialog checkbox because a modifier asking for foresight
+            fails exactly when foresight is absent, and the same argument
+            applies to an entry point that only appears once you need it. An
+            empty list that explains itself is the point, not a dead end.
+
+            The row sits OUTSIDE the `seriesDetectionEnabled` block above,
+            unlike the checkbox and the button. Turning detection off does not
+            un-delete anything, and a user who deleted a series, switched
+            detection off and then changed their mind must still be able to
+            reach the list that undoes it. `summarizeSeriesRestore` says so in
+            words when they do.
+
+            IT EXPANDS IN PLACE rather than pushing a screen. A dedicated route
+            was built first and replaced: restoring only lifts a veto, so the
+            thing that makes the series reappear — detection — belongs within
+            reach of the button asking for it, and here `Restore` and
+            `Detect Series in Existing Books` sit inches apart in one card. It
+            also keeps §A9's sketch, which puts this row inside this card, and
+            it removes a push whose direction contradicted the group's own
+            slide (the settings Stack's `slide_from_right` versus the group's
+            `slide_from_left`).
+
+            THE BLOCK CARRIES marginBottom: -16 ON PURPOSE. `SettingsCard`'s
+            content adds 16 under its last child on top of this row's own 12,
+            so the row sat 28 below the text and 16 above it and read as pushed
+            up. Cancelling the card's padding restores 12/12 — the same
+            geometry `Library Folders`' rows already have, since
+            CollapsibleSettingsSection's content has no bottom padding.
+          */}
+          <View style={styles.removedSeriesBlock}>
+            <CompactSettingsRow
+              label={
+                removedSeries.length > 0
+                  ? `Removed Series (${removedSeries.length})`
+                  : 'Removed Series'
+              }
+              showDivider={false}
+              onPress={toggleRemovedSeries}
+              control={
+                <Animated.View style={removedChevronStyle}>
+                  <ChevronRight size={20} color={themeColors.icon} />
+                </Animated.View>
+              }
+            />
+
+            {/*
+              Always mounted, height-clipped — the list has to be laid out for
+              `onLayout` to know how tall to animate to. `pointerEvents` is the
+              one addition over CollapsibleSettingsSection: this content holds
+              buttons that write to the database, and a clipped-but-live
+              `Restore` is a worse failure than a clipped-but-live folder row.
+            */}
+            <Animated.View
+              style={[styles.removedSeriesWrapper, removedContentStyle]}
+              pointerEvents={removedExpanded ? 'auto' : 'none'}
+            >
+              <View
+                onLayout={(event) => {
+                  const { height } = event.nativeEvent.layout;
+                  if (height !== removedContentHeight) {
+                    setRemovedContentHeight(height);
+                  }
+                }}
+                style={styles.removedSeriesContent}
+              >
+                <Text
+                  style={[
+                    styles.removedSeriesCaption,
+                    { color: themeColors.textMuted },
+                  ]}
+                >
+                  {removedSeries.length > 0
+                    ? REMOVED_SERIES_DESCRIPTION
+                    : REMOVED_SERIES_EMPTY}
+                </Text>
+
+                {removedSeries.map((entry) => (
+                  <View key={entry.name} style={styles.removedSeriesRow}>
+                    <Text
+                      style={[
+                        styles.removedSeriesName,
+                        { color: themeColors.text },
+                      ]}
+                      numberOfLines={2}
+                    >
+                      {entry.name}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => runRestore([entry])}
+                      disabled={isRestoring}
+                      accessibilityRole='button'
+                      accessibilityLabel={`Restore ${entry.name}`}
+                      style={[
+                        styles.restorePill,
+                        {
+                          backgroundColor: withOpacity(
+                            themeColors.primary,
+                            0.1,
+                          ),
+                          opacity: isRestoring ? 0.5 : 1,
+                        },
+                      ]}
+                    >
+                      <Undo2 size={16} color={themeColors.primary} />
+                      <Text
+                        style={[
+                          styles.restorePillText,
+                          { color: themeColors.primary },
+                        ]}
+                      >
+                        Restore
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+
+                {/*
+                  Right-aligned and pill-shaped, deliberately NOT a third
+                  full-width accent button: 07 already logged that this card's
+                  button reads as visually identical to `Apply to Existing
+                  Books` above it, and a third would compound that. This is a
+                  list utility, so it wears the list's control rather than the
+                  card's. Shown only above one entry — over a list of one it
+                  duplicates the button two lines above it.
+                */}
+                {removedSeries.length > 1 && (
+                  <View style={styles.restoreAllRow}>
+                    <TouchableOpacity
+                      onPress={handleRestoreAll}
+                      disabled={isRestoring}
+                      accessibilityRole='button'
+                      accessibilityLabel='Restore all removed series'
+                      style={[
+                        styles.restorePill,
+                        {
+                          backgroundColor: withOpacity(
+                            themeColors.primary,
+                            0.1,
+                          ),
+                          opacity: isRestoring ? 0.5 : 1,
+                        },
+                      ]}
+                    >
+                      <ArchiveRestore
+                        size={16}
+                        color={themeColors.primary}
+                      />
+                      <Text
+                        style={[
+                          styles.restorePillText,
+                          { color: themeColors.primary },
+                        ]}
+                      >
+                        Restore All ({removedSeries.length})
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            </Animated.View>
+          </View>
         </SettingsCard>
 
         {libraryFolders.length > 0 && (
@@ -699,7 +986,8 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   removeButtonText: {
-    fontFamily: 'Rubik', fontWeight: '600',
+    fontFamily: 'Rubik',
+    fontWeight: '600',
     fontSize: 14,
   },
   addFolderContent: {
@@ -722,7 +1010,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   addButtonText: {
-    fontFamily: 'Rubik', fontWeight: '600',
+    fontFamily: 'Rubik',
+    fontWeight: '600',
     fontSize: 16,
   },
   autoChapterContent: {
@@ -746,7 +1035,7 @@ const styles = StyleSheet.create({
   seriesDetectionOptions: {
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 4,
+    paddingBottom: 14,
     gap: 12,
   },
   checkboxRow: {
@@ -780,5 +1069,72 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 17,
     marginTop: 4,
+  },
+  // Copies CompactSettingsRow's own divider, drawn above this row instead of
+  // below it. Same hairline, same 16 inset, so it reads as one rule system.
+  rowDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: 16,
+  },
+  // Cancels SettingsCard's content paddingBottom for this last child — see the
+  // comment at the block. Without it the row reads as pushed up: 16dp of space
+  // above the label and 28dp below it.
+  removedSeriesBlock: {
+    marginBottom: -16,
+  },
+  // The clipping half of the animated expansion. Mirrors
+  // CollapsibleSettingsSection's `contentWrapper`/`content` pair exactly: the
+  // wrapper's height is animated and hides the overflow, and the child is
+  // absolutely positioned so it keeps its natural height to be measured
+  // instead of being squashed by its parent.
+  removedSeriesWrapper: {
+    overflow: 'hidden',
+  },
+  // Restores the card's bottom padding for the expanded state, which the
+  // negative margin above has just cancelled.
+  removedSeriesContent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    gap: 12,
+  },
+  removedSeriesCaption: {
+    fontFamily: 'Rubik',
+    fontSize: 13,
+    lineHeight: 17,
+  },
+  removedSeriesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  removedSeriesName: {
+    fontFamily: 'Rubik',
+    fontSize: 16,
+    // Long series names wrap rather than pushing the pill off the edge.
+    flexShrink: 1,
+  },
+  restorePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    // Never shrinks: the name beside it is the flexible half.
+    flexShrink: 0,
+  },
+  restorePillText: {
+    fontFamily: 'Rubik',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  restoreAllRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
   },
 });

@@ -25,6 +25,88 @@ export type DetectionRunReport = {
 /** `1 book` / `2 books`. "series" is already its own plural. */
 const books = (n: number) => `${n} book${n === 1 ? '' : 's'}`;
 
+/**
+ * What `Restore` says when it finishes.
+ *
+ * A12 says the next scan recreates a restored series. Waiting for one was
+ * rejected: restoring deletes a VETO, so on its own it changes nothing the
+ * user can see, and "it'll come back later" hides the two cases where it never
+ * comes back at all —
+ *
+ *   - **detection is switched off.** Reachable on purpose: the `Removed Series`
+ *     row sits outside the enabled block, because turning detection off does
+ *     not un-delete anything.
+ *   - **the books are gone.** Membership is keyed by file path (ADR 0001), so a
+ *     library reorganisation since the delete means detection simply never
+ *     proposes that name again.
+ *
+ * Restore therefore runs detection immediately and this reports what actually
+ * happened. Every branch confirms the row left the removed list first — that
+ * part is true even when the rebuild is not.
+ *
+ * ⚠ `ran: false` carries counts that are ZEROS MEANING UNKNOWN, so the
+ * not-found branch must be reached only on a run that really ran. A `'failed'`
+ * run may have written its batch before throwing.
+ */
+export function summarizeSeriesRestore(
+  restoredNames: readonly string[],
+  result: SeriesDetectionRunResult,
+): DetectionRunReport {
+  const n = restoredNames.length;
+  // One restored series is worth naming; several are not worth listing.
+  const subject = n === 1 ? restoredNames[0] : `${n} series`;
+  const gone = `${subject} ${n === 1 ? 'is' : 'are'} off the removed list`;
+
+  if (!result.ran) {
+    if (result.reason === 'disabled') {
+      return {
+        title: 'Restored',
+        message:
+          `${gone}. Series Detection is turned off, so ` +
+          `${n === 1 ? 'it' : 'they'} can't be rebuilt until you turn it ` +
+          'back on.',
+      };
+    }
+    return {
+      title: 'Restored',
+      message:
+        `${gone}, but couldn't be rebuilt just now. ` +
+        `${n === 1 ? 'It' : 'They'} will come back the next time your ` +
+        'library is scanned again.',
+    };
+  }
+
+  const { seriesCreated, rowsCreated } = result;
+
+  if (seriesCreated === 0) {
+    return {
+      title: 'Restored',
+      message:
+        `${gone}, but detection didn't find ` +
+        `${n === 1 ? 'it' : 'them'} in your library — those books may have ` +
+        'moved or been removed since.',
+    };
+  }
+
+  if (seriesCreated < n) {
+    return {
+      title: 'Series Restored',
+      message:
+        `${seriesCreated} of ${n} series ${seriesCreated === 1 ? 'is' : 'are'} ` +
+        `back, with ${books(rowsCreated)}. Detection didn't find the ` +
+        `${n - seriesCreated === 1 ? 'other' : 'others'} in your library.`,
+    };
+  }
+
+  return {
+    title: 'Series Restored',
+    message:
+      n === 1
+        ? `${subject} is back, with ${books(rowsCreated)}.`
+        : `${subject} are back, with ${books(rowsCreated)}.`,
+  };
+}
+
 export function summarizeDetectionRun(
   result: SeriesDetectionRunResult,
 ): DetectionRunReport {

@@ -1,4 +1,7 @@
-import { summarizeDetectionRun } from '@/helpers/seriesDetectionSummary';
+import {
+  summarizeDetectionRun,
+  summarizeSeriesRestore,
+} from '@/helpers/seriesDetectionSummary';
 import type { SeriesDetectionRunResult } from '@/db/seriesDetectionRun';
 
 /**
@@ -130,5 +133,91 @@ describe('a run that did not happen', () => {
     );
 
     expect(title).toBe('Error');
+  });
+});
+
+/**
+ * The restore report. Restoring deletes a veto and then runs detection
+ * immediately, so the sentence has to answer "is it back?" — and the two ways
+ * the answer is NO are exactly the two this feature would otherwise hide:
+ * detection is switched off, or the books are no longer there to be found.
+ */
+describe('summarizeSeriesRestore', () => {
+  it('names the series and its size when one comes back', () => {
+    const report = summarizeSeriesRestore(
+      ['Discworld'],
+      result({ seriesCreated: 1, rowsCreated: 41 }),
+    );
+    expect(report.message).toBe('Discworld is back, with 41 books.');
+  });
+
+  it('counts the series instead of naming them when several come back', () => {
+    const report = summarizeSeriesRestore(
+      ['Bobiverse', 'Dresden Files'],
+      result({ seriesCreated: 2, rowsCreated: 27 }),
+    );
+    expect(report.message).toBe('2 series are back, with 27 books.');
+  });
+
+  it('says a one-book series has 1 book, not 1 books', () => {
+    const report = summarizeSeriesRestore(
+      ['Solo'],
+      result({ seriesCreated: 1, rowsCreated: 1 }),
+    );
+    expect(report.message).toContain('1 book.');
+  });
+
+  // Detection OFF is reachable: the Removed Series row deliberately sits
+  // outside the enabled block, so a user can restore with detection off and
+  // must be told why nothing happened — and what to do about it.
+  it('says detection is off rather than claiming the series is back', () => {
+    const report = summarizeSeriesRestore(
+      ['Discworld'],
+      result({ ran: false, reason: 'disabled' }),
+    );
+    expect(report.message).toContain('Series Detection is turned off');
+    expect(report.message).not.toContain('is back');
+  });
+
+  // The other silent failure: the veto is gone but the books have moved or
+  // been deleted, so detection no longer proposes that series at all.
+  it('says the books were not found when nothing was rebuilt', () => {
+    const report = summarizeSeriesRestore(
+      ['Discworld'],
+      result({ seriesCreated: 0, rowsCreated: 0 }),
+    );
+    expect(report.message).toContain("didn't find");
+    expect(report.message).not.toContain('is back');
+  });
+
+  it('reports a partial result honestly', () => {
+    const report = summarizeSeriesRestore(
+      ['Bobiverse', 'Dresden Files'],
+      result({ seriesCreated: 1, rowsCreated: 22 }),
+    );
+    expect(report.message).toContain('1 of 2');
+  });
+
+  // 'failed' counts mean UNKNOWN, not "no change", so this must not be
+  // decided by seriesCreated === 0 the way the not-found case is.
+  it('does not claim the books are missing when the run itself failed', () => {
+    const report = summarizeSeriesRestore(
+      ['Discworld'],
+      result({ ran: false, reason: 'failed' }),
+    );
+    expect(report.message).not.toContain("didn't find");
+    expect(report.message).toContain('scanned again');
+  });
+
+  it('always confirms the series left the removed list', () => {
+    for (const r of [
+      result({ ran: false, reason: 'disabled' }),
+      result({ ran: false, reason: 'failed' }),
+      result({ seriesCreated: 0 }),
+    ]) {
+      expect(summarizeSeriesRestore(['Discworld'], r).message).toContain(
+        'removed list',
+      );
+    }
   });
 });

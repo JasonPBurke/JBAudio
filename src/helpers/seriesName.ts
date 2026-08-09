@@ -8,6 +8,16 @@
 export const normalizeSortName = (name: string) => name.trim().toLowerCase();
 
 /**
+ * A15 — two names denote the same series iff their comparison keys agree.
+ *
+ * The one place that comparison is written down. Duplicate-name validation,
+ * reconcile's name matching and the suppression table all answer the same
+ * question, and a second spelling of it is how they would drift apart.
+ */
+export const isSameSeriesName = (a: string, b: string) =>
+  normalizeSortName(a) === normalizeSortName(b);
+
+/**
  * The one definition of the duplicate-name sentence. Both the Error's message
  * and the UI alert copy come from here so the two can never drift apart.
  */
@@ -27,10 +37,9 @@ export function isDuplicateSeriesName(
   series: { id: string; name: string }[],
   excludeId?: string,
 ): boolean {
-  const key = normalizeSortName(name);
-  if (!key) return false;
+  if (!normalizeSortName(name)) return false;
   return series.some(
-    (s) => s.id !== excludeId && normalizeSortName(s.name) === key,
+    (s) => s.id !== excludeId && isSameSeriesName(s.name, name),
   );
 }
 
