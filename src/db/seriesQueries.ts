@@ -249,10 +249,19 @@ export function observeSeriesData(): Observable<{
     .get<Series>('series')
     .query()
     .observeWithColumns(['name', 'sort_name']);
+  // `canonical_number` is observed for the same reason as `position`: the
+  // browse row renders it (as the collapsed range and the next-up badge), and
+  // the editor writes it without touching membership, so a number-only edit
+  // would otherwise not re-emit.
   const members$ = database
     .get<SeriesBook>('series_books')
     .query()
-    .observeWithColumns(['series_id', 'book_key', 'position']);
+    .observeWithColumns([
+      'series_id',
+      'book_key',
+      'position',
+      'canonical_number',
+    ]);
   return combineLatest([series$, members$]).pipe(
     map(([seriesModels, memberModels]) => ({
       series: seriesModels
@@ -264,6 +273,7 @@ export function observeSeriesData(): Observable<{
           seriesId: (m._raw as any).series_id,
           bookKey: m.bookKey,
           position: m.position,
+          canonicalNumber: m.canonicalNumber,
         })),
     })),
   );

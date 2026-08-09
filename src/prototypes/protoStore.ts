@@ -212,7 +212,10 @@ export const useProtoStore = create<ProtoState>()(
   persist(
     (set) => ({
       dataPreset: 'off',
-      variantId: 'baseline',
+      // Ticket 10: the shipping row is the default, so a device with no
+      // persisted choice shows production code rather than a closed ticket's
+      // artifact.
+      variantId: 'shipping',
       panelOpen: false,
       seriesBackgrounds: true,
       // Driver's ruling, 2026-08-04 (ticket 13). `whole` is kept in the

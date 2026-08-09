@@ -6,6 +6,7 @@
  * No other file needs to change.
  */
 import type React from 'react';
+import SeriesHome from '@/components/SeriesHome';
 import BaselineSeriesHome from './variants/BaselineSeriesHome';
 import NumberedSeriesHome from './variants/NumberedSeriesHome';
 import CardsSeriesHome from './variants/CardsSeriesHome';
@@ -37,10 +38,24 @@ export type Variant = {
 };
 
 export const VARIANTS: Variant[] = [
+  /*
+   * TICKET 10: the SHIPPING row, first in the list so it is also what
+   * `resolveVariant` falls back to. It is here for one reason — the `Stress ×15`
+   * dataset lives in this harness and 10's device criteria are written against
+   * it, so the real component has to be reachable with synthetic data behind it.
+   * The Data knob injects above the library screen's pipeline, so this entry
+   * renders production code with no branch in production code.
+   */
+  {
+    id: 'shipping',
+    label: 'Shipping',
+    hint: 'the real SeriesHome — ticket 10’s browse row, no prototype in the path',
+    Component: SeriesHome,
+  },
   {
     id: 'baseline',
     label: 'Baseline',
-    hint: 'the Series view exactly as it ships today',
+    hint: 'the Series view as it shipped BEFORE ticket 10 (kept as the record)',
     Component: BaselineSeriesHome,
   },
   {

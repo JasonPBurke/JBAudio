@@ -2,7 +2,10 @@
 
 **Blocked by:** [01](01-schema-v33.md), [08](08-series-backgrounds-setting.md).
 
-**Status:** ready-for-agent
+**Status:** resolved — **all eight acceptance criteria met, 2026-08-09.** Device-verified on
+four rigs across three widths and two densities, plus the driver's real 23-series library:
+[`DEVICE-CHECK-10.md`](../DEVICE-CHECK-10.md). One finding logged for the driver: **§H10's
+three-run cap is calibrated against a worst case real data exceeds** — see `## Answer`.
 
 **Spec:** [§B](../../series-ux-redesign/spec.md) (all of it), §H, §I, §K12–K14.
 This is the most-designed artifact in the effort — **fourteen variants across two passes**.
@@ -90,26 +93,26 @@ so the list terminates on a line. ~140dp, ~4.5 series per screen. **It does not 
 
 ## Acceptance criteria
 
-- [ ] The row is built as specified above, replacing the Series view's current presentation.
-- [ ] **Inline expansion is gone**, and with it the masonry list, every book cell and the
+- [x] The row is built as specified above, replacing the Series view's current presentation.
+- [x] **Inline expansion is gone**, and with it the masonry list, every book cell and the
       nested-horizontal-list construct. **The books home and books grid are untouched —
       nothing forked, nothing modified.**
-- [ ] The row honours `Series Backgrounds` in both states.
-- [ ] Pure helpers are unit-tested: the canonical-range collapse **including the three-run
+- [x] The row honours `Series Backgrounds` in both states.
+- [x] Pure helpers are unit-tested: the canonical-range collapse **including the three-run
       cap**, the meta-line sacrifice order driven by an **overflow flag** not a font-scale
       proxy, the three next-up states, and the cluster-size rule as a function of width
       (**whose whole claim is that it is a no-op at 411dp**).
-- [ ] **K12 — completion is a COUNT.** The book progress value is a tri-state enum (0/1/2),
+- [x] **K12 — completion is a COUNT.** The book progress value is a tri-state enum (0/1/2),
       not a fraction; averaging it renders "1 of 7 finished" as 50%.
-- [ ] **K13 — the fan's offset must outpace its shrink.** Equal rates right-align every
+- [x] **K13 — the fan's offset must outpace its shrink.** Equal rates right-align every
       layer, the front one occludes the rest, and a 22-book series draws as one lone cover.
-- [ ] **I7 — `Series complete` needs a named fix.** The shared `success` token measures
+- [x] **I7 — `Series complete` needs a named fix.** The shared `success` token measures
       **1.54:1** on the light background. It is a shipping-palette property, but this string
       is 08's own element, so it is in scope here.
-- [ ] Device-verified on `Pixel_7_Pro` (411dp), `Pixel_Tablet` (800dp) and `7_Tablet`
+- [x] Device-verified on `Pixel_7_Pro` (411dp), `Pixel_Tablet` (800dp) and `7_Tablet`
       (sw635dp @ 272dpi — **not** the 540dp its emulator config implies), at font scale 2.0,
       in **both themes**, with backgrounds ON and OFF, against the 15-series stress dataset.
-- [ ] `tsc` 0 errors · eslint 0 errors · jest green.
+- [x] `tsc` 0 errors · eslint 0 errors · jest green.
 
 ## Two claims that were made, refuted, and must not be re-raised
 
@@ -123,3 +126,58 @@ so the list terminates on a line. ~140dp, ~4.5 series per screen. **It does not 
   cover is 1.20:1 from the app's own pillar — visually the same object) and others in
   different colours again, so **the value is not derivable**. Any constant is as defensible
   as any other. Pick on taste, not analysis — and it has been picked.
+
+## Answer
+
+Built. `SeriesHome` is now a plain vertical `FlashList<DerivedSeries>` of `SeriesBrowseRow`s
+separated by an inset hairline that is also the footer, and the masonry list, the book cells,
+the nested horizontal scroller and the inline-expansion state are all gone with it. Nothing
+in the books home or books grid was opened.
+
+**New files**
+
+| File | What it owns |
+| --- | --- |
+| `src/helpers/seriesRange.ts` | the canonical-range collapse and `RANGE_RUN_CAP` (§H10) |
+| `src/helpers/seriesRowGeometry.ts` | §H geometry, §B2's square constant-width box, K13's fan, and the K14 overflow predicate |
+| `src/helpers/seriesRowFacts.ts` | the derived facts, the meta line's sacrifice, the three next-up states |
+| `src/components/SeriesCoverCluster.tsx` | the fan and the centred glyph (§B3/§B4) |
+| `src/components/SeriesBrowseRow.tsx` | the row |
+
+**Changed:** `SeriesHome.tsx` (rewritten), `seriesAssembly.ts` and `seriesQueries.ts` (carry
+`canonicalNumber` through so the range is index-aligned with the books), `tokens.ts`
+(`successText`), and the prototype harness's registry to add the `Shipping` entry.
+
+### Three things worth knowing before touching this again
+
+**1. K14's overflow test is text INEQUALITY, and the two obvious alternatives are both
+wrong.** Measured on device: Android reported a truncated line as
+`"3 books · 1 finished · #…﻿﻿﻿﻿﻿"` at width 262.33 in a 272.51dp
+column. It pads the ellipsis with U+FEFF so the string keeps the **same character count**
+(a length test is blind), it draws the ellipsized line **narrower** than the column (a width
+test is blind), and `numberOfLines={1}` caps the reported line count at 1 (a line-count test
+is blind). The device payload is pinned as a regression test in
+`seriesRowGeometry.test.ts`. Inequality also survives §H10's cap putting a real `…` inside
+the string, which "contains an ellipsis" would not.
+
+**2. The cluster is deliberately NOT deduped.** Feeding the fan a de-duplicated cover list
+recreates K13's "one lone cover" for any series whose first three books share artwork.
+
+**3. `successText` is a new token, not a re-point of `success`.** `colorTokens.shared` is
+spread **over** `colorTokens[scheme]`, so anything in `shared` is unthemeable by
+construction; I7 could not be fixed by editing `success`.
+
+### Finding for the driver — §H10's cap is calibrated one size too small
+
+§H10 fixes the cap at three runs by measuring `9 books · #1-4, 4.5, 5-8` at 411dp / fs 2.0
+and calling it "the true worst case" once `M finished` drops first. The driver's real library
+produces **`17 books · #1-3, 3.5, 4-12` — 26 characters against that string's 24**, because
+the book count and the range's last number are both two-digit.
+
+On device at fs 1.0 it renders complete with no trailing `…`, so the run cap never fires (it
+is exactly three runs). At fs 2.0, after `3 finished` correctly drops, it still overflows and
+Android cuts it **mid-token** at `4-1…` — which is precisely the failure §H10's run-boundary
+cut exists to prevent, reached through a longer prefix rather than more runs.
+
+**Not changed.** §H10 is an explicitly measured ruling and every remedy — a two-run cap, a
+width-aware cap, or accepting the mid-token cut — is a design decision. Left for the driver.

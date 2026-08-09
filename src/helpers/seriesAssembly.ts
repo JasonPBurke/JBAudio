@@ -10,11 +10,24 @@ export type MembershipRow = {
   seriesId: string;
   bookKey: string;
   position: number;
+  /**
+   * The published number shown on a badge and collapsed into the browse row's
+   * canonical range. `position` keeps sole sort authority — this is displayed,
+   * never sorted on. Null is the norm, not an edge case: a book with no
+   * detectable number carries none, and blank beats misleading.
+   */
+  canonicalNumber: number | null;
 };
 export type DerivedSeries = {
   id: string;
   name: string;
   books: Book[];
+  /**
+   * Canonical numbers INDEX-ALIGNED with `books` — so a membership row whose
+   * key no longer resolves drops its number with it. Misalignment here would
+   * badge every later book with its neighbour's number.
+   */
+  canonicalNumbers: (number | null)[];
   progressState: SeriesProgressState;
 };
 
@@ -54,14 +67,20 @@ export function assembleDerivedSeries(
       .slice()
       .sort((a, b) => a.position - b.position);
     const books: Book[] = [];
+    const canonicalNumbers: (number | null)[] = [];
     for (const r of rows) {
       const book = keyMap.get(r.bookKey);
-      if (book) books.push(book); // graceful skip for unresolved keys
+      if (!book) continue; // graceful skip for unresolved keys
+      books.push(book);
+      // Pushed in the same branch, never in a parallel pass: an unresolved key
+      // must drop its number too or the two arrays desynchronise.
+      canonicalNumbers.push(r.canonicalNumber);
     }
     return {
       id: s.id,
       name: s.name,
       books,
+      canonicalNumbers,
       progressState: deriveSeriesProgressState(books),
     };
   });

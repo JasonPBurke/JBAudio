@@ -12,6 +12,11 @@ export const colorTokens = {
     chapterInactive: '#1d2233bf',
     divider: '#d8dee9',
     overlay: '#1C1C1C',
+    // Per-scheme success. `shared.success` (#8BD649) measures 9.59:1 here and
+    // 1.54:1 on the light background — it was picked against a dark ground and
+    // cannot be themed, because `shared` is spread OVER the per-scheme bag.
+    // Dark keeps the shared value exactly; light gets a legible one. See below.
+    successText: '#8BD649',
     // chapterListItem: '#22273b',
   },
   light: {
@@ -26,6 +31,10 @@ export const colorTokens = {
     chapterInactive: '#F3F4F6bf',
     divider: '#9CA3AF',
     overlay: '#FFFFFF',
+    // The named fix for §I7: `success` at #8BD649 measures 1.54:1 on this
+    // background, which lands on the Series row's `Series complete` state.
+    // #1B5E20 measures 6.83:1 — comfortably past AA, and still read as green.
+    successText: '#1B5E20',
     // chapterListItem: '#FFFFFF',
   },
   shared: {

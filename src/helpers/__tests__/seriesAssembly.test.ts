@@ -22,15 +22,34 @@ test('assemble resolves by structural key, drops missing, orders by position, A-
     { id: 's1', name: 'Alpha', sortName: 'alpha' },
   ];
   const memberships = [
-    { seriesId: 's1', bookKey: '/y/1.mp3', position: 1 },
-    { seriesId: 's1', bookKey: '/x/1.mp3', position: 0 },
-    { seriesId: 's1', bookKey: '/gone.mp3', position: 2 }, // unresolved → skipped
-    { seriesId: 's2', bookKey: '/x/1.mp3', position: 0 },
+    { seriesId: 's1', bookKey: '/y/1.mp3', position: 1, canonicalNumber: 2 },
+    { seriesId: 's1', bookKey: '/x/1.mp3', position: 0, canonicalNumber: 1 },
+    // unresolved → skipped
+    { seriesId: 's1', bookKey: '/gone.mp3', position: 2, canonicalNumber: 3 },
+    { seriesId: 's2', bookKey: '/x/1.mp3', position: 0, canonicalNumber: null },
   ];
   const out = assembleDerivedSeries(series, memberships, bookMap);
   expect(out.map((s) => s.id)).toEqual(['s1', 's2']); // A-Z by sortName
   expect(out[0].books.map((b) => b.bookId)).toEqual(['b1', 'b2']); // by position, missing dropped
   expect(out[0].progressState).toBe('playing'); // [Zeta=0, Alpha=2]
+});
+
+test('canonical numbers stay index-aligned with the books that resolved', () => {
+  const bookMap = {
+    b1: mkBook('b1', '/x/1.mp3', 'Zeta'),
+    b2: mkBook('b2', '/y/1.mp3', 'Alpha'),
+  };
+  const series = [{ id: 's1', name: 'Alpha', sortName: 'alpha' }];
+  const memberships = [
+    { seriesId: 's1', bookKey: '/x/1.mp3', position: 0, canonicalNumber: 1 },
+    // A dropped membership must drop its number too, or every number after it
+    // is attributed to the wrong book.
+    { seriesId: 's1', bookKey: '/gone.mp3', position: 1, canonicalNumber: 2 },
+    { seriesId: 's1', bookKey: '/y/1.mp3', position: 2, canonicalNumber: null },
+  ];
+  const [out] = assembleDerivedSeries(series, memberships, bookMap);
+  expect(out.books.map((b) => b.bookId)).toEqual(['b1', 'b2']);
+  expect(out.canonicalNumbers).toEqual([1, null]);
 });
 
 test('countSeriesByState', () => {
