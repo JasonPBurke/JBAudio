@@ -1,0 +1,111 @@
+# Ticket 07 device check — Pixel 7 Pro (29131FDH3009SZ), 2026-08-08
+
+## Transcribed, not captured
+
+The two lines below were read live from the device's logcat ring buffer at 19:17, but the
+buffer (256 KiB, and the scan had just filled it) rotated past them before they could be
+redirected to a file. They are transcribed verbatim from that read. Everything after this
+section is a live capture and is not transcribed.
+
+Driver's scan, detection toggled OFF, cold library:
+
+    08-08 19:13:18.757  I ReactNativeJS: [series] detection is off — no series were read or written
+    08-08 19:13:18.761  I ReactNativeJS: [scan] 189638ms total · 3461 files, 3461 new (54.3ms/new file) — enumerate 1261ms · existing-urls 35ms · process 188097ms · cleanup 227ms · detect 3ms
+
+What this closes, on its own:
+
+- **OFF stops future detection.** The guard fires and says so, and `detect 3ms` against the
+  338 ms ticket 06 measured for a real run is the early return being real rather than
+  asserted — it returns before its first read, so there was nothing to write.
+- The library is **3461 files, all new**, so this device starts from a clean library with
+  **zero detected series**, which is the correct starting state for the retroactive button.
+
+## Live capture
+
+Everything below is `adb logcat -v time -s ReactNativeJS`, started 19:19.
+08-08 19:21:49.113 W/ReactNativeJS(18500): [series] 0 books sit under no configured root and 1 have no first chapter — all dropped before detection, out of 352
+08-08 19:21:49.260 I/ReactNativeJS(18500): [series] "Discworld"  41 books  (new)
+08-08 19:21:49.261 I/ReactNativeJS(18500): [series] "Discworld (2022)"  39 books  (new)
+08-08 19:21:49.262 I/ReactNativeJS(18500): [series] "Dresden Files"  22 books  (new)
+08-08 19:21:49.267 I/ReactNativeJS(18500): [series] "Demon Accords"  17 books  (new)
+08-08 19:21:49.267 I/ReactNativeJS(18500): [series] "Dungeon Crawler Carl"  8 books  (new)
+08-08 19:21:49.268 I/ReactNativeJS(18500): [series] "The Dark Tower"  8 books  (new)
+08-08 19:21:49.269 I/ReactNativeJS(18500): [series] "The First Law"  7 books  (new)
+08-08 19:21:49.270 I/ReactNativeJS(18500): [series] "Mistborn"  6 books  (new)
+08-08 19:21:49.270 I/ReactNativeJS(18500): [series] "Shadow Saga"  6 books  (new)
+08-08 19:21:49.271 I/ReactNativeJS(18500): [series] "Bobiverse"  5 books  (new)
+08-08 19:21:49.272 I/ReactNativeJS(18500): [series] "Long Earth"  5 books  (new)
+08-08 19:21:49.272 I/ReactNativeJS(18500): [series] "Lockwood and Co."  4 books  (new)
+08-08 19:21:49.273 I/ReactNativeJS(18500): [series] "Memory, Sorrow & Thorn"  4 books  (new)
+08-08 19:21:49.274 I/ReactNativeJS(18500): [series] "The Murderbot Diaries"  4 books  (new)
+08-08 19:21:49.274 I/ReactNativeJS(18500): [series] "Bromeliad"  3 books  (new)
+08-08 19:21:49.275 I/ReactNativeJS(18500): [series] "Crouch, B"  3 books  (new)
+08-08 19:21:49.276 I/ReactNativeJS(18500): [series] "Lord of the Rings"  3 books  (new)
+08-08 19:21:49.276 I/ReactNativeJS(18500): [series] "The Age of Madness"  3 books  (new)
+08-08 19:21:49.277 I/ReactNativeJS(18500): [series] "The Silo Saga"  3 books  (new)
+08-08 19:21:49.278 I/ReactNativeJS(18500): [series] "TMC"  3 books  (new)
+08-08 19:21:49.278 I/ReactNativeJS(18500): [series] "Cerulean Chronicles"  2 books  (new)
+08-08 19:21:49.279 I/ReactNativeJS(18500): [series] "Kingkiller Chronicle"  2 books  (new)
+08-08 19:21:49.279 I/ReactNativeJS(18500): [series] "Red Rising"  2 books  (new)
+08-08 19:21:49.280 I/ReactNativeJS(18500): [series] detection (conservative): 351 units → 23 series, 200 books placed · created 23 (200 rows) · inserted 0 · removed 0 · skipped 0 · 221ms
+08-08 19:22:43.133 W/ReactNativeJS(18500): [series] 0 books sit under no configured root and 1 have no first chapter — all dropped before detection, out of 352
+08-08 19:22:43.233 I/ReactNativeJS(18500): [series] "Discworld"  41 books  (existing)
+08-08 19:22:43.234 I/ReactNativeJS(18500): [series] "Discworld (2022)"  39 books  (existing)
+08-08 19:22:43.235 I/ReactNativeJS(18500): [series] "Dresden Files"  22 books  (existing)
+08-08 19:22:43.236 I/ReactNativeJS(18500): [series] "Demon Accords"  17 books  (existing)
+08-08 19:22:43.237 I/ReactNativeJS(18500): [series] "Dungeon Crawler Carl"  8 books  (existing)
+08-08 19:22:43.238 I/ReactNativeJS(18500): [series] "The Dark Tower"  8 books  (existing)
+08-08 19:22:43.238 I/ReactNativeJS(18500): [series] "The First Law"  7 books  (existing)
+08-08 19:22:43.239 I/ReactNativeJS(18500): [series] "Mistborn"  6 books  (existing)
+08-08 19:22:43.240 I/ReactNativeJS(18500): [series] "Shadow Saga"  6 books  (existing)
+08-08 19:22:43.240 I/ReactNativeJS(18500): [series] "Bobiverse"  5 books  (existing)
+08-08 19:22:43.241 I/ReactNativeJS(18500): [series] "Long Earth"  5 books  (existing)
+08-08 19:22:43.242 I/ReactNativeJS(18500): [series] "Lockwood and Co."  4 books  (existing)
+08-08 19:22:43.242 I/ReactNativeJS(18500): [series] "Memory, Sorrow & Thorn"  4 books  (existing)
+08-08 19:22:43.243 I/ReactNativeJS(18500): [series] "The Murderbot Diaries"  4 books  (existing)
+08-08 19:22:43.244 I/ReactNativeJS(18500): [series] "Bromeliad"  3 books  (existing)
+08-08 19:22:43.244 I/ReactNativeJS(18500): [series] "Crouch, B"  3 books  (existing)
+08-08 19:22:43.245 I/ReactNativeJS(18500): [series] "Lord of the Rings"  3 books  (existing)
+08-08 19:22:43.245 I/ReactNativeJS(18500): [series] "The Age of Madness"  3 books  (existing)
+08-08 19:22:43.246 I/ReactNativeJS(18500): [series] "The Silo Saga"  3 books  (existing)
+08-08 19:22:43.247 I/ReactNativeJS(18500): [series] "TMC"  3 books  (existing)
+08-08 19:22:43.247 I/ReactNativeJS(18500): [series] "Cerulean Chronicles"  2 books  (existing)
+08-08 19:22:43.248 I/ReactNativeJS(18500): [series] "Kingkiller Chronicle"  2 books  (existing)
+08-08 19:22:43.249 I/ReactNativeJS(18500): [series] "Red Rising"  2 books  (existing)
+08-08 19:22:43.249 I/ReactNativeJS(18500): [series] detection (conservative): 351 units → 23 series, 200 books placed · created 0 (0 rows) · inserted 0 · removed 0 · skipped 0 · 174ms
+08-08 19:25:58.192 I/ReactNativeJS(18500): [series] detection is off — no series were read or written
+08-08 19:25:58.196 I/ReactNativeJS(18500): [scan] 1469ms total · 3461 files, 0 new (nothing rescanned) — enumerate 1085ms · existing-urls 180ms · process 6ms · cleanup 102ms · detect 1ms
+08-08 19:28:56.804 W/ReactNativeJS(18500): [series] 0 books sit under no configured root and 1 have no first chapter — all dropped before detection, out of 352
+08-08 19:28:57.361 I/ReactNativeJS(18500): [series] "Discworld"  41 books  (existing)
+08-08 19:28:57.362 I/ReactNativeJS(18500): [series] "Discworld (2022)"  39 books  (existing)
+08-08 19:28:57.362 I/ReactNativeJS(18500): [series] "Dresden Files"  22 books  (existing)
+08-08 19:28:57.367 I/ReactNativeJS(18500): [series] "Demon Accords"  17 books  (existing)
+08-08 19:28:57.369 I/ReactNativeJS(18500): [series] "Rivers of London"  16 books  (new)
+08-08 19:28:57.369 I/ReactNativeJS(18500): [series] "Dungeon Crawler Carl"  8 books  (existing)
+08-08 19:28:57.370 I/ReactNativeJS(18500): [series] "The Dark Tower"  8 books  (existing)
+08-08 19:28:57.371 I/ReactNativeJS(18500): [series] "Enders Game"  7 books  (new)
+08-08 19:28:57.371 I/ReactNativeJS(18500): [series] "The First Law"  7 books  (existing)
+08-08 19:28:57.372 I/ReactNativeJS(18500): [series] "Mistborn"  6 books  (existing)
+08-08 19:28:57.373 I/ReactNativeJS(18500): [series] "Shadow Saga"  6 books  (existing)
+08-08 19:28:57.373 I/ReactNativeJS(18500): [series] "Bobiverse"  5 books  (existing)
+08-08 19:28:57.374 I/ReactNativeJS(18500): [series] "Long Earth"  5 books  (existing)
+08-08 19:28:57.375 I/ReactNativeJS(18500): [series] "Drenai"  4 books  (new)
+08-08 19:28:57.375 I/ReactNativeJS(18500): [series] "Formic Wars"  4 books  (new)
+08-08 19:28:57.376 I/ReactNativeJS(18500): [series] "Lockwood and Co."  4 books  (existing)
+08-08 19:28:57.376 I/ReactNativeJS(18500): [series] "Memory, Sorrow & Thorn"  4 books  (existing)
+08-08 19:28:57.377 I/ReactNativeJS(18500): [series] "The Murderbot Diaries"  4 books  (existing)
+08-08 19:28:57.378 I/ReactNativeJS(18500): [series] "The Science of Discworld"  4 books  (new)
+08-08 19:28:57.378 I/ReactNativeJS(18500): [series] "Bromeliad"  3 books  (existing)
+08-08 19:28:57.379 I/ReactNativeJS(18500): [series] "Crouch, B"  3 books  (existing)
+08-08 19:28:57.380 I/ReactNativeJS(18500): [series] "Founders Trilogy"  3 books  (new)
+08-08 19:28:57.380 I/ReactNativeJS(18500): [series] "Gentlemen Bastards"  3 books  (new)
+08-08 19:28:57.381 I/ReactNativeJS(18500): [series] "Lord of the Rings"  3 books  (existing)
+08-08 19:28:57.382 I/ReactNativeJS(18500): [series] "Speaker Trilogy"  3 books  (new)
+08-08 19:28:57.382 I/ReactNativeJS(18500): [series] "The Age of Madness"  3 books  (existing)
+08-08 19:28:57.383 I/ReactNativeJS(18500): [series] "The Hyperion Cantos"  3 books  (new)
+08-08 19:28:57.384 I/ReactNativeJS(18500): [series] "The Silo Saga"  3 books  (existing)
+08-08 19:28:57.384 I/ReactNativeJS(18500): [series] "TMC"  3 books  (existing)
+08-08 19:28:57.385 I/ReactNativeJS(18500): [series] "Cerulean Chronicles"  2 books  (existing)
+08-08 19:28:57.386 I/ReactNativeJS(18500): [series] "Kingkiller Chronicle"  2 books  (existing)
+08-08 19:28:57.386 I/ReactNativeJS(18500): [series] "Red Rising"  2 books  (existing)
+08-08 19:28:57.387 I/ReactNativeJS(18500): [series] detection (full): 351 units → 32 series, 247 books placed · created 9 (47 rows) · inserted 0 · removed 0 · skipped 0 · 640ms

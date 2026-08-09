@@ -607,6 +607,20 @@ export async function getSeriesDetectionEnabled(): Promise<boolean> {
 }
 
 /**
+ * A9 — OFF writes `false` and nothing else. It does not touch a single series,
+ * exactly as `setAutoChapterInterval(null)` never touches a generated chapter:
+ * the toggle governs whether books are examined *as they scan in*, so a
+ * preference change can never destroy data.
+ */
+export async function setSeriesDetectionEnabled(
+  enabled: boolean,
+): Promise<void> {
+  return updateSetting((record) => {
+    record.seriesDetectionEnabled = enabled;
+  });
+}
+
+/**
  * §A3 / §A9 — `Also group by folder name`, the sub-option. **OFF by default**,
  * so this one KEEPS the house idiom, and the difference from the getter above
  * is deliberate rather than an inconsistency: conservative fidelity is what
@@ -623,6 +637,19 @@ export async function getSeriesFolderGroupingEnabled(): Promise<boolean> {
     return settingsRecord[0].seriesFolderGroupingEnabled === true;
   }
   return false;
+}
+
+/**
+ * Turning this on widens the cascade to folders no tag corroborates (A3's
+ * "Full" column). It changes nothing until the next detection run — like its
+ * sibling, the write is the whole of the side effect.
+ */
+export async function setSeriesFolderGroupingEnabled(
+  enabled: boolean,
+): Promise<void> {
+  return updateSetting((record) => {
+    record.seriesFolderGroupingEnabled = enabled;
+  });
 }
 
 export async function getLastScanAt(): Promise<number | null> {
