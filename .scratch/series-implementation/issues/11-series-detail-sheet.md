@@ -6,6 +6,11 @@
 (a flat flag check that also flips the book back to `Started`). Only §C8 is unverifiable, and
 it is blocked on ticket 15.
 
+⚠ **A follow-up defect was found and fixed the same day, after this ticket was committed
+(`6c3dbbd`): on a series long enough to overflow the sheet, scrolling back UP dismissed the
+sheet instead of scrolling.** The layout changed to pay for it — the hero is now pinned. See
+`## Follow-up defect` at the bottom. Driver hand-checks are still outstanding.
+
 **Spec:** [§C](../../series-ux-redesign/spec.md), §J, §K5, §K11, §Out of Scope.
 
 ## What to build
@@ -188,6 +193,93 @@ The dev build was not installed on the device, so it was reinstalled from
 but nothing writes `series.artwork` yet, so there is no way to pin a cover on device.
 
 **§C5 is under review** — see the status line at the top of this ticket.
+
+## Follow-up defect — the sheet closed instead of scrolling back up
+
+**Raised by the driver 2026-08-10, after `6c3dbbd` was committed.** On `Discworld` (41 books,
+the list overflows), scrolling DOWN worked; swiping back UP **dismissed the sheet**. Driver's
+lead — *"this was an issue on the titleDetails page that was fixed"* — was correct and is what
+cracked it.
+
+### Root cause
+
+Android's `formSheet` is a Material **`BottomSheetDialog`** — react-native-screens'
+`ScreenModalFragment` is a `BottomSheetDialogFragment`, and the screen is re-parented into that
+dialog's **own Window** under a `BottomSheetDialogRootView`. rnscreens does **no** scroll
+coordination of its own (grep its Android sources: nothing touches nested scrolling), so
+`BottomSheetBehavior` arbitrates the drag off the `CoordinatorLayout`. With React Native's
+plain scroll view it won the downward drag and dismissed the sheet.
+
+**The differentiator was the scroll container, and nothing else.** The two routes' `Stack.Screen`
+options are identical apart from `contentStyle`'s background — verified line by line. The app's
+ONLY gesture-handler scroll container was `titleDetails` (`8201d3f`), the app's ONLY formSheet
+that scrolled correctly.
+
+### The rule that decides the layout
+
+⚠ **A gesture-handler scroll view swallows EVERY vertical drag whenever it has ANY scrollable
+content — direction is not consulted.** Proven both ways on device:
+
+- `titleDetails` with content that FITS → swipe-down dismissed the sheet (handler never
+  activates).
+- `titleDetails` with content that OVERFLOWS (Bobiverse 01) → swipe-down scrolled back up,
+  sheet survived. Same as this screen once fixed.
+
+**So drag-to-dismiss and a full-bleed scrolling list cannot coexist.** Fixing the scroll alone
+cost drag-to-dismiss everywhere the list covered — measured, not assumed: at scroll offset 0 a
+downward drag moved nothing.
+
+### What shipped — BOTH halves are required
+
+1. **`renderScrollComponent={GestureScrollView}`** on the `FlashList`. FlashList's supported
+   seam; `useSecondaryProps` wraps whatever it is given in `Animated.createAnimatedComponent`.
+   This is the fix.
+2. **The hero is PINNED, out of `ListHeaderComponent`, and the list carries side gutters.** These
+   are the drag targets that buy back dismissal. Driver's call, and it is `titleDetails`' shape —
+   *"that is how we do it in titleDetails… titleDetails has the gutters as well"*.
+
+⚠ **`row` lost its `paddingHorizontal`; `listGutter` gained the same 12dp `marginHorizontal`.**
+Net zero visual change — rows render on the same x — but the strip is now outside the scroll
+view, so it drags the sheet. **Putting the padding back on `row` silently re-closes the gutters
+and costs drag-to-dismiss.**
+
+**§C7 survives.** The concession to break it was offered and NOT needed: pinning the hero puts
+it *outside* the inset, so its backdrop still bleeds the full width. Only the rows are inset.
+
+### Verified on device — Pixel 7 Pro, Discworld, 2026-08-10
+
+Scripted over adb, each an A/B against the same swipe coordinates:
+
+| | Result |
+| --- | --- |
+| Scroll down | ✅ list scrolls, **hero stays pinned** |
+| **Scroll back up** | ✅ **scrolls — the defect, fixed** (was: dismissed) |
+| Drag on the pinned hero | ✅ dismisses |
+| Drag in the LEFT gutter | ✅ dismisses |
+| Drag in the RIGHT gutter | ✅ dismisses |
+| Drag on the grab handle | ✅ dismisses |
+| Tap a row's text | ✅ opens book details, nav-intent flag holds |
+
+`tsc` 0 errors · eslint 0 errors on the changed file · jest **47 suites / 563 tests**, unchanged.
+
+⚠ **Not covered by a jest test, deliberately and unavoidably**: the whole defect lives in native
+gesture arbitration between a Material behaviour and a gesture-handler view, in a separate
+Window. There is no seam jest can reach — the reproduction IS the adb script above. Treat the
+device table as the regression suite.
+
+### Font scale 2.0 — DRIVER, PASS
+
+The pinned hero is a fixed vertical cost, so 2.0 was the one layout that could regress. Driver,
+verbatim: *"both gutters and the header work as expected at 2.0 so does the list scrolling"* —
+i.e. the two 12dp strips stay hittable and the list still scrolls with the hero eating far more
+of the sheet. **No detent or `maxHeight` tuning needed.**
+
+### Still to hand-check
+
+The cover-tap play path was left to the driver rather than mutate a real library mid-session.
+It is unchanged **by construction** — the 12dp that moved was dead padding *inside* `row`, so
+`rowLeading` occupies identical pixels — and the text half of the same split was verified, but
+it has not been pressed.
 
 ## Dropped, not deferred
 

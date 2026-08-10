@@ -36,6 +36,7 @@ import {
   View,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
+import { ScrollView as GestureScrollView } from 'react-native-gesture-handler';
 import FastImage from '@d11/react-native-fast-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -190,25 +191,55 @@ const SeriesDetailSheet = ({ series }: { series: DerivedSeries }) => {
         />
       </View>
 
-      <FlashList
-        data={rows}
-        renderItem={renderRow}
-        keyExtractor={keyExtractor}
-        contentContainerStyle={listPadding}
-        showsVerticalScrollIndicator={false}
-        ListHeaderComponent={
-          <SeriesHero
-            series={series}
-            covers={cluster}
-            width={width}
-            showBackdrop={seriesBackgrounds}
-            meta={seriesMetaLine(facts, { overflowing: false })}
-            facts={facts}
-            heroPlay={heroPlay}
-            onEdit={openEditor}
-          />
-        }
+      {/*
+        THE HERO IS PINNED, OUTSIDE THE LIST, AND THAT PLACEMENT IS LOAD-BEARING.
+        It was the list's `ListHeaderComponent` until a long series (Discworld, 41
+        books) proved that arrangement unusable: see the block comment on the list
+        below. The hero is the sheet's drag-to-dismiss target, and it can only be
+        that while it sits outside the scroll view. This is the shape
+        `titleDetails` already uses — pinned artwork above, scroller below — and it
+        is why that screen never had this bug.
+      */}
+      <SeriesHero
+        series={series}
+        covers={cluster}
+        width={width}
+        showBackdrop={seriesBackgrounds}
+        meta={seriesMetaLine(facts, { overflowing: false })}
+        facts={facts}
+        heroPlay={heroPlay}
+        onEdit={openEditor}
       />
+
+      {/*
+        ⚠ `renderScrollComponent` AND the gutters are BOTH required, for two
+        different halves of one defect. Device-verified on Discworld, 2026-08-10.
+
+        1. THE GESTURE-HANDLER SCROLL VIEW IS THE FIX. With React Native's plain
+           scroll view, this route's Android form sheet — a Material
+           `BottomSheetDialog`, its own Window — let `BottomSheetBehavior` steal
+           every downward drag off the CoordinatorLayout. Scrolling DOWN worked;
+           scrolling back UP dismissed the sheet. Reproduced, then fixed by this
+           one prop, then re-reproduced by removing it.
+
+        2. THE GUTTERS PAY FOR THE FIX. A gesture-handler scroll view swallows
+           ALL vertical drags whenever it has ANY scrollable content — direction
+           is not consulted — so once it wins, the sheet can never be dragged
+           shut from anywhere the list covers, not even at offset 0. The pinned
+           hero above and these side strips are the drag targets that buys back.
+           `row` therefore carries NO horizontal padding: it lives here instead,
+           so the rows do not move a pixel.
+      */}
+      <View style={styles.listGutter}>
+        <FlashList
+          data={rows}
+          renderItem={renderRow}
+          keyExtractor={keyExtractor}
+          contentContainerStyle={listPadding}
+          showsVerticalScrollIndicator={false}
+          renderScrollComponent={GestureScrollView}
+        />
+      </View>
     </View>
   );
 };
@@ -593,6 +624,15 @@ const BookRow = memo(function BookRow({ row }: { row: SeriesDetailRow }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  /*
+   * The list's side strips (§C4's drag targets) and its height bound in one. The
+   * inset is `screenPadding.horizontal` exactly because that is what `row` gave
+   * up — see the note on `row`.
+   */
+  listGutter: {
+    flex: 1,
+    marginHorizontal: screenPadding.horizontal,
+  },
   dismissContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -685,10 +725,15 @@ const styles = StyleSheet.create({
    * and is not. Stretching gives both halves the row's full height, so the two
    * ripples meet.
    */
+  /*
+   * ⚠ NO `paddingHorizontal` HERE. It moved up to `listGutter`, which insets the
+   * whole scroll view by the same amount — so the rows render on exactly the same
+   * x as before, and the space they gave up became the sheet's drag strip. Putting
+   * it back here would silently re-close the gutters and cost drag-to-dismiss.
+   */
   row: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    paddingHorizontal: screenPadding.horizontal,
   },
   rowLeading: {
     flexDirection: 'row',

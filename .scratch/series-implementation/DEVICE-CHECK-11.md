@@ -90,6 +90,30 @@ player screen, the floating player, the notification or Android Auto's transport
 never routes through it — those talk to TrackPlayer directly and simply resume. Correct, but
 it is the one place the two behaviours differ.
 
+## Follow-up run, same day — the scroll-dismiss defect
+
+**Driver-reported after `6c3dbbd` shipped:** on `Discworld` (41 books) the sheet **closed
+instead of scrolling back up**. Root cause, the rule it turns on and the two-part fix are in
+ticket 11's `## Follow-up defect`. The device work was scripted over adb as an A/B on identical
+swipe coordinates — `input swipe 720 2400 720 1400` to scroll down, `input swipe 720 1400 720
+2400` to come back:
+
+| | Before | After |
+| --- | --- | --- |
+| Scroll down | scrolls | scrolls, **hero now pinned** |
+| **Scroll back up** | **DISMISSES** | **scrolls** |
+| Drag pinned hero / either gutter / grab handle | n/a | dismisses |
+| Tap row text | opens details | opens details, intent flag holds |
+
+⚠ **One instrument was discarded as invalid mid-run:** RNGH logs
+`"[GESTURE HANDLER] Initialize gesture handler for root view"` at INFO, so logcat looked like a
+cheap way to prove whether a gesture root exists inside the dialog Window. **A cold launch logs
+ZERO of them in this build** — the control failed, so the probe proves nothing either way. Do
+not resurrect that line of evidence.
+
+**Font scale 2.0 — driver, PASS**, run after the layout change: *"both gutters and the header
+work as expected at 2.0 so does the list scrolling"*.
+
 ## Cannot be device-verified yet
 
 **C8 — pinned art on the fan's front card.** The read path is built and unit-tested
