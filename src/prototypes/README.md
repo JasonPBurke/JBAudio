@@ -88,7 +88,24 @@ The three ticket-08 variants share `ProtoSeriesDetail.tsx` (the detail screen),
 the detail screen is deliberate: 08 asks what the **browse** unit is, and three
 bespoke detail screens would have made the driver compare six things.
 
-## The detail sheet (ticket 13) — the one part that is a REAL ROUTE
+## The detail sheet (ticket 13) — SUPERSEDED, and the route is now REAL CODE
+
+> ⚠ **`ProtoSeriesDetailSheet.tsx` IS DEAD CODE as of implementation ticket 11.**
+> Nothing imports it. `src/app/seriesDetail.tsx` and its `Stack.Screen` in
+> `src/app/_layout.tsx` are now the **shipping** Series detail sheet
+> (`src/components/SeriesDetailSheet.tsx`, spec §C) and **must NOT be deleted
+> with the harness** — see [Deleting it](#deleting-it). Everything below
+> describes what 13 measured, and the rulings it produced all shipped; the file
+> itself is kept only until the harness goes.
+>
+> The route still resolves through `useSeriesSource()`, so a **synthetic series
+> opens the REAL sheet** — which is the fastest way to put the 95-character
+> name, the 22-book list and the Dresden gaps in front of the shipping screen at
+> font scale 2.0. Two knobs no longer do anything, because only the prototype
+> sheet read them: **`Rows`** (the split is the ruling and is now the only
+> arrangement) and **`Pinned`** (`series.artwork` is a real column now, and the
+> knob lived in `protoStore`). `Backgrounds` is likewise superseded by the real
+> `Series Backgrounds` setting.
 
 `ProtoSeriesDetailSheet.tsx`, mounted by `src/app/seriesDetail.tsx` with a
 `Stack.Screen` in `src/app/_layout.tsx`. Ticket 13's question was about
@@ -295,10 +312,10 @@ book title, `slot='text'` under Author/Narrator, `slot='cards'` inside the info
 card row, `<ProtoAddToSeriesMenuItem>` in the overflow, and
 `<ProtoSeriesLinePill>` at the screen root.
 
-Plus two files ticket 13 needed, because a route cannot live in `src/prototypes/`:
-
-- `src/app/seriesDetail.tsx` — the route (renders `null` outside `__DEV__`)
-- one `<Stack.Screen name='seriesDetail'>` in `src/app/_layout.tsx`
+Plus **one line** in `src/app/seriesDetail.tsx` — that route is now SHIPPING code
+(implementation ticket 11), and its only harness footprint is the same
+`useDerivedSeries()` → `useSeriesSource()` substitution the library screen
+carries, marked `THROWAWAY`. **The route and its `<Stack.Screen>` stay.**
 
 Injecting the data *above* the screen's search/tab/count pipeline is what makes the
 tab-filtering dataset meaningful: `countSeriesByState`, `filterSeriesBySearch` and the tab
@@ -312,12 +329,19 @@ The one production cost is a single Zustand selector over a store that never cha
 ## Deleting it
 
 ```
-rm -rf src/prototypes src/app/seriesDetail.tsx src/app/seriesCreateProto.tsx
+rm -rf src/prototypes src/app/seriesCreateProto.tsx
 ```
 
+⚠ **`src/app/seriesDetail.tsx` IS NOT ON THAT LIST ANY MORE, and neither is its
+`<Stack.Screen>`.** Implementation ticket 11 made both shipping code — the
+Series detail sheet is a real route now. What it needs instead is **one line
+restored**: re-import `useDerivedSeries` from `@/store/seriesStore` and call it
+where `useSeriesSource()` is called, exactly as in the library screen below.
+`src/components/SeriesDetailSheet.tsx` never referenced the harness at all.
+
 then remove the four `THROWAWAY` mounts and the `@/prototypes/ProtoSeriesLine`
-import from `src/app/titleDetails.tsx`, remove the `seriesDetail` **and
-`seriesCreateProto`** `<Stack.Screen>`s from `src/app/_layout.tsx`, remove the
+import from `src/app/titleDetails.tsx`, remove the
+`seriesCreateProto` `<Stack.Screen>` from `src/app/_layout.tsx`, remove the
 `<ProtoWizardPill />` mount and its import from
 `src/app/(drawer)/(library)/index.tsx` (ticket 15), and
 in `src/app/(drawer)/(library)/index.tsx` restore the three `THROWAWAY` sites:
@@ -348,9 +372,10 @@ into the left 600dp. Nothing was lost, because the cap was never what fixed the
 info page's defect — see `rowText` below.
 
 **Cluster SIZING still scales on both surfaces**, and that is a different rule
-from the layout cap. `heroClusterSize()` in `ProtoSeriesDetailSheet.tsx` uses the
-hero's own anchor (`HERO_CLUSTER / 411`) against the same clamp, so the hero fan
-keeps its 1.24× lead over the browse fan at every width. **Scaling one and not
+from the layout cap. `heroClusterSize()` — now shipping, in
+`src/helpers/seriesRowGeometry.ts`, alongside the browse row's — uses the hero's
+own anchor (`HERO_CLUSTER_PHONE_SIZE / 411`) against the same clamp, so the hero
+fan keeps its 1.24× lead over the browse fan at every width. **Scaling one and not
 the other inverts the hierarchy** — that shipped for about ten minutes and the
 driver caught it: the browse fan hit 147dp while the hero stayed 124.8dp, making
 the *overview's* artwork bigger than the *detail's*. Any new cluster takes its

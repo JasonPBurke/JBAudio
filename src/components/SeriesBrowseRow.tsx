@@ -45,10 +45,6 @@ import { withOpacity } from '@/helpers/colorUtils';
 import { useQueueStore } from '@/store/queue';
 import { handleBookPlay } from '@/helpers/handleBookPlay';
 import { awaitPlayerReady } from '@/helpers/awaitPlayerReady';
-import {
-  updateChapterIndexInDB,
-  updateChapterProgressInDB,
-} from '@/db/chapterQueries';
 import type { DerivedSeries } from '@/helpers/seriesAssembly';
 import {
   getSeriesRowFacts,
@@ -64,25 +60,21 @@ import {
   TEXT_GAP,
 } from '@/helpers/seriesRowGeometry';
 import { SeriesCoverCluster } from '@/components/SeriesCoverCluster';
+import { SeriesCompletionBar } from '@/components/SeriesCompletionBar';
 
 type TextLayoutEvent = Parameters<
   NonNullable<React.ComponentProps<typeof Text>['onTextLayout']>
 >[0];
 
-/**
- * Restart-from-zero when the series is finished.
- *
- * `handleBookPlay` has no `Finished` case: it reads the stored chapter index
- * and progress and resumes there, which on a finished book is the last few
- * seconds. §B3 sends the glyph to the FIRST book when a series is complete —
- * without this, "play" on a finished series plays three seconds of credits and
- * stops, with no escape hatch on this screen. Same treatment the detail sheet's
- * finished rows get.
+/*
+ * RESTART-FROM-ZERO IS NOT HERE ANY MORE. This row used to rewind a finished
+ * book itself before calling `handleBookPlay`, because the helper had no
+ * `Finished` case. Spec §C5 reversed that: the rule is the better behaviour
+ * everywhere, not a property of one screen, so it moved INTO the helper and
+ * this row simply plays. §B3 still sends the glyph to the FIRST book when the
+ * series is complete; the helper decides what position that book starts at, and
+ * flips the book back to `Started` as it does so.
  */
-async function rewindFinishedBook(bookId: string) {
-  await updateChapterIndexInDB(bookId, 0);
-  await updateChapterProgressInDB(bookId, 0);
-}
 
 export const SeriesBrowseRow = memo(function SeriesBrowseRow({
   series,
@@ -116,7 +108,6 @@ export const SeriesBrowseRow = memo(function SeriesBrowseRow({
 
   const handlePlay = useCallback(async () => {
     if (!target?.bookId) return;
-    if (finished) await rewindFinishedBook(target.bookId);
     await awaitPlayerReady();
     const playbackState = await TrackPlayer.getPlaybackState();
     void handleBookPlay(
@@ -126,7 +117,7 @@ export const SeriesBrowseRow = memo(function SeriesBrowseRow({
       activeBookId,
       setActiveBookId,
     );
-  }, [target, finished, activeBookId, setActiveBookId]);
+  }, [target, activeBookId, setActiveBookId]);
 
   const onPlay = useCallback(() => void handlePlay(), [handlePlay]);
 
@@ -302,49 +293,6 @@ const SeriesMetaLine = memo(function SeriesMetaLine({
   );
 });
 
-/**
- * Completion by FINISHED-BOOK COUNT, never by averaging `bookProgressValue` —
- * that field is a tri-state enum (0/1/2), so an average renders "1 of 7
- * finished" as 50% (K12).
- */
-const SeriesCompletionBar = memo(function SeriesCompletionBar({
-  facts,
-}: {
-  facts: SeriesRowFacts;
-}) {
-  const { colors: themeColors } = useTheme();
-  const complete = facts.bookCount > 0 && facts.finishedCount === facts.bookCount;
-
-  return (
-    <View style={styles.barRow}>
-      <View
-        style={[
-          styles.barTrack,
-          { backgroundColor: withOpacity(themeColors.textMuted, 0.22) },
-        ]}
-      >
-        <View
-          style={[
-            styles.barFill,
-            {
-              // Clamped: a 0-book series would otherwise produce NaN%.
-              width: `${Math.round(Math.min(1, Math.max(0, facts.completion)) * 100)}%`,
-              // Same per-scheme token as `Series complete` (§I7): the shared
-              // `success` is 1.54:1 on the light background.
-              backgroundColor: complete
-                ? themeColors.successText
-                : themeColors.primary,
-            },
-          ]}
-        />
-      </View>
-      <Text style={[styles.barLabel, { color: themeColors.textMuted }]}>
-        {facts.finishedCount}/{facts.bookCount}
-      </Text>
-    </View>
-  );
-});
-
 const styles = StyleSheet.create({
   /*
    * No horizontal padding out here: the backdrop bleeds to both screen edges,
@@ -377,27 +325,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik',
     fontSize: 11,
     marginTop: 8,
-  },
-  barRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  barTrack: {
-    flex: 1,
-    height: 4,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  barFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  barLabel: {
-    fontFamily: 'Rubik',
-    fontSize: 10,
-    marginLeft: 8,
-    minWidth: 34,
-    textAlign: 'right',
   },
 });

@@ -5,7 +5,18 @@ import {
   SeriesProgressState,
 } from '@/helpers/seriesProgress';
 
-export type SeriesRow = { id: string; name: string; sortName: string };
+export type SeriesRow = {
+  id: string;
+  name: string;
+  sortName: string;
+  /**
+   * A pinned series cover, or null to derive it from the member books. Only the
+   * detail sheet's hero reads it today (§C8) — the browse row's fan is book
+   * covers in both cases, which is why the `Series Backgrounds` toggle is not
+   * called "show cover art".
+   */
+  artwork?: string | null;
+};
 export type MembershipRow = {
   seriesId: string;
   bookKey: string;
@@ -21,6 +32,12 @@ export type MembershipRow = {
 export type DerivedSeries = {
   id: string;
   name: string;
+  /**
+   * Pinned series artwork, null when it is derived from the first book. §C8:
+   * pinned art REPLACES the fan's front card rather than being prepended, so
+   * the cluster's width and peek are the same either way.
+   */
+  artwork: string | null;
   books: Book[];
   /**
    * Canonical numbers INDEX-ALIGNED with `books` — so a membership row whose
@@ -79,6 +96,7 @@ export function assembleDerivedSeries(
     return {
       id: s.id,
       name: s.name,
+      artwork: s.artwork ?? null,
       books,
       canonicalNumbers,
       progressState: deriveSeriesProgressState(books),

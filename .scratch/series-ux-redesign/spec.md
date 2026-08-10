@@ -611,11 +611,43 @@ card is tappable to its details — this screen was the only place that broke it
 the arrangement the library grid already uses. Sheet-over-sheet is **measured clean** in
 both directions.
 
-**C5 — A finished row restarts from zero.** Landing thirty seconds from the end of a
+**C5 — A finished row restarts from zero, and the book becomes one you are listening to
+again.** Landing thirty seconds from the end of a
 finished book is a poor outcome whether or not there is an escape hatch. The finished check
 mark is already the "you've read this" signal, so the tap has nothing to disambiguate.
 *(See Out of Scope: the same fix is wanted in the library grid and is a carried commitment,
 not an accepted divergence.)*
+
+**⚠ AMENDED 2026-08-10, driver ruling, after the build and the device run. The restart also
+flips `bookProgressValue` from `Finished` back to `Started`, and that half is not optional.**
+
+**Nothing else in the app ever moves a book off `Finished`** — the playback service,
+`relativeSeek` and the player only ever set it, and the one path back is the manual progress
+control on the book details screen. So a restart rule that reads the flag without consuming
+it **fires again on every later press**: restart a finished book, listen ten minutes, pause,
+press play from any card, and the ten minutes are gone. Because C5 puts the rule in the
+**shared** play helper, that would hit the library grid, list rows, book details and Android
+Auto, not just this sheet.
+
+Three consequences, all accepted knowingly:
+
+1. **The ✓ clears the moment you press play**, along with the series' completion count, its
+   `Series complete` line and its `finished` tab state. C5's reasoning above survives — the
+   tick is the signal *at the moment of the tap*, which is all it was ever asked to be — but
+   it is no longer permanent. A tick that survives a re-listen would need a different signal
+   ("has ever been finished") and is **not** this spec's.
+2. **`finished_at` is nulled**, because the model's single writer sets it for `Finished` and
+   clears it otherwise. The date you finished a book does not survive re-listening to it.
+3. **It fixes a lie that predates this effort.** The book-progress helper short-circuits
+   `Finished` to 100% / `0m`, so a re-listen used to render a full progress capsule and the
+   total duration for its entire length.
+
+**A positional variant was built first and withdrawn** — restart only when resuming would
+land in the last thirty seconds, leaving the flag alone. It passed on device. It was
+withdrawn because once the flag is consumed the positional test has exactly one job left,
+stopping a **hand-marked** book from restarting, and that is the wrong answer: if you marked
+a book finished and then pressed play, *start it again* is the reasonable reading. The rule
+is now one line with no carve-outs.
 
 **C6 — The active book reuses the grid's treatment** — animated bars while playing, the
 same title colour. Reused, not reinvented.
@@ -1563,6 +1595,11 @@ there is no config file.**
 ### Two commitments that are NOT simple exclusions
 
 **1 — Restart-from-zero in the library grid is a CARRIED FIX the driver wants.**
+✅ **PAID 2026-08-10 by implementation ticket 11** — the play helper now has its `Finished`
+case, exactly as the last paragraph of this entry asked, so the grid, the list row, book
+details and Android Auto all inherit it. See C5's amendment for the flag-flip half. The rest
+of this entry is kept as the reasoning that got it there.
+
 The play helper has **no `Finished` case**, so a finished book resumes at its last few
 seconds *everywhere else in the app*. C5 fixed it on the series sheet only.
 

@@ -1,5 +1,9 @@
 /**
- * Geometry for the Series browse row — spec §H, plus §B2 and trap K13.
+ * Geometry for the Series surfaces — spec §H, plus §B2 and trap K13.
+ *
+ * Mostly the browse row, plus the two rules the detail sheet's hero shares with
+ * it (`heroClusterSize`, `fitInBox`). The sheet's own layout is deliberately
+ * NOT capped — see §H2 and {@link CONTENT_CAP}.
  *
  * Pure and zero-React so the rules that were argued over can be asserted
  * directly. The load-bearing claims, restated where they are implemented:
@@ -24,6 +28,12 @@ import { screenPadding } from '@/constants/tokens';
  * CONTENT ONLY. The backdrop and the hairline rule still bleed to both screen
  * edges — capping paint puts visible edges on the row and reads as the card
  * that was measured and rejected (§H3).
+ *
+ * ⚠ AND IT IS THE BROWSE ROW'S CAP ONLY (§H2). It was applied to the detail
+ * sheet, built, and reverted on sight: that page has no full-bleed paint to
+ * absorb the cap, so it reads as content shoved into the left 600dp. It still
+ * clamps the cluster SIZING rule below on both surfaces, which is a different
+ * rule from the layout cap.
  */
 export const CONTENT_CAP = 600;
 
@@ -32,6 +42,13 @@ export const PHONE_WIDTH = 411;
 
 /** Long-axis box for one cluster layer at {@link PHONE_WIDTH}. */
 export const CLUSTER_PHONE_SIZE = 84;
+
+/**
+ * The detail sheet hero's cluster size at {@link PHONE_WIDTH} — a detail hero
+ * can afford more than the browse row's 84, and 104 is the value the design was
+ * approved at.
+ */
+export const HERO_CLUSTER_PHONE_SIZE = 104;
 
 /** Max layers a cluster ever paints. */
 export const CLUSTER_MAX_LAYERS = 3;
@@ -77,8 +94,44 @@ export type ClusterLayer = {
  * that happened, and the browse fan ended up bigger than the detail hero's.
  */
 export function clusterCoverSize(width: number): number {
+  return anchoredClusterSize(width, CLUSTER_PHONE_SIZE);
+}
+
+/**
+ * The detail sheet hero's cluster size — the SAME rule as the browse row's,
+ * against the hero's own 411dp anchor (§H4).
+ *
+ * ⚠ IT HAS TO BE THE SAME RULE. The hero was left at a literal 104 while the
+ * browse fan scaled, and on an 800dp tablet the browse fan reached 147dp
+ * against the hero's 124.8 — the OVERVIEW's artwork larger than the DETAIL's.
+ * Expressed this way the hero keeps its 1.24× lead at every width.
+ */
+export function heroClusterSize(width: number): number {
+  return anchoredClusterSize(width, HERO_CLUSTER_PHONE_SIZE);
+}
+
+/** §H4's general form: a phone value, scaled by the capped width. */
+function anchoredClusterSize(width: number, phoneSize: number): number {
   const cap = Math.min(width, CONTENT_CAP);
-  return Math.round(cap * (CLUSTER_PHONE_SIZE / PHONE_WIDTH) * 10) / 10;
+  return Math.round(cap * (phoneSize / PHONE_WIDTH) * 10) / 10;
+}
+
+/**
+ * Draw `shape` inside a fixed square `box`, touching the box on its long axis.
+ *
+ * The CONTAINER stays a constant size so neighbouring rows stay aligned, while
+ * the image itself keeps the artwork's true proportions — which is what stops a
+ * wide cover shoving a book's title to the right. Unlike a cluster layer, the
+ * leftover space here is page background rather than a pillar, so a non-square
+ * cover leaves it empty and invisible.
+ */
+export function fitInBox(
+  shape: CoverShape,
+  box: number,
+): { width: number; height: number } {
+  return shape.aspect >= 1
+    ? { width: box, height: box / shape.aspect }
+    : { width: box * shape.aspect, height: box };
 }
 
 /**

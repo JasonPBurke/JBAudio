@@ -3,10 +3,14 @@ import {
   clusterCoverSize,
   clusterLayers,
   coverClusterWidth,
+  fitInBox,
+  heroClusterSize,
   isMetaLineOverflowing,
   CLUSTER_MAX_LAYERS,
   CLUSTER_PEEK_FRACTION,
+  CLUSTER_PHONE_SIZE,
   CONTENT_CAP,
+  HERO_CLUSTER_PHONE_SIZE,
   PHONE_WIDTH,
 } from '@/helpers/seriesRowGeometry';
 
@@ -86,6 +90,48 @@ describe('the fan (K13) — the offset must outpace the shrink', () => {
     const [layer] = clusterLayers([shape('wide', 1.6)], size);
     expect(layer.side).toBe(size);
     expect(layer.imageWidth).toBeGreaterThan(size);
+  });
+});
+
+describe('the detail hero fan (H4) — same rule, its own anchor', () => {
+  test('is a VERIFIED NO-OP at 411dp, exactly like the browse fan', () => {
+    expect(heroClusterSize(PHONE_WIDTH)).toBe(HERO_CLUSTER_PHONE_SIZE);
+  });
+
+  /*
+   * ⚠ THE FAULT THIS PINS. The hero was left at a literal 104 while the browse
+   * fan scaled with width, and on an 800dp tablet the browse fan reached 147dp
+   * against the hero's 124.8 — the OVERVIEW's artwork LARGER than the DETAIL's.
+   * The lead is a ratio, so it must hold at every width, not just on a phone.
+   */
+  test('keeps its 1.24x lead over the browse fan at every width', () => {
+    for (const width of [320, 360, 411, 500, 600, 635, 800, 1280]) {
+      expect(heroClusterSize(width)).toBeGreaterThan(clusterCoverSize(width));
+      expect(heroClusterSize(width) / clusterCoverSize(width)).toBeCloseTo(
+        HERO_CLUSTER_PHONE_SIZE / CLUSTER_PHONE_SIZE,
+        2,
+      );
+    }
+  });
+
+  test('stops growing past the content cap', () => {
+    expect(heroClusterSize(800)).toBe(heroClusterSize(CONTENT_CAP));
+  });
+});
+
+describe('fitInBox — a constant box, the artwork’s own shape', () => {
+  test('a square cover fills the box', () => {
+    expect(fitInBox(shape('a', 1), 46)).toEqual({ width: 46, height: 46 });
+  });
+
+  test('a tall cover is narrower than the box, and never taller', () => {
+    const fitted = fitInBox(shape('a', 0.5), 46);
+    expect(fitted).toEqual({ width: 23, height: 46 });
+  });
+
+  test('a wide cover keeps the box width and loses height', () => {
+    const fitted = fitInBox(shape('a', 2), 46);
+    expect(fitted).toEqual({ width: 46, height: 23 });
   });
 });
 

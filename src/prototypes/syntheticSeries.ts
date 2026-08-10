@@ -256,6 +256,10 @@ function toProtoSeries(spec: Spec, pool: Book[]): ProtoSeries {
     // ids in the expanded-sections Set the library screen holds.
     id: `proto:${normalizeSortName(spec.name)}`,
     name: spec.name,
+    // Always derived. The harness's `pinned` knob stood in for a column that
+    // now exists (`series.artwork`, read by the real detail sheet's hero), but
+    // it lived in `protoStore` and only the harness's own sheet consumed it.
+    artwork: null,
     books,
     progressState: spec.progressState,
     canonicalNumbers: books.map((_, i) => spec.numbers?.[i] ?? null),

@@ -292,16 +292,25 @@ const RootNavigation = () => {
           }}
         />
         {/*
-          THROWAWAY — Series UX redesign prototype harness, ticket 13.
-          Delete with `rm -rf src/prototypes` (see src/prototypes/README.md).
+          The Series detail sheet — spec §C1.
 
           Options copied from `titleDetails` above, deliberately and exactly:
-          ticket 11 chose `formSheet` BECAUSE `titleDetails` is the app's
-          existing detail-screen-for-an-object, so a divergence here would test
-          something nobody decided. Note ticket 05's warning applies in reverse —
+          §C1 chose `formSheet` BECAUSE `titleDetails` is the app's existing
+          detail-screen-for-an-object, so a divergence here would ship a
+          presentation nobody decided. The wizard's warning applies in reverse —
           `sheetShouldOverflowTopInset: true` yields a FULL-HEIGHT sheet, which
-          for the wizard read as indistinguishable from a push and was wrong;
-          here it is the point, because it is what `titleDetails` does.
+          for a task flow read as indistinguishable from a push and was wrong;
+          for a container it is the point, because it is what `titleDetails`
+          does.
+
+          ⚠ AND ONE DELIBERATE DIVERGENCE: `contentStyle` (K5). Routes copying
+          `titleDetails`' options inherit NO background colour — that screen
+          gets away with it only because it always has content. This one has a
+          real empty state (the editor deletes a series and pops back onto its
+          sheet), and without a themed background that state renders as a
+          FULL-SCREEN WHITE SHEET on a dark-theme app. Reproduced, not
+          hypothetical. The player sets one; the book editor hardcodes a dark
+          literal, which is the other half of the same trap — do not copy that.
         */}
         <Stack.Screen
           name='seriesDetail'
@@ -310,6 +319,7 @@ const RootNavigation = () => {
             animation: 'slide_from_bottom',
             sheetCornerRadius: 15,
             sheetShouldOverflowTopInset: true,
+            contentStyle: { backgroundColor: themeColors.background },
           }}
         />
         {/*

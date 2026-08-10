@@ -52,6 +52,32 @@ test('canonical numbers stay index-aligned with the books that resolved', () => 
   expect(out.canonicalNumbers).toEqual([1, null]);
 });
 
+/*
+ * The detail sheet's hero reads pinned artwork (C8) and nothing else does, so
+ * this is the whole read path for that column. A row that predates the column
+ * carries `null`/undefined, and null means "derive it from the first book" —
+ * a real answer, never a missing one, so it must not be coalesced away.
+ */
+test('pinned series artwork survives assembly, and absent means derived', () => {
+  const bookMap = { b1: mkBook('b1', '/x/1.mp3', 'Mort') };
+  const memberships = [
+    { seriesId: 's1', bookKey: '/x/1.mp3', position: 0, canonicalNumber: 1 },
+    { seriesId: 's2', bookKey: '/x/1.mp3', position: 0, canonicalNumber: 1 },
+    { seriesId: 's3', bookKey: '/x/1.mp3', position: 0, canonicalNumber: 1 },
+  ];
+  const out = assembleDerivedSeries(
+    [
+      { id: 's1', name: 'Alpha', sortName: 'alpha', artwork: '/art/s1.jpg' },
+      { id: 's2', name: 'Bravo', sortName: 'bravo', artwork: null },
+      // A pre-column row hands over no field at all.
+      { id: 's3', name: 'Charlie', sortName: 'charlie' },
+    ],
+    memberships,
+    bookMap,
+  );
+  expect(out.map((s) => s.artwork)).toEqual(['/art/s1.jpg', null, null]);
+});
+
 test('countSeriesByState', () => {
   const list = [
     { progressState: 'unplayed' },

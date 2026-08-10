@@ -61,8 +61,13 @@ export const SeriesCoverCluster = memo(function SeriesCoverCluster({
   covers: CoverShape[];
   size: number;
   /** Accessibility only — §B3: the affordance never carries a visible word. */
-  playLabel: string;
-  onPlay: () => void;
+  playLabel?: string;
+  /**
+   * Omit to draw the fan with NO glyph. The detail sheet's hero does exactly
+   * that: it carries a full-width play button of its own (§C9), and a second
+   * play affordance two inches above it would be two targets for one action.
+   */
+  onPlay?: () => void;
 }) {
   const { colors: themeColors } = useTheme();
   const layers = clusterLayers(covers, size);
@@ -119,31 +124,33 @@ export const SeriesCoverCluster = memo(function SeriesCoverCluster({
       {/* Painted last, over the front layer. `box-none` lets a tap land on the
           glyph itself while the rest of the cover stays transparent to the
           row's own press handler — §B5's two targets, two meanings. */}
-      <View
-        style={[styles.overlay, { width: frontWidth, height: size }]}
-        pointerEvents='box-none'
-      >
-        <Pressable
-          onPress={onPlay}
-          hitSlop={10}
-          style={styles.glyph}
-          android_ripple={{
-            color: withOpacity(themeColors.divider, 0.16),
-            borderless: true,
-            radius: size / 3,
-          }}
-          accessibilityRole='button'
-          accessibilityLabel={playLabel}
+      {onPlay && (
+        <View
+          style={[styles.overlay, { width: frontWidth, height: size }]}
+          pointerEvents='box-none'
         >
-          <Play
-            size={Math.round(size * GLYPH_SCALE)}
-            fill={GLYPH_FILL}
-            color={GLYPH_STROKE}
-            strokeWidth={1}
-            absoluteStrokeWidth
-          />
-        </Pressable>
-      </View>
+          <Pressable
+            onPress={onPlay}
+            hitSlop={10}
+            style={styles.glyph}
+            android_ripple={{
+              color: withOpacity(themeColors.divider, 0.16),
+              borderless: true,
+              radius: size / 3,
+            }}
+            accessibilityRole='button'
+            accessibilityLabel={playLabel}
+          >
+            <Play
+              size={Math.round(size * GLYPH_SCALE)}
+              fill={GLYPH_FILL}
+              color={GLYPH_STROKE}
+              strokeWidth={1}
+              absoluteStrokeWidth
+            />
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 });

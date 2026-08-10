@@ -1,5 +1,9 @@
 import { resolveTrackArtwork } from '@/helpers/defaultArtwork';
-import { getChapterProgressInDB } from '@/db/chapterQueries';
+import {
+  getChapterProgressInDB,
+  updateChapterIndexInDB,
+  updateChapterProgressInDB,
+} from '@/db/chapterQueries';
 import { Book } from '@/types/Book';
 import { getBookById, stampLastPlayed } from '@/db/bookQueries';
 import TrackPlayer, { Track } from 'react-native-track-player';
@@ -40,8 +44,40 @@ const handleBookPlayInner = async (
   // Most-recently-played ordering for the library's Started tab
   if (book.bookId) void stampLastPlayed(book.bookId);
 
-  // If the book has not been started, update its progress value in the DB
-  if (book.bookProgressValue === BookProgressState.NotStarted) {
+  /*
+   * A FINISHED BOOK RESTARTS FROM ZERO, AND BECOMES A BOOK YOU ARE LISTENING TO
+   * (spec §C5; the demotion is the driver's ruling of 2026-08-10).
+   *
+   * Without the restart, playing a finished book resumes at its last few
+   * seconds: the playback service marks a book finished and, for a multi-file
+   * book, parks the stored position on the final chapter's end. The series
+   * detail sheet forced the question, but the rule is not that screen's — it is
+   * the better behaviour everywhere, so it lives HERE and the library grid, the
+   * list row, the book details screen and Android Auto all inherit it. The
+   * browse row's own copy of the rewind was deleted when this landed.
+   *
+   * ⚠ THE DEMOTION IS WHAT MAKES THE RESTART SAFE, and it is not optional.
+   * NOTHING ELSE IN THE APP EVER MOVES A BOOK OFF `Finished` — the playback
+   * service, `relativeSeek` and the player only ever set it, and the one path
+   * back is the manual progress control on the book details screen. So without
+   * this line the restart fires again on EVERY later press: restart a finished
+   * book, listen ten minutes, pause, press play from any card, and the ten
+   * minutes are gone. Flipping the flag here consumes it, so the restart is
+   * structurally a once-per-listen event.
+   *
+   * It also stops a second lie: `computeBookProgress` short-circuits `Finished`
+   * to 100% / `0m`, so a re-listen used to render a full progress capsule and
+   * the total duration for its whole duration.
+   */
+  const restartFromZero =
+    book.bookProgressValue === BookProgressState.Finished;
+
+  // Both states mean the same thing to the rest of the app once you press play:
+  // this is now a book you are listening to.
+  if (
+    book.bookProgressValue === BookProgressState.NotStarted ||
+    restartFromZero
+  ) {
     (async () => {
       try {
         const bookModel = await getBookById(book.bookId!);
@@ -64,8 +100,21 @@ const handleBookPlayInner = async (
       : 0;
   // Clamp to the current chapter list — a rescan can shrink a book's chapter
   // count, leaving a stale DB index that would make skip() throw out-of-range.
-  const chapterIndex = Math.min(storedIndex, book.chapters.length - 1);
-  const chapterProgress = progressInfo?.progress ?? 0;
+  const storedChapterIndex = Math.min(storedIndex, book.chapters.length - 1);
+  const storedChapterProgress = progressInfo?.progress ?? 0;
+
+  /*
+   * The zeroed position is written back BEFORE playback starts so the queue and
+   * the database agree: the notification, the floating player and the next
+   * resume all read the DB, and a later write would race the first progress tick.
+   */
+  if (restartFromZero && book.bookId) {
+    await updateChapterIndexInDB(book.bookId, 0);
+    await updateChapterProgressInDB(book.bookId, 0);
+  }
+
+  const chapterIndex = restartFromZero ? 0 : storedChapterIndex;
+  const chapterProgress = restartFromZero ? 0 : storedChapterProgress;
 
   const isChangingBook = book.bookId !== activeBookId;
 

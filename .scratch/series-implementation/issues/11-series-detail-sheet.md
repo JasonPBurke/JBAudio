@@ -2,7 +2,9 @@
 
 **Blocked by:** [01](01-schema-v33.md), [10](10-browse-row.md).
 
-**Status:** ready-for-agent
+**Status:** resolved — device-verified 2026-08-10, including the re-check of §C5's re-ruling
+(a flat flag check that also flips the book back to `Started`). Only §C8 is unverifiable, and
+it is blocked on ticket 15.
 
 **Spec:** [§C](../../series-ux-redesign/spec.md), §J, §K5, §K11, §Out of Scope.
 
@@ -40,52 +42,152 @@ measurement is what licenses this split.
 
 ## Acceptance criteria
 
-- [ ] The sheet presents from the browse row's text, as a root-sibling `formSheet` with a
+- [x] The sheet presents from the browse row's text, as a root-sibling `formSheet` with a
       grab-handle-only header.
-- [ ] Rows split: cover plays, text opens book details.
-- [ ] **Presenting the book details sheet from a series row requires setting the app's
+- [x] Rows split: cover plays, text opens book details.
+- [x] **Presenting the book details sheet from a series row requires setting the app's
       existing navigation intent flag**, or that screen dismisses itself on mount.
-- [ ] **C5 — a finished row restarts from zero.** Landing thirty seconds from the end of a
+- [x] **C5 — a finished row restarts from zero.** Landing thirty seconds from the end of a
       finished book is a poor outcome whether or not there is an escape hatch, and the
       finished check mark is already the "you've read this" signal, so the tap has nothing
       to disambiguate.
-- [ ] **Fix it in the shared play helper, not at this call site.** The helper has **no
+- [x] **Fix it in the shared play helper, not at this call site.** The helper has **no
       `Finished` case**, so a finished book resumes at its last few seconds *everywhere
       else in the app*. This was recorded as an accepted inconsistency and that is
       **reversed** — the argument is no longer "this screen is special", it is "this is the
       better behaviour", which applies everywhere. Fixing the helper pays the library grid
       for free.
-- [ ] **C6 — the active book reuses the grid's treatment**: animated bars while playing,
+- [x] **C6 — the active book reuses the grid's treatment**: animated bars while playing,
       the same title colour. Reused, not reinvented.
-- [ ] **C7 — the hero is the browse backdrop and honours `Series Backgrounds`.** Both states
+- [x] **C7 — the hero is the browse backdrop and honours `Series Backgrounds`.** Both states
       were already designed (ON = the browse treatment, OFF = a flat hero), so this is a
       conditional, not a design. **It needs a bottom fade** — without one, the backdrop's
       lower edge is a hard seam across the middle of the sheet.
-- [ ] **C8 — pinned art rides the fan's front card**, replacing card 0 rather than
+- [x] **C8 — pinned art rides the fan's front card**, replacing card 0 rather than
       prepending, so the cluster's width and peek stay constant. The backdrop follows it.
-- [ ] **C9 carried from the browse work unchanged:** the fanned cluster · the name, capped
+- [x] **C9 carried from the browse work unchanged:** the fanned cluster · the name, capped
       with tap-to-expand and no label, with overflow **measured** rather than inferred
       (K14) · the meta line with the canonical range · the completion bar · a
       `Start`/`Continue`/`Restart` button that **keeps its word here**, because a
       full-width hero button does not have the browse row's width constraint · one row per
       book showing `#canonical` or a blank.
-- [ ] **C10 — one route to the editor: a wrench row reading `Edit series`**, under the play
+- [x] **C10 — one route to the editor: a wrench row reading `Edit series`**, under the play
       button. No ⋮ — a menu holding a single item that duplicates a visible row two inches
       below it is not worth its pixels.
-- [ ] **H6 — the finished check mark travels with the title.** It is an *indicator*, not a
+- [x] **H6 — the finished check mark travels with the title.** It is an *indicator*, not a
       target, so the row's text shrinks rather than filling — closing a measured **416dp**
       gulf between a title and its tick.
-- [ ] **H2 — the 600dp content cap is NOT applied here.** It was built on this page and
+- [x] **H2 — the 600dp content cap is NOT applied here.** It was built on this page and
       reverted on sight.
-- [ ] **K5 — the route gets a themed background.** Routes copying the book-details screen's
+- [x] **K5 — the route gets a themed background.** Routes copying the book-details screen's
       options inherit **no background colour**, so any state where the route renders nothing
       is a **full-screen white sheet** on a dark-theme app. This is not hypothetical — it
       was reproduced.
-- [ ] **K11 — a book cell can only render a book that is in the library store.** An
+- [x] **K11 — a book cell can only render a book that is in the library store.** An
       unresolvable id renders a size-accurate **blank**. Resolve from the store, or render
       from the book objects the assembled series already carries.
-- [ ] Device-verified in both themes, both backdrop states, at font scale 2.0.
-- [ ] `tsc` 0 errors · eslint 0 errors · jest green.
+- [x] Device-verified in both themes, both backdrop states, at font scale 2.0.
+- [x] `tsc` 0 errors · eslint 0 errors · jest green.
+
+## Answer
+
+**Built on `feature/series-styling`, no worktree.** `tsc` 0 errors · eslint **0 errors**, 35
+warnings (baseline; **none in any file this ticket added or touched**) · jest **47 suites /
+563 tests** green, up from 46/542.
+
+### Files
+
+**New:** `src/components/SeriesDetailSheet.tsx` (the screen), `src/helpers/seriesDetailFacts.ts`
+(rows · pinned-art cluster · the hero button's word — pure), `src/components/SeriesCompletionBar.tsx`
+(extracted from the browse row so §C9's "reused, not reinvented" is literal), plus tests for
+the two pure modules.
+
+**Changed:** `src/app/seriesDetail.tsx` (was ticket 13's throwaway route, now the real one),
+`src/app/_layout.tsx` (K5's `contentStyle`), `src/helpers/handleBookPlay.ts`,
+`src/components/SeriesBrowseRow.tsx` (its local rewind deleted),
+`src/helpers/seriesRowGeometry.ts` (`heroClusterSize`, `fitInBox`),
+`src/helpers/seriesAssembly.ts` + `src/db/seriesQueries.ts` (`series.artwork` read path),
+`src/components/SeriesCoverCluster.tsx` (`onPlay` optional), `src/prototypes/README.md`.
+
+### The §C5 ruling — DRIVER, 2026-08-10, after the device run
+
+**Shipped: a flat flag check that ALSO flips the book back to `Started`.** `spec.md` §C5 is
+amended in place with the full reasoning; the short version is that **the flip is what makes
+the flat rule safe**. Nothing else in the app ever moves a book off `Finished`, so a rule
+that reads the flag without consuming it fires again on every later press — restart, listen
+ten minutes, pause, press play from any card, ten minutes gone, and from the library grid and
+Android Auto as well as here. Flipping the flag makes the restart a once-per-listen event by
+construction.
+
+Three accepted consequences: the ✓ (and the series' completion count, `Series complete` line
+and `finished` tab state) clears the moment you press play; `finished_at` is nulled; and a
+lie that predates this effort is fixed, since `computeBookProgress` short-circuits `Finished`
+to 100% / `0m` and so rendered a full capsule for a whole re-listen.
+
+**A positional variant was built first, PASSED on device, and was withdrawn.** It restarted
+only when resuming would land in the last 30 seconds, leaving the flag alone. Once the flag
+is consumed that test has exactly one job left — stopping a **hand-marked** book from
+restarting — and that is the wrong answer. `restartFromZero.ts` and its 13 tests are deleted;
+the rule is one line in `handleBookPlay`. **jest is therefore 47 suites / 563 tests, down from
+48/576 — that drop is the withdrawal, not a regression.**
+
+✅ **RE-VERIFIED ON DEVICE, same session, all four:** the restart starts at 0:00; the book
+leaves the `Finished` tab for `Playing`; the ✓ goes, `1 finished` drops from the meta line and
+the bar falls `1/5` → `0/5`; the duration row switches from a full capsule to `X left`; and
+**pausing then pressing play from a card RESUMES** rather than restarting — the case a flat
+rule without the flag flip gets wrong.
+
+⚠ **The flip only happens through `handleBookPlay`.** Resuming from the player screen, the
+floating player, the notification or Android Auto's transport controls never routes through
+it — those talk to TrackPlayer directly. That is correct (they resume the loaded book) but it
+is the one place the behaviours differ.
+
+### Traps paid for here
+
+- ⚠ **`src/app/seriesDetail.tsx` IS NO LONGER THROWAWAY.** Ticket 18's deletion command
+  would have deleted the shipping detail sheet. `src/prototypes/README.md` is corrected: the
+  route and its `<Stack.Screen>` **stay**, and its only harness footprint is the same
+  `useDerivedSeries()` → `useSeriesSource()` substitution the library screen carries. Keeping
+  that substitution is deliberate — **a synthetic series now opens the REAL sheet**, which is
+  the fastest way to put the 95-character name, the 22-book list and the Dresden gaps in
+  front of this screen at font scale 2.0.
+- **`ProtoSeriesDetailSheet.tsx` is now dead code** (nothing imports it) and two harness knobs
+  are inert: `Rows` (the split is the only arrangement now) and `Pinned` (`series.artwork` is
+  a real column, and the knob lived in `protoStore`).
+- **`series.artwork` had no read path at all.** The column exists on the model from v33 but
+  `SeriesRow`/`DerivedSeries` never carried it and `observeSeriesData` never observed it — so
+  §C8 was unreachable, and a pin from ticket 15's editor would not have re-emitted. Both fixed.
+- **`heroClusterSize` had to move into production geometry**, not be re-typed as a literal:
+  mutation-tested, a literal `104` fails at 800dp because the browse fan reaches 147dp and
+  the *overview's* artwork ends up larger than the *detail's* (§H4's named inversion).
+- ⚠ **`src/db/seriesQueries.ts` reads as BINARY to `grep`** — it needs `grep -a` or it is
+  silently skipped with exit 0. Cost a wrong "the function does not exist" conclusion here.
+- **The pure modules are mutation-proven**: a prepended pinned cover fails 1 test, a literal
+  hero cluster fails 1. (The restart rule's 3 mutation tests died with the positional variant
+  — see `## The §C5 ruling`.)
+
+### The device run — 2026-08-10, all five open criteria closed in one session
+
+Physical Pixel 7 Pro, real library. Record: `.scratch/series-implementation/DEVICE-CHECK-11.md`;
+11 screenshots + the raw log in `device-check/tk11-*`. Nine criteria were closed by the agent
+over adb (presentation, the split, the nav-intent flag, the sheet-over-sheet round trip, §C6's
+active treatment, the button's word, the wrench row, and the font-scale-2.0 layout); the driver
+closed the remaining five, **all PASS** — including §C5 restarting at 00:00 after a real
+end-of-book finish, and §H6's tick parking behind the second line of a two-line title.
+
+⚠ **The baseline moved: `354 units → 24 series, 202 books`**, not the 351/23/200 reproduced
+four times in 04/06/07/09. The library grew by 3 files. **Do not read the old figure as an
+expectation.** Cold scan 194,121ms / 3,464 files; detect 274ms.
+
+The dev build was not installed on the device, so it was reinstalled from
+`android/app/build/outputs/apk/debug/app-debug.apk`; ticket 11 is all JS, so Metro was enough.
+
+### Not done
+
+**§C8 cannot be device-verified until ticket 15.** Its read path is built and mutation-proven,
+but nothing writes `series.artwork` yet, so there is no way to pin a cover on device.
+
+**§C5 is under review** — see the status line at the top of this ticket.
 
 ## Dropped, not deferred
 

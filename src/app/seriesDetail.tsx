@@ -1,54 +1,102 @@
 /**
- * THROWAWAY — Series UX redesign prototype harness (ticket 13).
- * See `src/prototypes/README.md`. Delete this file with the rest of the harness.
+ * The Series detail route — spec §C1/§C2.
  *
- * The ONE piece of the harness that could not be built inside `src/prototypes/`:
- * ticket 13's question is about PRESENTATION, and only a real route has any.
- * `ProtoSeriesDetail`'s `Modal` was flagged as a fidelity caveat by both 08 and
- * 10 for exactly this reason.
+ * ROOT-LEVEL SIBLING, NOT INSIDE `series/`, and that is FORCED rather than
+ * chosen: the group is ONE entry on the root stack, so a screen inside it
+ * cannot be presented as a root-level sheet (and that is also why the editor's
+ * `exitGroup()` pops all of it). Putting this sheet outside the group leaves it
+ * UNDER the editor, which makes the editor's `Save`/`Cancel` exits correct by
+ * construction.
  *
- * ROOT-LEVEL SIBLING, NOT INSIDE `series/` — ticket 11's structural finding. A
- * screen inside the `series` group cannot be presented as a root-level sheet
- * (the group is ONE entry on the root stack, which is also why `exitGroup()`
- * pops all of it). Putting the detail sheet outside the group is what leaves it
- * UNDER the editor, so the editor's `exitGroup()` lands back here — which fixes
- * ticket 10's predicted `Save` bug for free, and breaks `Delete` instead.
+ * Options live in `_layout.tsx`, matching the book details screen — see the
+ * comment there, and K5: they must set a themed `contentStyle`, or a state
+ * where this route renders nothing is a full-screen WHITE sheet on a
+ * dark-theme app.
  *
- * Options live in `_layout.tsx`, matching `titleDetails` — see the comment there.
+ * Resolved BY ID rather than handed the object, because a route only carries
+ * params. The store it resolves from has already resolved every membership row
+ * against the live library (K11), so a book that reaches the sheet is a book
+ * that can be drawn.
  */
 import React from 'react';
-import { useLocalSearchParams } from 'expo-router';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import SeriesDetailSheet from '@/components/SeriesDetailSheet';
+import { useTheme } from '@/hooks/useTheme';
+import { withOpacity } from '@/helpers/colorUtils';
+// THROWAWAY (harness) — `useSeriesSource()` is `useDerivedSeries()` unless a
+// synthetic preset is selected; in production it IS the real store. Same
+// substitution the library screen carries. See src/prototypes/README.md.
 import { useSeriesSource } from '@/prototypes/useSeriesSource';
-import ProtoSeriesDetailSheet from '@/prototypes/ProtoSeriesDetailSheet';
 
 export default function SeriesDetailRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  /*
-   * Resolved by id rather than handed the object, so the screen works for BOTH
-   * datasets: synthetic series carry stable `proto:<sortname>` ids and
-   * `useSeriesSource` is the same hook the library screen injects through. It
-   * also survives the full JS reloads that navigator work forces — the exact
-   * friction ticket 04 built the persisted harness to remove.
-   */
   const series = useSeriesSource().find((s) => s.id === id);
 
-  if (!__DEV__) return null;
+  if (!series) return <MissingSeries />;
 
-  if (!series) {
-    /*
-     * TICKET 13'S `Delete` FINDING, LEFT DELIBERATELY VISIBLE.
-     *
-     * `handleDelete` → `exitGroup()` (`series/edit/[id].tsx:182`) pops the
-     * editor group and reveals THIS sheet, for a series that no longer exists.
-     * 11 predicted it; seeing it is 13's job, so this renders exactly what the
-     * spec'd screen would render — nothing — rather than papering over it with
-     * a friendly empty state. The log is the only concession, so a blank sheet
-     * can be told apart from a broken prototype.
-     */
-    console.log(`[proto13] detail: series "${id}" not found → blank sheet`);
-    return null;
-  }
-
-  return <ProtoSeriesDetailSheet series={series} />;
+  return <SeriesDetailSheet series={series} />;
 }
+
+/**
+ * The series is gone — most often because the editor deleted it and popped back
+ * onto this sheet (K7).
+ *
+ * ⚠ THIS IS NOT THE FIX FOR K7, and it must not be mistaken for one. K7 needs
+ * the delete to pop PAST this sheet, which is the editor's routing and belongs
+ * to the detection-aware save/delete ticket. What this covers is the other half
+ * K5 names: the route renders nothing, and with no themed background that is a
+ * full-screen white sheet on a dark-theme app. The handle is kept so the state
+ * is escapable without the hardware back button — a blank sheet with no grab
+ * handle traps the user.
+ */
+function MissingSeries() {
+  const { colors: themeColors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+
+  return (
+    <View
+      style={[
+        styles.screen,
+        {
+          backgroundColor: themeColors.background,
+          paddingTop: insets.top + 8,
+        },
+      ]}
+    >
+      <View style={styles.dismissContainer}>
+        <Pressable
+          hitSlop={10}
+          onPress={() => router.back()}
+          style={[
+            styles.dismissIndicator,
+            {
+              backgroundColor: withOpacity(themeColors.background, 0.66),
+              borderColor: themeColors.textMuted,
+            },
+          ]}
+          accessibilityRole='button'
+          accessibilityLabel='Close series'
+        />
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1 },
+  dismissContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 10,
+  },
+  dismissIndicator: {
+    width: 55,
+    height: 7,
+    borderRadius: 50,
+    borderWidth: 1,
+  },
+});

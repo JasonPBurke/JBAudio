@@ -245,10 +245,13 @@ export function observeSeriesData(): Observable<{
   // observeWithColumns (not plain observe): a plain list observer only emits on
   // membership changes (add/delete), so a reorder (position-only) or rename
   // (name-only) would NOT re-emit and the UI would stay stale until restart.
+  // `artwork` is observed for the same reason as `name`: the detail sheet's
+  // hero renders it (§C8), and pinning or reverting a cover touches no
+  // membership row, so a plain list observer would not re-emit.
   const series$ = database
     .get<Series>('series')
     .query()
-    .observeWithColumns(['name', 'sort_name']);
+    .observeWithColumns(['name', 'sort_name', 'artwork']);
   // `canonical_number` is observed for the same reason as `position`: the
   // browse row renders it (as the collapsed range and the next-up badge), and
   // the editor writes it without touching membership, so a number-only edit
@@ -266,7 +269,12 @@ export function observeSeriesData(): Observable<{
     map(([seriesModels, memberModels]) => ({
       series: seriesModels
         .filter((s) => s._raw._status !== 'deleted')
-        .map((s) => ({ id: s.id, name: s.name, sortName: s.sortName })),
+        .map((s) => ({
+          id: s.id,
+          name: s.name,
+          sortName: s.sortName,
+          artwork: s.artwork,
+        })),
       memberships: memberModels
         .filter((m) => m._raw._status !== 'deleted')
         .map((m) => ({

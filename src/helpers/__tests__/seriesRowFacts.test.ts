@@ -27,6 +27,7 @@ const mkSeries = (
 ): DerivedSeries => ({
   id: 's1',
   name: 'Discworld',
+  artwork: null,
   books,
   canonicalNumbers: canonicalNumbers ?? books.map(() => null),
   progressState: 'playing',
