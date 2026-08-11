@@ -812,7 +812,7 @@ solved.
 **E9 — Carried unchanged, do not reopen:** staged selection · the blank-box numbering rule
 · `Sort by number` pinned right and manual · the delete badge at the card's top-left
 carrying its own scrim · no book totals · no name prompt · Order in the main list ·
-`Delete Series` absent from the create pass.
+`Delete Series` absent from the create pass · **the author cell grid (§E14)**.
 
 **E10 — Closed, do not re-offer:** the A–Z rail · filter/search over authors · the
 bottom-sheet picker · variants A–D, F and G.
@@ -830,6 +830,45 @@ A chevron in the panel's own header restores it (~5 lines) **if it reads wrong i
 list's own virtualized list with everything above it as a header component. The prototype
 renders it unvirtualized inside the sortable's scroll view — fine at eight books, not fine
 to ship.
+
+**E14 — AMENDMENT (2026-08-10, driver-approved): the author step is a two-column grid.**
+This clause carries a decision this spec omitted. It was taken on device on 2026-08-04
+([15](issues/15-wizard-flow-shape.md), Variant E, driver's decision 5 of 5) and it survived
+the 2026-08-05 ruling that chose E — which confirmed, on inspection rather than assumption,
+that *"E needs no change under the playlist reading."* The original spec pass carried E's
+flow decisions and dropped its cell geometry; nothing overturned it.
+
+| | |
+| --- | --- |
+| Columns | **2** |
+| Name type | **13px** |
+| Pitch | **~50dp** |
+| Selected state | primary border + 12% tint + a **14px corner check** |
+
+**No big check bubble.** The tiny corner check was built rather than dropping the check
+entirely, because border-colour-alone is a **colour-only state**. All three signals — row
+border, tint, glyph — read at a glance; that was verified, not assumed.
+
+**Why the grid and not a list.** The author step is the **non-modal volume reducer** of
+§E3, and its job is scanning 50–100 names. Measured on a 100-author corpus: **~18–20
+authors per screen**, so 100 authors is ~5 screens. The single-column alternative at
+`fontSize.base` is **variant F's** row metric — 7 authors per screen — and F is closed by
+§E10.
+
+**§H8 does not reach this surface, and must not be cited against it.** H8 closes
+multi-column for the **browse row**, whose columns each need phone-parity width for a cover
+plus a text column. These are 13px name cells. More decisively, **§H7 exempts the
+create/edit surface from all of §H**, H8 included — which is the scope
+[16](issues/16-geometry-stress-tablet-fontscale.md) set for itself when it ruled.
+
+**13 is a deliberate literal.** The scale is `xs: 12 · sm: 16 · base: 20 · lg: 24`
+(`src/constants/tokens.ts`), so no token sits below 16 and the grid cannot use one. A
+similar literal was once "corrected" upward by an agent reading it as an oversight and the
+driver reverted it. **Do not token-ise this value.**
+
+**Untested axis, carried as a known risk:** the grid was verified at ~100 authors but never
+at **font scale 2.0** — 16's geometry pass scoped the wizard out. 13px inside a ~48.5%-wide
+cell at 2× is the shape that clips.
 
 ---
 
