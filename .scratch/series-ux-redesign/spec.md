@@ -657,10 +657,41 @@ states were already designed (ON = the browse treatment, OFF = a flat hero), so 
 widening is a conditional, not a design. It needs a **bottom fade**: without one, the
 backdrop's lower edge is a hard seam across the middle of the sheet.
 
-**C8 — Pinned art rides the fan's front card**, replacing card 0 rather than prepending,
-so the cluster's width and peek stay constant. The backdrop follows it. The expression is
-one line — pinned artwork, else the first book's — because the front card *already* was the
-first book's cover.
+**C8 — ⚠ AMENDED 2026-08-11, driver ruling, taken on device during ticket 15's run.
+SERIES ART IS BACKGROUND-ONLY.** It paints the detail sheet's header backdrop and the
+browse row's card backdrop, and **it never enters the cover fan**. The fan is the books;
+its front card is **book 1, always**. A pinned cover that matches book 1's is happenstance,
+not coupling.
+
+> *"The series art is only used for the header background and the series list cards
+> background, so cover 1's cover should always show at the top of the book stack, not the
+> series cover — they should only be in lockstep if the user is using the first cover as
+> the series cover, and that is just by happenstance."*
+
+**What this overturns**, kept because the reasoning is the instructive part: the original
+clause had pinned art **ride the fan's front card**, replacing card 0 rather than
+prepending, so the cluster's width and peek stayed constant — and it was *one line*,
+because card 0 already WAS the first book's cover. That economy is exactly what was wrong
+with it. The fan and the backdrop shared a single expression, so pinning a cover changed
+the fan **as a side effect**, and two decisions were welded into one.
+
+Three consequences:
+
+- **`heroClusterCovers` is DELETED, not amended.** Stripped of its pinned branch it
+  computed `getSeriesRowFacts().cluster` character for character, so the hero reads that
+  directly and **one** mutation guard now protects both fans.
+- **The backdrop gets its own expression** — `seriesBackdropUri`: pinned artwork, else book
+  1's cover. Two decisions, two expressions.
+- **The browse row gains a read it never had.** It ignored `series.artwork` entirely; under
+  this ruling its card backdrop is one of series art's two homes.
+
+**It also dissolves a finding raised in the same session.** Pinned art carries no
+dimensions — §G is closed at 13 columns and `series.artwork` has no `artwork_width`/
+`_height` companions — so it is assumed square and a tall source is centre-cropped. As an
+88dp **card** that was visible and ugly: it sliced the author's name off the top of a real
+cover and the series title off the bottom. As a **backdrop**, which is scrimmed, faded and
+cropped by design, nobody reads text off it, so the missing columns stop mattering and no
+v34 migration is implied.
 
 **C9 — Carried from 08 unchanged:** the fanned cluster · the name, capped with
 tap-to-expand and no label, with overflow **measured** rather than inferred · the meta line

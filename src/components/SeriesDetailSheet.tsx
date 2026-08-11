@@ -57,10 +57,14 @@ import { handleBookPlay } from '@/helpers/handleBookPlay';
 import { awaitPlayerReady } from '@/helpers/awaitPlayerReady';
 import { Book } from '@/types/Book';
 import type { DerivedSeries } from '@/helpers/seriesAssembly';
-import { getSeriesRowFacts, seriesMetaLine } from '@/helpers/seriesRowFacts';
+import { seriesBackdropUri } from '@/helpers/seriesArtwork';
+import {
+  getSeriesRowFacts,
+  seriesMetaLine,
+  type SeriesRowFacts,
+} from '@/helpers/seriesRowFacts';
 import { fitInBox, heroClusterSize } from '@/helpers/seriesRowGeometry';
 import {
-  heroClusterCovers,
   heroPlayAction,
   seriesDetailRows,
   type SeriesDetailRow,
@@ -78,14 +82,30 @@ const ROW_COVER_BOX = 46;
  */
 const TITLE_LINE_CAP = 4;
 
-/**
- * Scrim opacity over the hero backdrop. §B9 fixed the cover-cluster scrim in
- * both toggle states and its reasoning binds here: the thing being darkened
- * must not vary with a preference, or legibility does. This is a different
- * surface (the backdrop, not a cover) so it gets its own value, likewise
- * constant.
+/*
+ * ⚠ `HERO_SCRIM` IS GONE — driver ruling 2026-08-11, measured on device.
+ *
+ * The hero used to lay a FLAT `background @ 0.55` over the backdrop before the
+ * horizontal gradient, which the browse row never did. Measured on the same
+ * pinned image in the same theme, the hero showed **3.2× less of it** than the
+ * row (mean |Δ| from page background 4.68 vs 15.07; at the right edge ~22.5%
+ * of the image survived against the row's ~45%).
+ *
+ * Two reasons it went rather than being tuned:
+ *
+ *  - **§C7 already said so.** The backdrop-ON state *is* "the browse
+ *    treatment"; the widening is "a conditional, not a design". An extra layer
+ *    made it a different treatment.
+ *  - **§C8's amendment changed what the backdrop is FOR.** It used to be book
+ *    1's cover — ambient texture derived from an image sitting inches away, so
+ *    washing it out cost nothing. It is now the ONLY place a user's pinned
+ *    series art ever appears, and burying that defeats the point of pinning it.
+ *
+ * The original reasoning is preserved because it was not wrong, just outranked:
+ * §B9 fixed the cover-cluster scrim in both toggle states so that the thing
+ * being darkened does not vary with a preference. That still holds — this
+ * surface simply takes the row's constant instead of one of its own.
  */
-const HERO_SCRIM = 0.55;
 
 type TextLayoutEvent = Parameters<
   NonNullable<React.ComponentProps<typeof Text>['onTextLayout']>
@@ -127,7 +147,6 @@ const SeriesDetailSheet = ({ series }: { series: DerivedSeries }) => {
 
   const facts = useMemo(() => getSeriesRowFacts(series), [series]);
   const rows = useMemo(() => seriesDetailRows(series), [series]);
-  const cluster = useMemo(() => heroClusterCovers(series), [series]);
   const heroPlay = useMemo(
     () => heroPlayAction(series, facts),
     [series, facts],
@@ -203,7 +222,7 @@ const SeriesDetailSheet = ({ series }: { series: DerivedSeries }) => {
       */}
       <SeriesHero
         series={series}
-        covers={cluster}
+        covers={facts.cluster}
         width={width}
         showBackdrop={seriesBackgrounds}
         meta={seriesMetaLine(facts, { overflowing: false })}
@@ -262,7 +281,7 @@ const SeriesHero = memo(function SeriesHero({
   onEdit,
 }: {
   series: DerivedSeries;
-  covers: ReturnType<typeof heroClusterCovers>;
+  covers: SeriesRowFacts['cluster'];
   width: number;
   showBackdrop: boolean;
   meta: string;
@@ -283,7 +302,14 @@ const SeriesHero = memo(function SeriesHero({
 
   return (
     <View>
-      {showBackdrop && <HeroBackdrop uri={covers[0]?.uri ?? null} />}
+      {/*
+        §C8 AMENDED — the backdrop is painted from the SERIES ART when one is
+        pinned, else book 1's cover. It no longer reads `covers[0]`: series art
+        is background-only and never enters the fan, so the two have to be two
+        expressions or they move together, which is the coupling the ruling
+        removed.
+      */}
+      {showBackdrop && <HeroBackdrop uri={seriesBackdropUri(series)} />}
 
       <View style={styles.hero}>
         <View style={styles.heroTop}>
@@ -405,19 +431,17 @@ const HeroBackdrop = memo(function HeroBackdrop({
         style={StyleSheet.absoluteFill}
         resizeMode={FastImage.resizeMode.cover}
       />
-      <View
-        style={[
-          StyleSheet.absoluteFill,
-          {
-            backgroundColor: withOpacity(themeColors.background, HERO_SCRIM),
-          },
-        ]}
-      />
+      {/*
+        ⚠ EXACTLY `SeriesRowBackdrop`'s STACK — image, then ONE left-heavy
+        gradient, and nothing else. Keep the two in step; §C7 says this state
+        IS the browse treatment, so a stop that differs here is a divergence,
+        not a tuning.
+      */}
       <LinearGradient
         colors={[
           themeColors.background,
-          withOpacity(themeColors.background, 0.9),
-          withOpacity(themeColors.background, 0.5),
+          withOpacity(themeColors.background, 0.92),
+          withOpacity(themeColors.background, 0.55),
         ]}
         locations={[0, 0.45, 1]}
         start={{ x: 0, y: 0 }}

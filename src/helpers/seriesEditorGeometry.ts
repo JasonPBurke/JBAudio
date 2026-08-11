@@ -52,3 +52,45 @@ export function numberFieldWidth(fontScale: number): number {
 export function sortRowIsStacked(fontScale: number): boolean {
   return fontScale >= 1.5;
 }
+
+/**
+ * The series cover control's box — §D6. The prototype's device-A/B'd metric,
+ * carried over unchanged.
+ *
+ * A CONSTANT, not a function of the font scale, and that is the difference
+ * between this and `numberFieldWidth`. The number box holds TEXT, so text that
+ * grows must be given room or it clips. This box holds an IMAGE, which does
+ * not grow — scaling it with the font scale would make a cover balloon to a
+ * third of the header on a user who asked for larger words, taking the room
+ * from the caption that actually is text.
+ */
+export const COVER_BOX_SIZE = 88;
+
+/**
+ * Whether the editor's cover + name row stacks — §D6, §D7.
+ *
+ * At font scale 1.0 the cover sits beside the name field with its caption
+ * beneath it, in an 88dp column: `Using first book’s cover` takes two lines
+ * there and the whole block is about 114dp tall.
+ *
+ * That column is what breaks first as the scale rises. The caption is the
+ * screen's smallest type (10px, so it can sit under a field without competing
+ * with it) and its width is fixed by the cover it belongs to, so at 2.0 it
+ * wraps to four or five lines and a header that also carries a title, a name
+ * field, an instruction and a stacked sort row pushes the ordered list — the
+ * thing the screen is FOR — off the bottom of a phone. The header does not
+ * scroll.
+ *
+ * So past the threshold the column becomes a ROW: cover left, caption filling
+ * the rest of the width beside it, name field full-width beneath. Same three
+ * elements, reflowed, and the caption gets ~280dp instead of 88dp — which is
+ * the difference between two lines and five. The cover keeps its size, so the
+ * revert target does not shrink on the user who needs it biggest.
+ *
+ * The 1.5 threshold is `sortRowIsStacked`'s, deliberately: two reflows in one
+ * header that trigger at different scales would produce a third layout that
+ * nobody designed and nobody has looked at on a device.
+ */
+export function identityRowIsStacked(fontScale: number): boolean {
+  return fontScale >= 1.5;
+}

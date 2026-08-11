@@ -25,6 +25,7 @@ import {
   normalizeSortName,
   SeriesNameConflictError,
 } from '@/helpers/seriesName';
+import { deleteArtworkFile } from '@/helpers/artworkFiles';
 
 export { computeMembershipDiff } from '@/db/seriesMembershipDiff';
 export { normalizeSortName, SeriesNameConflictError };
@@ -245,6 +246,63 @@ export async function updateSeries(
   });
 }
 
+/* ---------------------------------------------------------- series artwork --- */
+
+/**
+ * Pin a cover onto a series — §D6. The URI names a file
+ * `replaceSeriesArtwork` has already installed.
+ *
+ * No file work here, and none is owed. The pinned file's path is derived from
+ * the series ID alone (`seriesArtworkFilename`), so a replacement lands on the
+ * exact path the previous cover occupied and K6's `unlink`-before-`moveFile`
+ * has already destroyed it. There is no second file to release.
+ *
+ * ⚠ IMMEDIATE-WRITE, AND THAT IS THE RULING (§D6). This is called from the
+ * cover-art search while the editor sits behind it holding an unsaved draft,
+ * and it does NOT join that draft: the file it points at replaced its
+ * predecessor irreversibly before this ran, so a `Cancel` that "undid" the
+ * column would leave the series pointing at nothing. The user is asked to
+ * confirm before the replacement instead.
+ */
+export async function setSeriesArtwork(id: string, uri: string): Promise<void> {
+  await database.write(async () => {
+    const series = await database.get<Series>('series').find(id);
+    await series.update((s) => {
+      s.artwork = uri;
+      s.updatedAt = new Date();
+    });
+  });
+}
+
+/**
+ * Revert a series to its derived cover — §D7, §K8.
+ *
+ * **The file is deleted, not merely dereferenced.** A pinned cover is a file
+ * only this series ever referenced, so nulling the column without unlinking
+ * makes the revert a silent leak — the second orphan source K8 names, and the
+ * one this ticket is able to close outright.
+ *
+ * ⚠ THE ORDER IS THE OPPOSITE OF K6's, DELIBERATELY. Replacement unlinks
+ * first because the new bytes take the old file's path and there is no way to
+ * install them otherwise. A revert has no such forcing, so it writes first: if
+ * the unlink then fails, the series is correctly derived and one file leaks —
+ * whereas unlinking first and failing the write would leave the series
+ * pointing at a file that no longer exists, i.e. a broken cover on every
+ * surface that draws it.
+ */
+export async function clearSeriesArtwork(id: string): Promise<void> {
+  const series = await database.get<Series>('series').find(id);
+  const previous = series.artwork;
+  if (!previous) return;
+  await database.write(async () => {
+    await series.update((s) => {
+      s.artwork = null;
+      s.updatedAt = new Date();
+    });
+  });
+  await deleteArtworkFile(previous);
+}
+
 /**
  * Delete a series and all its membership rows. **The books are never touched**
  * — removing a grouping is not a destructive act, and nothing below reads or
@@ -266,10 +324,18 @@ export async function updateSeries(
  * `name_source = 'user'` records that the name changed but not what it was.
  * Recovering the old name would need a column to hold it; the user's repair is
  * to delete the re-created series, which suppresses that name too.
+ *
+ * K8 — a deleted series also RELEASES ITS PINNED FILE. Nothing else ever
+ * referenced it, so without this the delete leaks a cover forever. Released
+ * after the batch commits, for `clearSeriesArtwork`'s reason: the row is
+ * already gone by then, so a failed unlink costs one orphan rather than a
+ * dangling reference.
  */
 export async function deleteSeries(id: string): Promise<void> {
+  let pinnedArtwork: string | null = null;
   await database.write(async () => {
     const series = await database.get<Series>('series').find(id);
+    pinnedArtwork = series.artwork;
     const rows = await database
       .get<SeriesBook>('series_books')
       .query(Q.where('series_id', id))
@@ -300,6 +366,8 @@ export async function deleteSeries(id: string): Promise<void> {
 
     await database.batch(ops);
   });
+
+  await deleteArtworkFile(pinnedArtwork);
 }
 
 /**
@@ -622,6 +690,12 @@ export async function pruneOrphanedSeriesBooks(
 /**
  * Delete any series that currently has zero membership rows. Called after a
  * prune on a stable (post-scan / explicit) state — the guarded auto-delete.
+ *
+ * K8 applies here too, and this is the reason the release lives with the row
+ * deletion rather than in the editor: **the editor is not the only thing that
+ * destroys a series.** A series whose every book was moved on disk is reaped
+ * right here, by a scan, with nobody watching — and it takes its pinned cover
+ * off the books with it.
  */
 export async function deleteEmptySeries(): Promise<void> {
   const seriesModels = await database.get<Series>('series').query().fetch();
@@ -637,7 +711,9 @@ export async function deleteEmptySeries(): Promise<void> {
   );
   const empties = seriesModels.filter((s) => emptyIds.has(s.id));
   if (empties.length === 0) return;
+  const pinned = empties.map((s) => s.artwork);
   await database.write(async () => {
     await database.batch(empties.map((s) => s.prepareDestroyPermanently()));
   });
+  await Promise.all(pinned.map((uri) => deleteArtworkFile(uri)));
 }

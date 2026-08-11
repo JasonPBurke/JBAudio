@@ -57,6 +57,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import Animated, { useAnimatedRef } from 'react-native-reanimated';
+import FastImage from '@d11/react-native-fast-image';
 import Sortable, {
   type SortableGridRenderItem,
 } from 'react-native-sortables';
@@ -64,6 +65,7 @@ import {
   ArrowDownWideNarrow,
   ChevronLeft,
   GripVertical,
+  ImagePlus,
   ListOrdered,
   Plus,
   Trash2,
@@ -71,8 +73,14 @@ import {
 
 import { SeriesEditorPanel } from '@/components/SeriesEditorPanel';
 import { SeriesBookRow } from '@/components/SeriesBookRow';
+import { unknownBookImageUri } from '@/constants/images';
 import { fontSize, screenPadding } from '@/constants/tokens';
-import { createSeries, deleteSeries, updateSeries } from '@/db/seriesQueries';
+import {
+  clearSeriesArtwork,
+  createSeries,
+  deleteSeries,
+  updateSeries,
+} from '@/db/seriesQueries';
 import { bookStructuralKey } from '@/helpers/bookStructuralKey';
 import { withOpacity } from '@/helpers/colorUtils';
 import {
@@ -80,9 +88,17 @@ import {
   disabledTextColor,
 } from '@/helpers/controlColors';
 import {
+  editorCoverShape,
+  seriesArtworkCaption,
+  sharedAuthorName,
+} from '@/helpers/seriesArtwork';
+import {
+  COVER_BOX_SIZE,
+  identityRowIsStacked,
   numberFieldWidth,
   sortRowIsStacked,
 } from '@/helpers/seriesEditorGeometry';
+import { fitInBox } from '@/helpers/seriesRowGeometry';
 import {
   canBulkNumber,
   orderByCanonicalNumber,
@@ -217,6 +233,118 @@ const NumberedBookRow = React.memo(function NumberedBookRow({
   );
 });
 
+/**
+ * The series cover control — spec §D6, §D7, §D10.
+ *
+ * A pressable cover with an add-image badge, and a caption under it. Both
+ * mirror the book editor (`editTitleDetails.tsx`), which is the app's ONLY
+ * entry point to cover-art search: the artwork IS the button, badged with
+ * `ImagePlus` on a 70%-opacity chip. There is no separate "change art" row,
+ * for books or for series.
+ *
+ * ── Why it lives beside the name field, and not on the detail sheet ───────
+ *
+ * §D10. `Sort by number` silently changes a derived cover — artwork follows
+ * the first book, and re-sorting moves which book that is. That reads like a
+ * bug and is not, so the override sits on the one screen where you watch it
+ * happen: re-sort, see the cover change, pin it if you disagree. Which is also
+ * why the preview reads the LIVE DRAG ORDER rather than the saved series.
+ *
+ * ── The caption does indicator, explanation and escape hatch at once ──────
+ *
+ * §D7, and the two states are not a state and its negation — see
+ * `seriesArtworkCaption`. Words rather than a pin badge: a badge tells you the
+ * state and gives you nothing to press, so reverting would need a second,
+ * undiscoverable affordance.
+ *
+ * The pressable state carries the accent and the muted state does not, which
+ * is `Sort by number`'s convention on this same header — accent means there is
+ * something here to press.
+ */
+const SeriesCoverControl = React.memo(function SeriesCoverControl({
+  artwork,
+  firstBook,
+  stacked,
+  onPress,
+  onRevert,
+}: {
+  artwork: string | null;
+  /** The first book IN THE CURRENT DRAG ORDER — see §D10 above. */
+  firstBook?: Book;
+  /** §D6 — the column becomes a row past the font-scale threshold. */
+  stacked: boolean;
+  onPress: () => void;
+  onRevert: () => void;
+}) {
+  const { colors: themeColors } = useTheme();
+  const shape = editorCoverShape(artwork, firstBook);
+  const caption = seriesArtworkCaption(artwork);
+
+  const box = (
+    <Pressable
+      onPress={onPress}
+      android_ripple={{ color: themeColors.dividerAlpha16 }}
+      accessibilityRole='button'
+      accessibilityLabel='Change series artwork'
+      style={[styles.coverBox, { borderColor: themeColors.divider }]}
+    >
+      <FastImage
+        source={{
+          uri: shape.uri ?? unknownBookImageUri,
+          priority: FastImage.priority.normal,
+          cache: FastImage.cacheControl.immutable,
+        }}
+        // Sized to the artwork's own proportions inside a constant square box,
+        // so a tall cover leaves background either side rather than being
+        // stretched — the same rule the browse fan's layers use.
+        style={fitInBox(shape, COVER_BOX_SIZE)}
+        resizeMode={FastImage.resizeMode.cover}
+      />
+      <View
+        style={[
+          styles.coverBadge,
+          { backgroundColor: withOpacity(themeColors.background, 0.7) },
+        ]}
+      >
+        <ImagePlus size={16} color={themeColors.textMuted} strokeWidth={1.5} />
+      </View>
+    </Pressable>
+  );
+
+  const captionNode = caption.reverts ? (
+    <Pressable
+      onPress={onRevert}
+      // The caption is the smallest type on the screen AND a target, so the
+      // slop is what makes it a real one: ~30dp of text becomes ~54dp of
+      // touchable, past Android's 48dp minimum.
+      hitSlop={12}
+      accessibilityRole='button'
+      accessibilityLabel={caption.text}
+      style={styles.coverCaptionButton}
+    >
+      <Text style={[styles.coverCaption, { color: themeColors.primary }]}>
+        {caption.text}
+      </Text>
+    </Pressable>
+  ) : (
+    <Text style={[styles.coverCaption, { color: themeColors.textMuted }]}>
+      {caption.text}
+    </Text>
+  );
+
+  return stacked ? (
+    <View style={styles.coverRow}>
+      {box}
+      <View style={styles.coverCaptionWide}>{captionNode}</View>
+    </View>
+  ) : (
+    <View style={styles.coverColumn}>
+      {box}
+      {captionNode}
+    </View>
+  );
+});
+
 export default function SeriesEditorRoute() {
   const { colors: themeColors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -245,6 +373,8 @@ export default function SeriesEditorRoute() {
 
   /** DEVICE-FOUND at 2.0 — see `seriesEditorGeometry`. */
   const stackSortRow = sortRowIsStacked(PixelRatio.getFontScale());
+  /** §D6 — the cover column becomes a cover row at the same threshold. */
+  const stackIdentityRow = identityRowIsStacked(PixelRatio.getFontScale());
 
   const allSeries = useDerivedSeries();
   const series = useMemo(
@@ -352,6 +482,22 @@ export default function SeriesEditorRoute() {
     return m;
   }, [books]);
 
+  /**
+   * The draft's books, in the order they are currently dragged into.
+   *
+   * §D10 — the cover control's derived preview reads `[0]` from HERE and not
+   * from `series.books`, which is the saved order. Pressing `Sort by number`
+   * changes the derived cover, and the whole reason the override sits on this
+   * screen is that you get to watch that happen.
+   */
+  const orderedBooks = useMemo(
+    () =>
+      orderedBookKeys
+        .map((key) => keyMap.get(key))
+        .filter((book): book is Book => !!book),
+    [orderedBookKeys, keyMap],
+  );
+
   const handleRemove = useCallback(
     (bookKey: string) => {
       setOrderedKeys(orderedBookKeys.filter((k) => k !== bookKey));
@@ -454,6 +600,46 @@ export default function SeriesEditorRoute() {
     useSeriesDraftStore.getState().resetForCreate();
     router.back();
   }, [router]);
+
+  /* ----------------------------------------------------------- the artwork --- */
+
+  /**
+   * §D6 — the cover control opens the app's existing cover-art search, which
+   * `coverArtSearch` now serves for both books and series.
+   *
+   * The name is read at press time rather than subscribed to: this callback
+   * would otherwise be rebuilt on every keystroke in the name field, which is
+   * the churn `NumberedBookRow` was split out to avoid on its own value.
+   */
+  const openCoverSearch = useCallback(() => {
+    if (!editingSeriesId) return;
+    router.push({
+      pathname: '/coverArtSearch',
+      params: {
+        seriesId: editingSeriesId,
+        seriesName: useSeriesDraftStore.getState().name,
+        author: sharedAuthorName(orderedBooks) ?? '',
+      },
+    });
+  }, [editingSeriesId, orderedBooks, router]);
+
+  /**
+   * §D7 — reverting to the derived cover is ONE PRESS, with no confirmation,
+   * and §K8 makes it delete the pinned file.
+   *
+   * The asymmetry with pinning (which does confirm, in `coverArtSearch`) is
+   * deliberate and is the right way round: pinning destroys a file the user
+   * cannot get back except by searching again, while reverting returns the
+   * series to the state it is in by default and costs at most one more search.
+   * A dialog in front of the escape hatch would also undo the point of §D7 —
+   * the caption is pressable so that getting back is obvious and cheap.
+   */
+  const revertCoverArt = useCallback(() => {
+    if (!editingSeriesId) return;
+    clearSeriesArtwork(editingSeriesId).catch((e) =>
+      console.error('clearSeriesArtwork failed', e),
+    );
+  }, [editingSeriesId]);
 
   /* ------------------------------------------------------------- the panel --- */
 
@@ -607,6 +793,24 @@ export default function SeriesEditorRoute() {
           'Add books to get started.'
         : 'Drag the handles to put the books in series order.';
 
+  const nameField = (
+    <TextInput
+      value={name}
+      onChangeText={setName}
+      placeholder='Series name (required)'
+      placeholderTextColor={themeColors.textMuted}
+      // Same convention. This field predates ticket 14 and was missing it
+      // too — fixed here rather than left as the one field on the screen
+      // with a default-blue caret beside an accent-coloured one.
+      cursorColor={themeColors.primary}
+      selectionColor={themeColors.primary}
+      style={[
+        styles.nameInput,
+        { color: themeColors.text, borderColor: themeColors.divider },
+      ]}
+    />
+  );
+
   return (
     <View
       style={[
@@ -635,21 +839,56 @@ export default function SeriesEditorRoute() {
             {editingSeriesId ? 'Edit series' : 'New series'}
           </Text>
         </View>
-        <TextInput
-          value={name}
-          onChangeText={setName}
-          placeholder='Series name (required)'
-          placeholderTextColor={themeColors.textMuted}
-          // Same convention. This field predates ticket 14 and was missing it
-          // too — fixed here rather than left as the one field on the screen
-          // with a default-blue caret beside an accent-coloured one.
-          cursorColor={themeColors.primary}
-          selectionColor={themeColors.primary}
-          style={[
-            styles.nameInput,
-            { color: themeColors.text, borderColor: themeColors.divider },
-          ]}
-        />
+        {/*
+          §D6 — THE COVER SITS BESIDE THE NAME FIELD, and it is ABSENT FROM THE
+          CREATE PASS rather than disabled.
+
+          Absent because there is nothing to write to: the series row does not
+          exist until Save, so there is no `series.artwork` column to pin and
+          no derived cover to revert to. That is `Delete Series`' precedent
+          exactly (§E9) and this screen's stated convention — a control that is
+          a function of editing something existing is absent from the create
+          pass. Rendering it disabled would also be the failure §D7 rejects: a
+          cover you cannot press, telling you a state you cannot change.
+
+          Reaching it on a new series is create → Save → reopen. §D1 already
+          accepted a five-tap journey to a rename on this surface.
+
+          ⚠ `Sort by number` STAYS FULL-WIDTH BELOW, not in this row. The
+          prototype put it in the right-hand column with the name field; that
+          would narrow it by ~102dp and invalidate ticket 14's DEVICE-MEASURED
+          `sortRowIsStacked` threshold, which was calibrated against the full
+          header width. Both controls are still "beside the name field" in the
+          sense §D4 and §D6 mean — in the header, above the list.
+        */}
+        {!editingSeriesId ? (
+          nameField
+        ) : stackIdentityRow ? (
+          <>
+            <SeriesCoverControl
+              artwork={series?.artwork ?? null}
+              firstBook={orderedBooks[0]}
+              stacked
+              onPress={openCoverSearch}
+              onRevert={revertCoverArt}
+            />
+            {nameField}
+          </>
+        ) : (
+          <View style={styles.identityRow}>
+            <SeriesCoverControl
+              artwork={series?.artwork ?? null}
+              firstBook={orderedBooks[0]}
+              stacked={false}
+              onPress={openCoverSearch}
+              onRevert={revertCoverArt}
+            />
+            {/* Centred against the cover column rather than top-aligned: the
+                column is ~114dp of cover-plus-caption and a 44dp field pinned
+                to its top leaves a hole under it. */}
+            <View style={styles.identityText}>{nameField}</View>
+          </View>
+        )}
         <Text style={[styles.instruction, { color: themeColors.textMuted }]}>
           {subtitle}
         </Text>
@@ -859,6 +1098,48 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
+  /** Cover column | name field. See the JSX for why the sort row is not here. */
+  identityRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  identityText: { flex: 1 },
+  coverColumn: { width: COVER_BOX_SIZE, gap: 6 },
+  /** The stacked variant: cover left, caption taking the rest of the width. */
+  coverRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  coverCaptionWide: { flex: 1 },
+  coverBox: {
+    width: COVER_BOX_SIZE,
+    height: COVER_BOX_SIZE,
+    // Centres non-square artwork in the constant box — the same treatment the
+    // browse fan's layers give it, minus the pillar, because what shows here
+    // is the header's own background rather than a hole in a card.
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+  },
+  /** Bottom-right, mirroring `editTitleDetails`' badge on the book cover. */
+  coverBadge: {
+    position: 'absolute',
+    right: 4,
+    bottom: 4,
+    borderRadius: 10,
+    padding: 4,
+  },
+  /**
+   * ⚠ 10 IS A DELIBERATE LITERAL AND MUST NOT BE TOKEN-ISED. The scale is
+   * `xs: 12 · sm: 16 · base: 20 · lg: 24`, so no token sits below 12, and this
+   * caption has to read as an annotation on the field it sits under rather
+   * than as a peer of the instruction line below it. Same reasoning as §E14's
+   * 13px author cell, which an agent once "corrected" upward and the driver
+   * reverted.
+   *
+   * ⚠ AND IT CARRIES NO `lineHeight`. A fixed line height is in dp and does
+   * NOT follow the OS font scale, so the prototype's `lineHeight: 13` would
+   * have drawn 20px glyphs into a 13px box at font scale 2.0 — overlapping
+   * lines on the smallest type on the screen. The default is proportional.
+   */
+  coverCaption: { fontFamily: 'Rubik', fontSize: 10 },
+  coverCaptionButton: { paddingVertical: 2 },
   instruction: {
     fontFamily: 'Rubik',
     fontSize: fontSize.sm,

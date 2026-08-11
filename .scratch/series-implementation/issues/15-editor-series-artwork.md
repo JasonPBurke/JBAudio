@@ -2,7 +2,7 @@
 
 **Blocked by:** [12](12-editor-one-root-route.md).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **Spec:** [§D6, D7, D10](../../series-ux-redesign/spec.md), §C8, §K6, §K8.
 
@@ -35,25 +35,33 @@ affordance.
 
 ## Acceptance criteria
 
-- [ ] A pressable series cover with an add-image badge sits beside the name field and opens
+- [x] A pressable series cover with an add-image badge sits beside the name field and opens
       the existing cover-art search.
-- [ ] The existing book-artwork replacement helper is **generalised**, not copied.
-- [ ] The caption renders both states and the "set" state reverts to derived in one press.
-- [ ] **K6 — artwork replacement unlinks the old file BEFORE the DB write.** So a deferred
+- [x] The existing book-artwork replacement helper is **generalised**, not copied.
+- [x] The caption renders both states and the "set" state reverts to derived in one press.
+- [x] **K6 — artwork replacement unlinks the old file BEFORE the DB write.** So a deferred
       transaction is incoherent — the old cover is already gone — and **the confirmation
       must come BEFORE applying**, not as a notice afterwards. Immediate-write is kept.
-- [ ] **K8 — reverting to derived must DELETE the pinned file.** Series artwork is a second
+- [x] **K8 — reverting to derived must DELETE the pinned file.** Series artwork is a second
       producer of orphaned artwork files: a pinned cover is a new file only the series
       references, so **deleting the series leaks it forever**, and so does reverting unless
       the revert deletes it. Derived art is free by comparison — it points at a file the
       book already owns.
-- [ ] Deleting a series also releases its pinned file, for the same reason.
-- [ ] **C8 — pinned art rides the fan's FRONT card**, replacing card 0 rather than
-      prepending, so the cluster's width and peek stay constant. The backdrop follows it.
-      The expression is one line — pinned artwork, else the first book's — because the front
-      card *already was* the first book's cover.
-- [ ] Device-verified in both themes: pin, revert, and confirm the old file is gone.
-- [ ] `tsc` 0 errors · eslint 0 errors · jest green.
+- [x] Deleting a series also releases its pinned file, for the same reason.
+- [x] **C8 — ⚠ AMENDED ON DEVICE 2026-08-11, driver ruling. SERIES ART IS
+      BACKGROUND-ONLY.** It paints the detail sheet's header backdrop and the browse row's
+      card backdrop, and **never enters the cover fan** — the fan is the books, front card
+      book 1, always. The original clause (pinned art replaces card 0) is overturned; see
+      the amended §C8 for the full reasoning. Consequences built here: `heroClusterCovers`
+      DELETED, the backdrop gets its own `seriesBackdropUri`, and the browse row gains a
+      read of `series.artwork` it never had.
+- [x] Device-verified in both themes: pin, revert, and confirm the old file is gone. **All 16
+      criteria closed on a physical Pixel 7 Pro across two sessions — see
+      `../DEVICE-CHECK-15.md`.** The run also DELETED `HERO_SCRIM` (driver ruling): the hero
+      showed 3.2× less of the backdrop than the browse row, which only mattered once §C8's
+      amendment made that backdrop the sole home of pinned art.
+- [x] `tsc` 0 errors · eslint 0 errors (35 warnings, none in a file this ticket touched) ·
+      jest **52 suites / 646 tests**, up from 620.
 
 ## Dropped
 

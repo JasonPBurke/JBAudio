@@ -33,6 +33,48 @@ const mkSeries = (
   progressState: 'playing',
 });
 
+/*
+ * §C8 AMENDED 2026-08-11, driver ruling: **series art is BACKGROUND-ONLY.**
+ *
+ * ⚠ THIS ONE TEST GUARDS BOTH FANS. The browse row and the detail hero draw
+ * the same `cluster`, so a change that let pinned art into either would fail
+ * here. Before the amendment the hero had its own `heroClusterCovers` that
+ * substituted pinned art for card 0; that function is deleted and this is what
+ * replaced it.
+ *
+ * The rule the user gave: *"cover 1's cover should always show at the top of
+ * the book stack, not the series cover — they should only be in lockstep if the
+ * user is using the first cover as the series cover, and that is just by
+ * happenstance."*
+ */
+describe('the cover fan is the BOOKS (C8, amended)', () => {
+  const books = [mkBook('a'), mkBook('b'), mkBook('c'), mkBook('d')];
+
+  test('a pinned series cover does not enter the fan', () => {
+    const derived = getSeriesRowFacts(mkSeries(books));
+    const pinned = getSeriesRowFacts({
+      ...mkSeries(books),
+      artwork: '/art/series.jpg',
+    });
+    expect(pinned.cluster).toEqual(derived.cluster);
+    expect(pinned.cluster.map((c) => c.uri)).not.toContain('/art/series.jpg');
+  });
+
+  test('the front card is book 1, pinned or not', () => {
+    const pinned = getSeriesRowFacts({
+      ...mkSeries(books),
+      artwork: '/art/series.jpg',
+    });
+    expect(pinned.cluster[0].uri).toBe('/art/a.jpg');
+  });
+
+  test('the fan still caps at three layers', () => {
+    // Unchanged by the amendment, and worth pinning next to it: the cluster's
+    // width and peek are a function of the layer count (§B2).
+    expect(getSeriesRowFacts(mkSeries(books)).cluster).toHaveLength(3);
+  });
+});
+
 describe('completion is a COUNT (K12)', () => {
   test('one finished of seven is 1/7, never the average of a tri-state field', () => {
     const facts = getSeriesRowFacts(

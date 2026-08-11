@@ -1,5 +1,7 @@
 import {
+  COVER_BOX_SIZE,
   NUMBER_FIELD_BASE_WIDTH,
+  identityRowIsStacked,
   numberFieldWidth,
   sortRowIsStacked,
 } from '@/helpers/seriesEditorGeometry';
@@ -49,4 +51,30 @@ test('the sort row stacks once the font scale gets large', () => {
   // what tells you what pressing it will do.
   expect(sortRowIsStacked(1)).toBe(false);
   expect(sortRowIsStacked(2)).toBe(true);
+});
+
+test('the cover column becomes a cover row at large font scales', () => {
+  // The caption is the screen's smallest type and its width is fixed by the
+  // 88dp cover above it, so at 2.0 `Using first book’s cover` wraps to four or
+  // five lines and shoves the ordered list off a phone — the header does not
+  // scroll. Past the threshold the caption gets the width instead.
+  expect(identityRowIsStacked(1)).toBe(false);
+  expect(identityRowIsStacked(2)).toBe(true);
+});
+
+test('both header reflows happen at the same font scale', () => {
+  // ⚠ Not incidental. Two reflows in one header triggering at different scales
+  // would produce a third layout that nobody designed and nobody has looked at
+  // on a device. If one threshold moves, the other moves with it.
+  for (const scale of [1, 1.15, 1.3, 1.5, 1.8, 2, 3]) {
+    expect(identityRowIsStacked(scale)).toBe(sortRowIsStacked(scale));
+  }
+});
+
+test('the cover box does not scale with the font scale', () => {
+  // The difference from `numberFieldWidth`: that box holds TEXT, which grows.
+  // This one holds an IMAGE, which does not. Growing it would take the room
+  // from the caption — the thing next to it that actually is text.
+  expect(typeof COVER_BOX_SIZE).toBe('number');
+  expect(COVER_BOX_SIZE).toBe(88);
 });

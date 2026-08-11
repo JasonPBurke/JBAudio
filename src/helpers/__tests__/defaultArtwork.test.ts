@@ -37,7 +37,7 @@ describe('resolveTrackArtwork', () => {
   });
 
   it('preserves the ?t= cache-buster written by replaceBookArtwork', () => {
-    // replaceBookArtwork.ts:54 appends ?t=Date.now() so Coil's cache key
+    // replaceArtwork.ts appends ?t=Date.now() so Coil's cache key
     // changes when the user picks a new cover. Stripping it would show the
     // old cover after a replacement.
     const uri =

@@ -10,10 +10,12 @@ export type SeriesRow = {
   name: string;
   sortName: string;
   /**
-   * A pinned series cover, or null to derive it from the member books. Only the
-   * detail sheet's hero reads it today (§C8) — the browse row's fan is book
-   * covers in both cases, which is why the `Series Backgrounds` toggle is not
-   * called "show cover art".
+   * A pinned series cover, or null to derive it from the member books.
+   *
+   * ⚠ §C8 (amended 2026-08-11) — this is BACKGROUND ART. It paints the detail
+   * sheet's header backdrop and the browse row's card backdrop, and it never
+   * enters either cover fan: the fan is the books, front card book 1, always.
+   * Which is why the `Series Backgrounds` toggle is not called "show cover art".
    */
   artwork?: string | null;
 };
@@ -33,9 +35,10 @@ export type DerivedSeries = {
   id: string;
   name: string;
   /**
-   * Pinned series artwork, null when it is derived from the first book. §C8:
-   * pinned art REPLACES the fan's front card rather than being prepended, so
-   * the cluster's width and peek are the same either way.
+   * Pinned series artwork, null when the backgrounds derive from the first
+   * book. Read through `seriesBackdropUri` — §C8 (amended) keeps series art out
+   * of the cover fan entirely, so this must never be substituted into a
+   * cluster.
    */
   artwork: string | null;
   books: Book[];

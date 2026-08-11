@@ -1,6 +1,5 @@
 import { getSeriesRowFacts } from '@/helpers/seriesRowFacts';
 import {
-  heroClusterCovers,
   heroPlayAction,
   seriesDetailRows,
 } from '@/helpers/seriesDetailFacts';
@@ -94,47 +93,19 @@ describe('rows (C9)', () => {
   });
 });
 
-describe('the hero fan (C8) — pinned art REPLACES card 0', () => {
-  const books = [
-    mkBook('b1', 'Mort'),
-    mkBook('b2', 'Sourcery'),
-    mkBook('b3', 'Eric'),
-    mkBook('b4', 'Guards! Guards!'),
-  ];
-
-  test('derived art is the first book, and the fan caps at three layers', () => {
-    const covers = heroClusterCovers(mkSeries(books));
-    expect(covers).toHaveLength(3);
-    expect(covers[0].uri).toBe('/art/b1.jpg');
-  });
-
-  test('pinned art rides the FRONT card without changing the layer count', () => {
-    const derived = heroClusterCovers(mkSeries(books));
-    const pinned = heroClusterCovers(
-      mkSeries(books, { artwork: '/art/series.jpg' }),
-    );
-
-    // Same width and peek — that is the whole point of replacing rather than
-    // prepending.
-    expect(pinned).toHaveLength(derived.length);
-    expect(pinned[0].uri).toBe('/art/series.jpg');
-    // The cards BEHIND it are unchanged: book 1 is displaced, not shuffled.
-    expect(pinned.slice(1)).toEqual(derived.slice(1));
-  });
-
-  test('a pinned cover is assumed square, because nothing measures it', () => {
-    const [front] = heroClusterCovers(
-      mkSeries(books, { artwork: '/art/series.jpg' }),
-    );
-    expect(front.aspect).toBe(1);
-  });
-
-  test('a series with no resolvable books still shows its pinned cover', () => {
-    expect(heroClusterCovers(mkSeries([], { artwork: '/art/series.jpg' })))
-      .toEqual([{ uri: '/art/series.jpg', aspect: 1 }]);
-    expect(heroClusterCovers(mkSeries([]))).toEqual([]);
-  });
-});
+/*
+ * ⚠ THE HERO FAN'S TESTS MOVED — §C8 AMENDED 2026-08-11, driver ruling.
+ *
+ * They used to live here and assert that pinned series art replaced the fan's
+ * front card. The ruling reversed that: series art is BACKGROUND-ONLY and never
+ * enters the fan, so the hero draws `getSeriesRowFacts().cluster` — the same
+ * computation the browse row draws — and `heroClusterCovers` was deleted rather
+ * than left forwarding to it.
+ *
+ * The assertion that pinned art must NOT reach a fan is now in
+ * `seriesRowFacts.test.ts`, where ONE test guards both surfaces at once. The
+ * backdrop's own expression is asserted in `seriesArtwork.test.ts`.
+ */
 
 describe('the hero play button (C9) — it keeps its word here', () => {
   const action = (series: DerivedSeries) =>

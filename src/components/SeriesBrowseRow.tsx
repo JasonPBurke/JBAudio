@@ -45,6 +45,7 @@ import { withOpacity } from '@/helpers/colorUtils';
 import { useQueueStore } from '@/store/queue';
 import { handleBookPlay } from '@/helpers/handleBookPlay';
 import { awaitPlayerReady } from '@/helpers/awaitPlayerReady';
+import { seriesBackdropUri } from '@/helpers/seriesArtwork';
 import type { DerivedSeries } from '@/helpers/seriesAssembly';
 import {
   getSeriesRowFacts,
@@ -131,9 +132,16 @@ export const SeriesBrowseRow = memo(function SeriesBrowseRow({
       }`}
       style={styles.row}
     >
-      {showBackdrop && (
-        <SeriesRowBackdrop uri={facts.cluster[0]?.uri ?? null} />
-      )}
+      {/*
+        §C8 AMENDED 2026-08-11 — the card's backdrop is painted from the SERIES
+        ART when one is pinned, else book 1's cover. This row previously never
+        read `series.artwork` at all; under the ruling that series art is
+        BACKGROUND-ONLY, the browse card is one of its two homes.
+
+        ⚠ THE FAN IS UNTOUCHED and must stay untouched. It is the books, front
+        card book 1, whatever is pinned.
+      */}
+      {showBackdrop && <SeriesRowBackdrop uri={seriesBackdropUri(series)} />}
 
       {/*
         §H1/§H3: the Pressable and the backdrop above still span the device;

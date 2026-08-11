@@ -21,7 +21,10 @@ import {
   searchImages,
   DuckDuckGoImageResult,
 } from '@/helpers/duckDuckGoImageSearch';
-import { replaceBookArtwork } from '@/helpers/replaceBookArtwork';
+import {
+  replaceBookArtwork,
+  replaceSeriesArtwork,
+} from '@/helpers/replaceArtwork';
 import { PressableScale } from 'pressto';
 
 const NUM_COLUMNS = 2;
@@ -33,16 +36,44 @@ function keyExtractor(item: DuckDuckGoImageResult, index: number): string {
   return `${item.image}-${index}`;
 }
 
+/**
+ * The seed for the search field. A series says so in the query — `Mistborn
+ * cover` returns book covers, `Mistborn series cover` returns the box sets and
+ * collection art a pinned series cover actually wants. The author is dropped
+ * rather than rendered blank when a series' books do not agree on one.
+ */
+function initialQuery(
+  author: string | undefined,
+  bookTitle: string | undefined,
+  seriesName: string | undefined,
+): string {
+  const subject = seriesName ? `${seriesName} series` : bookTitle;
+  return [author, subject, 'cover'].filter(Boolean).join(' ');
+}
+
 const CoverArtSearch = () => {
   const { colors: themeColors } = useTheme();
   const { top, bottom } = useSafeAreaInsets();
-  const { bookId, author, bookTitle } = useLocalSearchParams<{
-    bookId: string;
-    author: string;
-    bookTitle: string;
-  }>();
+  /*
+   * ONE SCREEN, TWO TARGETS — §D6: "the book artwork replacement helper
+   * generalises to serve books and series", and this is the surface that
+   * helper is reached through. `seriesId` present is a series pin; absent is a
+   * book cover. Nothing else about the screen differs, which is the point:
+   * this is the app's ONLY entry to cover-art search and a second copy of it
+   * for series would be a second search UI to keep in step.
+   */
+  const { bookId, author, bookTitle, seriesId, seriesName } =
+    useLocalSearchParams<{
+      bookId?: string;
+      author?: string;
+      bookTitle?: string;
+      seriesId?: string;
+      seriesName?: string;
+    }>();
 
-  const [query, setQuery] = useState(`${author} ${bookTitle} cover`);
+  const [query, setQuery] = useState(() =>
+    initialQuery(author, bookTitle, seriesName),
+  );
   const [results, setResults] = useState<DuckDuckGoImageResult[]>([]);
   const [state, setState] = useState<SearchState>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -75,11 +106,12 @@ const CoverArtSearch = () => {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSelectImage = useCallback(
+  const applyImage = useCallback(
     async (imageUrl: string) => {
       setState('processing');
       try {
-        await replaceBookArtwork(bookId, imageUrl, bookTitle, author);
+        if (seriesId) await replaceSeriesArtwork(seriesId, imageUrl);
+        else await replaceBookArtwork(bookId ?? '', imageUrl, bookTitle ?? '', author ?? '');
         router.back();
       } catch {
         setState('idle');
@@ -89,7 +121,43 @@ const CoverArtSearch = () => {
         );
       }
     },
-    [bookId, bookTitle, author],
+    [seriesId, bookId, bookTitle, author],
+  );
+
+  /*
+   * ⚠ K6 — THE CONFIRMATION COMES BEFORE APPLYING, NOT AS A NOTICE AFTERWARDS.
+   *
+   * Replacement unlinks the old file before the DB write, so the moment this
+   * runs there is nothing to roll back to. §D6 keeps the immediate write and
+   * pays for it with this dialog rather than by deferring the pin into the
+   * editor's draft, which would be incoherent: the `Save` button would be
+   * committing a column whose file was destroyed several taps ago, and
+   * `Cancel` would leave the series pointing at nothing.
+   *
+   * SERIES ONLY, and that is a judgment call rather than a spec line. The book
+   * path has shipped to testers without a confirmation and its cover control
+   * has never read as part of the form — it lives outside the fields card and
+   * navigates away to a full screen. The series control sits INSIDE the header
+   * beside the name field, which is the most form-like position on its screen,
+   * so the same act reads as deferred there and does not here. If the driver
+   * wants parity it is one branch to delete.
+   */
+  const handleSelectImage = useCallback(
+    (imageUrl: string) => {
+      if (!seriesId) {
+        void applyImage(imageUrl);
+        return;
+      }
+      Alert.alert(
+        'Use this cover?',
+        'It is saved right away — the editor’s Cancel will not undo it.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Use cover', onPress: () => void applyImage(imageUrl) },
+        ],
+      );
+    },
+    [seriesId, applyImage],
   );
 
   const renderItem = useCallback(
