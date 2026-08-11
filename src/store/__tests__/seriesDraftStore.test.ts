@@ -76,6 +76,47 @@ describe('beginPicker — `+ Add books` starts a fresh pass', () => {
   });
 });
 
+/*
+ * §E3's acceptance criterion — "selections are kept when the author filter
+ * changes, so building across ten authors does not mean starting over ten
+ * times". The two live in separate fields on purpose: the author filter is a
+ * VOLUME REDUCER over the pool, not a selection, so nothing it does may reach
+ * the staged books. The pool itself (`pickerRows`) is never even told what is
+ * staged; this is the other half of that separation.
+ */
+describe('the author filter never touches the staged books', () => {
+  test('ticking, unticking and re-ticking authors leaves the staging intact', () => {
+    useSeriesDraftStore.getState().resetForCreate();
+    useSeriesDraftStore.getState().toggleBookKey('/ann/one');
+    useSeriesDraftStore.getState().toggleBookKey('/bob/two');
+
+    useSeriesDraftStore.getState().toggleAuthor('Ann');
+    useSeriesDraftStore.getState().toggleAuthor('Bob');
+    useSeriesDraftStore.getState().toggleAuthor('Ann'); // Ann leaves the filter
+
+    const s = useSeriesDraftStore.getState();
+    expect(s.selectedAuthorNames).toEqual(['Bob']);
+    expect(s.selectedBookKeys).toEqual(['/ann/one', '/bob/two']);
+  });
+
+  /*
+   * The consequence that makes the criterion worth having: a book whose author
+   * has left the filter is off the POOL but still staged, so committing the
+   * step still adds it.
+   */
+  test('a staged book survives its author leaving the filter and still commits', () => {
+    useSeriesDraftStore.getState().resetForCreate();
+    useSeriesDraftStore.getState().toggleAuthor('Ann');
+    useSeriesDraftStore.getState().toggleBookKey('/ann/one');
+    useSeriesDraftStore.getState().toggleAuthor('Ann');
+
+    const staged = useSeriesDraftStore.getState().selectedBookKeys;
+    useSeriesDraftStore.getState().appendBookKeys(staged);
+
+    expect(useSeriesDraftStore.getState().orderedBookKeys).toEqual(['/ann/one']);
+  });
+});
+
 test('setOrderedKeys replaces order', () => {
   useSeriesDraftStore.getState().resetForEdit('s1', 'X', ['/a', '/b', '/c']);
   useSeriesDraftStore.getState().setOrderedKeys(['/c', '/a', '/b']);

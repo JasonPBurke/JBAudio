@@ -61,15 +61,15 @@ import Sortable, {
 } from 'react-native-sortables';
 import { ChevronLeft, GripVertical, Plus } from 'lucide-react-native';
 
-import {
-  SeriesEditorPanel,
-  pickerSubtitle,
-  type PickerStep,
-} from '@/components/SeriesEditorPanel';
+import { SeriesEditorPanel } from '@/components/SeriesEditorPanel';
 import { SeriesBookRow } from '@/components/SeriesBookRow';
 import { fontSize, screenPadding } from '@/constants/tokens';
 import { createSeries, deleteSeries, updateSeries } from '@/db/seriesQueries';
 import { bookStructuralKey } from '@/helpers/bookStructuralKey';
+import {
+  pickerSubtitle,
+  type PickerStep,
+} from '@/helpers/seriesPickerRows';
 import { SeriesNameConflictError } from '@/helpers/seriesName';
 import {
   duplicateNameIssue,
@@ -209,6 +209,33 @@ export default function SeriesEditorRoute() {
     },
     [keyMap, themeColors, handleRemove],
   );
+
+  /*
+   * ONE ordered list, rendered into whichever container is on screen — the
+   * ScrollView when the panel is closed, the panel's list header when it is
+   * open. Building it here rather than twice is what keeps the two states the
+   * same list: same rows, same drag, same identity.
+   *
+   * Not rendered empty: a create starts with no books, and a sortable over an
+   * empty list is a drag surface for nothing.
+   *
+   * ⚠ `scrollableRef` is the ScrollView's, so it is only passed while that
+   * ScrollView is the container. Auto-scroll-while-dragging is a ScrollView
+   * feature and the picker's list is not one; handing it a detached ref would
+   * scroll nothing. Dragging itself still works in both states.
+   */
+  const orderedList =
+    orderedBookKeys.length > 0 ? (
+      <Sortable.Grid
+        columns={1}
+        data={orderedBookKeys}
+        renderItem={renderItem}
+        rowGap={8}
+        scrollableRef={panel === null ? scrollableRef : undefined}
+        onDragEnd={({ data }) => setOrderedKeys(data)}
+        customHandle
+      />
+    ) : null;
 
   /* ------------------------------------------------------- the routes out --- */
 
@@ -397,28 +424,26 @@ export default function SeriesEditorRoute() {
         </Text>
       </View>
 
-      <Animated.ScrollView
-        ref={scrollableRef}
-        style={styles.scroll}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps='handled'
-      >
-        {/* Not rendered empty: a create starts with no books, and a sortable
-            over an empty list is a drag surface for nothing. */}
-        {orderedBookKeys.length > 0 && (
-          <Sortable.Grid
-            columns={1}
-            data={orderedBookKeys}
-            renderItem={renderItem}
-            rowGap={8}
-            scrollableRef={scrollableRef}
-            onDragEnd={({ data }) => setOrderedKeys(data)}
-            customHandle
-          />
-        )}
+      {/*
+        §E13 — WHICH SCROLL CONTAINER OWNS THE SURFACE DEPENDS ON THE PANEL.
+        Closed, the ordered list is the screen and lives in a ScrollView that
+        `Sortable.Grid` can auto-scroll while you drag. Open, the candidate
+        pool is the screen: the panel's own virtualized list takes over and
+        the ordered list rides above it as the header component, which is the
+        only arrangement where a 350-book pool does not mount 350 rows.
+        Nothing about the flow changes — the list is in the same place on
+        screen, showing the same rows, and still never moves while you pick.
+      */}
+      {panel === null ? (
+        <Animated.ScrollView
+          ref={scrollableRef}
+          style={styles.scroll}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps='handled'
+        >
+          {orderedList}
 
-        {panel === null ? (
           <Pressable
             style={[styles.addButton, { borderColor: themeColors.primary }]}
             android_ripple={{ color: themeColors.dividerAlpha16 }}
@@ -429,26 +454,31 @@ export default function SeriesEditorRoute() {
               Add books
             </Text>
           </Pressable>
-        ) : (
-          <SeriesEditorPanel step={panel} onClose={closePicker} />
-        )}
 
-        {/* §E9 — Delete is a function of editing something, so it is absent
-            from the create pass. It is also hidden while the picker is open:
-            a destructive action does not belong under a list you are adding
-            to, and the app's convention is absent rather than disabled. */}
-        {!!editingSeriesId && panel === null && (
-          <Pressable
-            style={styles.deleteButton}
-            onPress={handleDelete}
-            hitSlop={8}
-          >
-            <Text style={[styles.deleteText, { color: themeColors.danger }]}>
-              Delete Series
-            </Text>
-          </Pressable>
-        )}
-      </Animated.ScrollView>
+          {/* §E9 — Delete is a function of editing something, so it is absent
+              from the create pass. It is also absent while the picker is open,
+              which the container swap now makes structural: a destructive
+              action does not belong under a list you are adding to, and the
+              app's convention is absent rather than disabled. */}
+          {!!editingSeriesId && (
+            <Pressable
+              style={styles.deleteButton}
+              onPress={handleDelete}
+              hitSlop={8}
+            >
+              <Text style={[styles.deleteText, { color: themeColors.danger }]}>
+                Delete Series
+              </Text>
+            </Pressable>
+          )}
+        </Animated.ScrollView>
+      ) : (
+        <SeriesEditorPanel
+          step={panel}
+          onClose={closePicker}
+          listHeader={orderedList}
+        />
+      )}
 
       <View style={[styles.footer, { borderTopColor: themeColors.divider }]}>
         <Pressable
