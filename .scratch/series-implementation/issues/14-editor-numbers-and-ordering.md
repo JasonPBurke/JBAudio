@@ -3,8 +3,8 @@
 **Blocked by:** [12](12-editor-one-root-route.md).
 
 **Status:** resolved — device-verified 2026-08-11 on the physical Pixel 7 Pro, both themes,
-font scales 1.0 and 2.0. Three defects were found on device, fixed and re-verified in the same
-session. Record: [`DEVICE-CHECK-14.md`](../DEVICE-CHECK-14.md). UNCOMMITTED.
+font scales 1.0 and 2.0. FOUR defects were found on device, fixed and re-verified in the same
+session — three of them visible only at font scale 2.0 or in light theme. Record: [`DEVICE-CHECK-14.md`](../DEVICE-CHECK-14.md).
 
 **Spec:** [§D3–D5, D10](../../series-ux-redesign/spec.md), §E7, §A5, §K3, §K15.
 
@@ -68,7 +68,7 @@ input is the order the user arranged.
 - [x] `tsc` 0 errors · eslint 0 errors · jest green (620, up from 594; 0 warnings in any
       changed file).
 
-## What landed, and the three things a reader should not re-derive
+## What landed, and the things a reader should not re-derive
 
 **The rule lives in one pure module**, `src/helpers/seriesNumbering.ts`, tested at
 `src/helpers/__tests__/seriesNumbering.test.ts` (14 assertions):
@@ -100,7 +100,7 @@ screen background, resolved to an **opaque** hex so jest can assert it: **6.49:1
 never an opacity** — the prototype's `opacity: 0.4` is the same defect in a different
 costume, because it drags the label toward its background instead of away from it.
 
-**4. Three defects the device found that jest structurally could not.** Full detail in
+**4. Four defects the device found that jest structurally could not.** Full detail in
 `DEVICE-CHECK-14.md`; the transferable lessons:
 
 - **A fixed-width box holding font-scaled text clips at 2×** (`4.5` lost the `4`'s diagonal).
@@ -115,6 +115,9 @@ costume, because it drags the label toward its background instead of away from i
 - **⚠ Cluster/extent screenshot measurement is BLIND to glyph clipping** (same colours, same
   extent, different shape) and **quantisation under-reports contrast near a threshold**
   (4.26 measured vs 4.61 true). The clip was caught by the driver's eye.
+- **Every editable field must set `cursorColor`/`selectionColor`** to the accent. Both fields
+  here were missing it, the series NAME field since ticket 12. `editTitleDetails` uses plain
+  `primary`; `SearchBar`/`coverArtSearch` use `withOpacity(primary, 0.56)`.
 
 **Ticket 15's two approved decisions the shipped editor was behind on are now in**, and the
 second is load-bearing rather than cosmetic: the number box takes ~54dp off the row's left,
