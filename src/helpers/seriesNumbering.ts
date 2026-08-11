@@ -1,0 +1,96 @@
+/**
+ * The editor's canonical-number rules — spec §D3–D5, §E7, §K3.
+ *
+ * PURE, and deliberately so. Per the spec's testing decisions, the decision is
+ * tested here and the write is IO left untested; `jest.config.js` carries no
+ * React Native preset, so anything importing a screen cannot be tested at all.
+ */
+
+/**
+ * K3 — `decimal-pad` renders the LOCALE's decimal separator, so a
+ * comma-decimal user is offered `,` and types `14,1`. `parseFloat('14,1')`
+ * returns 14, silently and with no error, which drops the fractional part on
+ * exactly the users whose keyboard produced it. Normalise the separator BEFORE
+ * parsing.
+ *
+ * D3 — and the parse is then STRICT, mirroring `toCanonicalNumber` in
+ * `seriesReconcile.ts`: `canonical_number` is a nullable NUMBER, so a letter
+ * form cannot be stored even by accident. `parseFloat('14b')` is 14, which
+ * would file an omnibus alongside book 14 as if it were book 14. Blank beats
+ * misleading, so anything that is not wholly numeric returns null.
+ */
+export function parseCanonicalNumber(
+  text: string | null | undefined,
+): number | null {
+  const normalised = (text ?? '').trim().replace(',', '.');
+  // Digits on either side of the separator, but at least one digit somewhere:
+  // `5`, `5.`, `5.5` and `.5` all parse, `.` and `14b` do not. `5.` matters
+  // because it is what every decimal looks like mid-typing, and dropping it
+  // would blink `Sort by number` disabled under the user's finger.
+  if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalised)) return null;
+  return Number(normalised);
+}
+
+/**
+ * D4 — `Sort by number` re-seeds order on demand: numerically ascending,
+ * **NULLS LAST**, and **stable**, so a partly-numbered series does not shuffle
+ * its unnumbered tail.
+ *
+ * Stability is decided by the ARRIVAL INDEX, not by title. The prototype
+ * alphabetised the blanks; D4 does not, because the blanks are the books the
+ * user has said nothing about and re-sorting them is a change they did not ask
+ * for. Duplicates hold their order for the same reason.
+ *
+ * Generic over the row type so the detector and the button share one rule —
+ * `seedOrder` in `seriesReconcile.ts` seeds a freshly detected series with this
+ * exact comparator, and the spec requires a seeded series and a `Sort by
+ * number` press to agree. Two copies of one rule is how sites drift apart.
+ */
+export function orderByCanonicalNumber<T>(
+  items: T[],
+  numberOf: (item: T) => number | null,
+): T[] {
+  return items
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => {
+      const an = numberOf(a.item);
+      const bn = numberOf(b.item);
+      if (an == null && bn == null) return a.index - b.index;
+      if (an == null) return 1;
+      if (bn == null) return -1;
+      return an === bn ? a.index - b.index : an - bn;
+    })
+    .map(({ item }) => item);
+}
+
+/**
+ * D5 — bulk numbering ships **gated to fully-unnumbered series only**.
+ *
+ * Renumbering over existing values IS a bulk destroy, and no bulk destroy ships
+ * (A14). "Fill blanks only" was offered and rejected: on `1, _, _, 8` it
+ * manufactures false canonical data for the two books nobody numbered — blank
+ * beats misleading. Gated to zero-numbered series it is a pure CREATE whose
+ * only input is the order the user arranged.
+ */
+export function canBulkNumber(numbers: (number | null)[]): boolean {
+  return numbers.length > 0 && numbers.every((n) => n == null);
+}
+
+/**
+ * E7 — numbering is playlist-shaped: boxes start empty, blank means no
+ * canonical number, and **an untouched list is numbered `1..n` from its final
+ * drag order at save**. The array IS that drag order, so the number is the
+ * index plus one.
+ *
+ * SAME GATE AS `canBulkNumber`, and deliberately the same function. D5's button
+ * and E7's save are one rule reached two ways — one manual, one implicit — so
+ * the button calls this too. That makes pressing it while the gate is shut a
+ * no-op rather than a bulk destroy, which is the safe direction for the one
+ * verb A14 refuses to ship.
+ */
+export function resolveNumbersForSave(
+  numbers: (number | null)[],
+): (number | null)[] {
+  if (!canBulkNumber(numbers)) return numbers;
+  return numbers.map((_, index) => index + 1);
+}

@@ -117,6 +117,30 @@ describe('the author filter never touches the staged books', () => {
   });
 });
 
+/*
+ * §D3 from the data side. Numbers are keyed by STRUCTURAL KEY, never by index,
+ * which is what makes "editing a number does not resort" and "reordering does
+ * not disturb numbers" the same fact. An index-keyed map would silently hand
+ * each book its neighbour's number the first time anyone dragged a row.
+ */
+test('numbers follow their book through a reorder', () => {
+  useSeriesDraftStore
+    .getState()
+    .resetForEdit('s1', 'X', ['/a', '/b', '/c'], { '/a': '1', '/c': '3' });
+  useSeriesDraftStore.getState().setOrderedKeys(['/c', '/a', '/b']);
+
+  const s = useSeriesDraftStore.getState();
+  expect(s.numbersByKey['/a']).toBe('1');
+  expect(s.numbersByKey['/c']).toBe('3');
+  expect(s.numbersByKey['/b']).toBeUndefined();
+});
+
+test('a stale draft cannot leak its numbers into the next series', () => {
+  useSeriesDraftStore.getState().resetForEdit('s1', 'X', ['/a'], { '/a': '7' });
+  useSeriesDraftStore.getState().resetForCreate();
+  expect(useSeriesDraftStore.getState().numbersByKey).toEqual({});
+});
+
 test('setOrderedKeys replaces order', () => {
   useSeriesDraftStore.getState().resetForEdit('s1', 'X', ['/a', '/b', '/c']);
   useSeriesDraftStore.getState().setOrderedKeys(['/c', '/a', '/b']);

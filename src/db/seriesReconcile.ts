@@ -8,6 +8,7 @@
  * if a conditional appears there, it belongs here.
  */
 
+import { orderByCanonicalNumber } from '@/helpers/seriesNumbering';
 import { isSameSeriesName, normalizeSortName } from '@/helpers/seriesName';
 import type { DetectionUnit, ProposedSeries } from '@/helpers/seriesDetection';
 
@@ -98,17 +99,11 @@ type Candidate = { bookKey: string; canonicalNumber: number | null };
  * agree: numerically ascending, NULLS LAST, stable within each group.
  */
 function seedOrder(candidates: Candidate[]): Candidate[] {
-  return candidates
-    .map((c, i) => ({ c, i }))
-    .sort((a, b) => {
-      const an = a.c.canonicalNumber;
-      const bn = b.c.canonicalNumber;
-      if (an == null && bn == null) return a.i - b.i;
-      if (an == null) return 1;
-      if (bn == null) return -1;
-      return an === bn ? a.i - b.i : an - bn;
-    })
-    .map(({ c }) => c);
+  // ONE comparator, shared with the editor's `Sort by number` button. The rule
+  // is identical by requirement, not by coincidence, and this repo has already
+  // paid once for keeping two copies of one rule in two files (see the orphan
+  // prune in docs/adr/0001). Change it in `seriesNumbering.ts`, not here.
+  return orderByCanonicalNumber(candidates, (c) => c.canonicalNumber);
 }
 
 function toMember(c: Candidate, position: number): PlannedMember {

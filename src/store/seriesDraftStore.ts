@@ -20,14 +20,38 @@ interface SeriesDraftState {
   selectedAuthorNames: string[]; // picker step 1 filter
   selectedBookKeys: string[]; // picker step 2 staged selection
   orderedBookKeys: string[]; // the editor's list (source of truth on save)
+  /**
+   * §D3 — the per-row canonical number, held as the RAW TEXT the field shows
+   * rather than as a parsed number.
+   *
+   * Two reasons, both about the keypad. A comma-decimal user's `14,1` must
+   * survive as `14,1` (K3 normalises it at the parse, not at the keystroke), or
+   * the separator their own keyboard offered would be rewritten under their
+   * finger. And `14.` is a state every decimal passes through while being
+   * typed; parsing on keystroke would round-trip it back to `14` and eat the
+   * separator they just pressed.
+   *
+   * Keyed by structural key, so a drag reorders the list without touching a
+   * single number — which is exactly D3's rule that editing a number does not
+   * resort, read from the other end.
+   */
+  numbersByKey: Record<string, string>;
 
   resetForCreate: () => void;
-  resetForEdit: (id: string, name: string, orderedKeys: string[]) => void;
+  /** `numbersByKey` is optional: a series with no published numbers seeds none. */
+  resetForEdit: (
+    id: string,
+    name: string,
+    orderedKeys: string[],
+    numbersByKey?: Record<string, string>,
+  ) => void;
   setName: (name: string) => void;
   toggleAuthor: (name: string) => void;
   toggleBookKey: (key: string) => void;
   setOrderedKeys: (keys: string[]) => void;
   appendBookKeys: (keys: string[]) => void;
+  setNumber: (key: string, value: string) => void;
+  setNumbers: (numbersByKey: Record<string, string>) => void;
   beginPicker: () => void;
 }
 
@@ -53,6 +77,7 @@ export const useSeriesDraftStore = create<SeriesDraftState>()((set) => ({
   selectedAuthorNames: [],
   selectedBookKeys: [],
   orderedBookKeys: [],
+  numbersByKey: {},
 
   resetForCreate: () =>
     set({
@@ -62,9 +87,10 @@ export const useSeriesDraftStore = create<SeriesDraftState>()((set) => ({
       selectedAuthorNames: [],
       selectedBookKeys: [],
       orderedBookKeys: [],
+      numbersByKey: {},
     }),
 
-  resetForEdit: (id, name, orderedKeys) =>
+  resetForEdit: (id, name, orderedKeys, numbersByKey) =>
     set({
       mode: 'edit',
       editingSeriesId: id,
@@ -72,6 +98,7 @@ export const useSeriesDraftStore = create<SeriesDraftState>()((set) => ({
       selectedAuthorNames: [],
       selectedBookKeys: [...orderedKeys],
       orderedBookKeys: [...orderedKeys],
+      numbersByKey: { ...(numbersByKey ?? {}) },
     }),
 
   setName: (name) => set({ name }),
@@ -89,6 +116,12 @@ export const useSeriesDraftStore = create<SeriesDraftState>()((set) => ({
       orderedBookKeys: union(s.orderedBookKeys, keys),
       selectedBookKeys: union(s.selectedBookKeys, keys),
     })),
+
+  setNumber: (key, value) =>
+    set((s) => ({ numbersByKey: { ...s.numbersByKey, [key]: value } })),
+
+  /** Bulk numbering (D5) and `Sort by number` both replace the map wholesale. */
+  setNumbers: (numbersByKey) => set({ numbersByKey: { ...numbersByKey } }),
 
   /**
    * `+ Add books` — start a fresh pass through the picker.

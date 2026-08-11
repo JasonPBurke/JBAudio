@@ -74,12 +74,35 @@ async function prepareSuppressionClear(name: string): Promise<SuppressedSeries[]
 }
 
 /**
+ * The canonical numbers an editor save carries, index-aligned with its ordered
+ * book keys. Null at an index means that book has no published number, which
+ * is the norm rather than an edge case (§D3).
+ *
+ * The DECISION about what these should be is not made here — `resolveNumbers-
+ * ForSave` in `seriesNumbering.ts` already applied E7's rule before the save
+ * was called. Everything below copies.
+ */
+type CanonicalNumbers = (number | null)[];
+
+/**
+ * The provenance a number written from the editor carries. Always `'user'`
+ * when a number is present: a person typed it into a box, which is the only
+ * way to reach this code. Null when no number is set, because
+ * `canonical_source` deliberately does not coalesce — claiming `'user'` for a
+ * number nobody entered would make an unnumbered row look pinned.
+ */
+function sourceFor(n: number | null): 'user' | null {
+  return n == null ? null : 'user';
+}
+
+/**
  * Create a new series with its ordered membership. `bookKeysInOrder` are
  * structural keys (first file paths). Returns the new series id.
  */
 export async function createSeries(
   name: string,
   bookKeysInOrder: string[],
+  canonicalNumbers: CanonicalNumbers = [],
 ): Promise<string> {
   await assertSeriesNameAvailable(name);
   let newId = '';
@@ -96,14 +119,17 @@ export async function createSeries(
     });
     newId = series.id;
 
-    const rows = bookKeysInOrder.map((bookKey, position) =>
-      database.get<SeriesBook>('series_books').prepareCreate((sb) => {
+    const rows = bookKeysInOrder.map((bookKey, position) => {
+      const number = canonicalNumbers[position] ?? null;
+      return database.get<SeriesBook>('series_books').prepareCreate((sb) => {
         (sb._raw as any).series_id = series.id;
         sb.bookKey = bookKey;
         sb.position = position;
+        sb.canonicalNumber = number;
+        sb.canonicalSource = sourceFor(number);
         sb.createdAt = now;
-      }),
-    );
+      });
+    });
     const ops = [...rows, ...clears];
     if (ops.length > 0) await database.batch(ops);
   });
@@ -118,6 +144,7 @@ export async function updateSeries(
   id: string,
   name: string,
   bookKeysInOrder: string[],
+  canonicalNumbers: CanonicalNumbers = [],
 ): Promise<void> {
   if (bookKeysInOrder.length === 0) {
     await deleteSeries(id);
@@ -159,16 +186,57 @@ export async function updateSeries(
       const row = existingRows.find((r) => r.bookKey === key);
       if (row) ops.push(row.prepareDestroyPermanently());
     }
-    for (const { bookKey, position } of toReposition) {
-      const row = existingRows.find((r) => r.bookKey === bookKey);
-      if (row) ops.push(row.prepareUpdate((r) => (r.position = position)));
+
+    /*
+     * ⚠ ONE `prepareUpdate` PER ROW, MERGED — never one for the position and a
+     * second for the number.
+     *
+     * `Model.prepareUpdate` invariants on `!this._preparedState` and THROWS
+     * "Cannot update a record with pending changes" on the second call before
+     * the batch. The row that hits it is one that was both dragged AND
+     * renumbered in the same session, which is the single most likely editor
+     * session this feature has — and it is invisible to any test that performs
+     * one action at a time.
+     *
+     * Which rows changed is looked up here; WHAT the numbers should be was
+     * decided by `resolveNumbersForSave` before the save was called. Copying a
+     * value is not a decision, so this stays out of the tested seam.
+     */
+    const numberByKey = new Map(
+      bookKeysInOrder.map((key, index) => [key, canonicalNumbers[index] ?? null]),
+    );
+    const positionByKey = new Map(
+      toReposition.map(({ bookKey, position }) => [bookKey, position]),
+    );
+    // `existingRows` is disjoint from `toCreate` by construction — the diff
+    // only proposes a create for a key it did not find — so this loop cannot
+    // collide with the prepareCreate pass below.
+    for (const row of existingRows) {
+      if (!numberByKey.has(row.bookKey)) continue; // handled by toDelete
+      const nextNumber = numberByKey.get(row.bookKey) ?? null;
+      const nextPosition = positionByKey.get(row.bookKey);
+      const numberChanged = row.canonicalNumber !== nextNumber;
+      if (nextPosition === undefined && !numberChanged) continue;
+      ops.push(
+        row.prepareUpdate((r) => {
+          if (nextPosition !== undefined) r.position = nextPosition;
+          if (numberChanged) {
+            r.canonicalNumber = nextNumber;
+            r.canonicalSource = sourceFor(nextNumber);
+          }
+        }),
+      );
     }
+
     for (const { bookKey, position } of toCreate) {
+      const number = numberByKey.get(bookKey) ?? null;
       ops.push(
         database.get<SeriesBook>('series_books').prepareCreate((sb) => {
           (sb._raw as any).series_id = id;
           sb.bookKey = bookKey;
           sb.position = position;
+          sb.canonicalNumber = number;
+          sb.canonicalSource = sourceFor(number);
           sb.createdAt = now;
         }),
       );

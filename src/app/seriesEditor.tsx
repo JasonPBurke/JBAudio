@@ -47,6 +47,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  PixelRatio,
   Pressable,
   StyleSheet,
   Text,
@@ -59,13 +60,35 @@ import Animated, { useAnimatedRef } from 'react-native-reanimated';
 import Sortable, {
   type SortableGridRenderItem,
 } from 'react-native-sortables';
-import { ChevronLeft, GripVertical, Plus } from 'lucide-react-native';
+import {
+  ArrowDownWideNarrow,
+  ChevronLeft,
+  GripVertical,
+  ListOrdered,
+  Plus,
+  Trash2,
+} from 'lucide-react-native';
 
 import { SeriesEditorPanel } from '@/components/SeriesEditorPanel';
 import { SeriesBookRow } from '@/components/SeriesBookRow';
 import { fontSize, screenPadding } from '@/constants/tokens';
 import { createSeries, deleteSeries, updateSeries } from '@/db/seriesQueries';
 import { bookStructuralKey } from '@/helpers/bookStructuralKey';
+import { withOpacity } from '@/helpers/colorUtils';
+import {
+  disabledControlColors,
+  disabledTextColor,
+} from '@/helpers/controlColors';
+import {
+  numberFieldWidth,
+  sortRowIsStacked,
+} from '@/helpers/seriesEditorGeometry';
+import {
+  canBulkNumber,
+  orderByCanonicalNumber,
+  parseCanonicalNumber,
+  resolveNumbersForSave,
+} from '@/helpers/seriesNumbering';
 import {
   pickerSubtitle,
   type PickerStep,
@@ -83,6 +106,117 @@ import { useSeriesDraftStore } from '@/store/seriesDraftStore';
 import { useDerivedSeries } from '@/store/seriesStore';
 import { Book } from '@/types/Book';
 
+/**
+ * One row of the ordered list: the canonical-number box, the shared book row,
+ * and the remove badge.
+ *
+ * ── Why this is its own component ─────────────────────────────────────────
+ *
+ * It subscribes to ITS OWN number out of the draft store. Reading the whole
+ * `numbersByKey` map in the screen and passing a value down would re-render
+ * every row on every keystroke, in a list that runs to 41 books on the real
+ * library. Here a keystroke re-renders exactly the row being typed into.
+ *
+ * ── Why it wraps `SeriesBookRow` instead of extending it (ticket 15) ──────
+ *
+ * `SeriesBookRow` is production code shared with the picker, and the wizard
+ * prototype's ruling was explicit that it stays UNTOUCHED — the variants wrap
+ * it. Both of this row's additions are therefore siblings, not props:
+ *
+ *  - the number box sits LEFT of the row, the geometry the driver A/B'd on
+ *    device on 2026-08-04;
+ *  - remove is a `Trash2` badge at the card's top-left over the cover, moved
+ *    off the row's tail. That move is not cosmetic here: the number box takes
+ *    ~54dp off the row's left, and vacating the tail is what pays for it.
+ *    Titles gained enough that `Discworld 04 - Mort` fits whole.
+ *
+ * Two sub-decisions inside that, flagged as judgment rather than spec: the
+ * glyph carries its OWN SCRIM rather than darkening the artwork (ticket 13's
+ * house rule), and it is `textMuted`, NOT `danger` — removing a book from a
+ * series does nothing to the book, and N rows of red trash cans would read as
+ * a warning the screen does not mean.
+ */
+const NumberedBookRow = React.memo(function NumberedBookRow({
+  bookKey,
+  book,
+  onRemove,
+}: {
+  bookKey: string;
+  book?: Book;
+  onRemove: () => void;
+}) {
+  const { colors: themeColors } = useTheme();
+  const value = useSeriesDraftStore((s) => s.numbersByKey[bookKey] ?? '');
+  const setNumber = useSeriesDraftStore((s) => s.setNumber);
+
+  return (
+    <View style={styles.numberedRow}>
+      {/*
+        §D3 — `decimal-pad`, and NOTHING here resorts the list. `position` keeps
+        sole sort authority precisely so a row cannot move out from under the
+        cursor mid-edit; re-seeding order is `Sort by number`, a manual act.
+
+        ⚠ K3 — this keypad renders the LOCALE's decimal separator, so a
+        comma-decimal user types `14,1`. The raw text is stored raw and
+        normalised at the parse (`parseCanonicalNumber`), never on keystroke,
+        or the separator their keyboard offered would be rewritten under them.
+      */}
+      <TextInput
+        value={value}
+        onChangeText={(next) => setNumber(bookKey, next)}
+        placeholder='#'
+        placeholderTextColor={themeColors.textMuted}
+        keyboardType='decimal-pad'
+        // The caret and selection carry the accent, as every other editable
+        // field in the app does (`editTitleDetails`' seven fields, `SearchBar`,
+        // `coverArtSearch`). The plain-`primary` variant is the form-field one;
+        // the two SEARCH fields use `withOpacity(primary, 0.56)` instead.
+        cursorColor={themeColors.primary}
+        selectionColor={themeColors.primary}
+        accessibilityLabel={`Number for ${book?.bookTitle ?? 'this book'}`}
+        style={[
+          styles.numberField,
+          {
+            color: themeColors.text,
+            borderColor: themeColors.divider,
+            // DEVICE-FOUND at font scale 2.0: a fixed 46dp box CLIPPED `4.5`
+            // — the `4`'s diagonal cut off flat. The box has to scale with the
+            // text it holds, or the number is the one thing a user who raised
+            // their font scale cannot read.
+            width: numberFieldWidth(PixelRatio.getFontScale()),
+          },
+        ]}
+      />
+      <View style={styles.numberedBody}>
+        <SeriesBookRow
+          context='sortable'
+          bookId={book?.bookId}
+          title={book?.bookTitle}
+          author={book?.author}
+          artwork={book?.artwork}
+          dragHandle={
+            <Sortable.Handle>
+              <GripVertical size={22} color={themeColors.textMuted} />
+            </Sortable.Handle>
+          }
+        />
+        <Pressable
+          onPress={onRemove}
+          hitSlop={10}
+          accessibilityRole='button'
+          accessibilityLabel={`Remove ${book?.bookTitle ?? 'this book'}`}
+          style={[
+            styles.removeBadge,
+            { backgroundColor: withOpacity(themeColors.background, 0.78) },
+          ]}
+        >
+          <Trash2 size={15} color={themeColors.textMuted} />
+        </Pressable>
+      </View>
+    </View>
+  );
+});
+
 export default function SeriesEditorRoute() {
   const { colors: themeColors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -93,6 +227,24 @@ export default function SeriesEditorRoute() {
   /** Absent = create. The route parameter is the mode. */
   const { id } = useLocalSearchParams<{ id?: string }>();
   const editingSeriesId = id || undefined;
+
+  /**
+   * K15 — one disabled treatment for every control on this surface, in two
+   * shapes. A FILLED control's grey fill signals "off" by itself, so its label
+   * is free to be legible; a BARE TEXT control has only its label, so that
+   * label has to carry the signal and must sit below body text.
+   */
+  const disabledColors = useMemo(
+    () => disabledControlColors(themeColors),
+    [themeColors],
+  );
+  const disabledLabel = useMemo(
+    () => disabledTextColor(themeColors),
+    [themeColors],
+  );
+
+  /** DEVICE-FOUND at 2.0 — see `seriesEditorGeometry`. */
+  const stackSortRow = sortRowIsStacked(PixelRatio.getFontScale());
 
   const allSeries = useDerivedSeries();
   const series = useMemo(
@@ -106,6 +258,8 @@ export default function SeriesEditorRoute() {
   const setOrderedKeys = useSeriesDraftStore((s) => s.setOrderedKeys);
   const appendBookKeys = useSeriesDraftStore((s) => s.appendBookKeys);
   const beginPicker = useSeriesDraftStore((s) => s.beginPicker);
+  const numbersByKey = useSeriesDraftStore((s) => s.numbersByKey);
+  const setNumbers = useSeriesDraftStore((s) => s.setNumbers);
   const selectedAuthorNames = useSeriesDraftStore((s) => s.selectedAuthorNames);
   const selectedBookKeys = useSeriesDraftStore((s) => s.selectedBookKeys);
   const books = useLibraryStore((state) => state.books);
@@ -152,7 +306,24 @@ export default function SeriesEditorRoute() {
     const keys = series.books
       .map((b) => bookStructuralKey(b))
       .filter((k): k is string => !!k);
-    draft.resetForEdit(series.id, series.name, keys);
+    /*
+     * Seed the boxes from the stored numbers. `canonicalNumbers` is
+     * INDEX-ALIGNED with `books`, so the number is read at the book's own
+     * index — never from a separately-filtered array, which would badge every
+     * later book with its neighbour's number.
+     *
+     * Formatted with a `.` regardless of locale. A comma-decimal user sees
+     * `14.1` in a box whose keypad offers `,`; typing over it works either way
+     * because K3's parse accepts both, and rendering the separator per-locale
+     * would mean carrying a locale into a pure draft for a cosmetic gain.
+     */
+    const seededNumbers: Record<string, string> = {};
+    series.books.forEach((book, index) => {
+      const key = bookStructuralKey(book);
+      const number = series.canonicalNumbers[index];
+      if (key && number != null) seededNumbers[key] = String(number);
+    });
+    draft.resetForEdit(series.id, series.name, keys, seededNumbers);
     seeded.current = true;
   }, [editingSeriesId, series]);
 
@@ -189,26 +360,65 @@ export default function SeriesEditorRoute() {
   );
 
   const renderItem = useCallback<SortableGridRenderItem<string>>(
-    ({ item: bookKey }) => {
-      const book = keyMap.get(bookKey);
-      return (
-        <SeriesBookRow
-          context='sortable'
-          bookId={book?.bookId}
-          title={book?.bookTitle}
-          author={book?.author}
-          artwork={book?.artwork}
-          onRemove={() => handleRemove(bookKey)}
-          dragHandle={
-            <Sortable.Handle>
-              <GripVertical size={22} color={themeColors.textMuted} />
-            </Sortable.Handle>
-          }
-        />
-      );
-    },
-    [keyMap, themeColors, handleRemove],
+    ({ item: bookKey }) => (
+      <NumberedBookRow
+        bookKey={bookKey}
+        book={keyMap.get(bookKey)}
+        onRemove={() => handleRemove(bookKey)}
+      />
+    ),
+    // Deliberately NOT dependent on `numbersByKey`: each row subscribes to its
+    // own number, so typing must not rebuild this callback and re-render the
+    // whole list under the cursor.
+    [keyMap, handleRemove],
   );
+
+  /* ------------------------------------------------------------ numbering --- */
+
+  /**
+   * The list's numbers, parsed, in the list's own drag order. Everything the
+   * numbering controls decide is a function of this one array.
+   */
+  const parsedNumbers = useMemo(
+    () => orderedBookKeys.map((key) => parseCanonicalNumber(numbersByKey[key])),
+    [orderedBookKeys, numbersByKey],
+  );
+
+  /** §D4 — disabled when nothing is numbered; there is no order to seed from. */
+  const canSortByNumber = parsedNumbers.some((n) => n !== null);
+  /** §D5 — open only on a fully-unnumbered series. */
+  const bulkNumberAvailable = canBulkNumber(parsedNumbers);
+
+  /**
+   * §D4 — re-seed `position` from the numbers, on demand and never on a
+   * keystroke. §D10 is a KNOWN and specified consequence: this silently
+   * changes the series cover, because artwork derives from the first book and
+   * follows a reorder. That is the behaviour, not a bug — and the argument for
+   * siting the artwork override on this same screen (ticket 15).
+   */
+  const handleSortByNumber = useCallback(() => {
+    setOrderedKeys(
+      orderByCanonicalNumber(orderedBookKeys, (key) =>
+        parseCanonicalNumber(numbersByKey[key]),
+      ),
+    );
+  }, [orderedBookKeys, numbersByKey, setOrderedKeys]);
+
+  /**
+   * §D5 — number `1..n` from the current drag order. Calls the same function
+   * the save path does, so pressing this is exactly "do now what save would
+   * have done", and it is a no-op rather than a bulk destroy if it is ever
+   * reached with the gate shut.
+   */
+  const handleBulkNumber = useCallback(() => {
+    const next = resolveNumbersForSave(parsedNumbers);
+    const filled: Record<string, string> = {};
+    orderedBookKeys.forEach((key, index) => {
+      const number = next[index];
+      if (number != null) filled[key] = String(number);
+    });
+    setNumbers(filled);
+  }, [orderedBookKeys, parsedNumbers, setNumbers]);
 
   /*
    * ONE ordered list, rendered into whichever container is on screen — the
@@ -276,8 +486,16 @@ export default function SeriesEditorRoute() {
     }
     setSubmitting(true);
     try {
-      if (editingSeriesId) await updateSeries(editingSeriesId, name, orderedBookKeys);
-      else await createSeries(name, orderedBookKeys);
+      /*
+       * §E7 — an untouched list is numbered `1..n` from its FINAL DRAG ORDER
+       * AT SAVE. Resolved here, at the last possible moment, because "final"
+       * is the whole point: the order is whatever the last drag left behind.
+       * Once anything is numbered the rule stops and blanks stay blank.
+       */
+      const canonicalNumbers = resolveNumbersForSave(parsedNumbers);
+      if (editingSeriesId)
+        await updateSeries(editingSeriesId, name, orderedBookKeys, canonicalNumbers);
+      else await createSeries(name, orderedBookKeys, canonicalNumbers);
       useSeriesDraftStore.getState().resetForCreate();
       router.back();
     } catch (e) {
@@ -290,7 +508,15 @@ export default function SeriesEditorRoute() {
       }
       console.error(editingSeriesId ? 'updateSeries failed' : 'createSeries failed', e);
     }
-  }, [submitting, issues, editingSeriesId, name, orderedBookKeys, router]);
+  }, [
+    submitting,
+    issues,
+    editingSeriesId,
+    name,
+    orderedBookKeys,
+    parsedNumbers,
+    router,
+  ]);
 
   /*
    * ⚠ THE DELETE EXIT IS STILL WRONG, KNOWINGLY (§K7). It pops onto the detail
@@ -414,6 +640,11 @@ export default function SeriesEditorRoute() {
           onChangeText={setName}
           placeholder='Series name (required)'
           placeholderTextColor={themeColors.textMuted}
+          // Same convention. This field predates ticket 14 and was missing it
+          // too — fixed here rather than left as the one field on the screen
+          // with a default-blue caret beside an accent-coloured one.
+          cursorColor={themeColors.primary}
+          selectionColor={themeColors.primary}
           style={[
             styles.nameInput,
             { color: themeColors.text, borderColor: themeColors.divider },
@@ -422,6 +653,88 @@ export default function SeriesEditorRoute() {
         <Text style={[styles.instruction, { color: themeColors.textMuted }]}>
           {subtitle}
         </Text>
+
+        {/*
+          §D4 — `Sort by number` SITS BESIDE THE NAME FIELD, in the header
+          rather than in the list, so a control that acts on the whole list is
+          not something you have to scroll to find. Absent while the picker is
+          open: it acts on the ordered list, and the ordered list is not what
+          you are looking at.
+
+          ⚠ THE LEFT SLOT IS ALWAYS RENDERED AT `flex: 1`, EMPTY OR NOT. That
+          is what pins the button right. With `space-between` the button slid
+          left into the space the note vacated once every book was numbered — a
+          control moving when nothing about it had changed. Measured at 0
+          differing pixels in the button's bounding box between slot-full and
+          slot-empty, comparing like enablement with like.
+        */}
+        {panel === null && orderedBookKeys.length > 0 && (
+          <View style={[styles.sortRow, stackSortRow && styles.sortRowStacked]}>
+            <View style={stackSortRow ? styles.sortSlotStacked : styles.sortSlot}>
+              {bulkNumberAvailable ? (
+                /* §D5 — a pure create, gated to a zero-numbered series. It
+                   lives in the note's slot rather than beside the sort button
+                   because the two are EXACT OPPOSITES and can never both be
+                   actionable: this is enabled only when nothing is numbered,
+                   and `Sort by number` only when something is. */
+                <Pressable
+                  onPress={handleBulkNumber}
+                  hitSlop={8}
+                  accessibilityRole='button'
+                  style={styles.slotButton}
+                >
+                  <ListOrdered size={16} color={themeColors.primary} />
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.slotText, { color: themeColors.primary }]}
+                  >
+                    Number 1–{orderedBookKeys.length}
+                  </Text>
+                </Pressable>
+              ) : canSortByNumber &&
+                parsedNumbers.some((n) => n === null) ? (
+                <Text
+                  numberOfLines={2}
+                  style={[styles.sortNote, { color: themeColors.textMuted }]}
+                >
+                  Books left blank sort to the end.
+                </Text>
+              ) : null}
+            </View>
+            {/*
+              ⚠ K15 — DISABLED IS A COLOUR CHANGE, NEVER AN OPACITY. The
+              prototype dimmed this to `opacity: 0.4`, which is the same defect
+              in a different costume: it drags the label toward its own
+              background instead of away from it. Accent → muted reads as
+              inactive and keeps full contrast against the screen.
+            */}
+            <Pressable
+              onPress={handleSortByNumber}
+              disabled={!canSortByNumber}
+              hitSlop={8}
+              accessibilityRole='button'
+              accessibilityState={{ disabled: !canSortByNumber }}
+              style={styles.sortButton}
+            >
+              <ArrowDownWideNarrow
+                size={16}
+                color={canSortByNumber ? themeColors.primary : disabledLabel}
+              />
+              <Text
+                style={[
+                  styles.sortText,
+                  {
+                    color: canSortByNumber
+                      ? themeColors.primary
+                      : disabledLabel,
+                  },
+                ]}
+              >
+                Sort by number
+              </Text>
+            </Pressable>
+          </View>
+        )}
       </View>
 
       {/*
@@ -496,9 +809,12 @@ export default function SeriesEditorRoute() {
           style={[
             styles.saveButton,
             {
-              backgroundColor: commitActive
-                ? themeColors.primary
-                : themeColors.divider,
+              // K15 — the inactive fill was `divider` and its label was
+              // `textMuted`, which in the dark palette are the SAME `#d8dee9`:
+              // the label was drawn in its own background, measured 1.00:1.
+              // Light was 2.98:1, under AA too, which is why this was never
+              // the dark-theme-only defect it was filed as.
+              backgroundColor: commitActive ? themeColors.primary : disabledColors.fill,
               opacity: submitting ? 0.6 : 1,
             },
           ]}
@@ -507,9 +823,7 @@ export default function SeriesEditorRoute() {
             style={[
               styles.saveText,
               {
-                color: commitActive
-                  ? themeColors.background
-                  : themeColors.textMuted,
+                color: commitActive ? themeColors.background : disabledColors.label,
               },
             ]}
           >
@@ -548,6 +862,53 @@ const styles = StyleSheet.create({
   instruction: {
     fontFamily: 'Rubik',
     fontSize: fontSize.sm,
+  },
+  sortRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  /**
+   * DEVICE-FOUND at font scale 2.0: side by side, `Number 1–6` truncated to
+   * `Number..` and lost the count that is the whole point of the label. Each
+   * control gets its own line instead, and the sort button stays right-aligned
+   * on its line — ticket 15's decision is about the NOTE's content moving the
+   * button, which the flex:1 slot still guarantees at every scale.
+   */
+  sortRowStacked: { flexDirection: 'column', alignItems: 'stretch', gap: 4 },
+  /** Always rendered, empty or not — this is what pins the button right. */
+  sortSlot: { flex: 1 },
+  sortSlotStacked: { width: '100%' },
+  sortNote: { fontFamily: 'Rubik', fontSize: 12 },
+  slotButton: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  slotText: {
+    fontFamily: 'Rubik',
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+    flexShrink: 1,
+  },
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 6,
+    paddingVertical: 6,
+  },
+  sortText: { fontFamily: 'Rubik', fontSize: fontSize.sm, fontWeight: '600' },
+  numberedRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  numberField: {
+    width: 46,
+    textAlign: 'center',
+    fontFamily: 'Rubik',
+    fontSize: fontSize.sm,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 9,
+  },
+  numberedBody: { flex: 1 },
+  /** Top-LEFT, over the cover, carrying its own scrim (ticket 13's house rule). */
+  removeBadge: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    borderRadius: 13,
+    padding: 5,
   },
   scroll: { flex: 1 },
   listContent: {
