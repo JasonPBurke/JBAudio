@@ -152,12 +152,13 @@ const SeriesDetailSheet = ({ series }: { series: DerivedSeries }) => {
    * it is not worth its pixels. §C2's placement (this sheet is a root sibling,
    * not a member of the series group) is what makes the editor's `Save`/`Cancel`
    * land back here by construction.
+   *
+   * §E1/E8 — the destination is now the app's ONE create/edit route, and `id`
+   * is the only thing that makes this an edit rather than a create. The library
+   * FAB navigates to the same route without it.
    */
   const openEditor = useCallback(() => {
-    router.navigate({
-      pathname: '/series/edit/[id]',
-      params: { id: series.id },
-    });
+    router.navigate({ pathname: '/seriesEditor', params: { id: series.id } });
   }, [router, series.id]);
 
   return (

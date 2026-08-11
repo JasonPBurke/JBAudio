@@ -4,7 +4,7 @@ type SeriesLike = { id: string; name: string };
 
 export { duplicateNameIssue };
 
-/** Wizard step 1. */
+/** The picker panel's author step (§E3). */
 export function seriesAuthorStepIssues(
   selectedAuthorNames: string[],
 ): string[] {
@@ -14,46 +14,62 @@ export function seriesAuthorStepIssues(
 }
 
 /**
- * Wizard step 2. In edit mode this screen is the "Add books" sub-flow: it shows
- * no name input, so only the book requirement applies.
+ * The picker panel's book step.
+ *
+ * It no longer validates the NAME. Under §E1 the name is a field on the editor
+ * surface the panel opens over, so the panel cannot be the last thing standing
+ * between a nameless draft and the database — the editor's own Save is
+ * (`seriesEditorIssues` below). That collapse is the whole shape of §E8: the
+ * "picker shared between create and edit" problem dissolved, and with it the
+ * `isEdit` flag this function used to carry to decide whose name it was
+ * checking.
  */
-export function seriesBookStepIssues({
-  name,
-  selectedBookKeys,
-  series,
-  isEdit,
-}: {
-  name: string;
-  selectedBookKeys: string[];
-  series: SeriesLike[];
-  isEdit: boolean;
-}): string[] {
-  const issues: string[] = [];
-  // No excludeId: this screen only checks the name in CREATE mode, where no
-  // series exists yet to exclude.
-  if (!isEdit) {
-    if (name.trim().length === 0) issues.push('Enter a series name.');
-    else if (isDuplicateSeriesName(name, series))
-      issues.push(duplicateNameIssue(name));
-  }
-  if (selectedBookKeys.length === 0)
-    issues.push('Select at least one book.');
-  return issues;
+export function seriesPickerBookIssues(selectedBookKeys: string[]): string[] {
+  return selectedBookKeys.length > 0 ? [] : ['Select at least one book.'];
 }
 
-/** Edit screen Save button. Book count is not checked here: removing the last
- *  book is an intentional path that deletes the series (see updateSeries). */
-export function seriesEditIssues({
+/**
+ * §E1/E8 — the ONE validation of the ONE create/edit surface.
+ *
+ * Create and edit used to validate in two places with two functions (the
+ * wizard's book step checked a name for a series that did not exist yet; the
+ * edit screen's Save checked a name for one that did). One route means one
+ * gate, and `editingSeriesId` is the only thing that differs between the two
+ * passes: **its absence IS create mode**, and its presence is both the mode and
+ * the id to exclude from the duplicate check.
+ *
+ * ⚠ THE DUPLICATE-NAME RULE IS UNCHANGED, deliberately, and the tests assert it
+ * rather than assume it. Series identity is `name` alone (A15/§G), so `Dune
+ * Saga` still cannot exist twice, a series is still allowed to keep its own
+ * name through a rename, and the sentence the user reads still comes from the
+ * single `duplicateNameIssue` definition shared with the query layer's
+ * `SeriesNameConflictError`.
+ *
+ * The book requirement is asymmetric on purpose: creating an empty series is
+ * meaningless, but emptying an existing one is a real path — `updateSeries([])`
+ * delegates to `deleteSeries`, which suppresses (A12). Blocking it here would
+ * disable Save on the one screen that can reach it.
+ */
+export function seriesEditorIssues({
   name,
   series,
-  excludeId,
+  bookCount,
+  editingSeriesId,
 }: {
   name: string;
   series: SeriesLike[];
-  excludeId?: string;
+  bookCount: number;
+  /** Present in edit mode only; its absence is what makes this a create. */
+  editingSeriesId?: string;
 }): string[] {
-  if (name.trim().length === 0) return ['Enter a series name.'];
-  if (isDuplicateSeriesName(name, series, excludeId))
-    return [duplicateNameIssue(name)];
-  return [];
+  const issues: string[] = [];
+
+  if (name.trim().length === 0) issues.push('Enter a series name.');
+  else if (isDuplicateSeriesName(name, series, editingSeriesId))
+    issues.push(duplicateNameIssue(name));
+
+  if (!editingSeriesId && bookCount === 0)
+    issues.push('Add at least one book.');
+
+  return issues;
 }

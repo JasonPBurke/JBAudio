@@ -1,19 +1,25 @@
 import { create } from 'zustand';
 
 /**
- * Working draft for the create wizard and edit screen. Kept OUTSIDE the wizard
- * screens because each pushed step unmounts as the next is pushed. Always reset
- * on entry (resetForCreate / resetForEdit) so an abandoned draft can't leak
+ * Working draft for the one create/edit surface (§E1). Kept OUTSIDE the screen
+ * because the picker's staged selection has to survive the panel opening and
+ * closing over it, and because the draft outlives nothing else — the editor
+ * seeds it on mount and resets it on removal, so an abandoned draft can't leak
  * into the next run. Book identity throughout is the structural key (first file
  * path), consistent with series_books.book_key.
+ *
+ * ⚠ It no longer spans three pushed screens. The wizard's steps are a panel on
+ * the editor's own route, so nothing here has to survive an unmount any more —
+ * but the fields are still the picker's staging buffers, not the editor's
+ * state, and `orderedBookKeys` is still the sole source of truth on save.
  */
 interface SeriesDraftState {
   mode: 'create' | 'edit';
   editingSeriesId?: string;
   name: string;
-  selectedAuthorNames: string[]; // create step 1 filter
-  selectedBookKeys: string[]; // create step 2 / add-books selection
-  orderedBookKeys: string[]; // step 3 / edit ordering (source of truth on save)
+  selectedAuthorNames: string[]; // picker step 1 filter
+  selectedBookKeys: string[]; // picker step 2 staged selection
+  orderedBookKeys: string[]; // the editor's list (source of truth on save)
 
   resetForCreate: () => void;
   resetForEdit: (id: string, name: string, orderedKeys: string[]) => void;
@@ -22,6 +28,7 @@ interface SeriesDraftState {
   toggleBookKey: (key: string) => void;
   setOrderedKeys: (keys: string[]) => void;
   appendBookKeys: (keys: string[]) => void;
+  beginPicker: () => void;
 }
 
 const toggle = (arr: string[], value: string) =>
@@ -81,5 +88,22 @@ export const useSeriesDraftStore = create<SeriesDraftState>()((set) => ({
     set((s) => ({
       orderedBookKeys: union(s.orderedBookKeys, keys),
       selectedBookKeys: union(s.selectedBookKeys, keys),
+    })),
+
+  /**
+   * `+ Add books` — start a fresh pass through the picker.
+   *
+   * The author filter clears (a second pass is a second question), but the
+   * staged books are re-seeded from the list you already have, so books already
+   * in the series read as selected rather than as candidates. That is what
+   * keeps the picker ADDITIVE: unticking one there cannot remove it, because
+   * the commit is a union. Removal is the editor list's own affordance, and
+   * keeping the two apart is why `+ Add books` can be opened any number of
+   * times without ever subtracting.
+   */
+  beginPicker: () =>
+    set((s) => ({
+      selectedAuthorNames: [],
+      selectedBookKeys: [...s.orderedBookKeys],
     })),
 }));

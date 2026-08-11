@@ -121,7 +121,7 @@ Three knobs in the panel, all detail-sheet-only:
 | --- | --- |
 | `Backgrounds` | ticket 12's `Series Backgrounds` column, which 11 widened to govern this hero. Default ON, per 12. |
 | `Rows` | `split` (cover plays, text → `titleDetails`) vs `whole` (11's one-target row). **`split` is the ruling**; `whole` is kept so the A/B survives. |
-| `Editor` | `real` pushes the actual `series/edit/[id]`; `proto` opens `ProtoSeriesEdit` and its pinned-artwork caption. |
+| `Editor` | `real` opens the shipping editor at `/seriesEditor` (a root `transparentModal` since implementation ticket 12 — it was `series/edit/[id]`, an opaque push, when this knob was written); `proto` opens `ProtoSeriesEdit` and its pinned-artwork caption. |
 
 **It writes to the database — a deliberate exception to the harness rule above.**
 "Rows play for real" is inherently stateful: `handleBookPlay` stamps

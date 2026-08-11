@@ -285,10 +285,39 @@ const RootNavigation = () => {
             animation: 'fade',
           }}
         />
+        {/*
+          The Series create/edit editor — spec §E1/E11, §J, §K5.
+
+          ONE ROUTE FOR BOTH, and a ROOT SIBLING rather than a `series/` group
+          member. The group is gone with it: it held the three-step wizard, and
+          §J2 established it owned no store lifetime (a bare `<Stack>`, every
+          draft reset on a screen), so nothing was orphaned by leaving it.
+
+          `transparentModal` + `fade` MATCHES THE BOOK EDITOR, which is the
+          precedent §E11 rests on: what the wizard-presentation ruling bought
+          was full-screen opaque content with a Save/Cancel footer, not a slide,
+          and the book editor already reads as a full takeover. Only the
+          transition and the parent change. What forced the change is §J1's
+          measurement — the opaque push is the ONLY presentation that misbehaves
+          over a live sheet: popping the group reveals the library for ~165ms
+          and the detail sheet re-presents with a full slide-up.
+
+          ⚠ AND THE ONE THING NOT TO COPY FROM THE BOOK EDITOR (K5.2): its
+          `contentStyle` hardcodes `#2c2c2cdc`, a dark literal that ships the
+          same near-black in both themes. That was a live trap the moment this
+          screen stopped being an opaque push. The value here is THEMED, and it
+          is opaque rather than the literal's ~86% alpha because this screen is
+          a takeover, not a scrim over the library: any frame where the route
+          body has not painted yet is the app's own background rather than a
+          white flash.
+        */}
         <Stack.Screen
-          name='series'
+          name='seriesEditor'
           options={{
-            animation: 'slide_from_right',
+            presentation: 'transparentModal',
+            animation: 'fade',
+            sheetCornerRadius: 15,
+            contentStyle: { backgroundColor: themeColors.background },
           }}
         />
         {/*

@@ -42,6 +42,40 @@ test('appendBookKeys unions without duplicates', () => {
   expect(s.selectedBookKeys).toEqual(['/a', '/b', '/c']);
 });
 
+describe('beginPicker — `+ Add books` starts a fresh pass', () => {
+  test('clears the author filter and re-seeds the staged books from the list', () => {
+    useSeriesDraftStore.getState().resetForEdit('s1', 'X', ['/a', '/b']);
+    useSeriesDraftStore.getState().toggleAuthor('Someone');
+    useSeriesDraftStore.getState().toggleBookKey('/a'); // unticks a member
+    useSeriesDraftStore.getState().beginPicker();
+
+    const s = useSeriesDraftStore.getState();
+    expect(s.selectedAuthorNames).toEqual([]);
+    expect(s.selectedBookKeys).toEqual(['/a', '/b']);
+  });
+
+  /*
+   * The picker is ADDITIVE. Unticking a book there and committing must not
+   * remove it — removal is the editor list's affordance, and a commit is a
+   * union. If this fails, the panel has become a second way to delete.
+   */
+  test('a commit after unticking a member cannot remove it', () => {
+    useSeriesDraftStore.getState().resetForEdit('s1', 'X', ['/a', '/b']);
+    useSeriesDraftStore.getState().beginPicker();
+    useSeriesDraftStore.getState().toggleBookKey('/a');
+    const staged = useSeriesDraftStore.getState().selectedBookKeys;
+    useSeriesDraftStore.getState().appendBookKeys(staged);
+
+    expect(useSeriesDraftStore.getState().orderedBookKeys).toEqual(['/a', '/b']);
+  });
+
+  test('a fresh create stages nothing', () => {
+    useSeriesDraftStore.getState().resetForCreate();
+    useSeriesDraftStore.getState().beginPicker();
+    expect(useSeriesDraftStore.getState().selectedBookKeys).toEqual([]);
+  });
+});
+
 test('setOrderedKeys replaces order', () => {
   useSeriesDraftStore.getState().resetForEdit('s1', 'X', ['/a', '/b', '/c']);
   useSeriesDraftStore.getState().setOrderedKeys(['/c', '/a', '/b']);

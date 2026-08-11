@@ -220,29 +220,28 @@ const ProtoSeriesDetailSheet = ({ series }: { series: DerivedSeries }) => {
   );
 
   /*
-   * THE HEADLINE QUESTION OF TICKET 13.
+   * THE HEADLINE QUESTION OF TICKET 13 — ANSWERED, AND THE FALLBACK SHIPPED.
    *
-   * `series/edit/[id]` sits inside the `series` group, which the root stack
-   * gives `animation: 'slide_from_right'` (`_layout.tsx:288-293`) — an OPAQUE
-   * push. Every other focused flow this app launches from a sheet is a
-   * `transparentModal`. 11 chose to leave the editor where it is (option A) on
-   * the understanding that 13 would find out whether Android survives it.
+   * It used to read: `series/edit/[id]` sits inside the `series` group, which
+   * the root stack gives an OPAQUE push, while every other focused flow this
+   * app launches from a sheet is a `transparentModal` — does Android survive
+   * it? It does not: the push presents fine but returning reveals the library
+   * for ~165ms and the sheet re-presents with a full slide-up.
    *
-   * The documented fallback if it does not: move the editor to a root-level
-   * `transparentModal` matching `editTitleDetails`, and re-check
-   * `seriesDraftStore`'s reset-on-group-entry lifetime, which the group
-   * boundary currently owns.
+   * So the documented fallback is what ships (implementation ticket 12): the
+   * editor is a ROOT `transparentModal` on one route, `/seriesEditor`, with
+   * `id` making it an edit. The `series` group is deleted, and with it the
+   * reset-on-group-entry lifetime this note worried about — it never existed
+   * (§J2: the group's layout was a bare stack and every reset lived on a
+   * screen).
    */
   const openEditor = useCallback(() => {
     if (editorTarget === 'proto') {
       setProtoEditing(true);
       return;
     }
-    console.log(`[proto13] wrench → real editor push, series ${series.id}`);
-    router.navigate({
-      pathname: '/series/edit/[id]',
-      params: { id: series.id },
-    });
+    console.log(`[proto13] wrench → real editor, series ${series.id}`);
+    router.navigate({ pathname: '/seriesEditor', params: { id: series.id } });
   }, [editorTarget, router, series.id]);
 
   const heroPlayTarget = facts.nextUp ?? series.books[0] ?? null;

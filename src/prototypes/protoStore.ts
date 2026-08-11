@@ -26,11 +26,12 @@ export const DATA_PRESETS: { id: DataPreset; label: string; hint: string }[] = [
 /**
  * Which editor the detail sheet's wrench row opens — ticket 13's knob.
  *
- * `real` is the point of the ticket: `series/edit/[id]` is an opaque
+ * `real` was the point of the ticket: the editor was an opaque
  * `slide_from_right` push inside the `series` group, and 11 chose to leave it
  * there, making it the app's FIRST such push launched from a live `formSheet`.
- * Only the real route exercises that, and only the real route's `Save`/`Delete`
- * exercise `exitGroup()`.
+ * The knob is what proved it does not survive — and implementation ticket 12
+ * then shipped the fallback, so `real` now opens the root `transparentModal`
+ * at `/seriesEditor` and there is no group left to exit.
  *
  * `proto` reaches `ProtoSeriesEdit` instead, which is where the pinned-artwork
  * caption lives. Keeping this a knob rather than a second row on the sheet is

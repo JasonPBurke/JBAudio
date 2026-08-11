@@ -9,7 +9,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Header from '@/components/Header';
 import { useScanExternalFileSystem } from '@/hooks/useScanExternalFileSystem';
 import { useLibraryStore } from '@/store/library';
-import { useSeriesDraftStore } from '@/store/seriesDraftStore';
 // THROWAWAY — Series UX redesign prototype harness (ticket 04). These two
 // imports and their two use sites below are the harness's ENTIRE footprint in
 // real code; both are no-ops in a production build. Delete them together with
@@ -243,19 +242,16 @@ const LibraryScreen = ({ navigation }: any) => {
     [allSeries, seriesSearchFiltered, debouncedSearchQuery, selectedTab],
   );
 
+  /*
+   * §E8 — the library's create action now targets the SAME route as `Edit
+   * series`; `id` absent is what makes it a create. The separate create-flow
+   * entry (`/series/create/authors`) is one of §J3's two dead call sites and
+   * went with the wizard. The draft reset moved onto the editor, which seeds
+   * itself on mount and resets on removal, so this is a plain navigation.
+   */
   const handleCreateSeries = useCallback(() => {
-    useSeriesDraftStore.getState().resetForCreate();
-    // Cast: expo-router typed routes regenerate once the series/ screens exist
-    // (see player.tsx footprintList precedent).
-    router.navigate('/series/create/authors' as any);
+    router.navigate('/seriesEditor');
   }, [router]);
-
-  const handleEditSeries = useCallback(
-    (seriesId: string) => {
-      router.navigate(`/series/edit/${seriesId}` as any);
-    },
-    [router],
-  );
 
   const handleClearSearch = useCallback(() => {
     setSearchQuery('');
@@ -319,7 +315,6 @@ const LibraryScreen = ({ navigation }: any) => {
               onScroll={onScroll}
               ListHeaderSpacer={ListSpacer}
               emptyMessage={seriesEmptyText}
-              onEditPress={handleEditSeries}
               selectedTab={selectedTab}
             />
           )}
