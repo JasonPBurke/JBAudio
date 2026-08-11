@@ -136,12 +136,13 @@ export function SeriesEditorPanel({
       switch (item.type) {
         case 'head':
           return <PanelHead onClose={onClose} />;
-        case 'author':
+        case 'authorPair':
           return (
-            <AuthorRow
-              name={item.name}
-              selected={selection.authors.has(item.name)}
-              onPress={() => toggleAuthor(item.name)}
+            <AuthorPairRow
+              left={item.left}
+              right={item.right}
+              selected={selection.authors}
+              onToggle={toggleAuthor}
             />
           );
         case 'heading':
@@ -247,12 +248,61 @@ function PanelHead({ onClose }: { onClose: () => void }) {
 }
 
 /**
- * ⚠ THE FILLED TICK STAYS. Ticket 07 flagged this construct — accent fill with
- * the glyph knocked out in `themeColors.background` — as a light-theme item on
- * the (now deleted) `series/create/authors.tsx`, and fixed the Series
- * Detection card's checkbox the other way round: accent tint, accent glyph.
- * The tint idiom was built here and REVERTED on measurement, on the driver's
- * real light theme, at three accents:
+ * One row of §E14's grid: two cells, or one cell and a held-open gap.
+ *
+ * The gap is a real view rather than nothing. Under `space-between`, a row with
+ * a single child centres it — so a trailing odd author would sit in the middle
+ * of the screen at full width, which reads as a different kind of row rather
+ * than as the last cell of a grid.
+ */
+function AuthorPairRow({
+  left,
+  right,
+  selected,
+  onToggle,
+}: {
+  left: string;
+  right: string | null;
+  selected: Set<string>;
+  onToggle: (name: string) => void;
+}) {
+  return (
+    <View style={styles.authorPairRow}>
+      <AuthorCell
+        name={left}
+        selected={selected.has(left)}
+        onPress={() => onToggle(left)}
+      />
+      {right === null ? (
+        <View style={styles.authorCellGap} />
+      ) : (
+        <AuthorCell
+          name={right}
+          selected={selected.has(right)}
+          onPress={() => onToggle(right)}
+        />
+      )}
+    </View>
+  );
+}
+
+/**
+ * §E14's author cell — 13px, ~50dp pitch, and a 14px CORNER check rather than
+ * the 26dp bubble this row carried when ticket 12 lifted it from the deleted
+ * `series/create/authors.tsx`. The metrics are the ones driven on device on
+ * 2026-08-04 against a 100-author pool (~18–20 authors per screen); they are
+ * transcribed from the prototype, not re-derived.
+ *
+ * The check is small BUT NOT ABSENT: dropping it would leave the selected state
+ * signalled by border colour alone, which is a colour-only state. It is
+ * signalled three ways — border, 12% tint, glyph.
+ *
+ * ⚠ THE FILLED TICK STAYS, and this cell keeps it. Ticket 07 flagged the
+ * construct — accent fill with the glyph knocked out in `themeColors.background`
+ * — as a light-theme item on that same deleted screen, and fixed the Series
+ * Detection card's checkbox the other way round: accent tint, accent glyph. The
+ * tint idiom was built here and REVERTED on measurement, on the driver's real
+ * light theme, at three accents:
  *
  *   accent                 fill + knockout    tint + accent glyph
  *   auto teal (measured)        2.82:1               2.43:1
@@ -261,11 +311,15 @@ function PanelHead({ onClose }: { onClose: () => void }) {
  *
  * The tint is WORSE at every accent, and both track the user's colour rather
  * than the design — which is the reading the driver already ruled on in 09,
- * withdrawing an accent-contrast finding for exactly this reason. Selection is
- * signalled three ways regardless (row border, ring, glyph). Do not re-swap
- * this without a new measurement.
+ * withdrawing an accent-contrast finding for exactly this reason. Do not
+ * re-swap this without a new measurement.
+ *
+ * ⚠ The 13 is a deliberate literal. `fontSize` is `xs:12 · sm:16 · base:20 ·
+ * lg:24`, so nothing below 16 exists to use. Do not token-ise it — a similar
+ * literal was once "corrected" upward as an oversight and the driver reverted
+ * it (§E14).
  */
-function AuthorRow({
+function AuthorCell({
   name,
   selected,
   onPress,
@@ -276,36 +330,39 @@ function AuthorRow({
 }) {
   const { colors: themeColors } = useTheme();
   return (
-    <View style={styles.authorRowWrap}>
-      <Pressable
+    <Pressable
+      style={[
+        styles.authorCell,
+        selected
+          ? {
+              borderWidth: 1.5,
+              borderColor: themeColors.primary,
+              backgroundColor: withOpacity(themeColors.primary, 0.12),
+            }
+          : { borderWidth: 1, borderColor: themeColors.divider },
+      ]}
+      android_ripple={{ color: withOpacity(themeColors.divider, 0.16) }}
+      onPress={onPress}
+      accessibilityRole='checkbox'
+      accessibilityState={{ checked: selected }}
+    >
+      <Text
+        numberOfLines={2}
         style={[
-          styles.authorRow,
-          { borderColor: selected ? themeColors.primary : themeColors.divider },
+          styles.authorCellText,
+          { color: selected ? themeColors.primary : themeColors.text },
         ]}
-        android_ripple={{ color: withOpacity(themeColors.divider, 0.16) }}
-        onPress={onPress}
-        accessibilityRole='checkbox'
-        accessibilityState={{ checked: selected }}
       >
-        <Text
-          numberOfLines={1}
-          style={[styles.authorName, { color: themeColors.text }]}
-        >
-          {name}
-        </Text>
+        {name}
+      </Text>
+      {selected && (
         <View
-          style={[
-            styles.bubble,
-            {
-              borderColor: selected ? themeColors.primary : themeColors.icon,
-              backgroundColor: selected ? themeColors.primary : 'transparent',
-            },
-          ]}
+          style={[styles.authorCheck, { backgroundColor: themeColors.primary }]}
         >
-          {selected && <Check size={16} color={themeColors.background} />}
+          <Check size={9} color={themeColors.background} strokeWidth={3.5} />
         </View>
-      </Pressable>
-    </View>
+      )}
+    </Pressable>
   );
 }
 
@@ -338,30 +395,40 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     marginRight: 12,
   },
-  authorRowWrap: {
+  /*
+   * The 8dp gap below is the grid's row gap. With `minHeight: 42` plus the
+   * cell's border it makes the ~50dp pitch §E14 measured — the number that
+   * turns 100 authors into ~5 screens instead of ~13.
+   */
+  authorPairRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     paddingHorizontal: screenPadding.horizontal,
     paddingBottom: 8,
   },
-  authorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    borderWidth: 2,
-    borderRadius: 8,
+  authorCell: {
+    width: '48.5%',
+    minHeight: 42,
+    justifyContent: 'center',
+    paddingVertical: 7,
+    paddingLeft: 10,
+    // Asymmetric on purpose: the right inset is the corner check's berth, so a
+    // two-line name never runs under it.
+    paddingRight: 20,
+    borderRadius: 7,
+    // Clips the Android ripple to the rounded corners.
+    overflow: 'hidden',
   },
-  authorName: {
-    fontFamily: 'Rubik',
-    fontSize: fontSize.base,
-    flex: 1,
-    marginRight: 12,
-  },
-  bubble: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 2,
+  /** Holds the second column open on a trailing odd author. */
+  authorCellGap: { width: '48.5%' },
+  authorCellText: { fontFamily: 'Rubik', fontSize: 13, lineHeight: 16 },
+  authorCheck: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -1,5 +1,16 @@
 /**
- * The picker's row list — spec §E3 and §E13.
+ * The picker's row list — spec §E3, §E13 and §E14.
+ *
+ * ── Why the two-column grid is paired HERE, not by `numColumns` ───────────
+ *
+ * FlashList would do it (`numColumns` + a `span: 2` override on every other
+ * row type), and in a list that showed only authors that would be the right
+ * call. This one list serves BOTH steps, so a column count set on the list is
+ * a property of the LIST when §E14 makes it a property of the STEP — every
+ * book, heading and empty row would have to opt back out. Pairing in the data
+ * also leaves the list configuration ticket 13 measured (sticky head at index
+ * 0, `initialScrollIndex`, MVCP off, ordered list as the header component)
+ * provably untouched.
  *
  * This is the picker's whole data shape, kept pure so the thing §E13 actually
  * demands can happen: the candidate pool is a VIRTUALIZED list, and a
@@ -37,7 +48,14 @@ export type PickerStep = 'authors' | 'books';
 
 export type PickerRow =
   | { type: 'head'; key: string }
-  | { type: 'author'; key: string; name: string }
+  /**
+   * §E14's two-column grid. One row carries BOTH cells, so the column count is
+   * a property of the step rather than of the list — see the note above
+   * `pickerRows`. `right` is `null` on a trailing odd author rather than
+   * absent, so the renderer still lays out two slots and the lone cell keeps
+   * its half width instead of stretching across the row.
+   */
+  | { type: 'authorPair'; key: string; left: string; right: string | null }
   | { type: 'heading'; key: string; name: string }
   | { type: 'book'; key: string; book: Book; bookKey: string }
   | { type: 'empty'; key: string; message: string };
@@ -61,11 +79,19 @@ export function pickerRows({
   const rows: PickerRow[] = [{ type: 'head', key: 'picker-head' }];
 
   if (step === 'authors') {
-    for (const author of authors) {
+    // Two at a time — §E14. The store's order is preserved reading left, then
+    // right, then down, which is how the grid is read.
+    for (let i = 0; i < authors.length; i += 2) {
+      const left = authors[i];
+      const right = authors[i + 1];
       rows.push({
-        type: 'author',
-        key: `author-${author.name}`,
-        name: author.name,
+        type: 'authorPair',
+        // The left name alone keys the row: author names are unique in the
+        // store (the single-column version keyed on them too) and every pair
+        // has a left.
+        key: `pair-${left.name}`,
+        left: left.name,
+        right: right ? right.name : null,
       });
     }
     if (rows.length === 1) {

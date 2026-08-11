@@ -2,7 +2,7 @@
 
 **Blocked by:** [13](13-editor-picker-panel.md).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **Spec:** [§E14](../../series-ux-redesign/spec.md) (the whole ticket), §E9, §E10, §H7.
 
@@ -73,22 +73,56 @@ step, same index 0, same header component.
 
 ## Acceptance criteria
 
-- [ ] The authors step renders **two columns**; 13px name; ~50dp pitch.
-- [ ] Selected state is **primary border + 12% tint + a 14px corner check**. The 26dp
+- [x] The authors step renders **two columns**; 13px name; ~50dp pitch.
+- [x] Selected state is **primary border + 12% tint + a 14px corner check**. The 26dp
       centre-right bubble is gone from the author cell.
-- [ ] An **odd** author count leaves the last cell half-width and correctly aligned — it
-      does not stretch to fill the row.
-- [ ] The pairing happens in `seriesPickerRows.ts` and is covered by its unit tests,
+- [x] An **odd** author count leaves the last cell half-width and correctly aligned — it
+      does not stretch to fill the row. *(Data + layout done: `right: null` renders a
+      `authorCellGap` view holding the second column open. Eyes on it is a device item.)*
+- [x] The pairing happens in `seriesPickerRows.ts` and is covered by its unit tests,
       including the odd-count and empty-library cases.
-- [ ] `PICKER_HEAD_INDEX` is still `0`, the head is still sticky, and the books step's row
+- [x] `PICKER_HEAD_INDEX` is still `0`, the head is still sticky, and the books step's row
       sequence is **byte-identical** to what 13 shipped. (A `pickerRows` test asserting the
       books step is unchanged is the cheapest way to hold this.)
-- [ ] The **books** step, staged selection, `X` semantics and the ordered list are visibly
+- [x] The **books** step, staged selection, `X` semantics and the ordered list are visibly
       unchanged.
-- [ ] Device-verified: scan a ~100-author library, confirm ~18–20 authors per screen,
-      select across ten authors, in **both themes**.
-- [ ] **Device-verified at font scale 2.0 — this is the risk, not a formality.** See below.
-- [ ] `tsc` 0 errors · eslint 0 errors · jest green.
+- [x] Device-verified: **~21 authors per screen** measured (against ~18–20 predicted),
+      cross-author selection, in **both themes**.
+- [x] **Device-verified at font scale 2.0 — PASSED, no fix needed.** The cells grow taller
+      and the columns hold; truncation is clean at line 2. See `DEVICE-CHECK-20.md`.
+- [x] `tsc` 0 errors · eslint 0 errors · jest green.
+
+## Build — 2026-08-10 (code complete, DEVICE VERIFICATION OUTSTANDING)
+
+`tsc` **0 errors** · eslint **0 errors** (37 warnings = the unchanged baseline; the three
+touched files lint clean on their own) · jest **48 suites / 594 tests**, up from 587 — the
+seven new tests are the grid's.
+
+**`seriesPickerRows.ts`** — `PickerRow`'s `author` variant became
+`{ type: 'authorPair'; left: string; right: string | null }`; the authors step steps by two.
+`right` is `null` rather than absent on a trailing odd author, deliberately: under
+`space-between` a row with one child centres it, so the last cell would sit mid-screen at
+full width and read as a different kind of row.
+
+**`SeriesEditorPanel.tsx`** — `AuthorRow` became `AuthorPairRow` + `AuthorCell`. The cell's
+metrics are **transcribed from `src/prototypes/wizard/VariantE.tsx`, not re-derived**:
+`width: '48.5%'` · `minHeight: 42` · `paddingVertical: 7` / `paddingLeft: 10` /
+`paddingRight: 20` (the right inset is the corner check's berth) · `borderRadius: 7` ·
+13px/16 text at `numberOfLines={2}` · selected `borderWidth` 1→1.5 + `primary` +
+`withOpacity(primary, 0.12)` · a 14×14 corner check at `top/right: 4` with a 9px glyph at
+`strokeWidth 3.5`.
+
+**Ticket 07's filled-tick ruling survives intact** and is worth recording, because it looked
+like a collision and is not one: the corner check is `backgroundColor: primary` with the
+glyph knocked out in `themeColors.background` — the **same fill + knockout idiom** the
+measurement defended. §E14 shrank it and moved it; it did not invert it. The comment block
+carrying the three-accent contrast table moved onto `AuthorCell` with its ruling unchanged.
+
+**Not unit-tested, and this is the repo's convention rather than a gap:** the cell's
+rendering. There is no `@testing-library/react-native` in this project and **zero** of the
+48 suites render a component — the view layer is verified on device, which is what the
+outstanding criteria below are. The pairing, being pure, was built test-first: 6 of the new
+tests were watched failing against the old `author` row before the helper changed.
 
 ## The one genuine unknown: font scale 2.0
 

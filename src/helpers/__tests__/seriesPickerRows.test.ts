@@ -63,19 +63,107 @@ describe('the head is always row 0', () => {
   });
 });
 
+/*
+ * §E14 — the author step is a TWO-COLUMN GRID. The pairing happens here, in the
+ * data, rather than through FlashList's `numColumns`: the picker is one list
+ * serving both steps, so a column count set on the list would be a property of
+ * the LIST when it needs to be a property of the STEP — and every book, heading
+ * and empty row would then need a span override to opt back out. Ticket 13
+ * measured this list's exact configuration (917→480 views, flat at 108 rows);
+ * pairing in the data leaves that configuration untouched.
+ */
+describe('the authors step is a two-column grid (§E14)', () => {
+  const named = (n: number) =>
+    Array.from({ length: n }, (_, i) =>
+      authorOf(`A${i}`, [book(`B${i}`, `A${i}`, `/a${i}`)]),
+    );
+
+  test('pairs authors two to a row, reading left then right', () => {
+    const rows = rowsOnly(
+      pickerRows({ step: 'authors', authors: named(4), selected: [] }),
+    );
+
+    expect(rows.map((r) => r.type)).toEqual(['authorPair', 'authorPair']);
+    expect(
+      rows.map((r) => (r.type === 'authorPair' ? [r.left, r.right] : null)),
+    ).toEqual([
+      ['A0', 'A1'],
+      ['A2', 'A3'],
+    ]);
+  });
+
+  /*
+   * The odd cell is `null` rather than absent, so the renderer lays out a real
+   * left cell beside an empty slot. If it were absent the row would have one
+   * child and a `space-between` row would stretch it across both columns.
+   */
+  test('an odd author count leaves the last row a half-empty pair', () => {
+    const rows = rowsOnly(
+      pickerRows({ step: 'authors', authors: named(3), selected: [] }),
+    );
+
+    expect(rows).toHaveLength(2);
+    expect(rows[1]).toMatchObject({ type: 'authorPair', left: 'A2', right: null });
+  });
+
+  test('a single author is a pair with nothing on its right', () => {
+    const rows = rowsOnly(
+      pickerRows({ step: 'authors', authors: named(1), selected: [] }),
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ type: 'authorPair', left: 'A0', right: null });
+  });
+
+  test('every pair row carries a unique key', () => {
+    const rows = pickerRows({ step: 'authors', authors: named(9), selected: [] });
+    expect(new Set(keysOf(rows)).size).toBe(rows.length);
+  });
+
+  /*
+   * The grid halves the row count, and that is the whole point: §E14 measured
+   * ~18–20 authors per screen against the single column's 7–8.
+   */
+  test('100 authors become 50 rows', () => {
+    const rows = rowsOnly(
+      pickerRows({ step: 'authors', authors: named(100), selected: [] }),
+    );
+    expect(rows).toHaveLength(50);
+  });
+
+  test('no author name is dropped or duplicated by the pairing', () => {
+    const rows = rowsOnly(
+      pickerRows({ step: 'authors', authors: named(7), selected: [] }),
+    );
+    const flattened = rows.flatMap((r) =>
+      r.type === 'authorPair' ? [r.left, r.right] : [],
+    );
+    expect(flattened.filter((n): n is string => n !== null)).toEqual([
+      'A0',
+      'A1',
+      'A2',
+      'A3',
+      'A4',
+      'A5',
+      'A6',
+    ]);
+  });
+});
+
 describe('the authors step', () => {
-  test('emits one row per author, in the order given', () => {
+  test('preserves the order the library store gave', () => {
     const authors = [
       authorOf('Ann Leckie', [book('Ancillary Justice', 'Ann Leckie', '/a')]),
       authorOf('Becky Chambers', [book('A Closed Common', 'Becky Chambers', '/b')]),
     ];
     const rows = rowsOnly(pickerRows({ step: 'authors', authors, selected: [] }));
 
-    expect(rows.map((r) => r.type)).toEqual(['author', 'author']);
-    expect(rows.map((r) => (r.type === 'author' ? r.name : ''))).toEqual([
-      'Ann Leckie',
-      'Becky Chambers',
-    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      type: 'authorPair',
+      left: 'Ann Leckie',
+      right: 'Becky Chambers',
+    });
   });
 
   test('does not depend on which authors are selected', () => {
@@ -254,6 +342,30 @@ describe('the books step', () => {
     const original = [...ann.books];
     pickerRows({ step: 'books', authors: [ann], selected: ['Ann'] });
     expect(ann.books).toEqual(original);
+  });
+
+  /*
+   * §E14's grid is the AUTHORS step only. This pins the books step's exact row
+   * sequence so the pairing cannot leak into it — the pool is what ticket 13
+   * virtualized and measured, and it is the half of the panel that runs to
+   * hundreds of rows.
+   */
+  test('is untouched by the author grid — no pair rows, same sequence', () => {
+    const rows = pickerRows({
+      step: 'books',
+      authors: [ann, bob, cass],
+      selected: ['Ann', 'Cass'],
+    });
+
+    expect(rows.some((r) => r.type === 'authorPair')).toBe(false);
+    expect(keysOf(rows)).toEqual([
+      'picker-head',
+      'heading-Ann',
+      'book-/ann/apple',
+      'book-/ann/bananas',
+      'heading-Cass',
+      'book-/cass/cabin',
+    ]);
   });
 });
 
