@@ -45,10 +45,25 @@ export function seriesPickerBookIssues(selectedBookKeys: string[]): string[] {
  * single `duplicateNameIssue` definition shared with the query layer's
  * `SeriesNameConflictError`.
  *
- * The book requirement is asymmetric on purpose: creating an empty series is
- * meaningless, but emptying an existing one is a real path — `updateSeries([])`
- * delegates to `deleteSeries`, which suppresses (A12). Blocking it here would
- * disable Save on the one screen that can reach it.
+ * ⚠ THE BOOK REQUIREMENT IS UNCONDITIONAL, and it was not always — DRIVER
+ * RULING ON DEVICE, 2026-08-13 (ticket 16).
+ *
+ * It used to exempt edit mode, so that emptying a series and pressing `Save`
+ * fell through to `updateSeries([])`, which deleted the series and wrote A12's
+ * suppression row. That is an unconfirmed destroy with a lasting side effect —
+ * detection will not recreate the name until the user finds it in
+ * `Removed Series` — performed by a button labelled `Save`. Every other destroy
+ * in this app confirms first, and the one that does confirm sits one tap below
+ * `+ Add books` on this very screen.
+ *
+ * A14's standing rule is *bulk creates, per-item destroys*; a run of per-item
+ * removals quietly becoming a whole-series destroy at save time was the one
+ * place the app inverted it.
+ *
+ * The message therefore POINTS AT THE ESCAPE HATCH instead of dead-ending on
+ * it — but only in edit mode, because the create pass has no `Delete Series`
+ * to name. Emptying-as-rebuild (K16) is untouched: the replacements go in
+ * before the save, which is the order that was always going to happen.
  */
 export function seriesEditorIssues({
   name,
@@ -68,8 +83,12 @@ export function seriesEditorIssues({
   else if (isDuplicateSeriesName(name, series, editingSeriesId))
     issues.push(duplicateNameIssue(name));
 
-  if (!editingSeriesId && bookCount === 0)
-    issues.push('Add at least one book.');
+  if (bookCount === 0)
+    issues.push(
+      editingSeriesId
+        ? 'Add at least one book, or use Delete Series to remove it.'
+        : 'Add at least one book.',
+    );
 
   return issues;
 }

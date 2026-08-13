@@ -1,5 +1,6 @@
 import { Book } from '@/types/Book';
 import { bookStructuralKey } from '@/helpers/bookStructuralKey';
+import { resolveMembership } from '@/db/seriesProvenance';
 import {
   deriveSeriesProgressState,
   SeriesProgressState,
@@ -30,6 +31,13 @@ export type MembershipRow = {
    * detectable number carries none, and blank beats misleading.
    */
   canonicalNumber: number | null;
+  /**
+   * A11 — `'detected' | 'user' | 'excluded'`, null (every pre-v33 row) reads
+   * as `'user'`. Only `'excluded'` is acted on here: it is a TOMBSTONE, a
+   * hidden row whose entire job is to block re-derivation, and no surface may
+   * draw it. The other two are the same thing to a reader.
+   */
+  membership?: string | null;
 };
 export type DerivedSeries = {
   id: string;
@@ -84,6 +92,13 @@ export function assembleDerivedSeries(
 
   const derived = series.map((s) => {
     const rows = (bySeries.get(s.id) ?? [])
+      // A11 — the tombstone filter, and this is the ONE place it lives. Every
+      // Series surface resolves its books through this function, so filtering
+      // here is what makes "removed" mean removed on the browse row, the
+      // detail sheet, the editor and the counts alike. ⚠ It is deliberately
+      // NOT applied in `loadExistingSeries`: reconcile needs the tombstones,
+      // and `deleteEmptySeries` must keep counting them (K16).
+      .filter((m) => resolveMembership(m.membership) !== 'excluded')
       .slice()
       .sort((a, b) => a.position - b.position);
     const books: Book[] = [];

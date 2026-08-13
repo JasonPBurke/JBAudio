@@ -1,4 +1,6 @@
 import {
+  rememberedNumbersFrom,
+  restoreRememberedNumbers,
   canBulkNumber,
   orderByCanonicalNumber,
   parseCanonicalNumber,
@@ -116,4 +118,79 @@ test('a fully-numbered list saves exactly what was typed', () => {
 
 test('an empty list saves nothing', () => {
   expect(resolveNumbersForSave([])).toEqual([]);
+});
+
+/*
+ * A11 — a tombstone is "the series' memory of a book", and the number is part
+ * of what it remembers. DEVICE-FOUND (2026-08-13): removing Bobiverse 05 and
+ * putting it back returned it with a BLANK box, and Save then wrote the blank
+ * over a stored `#5`. The row had held the number the whole time; the editor
+ * seeds its boxes from the visible rows and never looked at it.
+ */
+describe('rememberedNumbersFrom', () => {
+  test('an excluded row remembers its number, formatted for the box', () => {
+    expect(
+      rememberedNumbersFrom([
+        { bookKey: 'a', canonicalNumber: 5, membership: 'excluded' },
+      ]),
+    ).toEqual({ a: '5' });
+  });
+
+  test('a visible row remembers nothing — its number is already in the box', () => {
+    expect(
+      rememberedNumbersFrom([
+        { bookKey: 'a', canonicalNumber: 5, membership: 'detected' },
+        { bookKey: 'b', canonicalNumber: 6, membership: 'user' },
+        { bookKey: 'c', canonicalNumber: 7, membership: null },
+      ]),
+    ).toEqual({});
+  });
+
+  test('an excluded row with no number remembers nothing', () => {
+    expect(
+      rememberedNumbersFrom([
+        { bookKey: 'a', canonicalNumber: null, membership: 'excluded' },
+      ]),
+    ).toEqual({});
+  });
+
+  /* The seeding convention: a `.` regardless of locale, per K3's parse. */
+  test('a fractional number keeps its point', () => {
+    expect(
+      rememberedNumbersFrom([
+        { bookKey: 'a', canonicalNumber: 14.1, membership: 'excluded' },
+      ]),
+    ).toEqual({ a: '14.1' });
+  });
+});
+
+describe('restoreRememberedNumbers', () => {
+  test('a re-added book gets its remembered number back', () => {
+    expect(restoreRememberedNumbers({ a: '1' }, { e: '5' }, ['e'])).toEqual({
+      a: '1',
+      e: '5',
+    });
+  });
+
+  test('a book with nothing remembered is left blank', () => {
+    expect(restoreRememberedNumbers({ a: '1' }, { e: '5' }, ['z'])).toEqual({
+      a: '1',
+    });
+  });
+
+  /*
+   * Only the books being ADDED. A remembered number must not leak into a row
+   * the user is not touching — that row's blank is a blank they chose.
+   */
+  test('a remembered number does not fill a book that was already in the list', () => {
+    expect(restoreRememberedNumbers({ a: '' }, { a: '9' }, ['e'])).toEqual({
+      a: '',
+    });
+  });
+
+  test('what the user typed this session wins', () => {
+    expect(restoreRememberedNumbers({ e: '2' }, { e: '5' }, ['e'])).toEqual({
+      e: '2',
+    });
+  });
 });

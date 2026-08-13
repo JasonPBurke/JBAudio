@@ -17,6 +17,10 @@ export const colorTokens = {
     // cannot be themed, because `shared` is spread OVER the per-scheme bag.
     // Dark keeps the shared value exactly; light gets a legible one. See below.
     successText: '#8BD649',
+    // Per-scheme danger, for exactly `successText`'s reason (§I7).
+    // `shared.danger` (#FF5F56) measures 5.70:1 here and 2.59:1 on the light
+    // background; dark keeps the shared value unchanged.
+    dangerText: '#FF5F56',
     // chapterListItem: '#22273b',
   },
   light: {
@@ -35,6 +39,15 @@ export const colorTokens = {
     // background, which lands on the Series row's `Series complete` state.
     // #1B5E20 measures 6.83:1 — comfortably past AA, and still read as green.
     successText: '#1B5E20',
+    // The second named fix for §I7: `danger` at #FF5F56 measures 2.59:1 on
+    // this background, which lands on `Delete Series` in the series editor.
+    // #B3261E measures 5.67:1 — past AA, and still unmistakably a red.
+    //
+    // ⚠ NOT MEASURED UP TO `successText`'s 6.83:1 ON PURPOSE. Ticket 14's K15
+    // established that EXCESS legibility is its own failure mode, and this
+    // label sits just under the light theme's muted body text (6.56:1) so a
+    // destructive action does not out-shout the screen it lives on.
+    dangerText: '#B3261E',
     // chapterListItem: '#FFFFFF',
   },
   shared: {

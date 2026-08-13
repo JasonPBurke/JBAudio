@@ -56,6 +56,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { StackActions } from '@react-navigation/native';
 import Animated, { useAnimatedRef } from 'react-native-reanimated';
 import FastImage from '@d11/react-native-fast-image';
 import Sortable, {
@@ -79,6 +80,7 @@ import {
   clearSeriesArtwork,
   createSeries,
   deleteSeries,
+  loadRememberedNumbers,
   updateSeries,
 } from '@/db/seriesQueries';
 import { bookStructuralKey } from '@/helpers/bookStructuralKey';
@@ -98,12 +100,14 @@ import {
   numberFieldWidth,
   sortRowIsStacked,
 } from '@/helpers/seriesEditorGeometry';
+import { popCountAfterSeriesDelete } from '@/helpers/seriesNavigation';
 import { fitInBox } from '@/helpers/seriesRowGeometry';
 import {
   canBulkNumber,
   orderByCanonicalNumber,
   parseCanonicalNumber,
   resolveNumbersForSave,
+  restoreRememberedNumbers,
 } from '@/helpers/seriesNumbering';
 import {
   pickerSubtitle,
@@ -473,6 +477,30 @@ export default function SeriesEditorRoute() {
     return unsub;
   }, [navigation]);
 
+  /*
+   * A11 — what this series remembers about books it is not showing, i.e. the
+   * numbers sitting on its tombstones. Read ONCE per presentation, into a ref
+   * rather than state: nothing renders it, it only fills a box at the moment a
+   * removed book is put back, and a re-render on arrival would be churn.
+   *
+   * DEVICE-FOUND (2026-08-13): without this, removing a book and re-adding it
+   * silently cleared its canonical number — the box came back blank and Save
+   * wrote the blank over the stored value.
+   */
+  const rememberedNumbers = useRef<Record<string, string>>({});
+  useEffect(() => {
+    if (!editingSeriesId) return;
+    let live = true;
+    loadRememberedNumbers(editingSeriesId)
+      .then((map) => {
+        if (live) rememberedNumbers.current = map;
+      })
+      .catch((e) => console.error('loadRememberedNumbers failed', e));
+    return () => {
+      live = false;
+    };
+  }, [editingSeriesId]);
+
   const keyMap = useMemo(() => {
     const m = new Map<string, Book>();
     for (const book of Object.values(books)) {
@@ -601,6 +629,36 @@ export default function SeriesEditorRoute() {
     router.back();
   }, [router]);
 
+  /**
+   * §K7 — the exit a DELETION takes, which is not the exit an edit takes.
+   *
+   * A plain `back()` lands on the detail sheet of the series that no longer
+   * exists: the route resolves nothing and renders its empty state, which
+   * before ticket 12 was a full-screen white sheet. So the editor pops past it
+   * — and how far past is READ OFF THE STACK rather than hardcoded to two,
+   * because a create has no sheet under it and §F's `titleDetails` series line
+   * will put a book's own sheet under the series one, which is not this
+   * deletion's to throw away.
+   *
+   * ⚠ ONE BUTTON REACHES THIS, and briefly two did. An emptying `Save` was
+   * also a deletion, and it landed on exactly the dead sheet this exists to
+   * skip — DEVICE-FOUND 2026-08-13. The driver's ruling closed that door at
+   * the source instead: validation refuses an empty list, so a deletion is
+   * always the confirmed one, and this is its only caller.
+   */
+  const exitAfterDelete = useCallback(
+    (deletedSeriesId: string) => {
+      useSeriesDraftStore.getState().resetForCreate();
+      const routes = navigation.getState()?.routes ?? [];
+      const pops = popCountAfterSeriesDelete(routes, deletedSeriesId);
+      // One pop IS `back()`, and back() is what every other exit on this
+      // screen uses — no reason to leave the router for it.
+      if (pops > 1) navigation.dispatch(StackActions.pop(pops));
+      else router.back();
+    },
+    [navigation, router],
+  );
+
   /* ----------------------------------------------------------- the artwork --- */
 
   /**
@@ -679,6 +737,14 @@ export default function SeriesEditorRoute() {
        * Once anything is numbered the rule stops and blanks stay blank.
        */
       const canonicalNumbers = resolveNumbersForSave(parsedNumbers);
+      /*
+       * ⚠ SAVE CANNOT DELETE. It used to: emptying the list fell through to
+       * `deleteSeries`, so this button destroyed a series and suppressed its
+       * name with no confirmation, and then landed on the dead sheet (K7
+       * through the other door). `seriesEditorIssues` refuses an empty list
+       * now — driver ruling on device, 2026-08-13 — so the only exit here is
+       * the ordinary one.
+       */
       if (editingSeriesId)
         await updateSeries(editingSeriesId, name, orderedBookKeys, canonicalNumbers);
       else await createSeries(name, orderedBookKeys, canonicalNumbers);
@@ -704,14 +770,13 @@ export default function SeriesEditorRoute() {
     router,
   ]);
 
-  /*
-   * ⚠ THE DELETE EXIT IS STILL WRONG, KNOWINGLY (§K7). It pops onto the detail
-   * sheet of the series it just deleted. That sheet no longer renders white —
-   * the route carries a themed background and a grab handle — but the
-   * destination is still a screen for something that no longer exists, and
-   * popping PAST it belongs to the detection-aware save/delete ticket, which
-   * also owns making this write a suppression row rather than a bare delete.
-   * Ticket 12 is routing surgery and deliberately changes nothing here.
+  /**
+   * §D8 — the existing origin-blind dialog, whose copy is already correct, and
+   * `deleteSeries` writes A12's suppression row for a detected series (and
+   * nothing for a hand-made one, because nothing would recreate it).
+   *
+   * §K7 — the exit is `exitAfterDelete`; see the comment there for why it
+   * reads the stack instead of counting to two.
    */
   const handleDelete = useCallback(() => {
     if (!editingSeriesId) return;
@@ -726,8 +791,7 @@ export default function SeriesEditorRoute() {
           onPress: async () => {
             try {
               await deleteSeries(editingSeriesId);
-              useSeriesDraftStore.getState().resetForCreate();
-              router.back();
+              exitAfterDelete(editingSeriesId);
             } catch (e) {
               console.error('deleteSeries failed', e);
             }
@@ -735,7 +799,7 @@ export default function SeriesEditorRoute() {
         },
       ],
     );
-  }, [editingSeriesId, router]);
+  }, [editingSeriesId, exitAfterDelete]);
 
   /* ------------------------------------------------------------ the footer --- */
 
@@ -776,11 +840,28 @@ export default function SeriesEditorRoute() {
         return;
       }
       appendBookKeys(selectedBookKeys);
+      // A11 — a book coming BACK brings its number with it. Read from the
+      // store rather than the subscribed value so this cannot fill from a
+      // stale map, and applied only to the keys just added.
+      setNumbers(
+        restoreRememberedNumbers(
+          useSeriesDraftStore.getState().numbersByKey,
+          rememberedNumbers.current,
+          selectedBookKeys,
+        ),
+      );
       setPanel(null);
       return;
     }
     void handleSave();
-  }, [panel, selectedAuthorNames, selectedBookKeys, appendBookKeys, handleSave]);
+  }, [
+    panel,
+    selectedAuthorNames,
+    selectedBookKeys,
+    appendBookKeys,
+    setNumbers,
+    handleSave,
+  ]);
 
   /* -------------------------------------------------------------- rendering --- */
 
@@ -1018,7 +1099,18 @@ export default function SeriesEditorRoute() {
               onPress={handleDelete}
               hitSlop={8}
             >
-              <Text style={[styles.deleteText, { color: themeColors.danger }]}>
+              {/*
+                §I7 — `dangerText`, NOT `danger`. The shared accent measures
+                2.59:1 on the light background (measured, not inferred): all
+                four shared tokens live in a bag that is spread OVER the
+                per-scheme ones, so they are unthemeable by construction and
+                all four were picked against the dark ground. `dangerText` is
+                the per-scheme escape hatch ticket 08 already cut for
+                `successText` — dark keeps #FF5F56 unchanged, light gets a red
+                that passes AA. ⚠ It is deliberately NOT a local literal: this
+                is a token so the next `danger` surface can inherit the fix.
+              */}
+              <Text style={[styles.deleteText, { color: themeColors.dangerText }]}>
                 Delete Series
               </Text>
             </Pressable>

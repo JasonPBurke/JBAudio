@@ -5,7 +5,7 @@ import database from '@/db';
 import Series from '@/db/models/Series';
 import SeriesBook from '@/db/models/SeriesBook';
 import { SeriesRow, MembershipRow } from '@/helpers/seriesAssembly';
-import { computeMembershipDiff } from '@/db/seriesMembershipDiff';
+import { planEditorSave } from '@/db/seriesEditorSave';
 import {
   selectOrphanedMemberships,
   selectEmptySeriesIds,
@@ -26,6 +26,7 @@ import {
   SeriesNameConflictError,
 } from '@/helpers/seriesName';
 import { deleteArtworkFile } from '@/helpers/artworkFiles';
+import { rememberedNumbersFrom } from '@/helpers/seriesNumbering';
 
 export { computeMembershipDiff } from '@/db/seriesMembershipDiff';
 export { normalizeSortName, SeriesNameConflictError };
@@ -99,6 +100,14 @@ function sourceFor(n: number | null): 'user' | null {
 /**
  * Create a new series with its ordered membership. `bookKeysInOrder` are
  * structural keys (first file paths). Returns the new series id.
+ *
+ * A10 — THE PROVENANCE IS WRITTEN, not left to the null coalescer. Everything
+ * reachable from here is the user's: they named it, they chose its books, and
+ * `origin = 'user'` is what makes reconcile skip the series ENTIRELY rather
+ * than reconcile its membership. Null would resolve to `'user'` too (G5), so
+ * this is belt-and-braces — but the belt is the one an acceptance criterion is
+ * written against, and a column that says what it means survives a future
+ * reader who does not know the coalescing rule.
  */
 export async function createSeries(
   name: string,
@@ -115,6 +124,8 @@ export async function createSeries(
     const series = await database.get<Series>('series').create((s) => {
       s.name = name.trim();
       s.sortName = normalizeSortName(name);
+      s.origin = 'user';
+      s.nameSource = 'user';
       s.createdAt = now;
       s.updatedAt = now;
     });
@@ -128,6 +139,7 @@ export async function createSeries(
         sb.position = position;
         sb.canonicalNumber = number;
         sb.canonicalSource = sourceFor(number);
+        sb.membership = 'user';
         sb.createdAt = now;
       });
     });
@@ -138,8 +150,20 @@ export async function createSeries(
 }
 
 /**
- * Reconcile a series' name + ordered membership. If `bookKeysInOrder` is empty,
- * the series is deleted (explicit last-book removal → guarded auto-delete).
+ * Reconcile a series' name + ordered membership from an editor `Save`.
+ *
+ * **IO ONLY. IT MAKES NO DECISIONS** — `planEditorSave` made them all, and this
+ * writes the plan verbatim. That split is what puts §D9.1's two correctness
+ * defects in front of jest: a removed book must leave an `'excluded'` tombstone
+ * rather than be destroyed (A11), and an emptied series must be deleted-and-
+ * suppressed rather than silently vanish (A12). If a conditional answering
+ * *"should this row change?"* appears below, it belongs in the planner.
+ *
+ * ⚠ IT NEVER DELETES THE SERIES, and it used to. An emptying save fell through
+ * to `deleteSeries` here, which meant a button labelled `Save` performed an
+ * unconfirmed destroy AND wrote A12's suppression row. DRIVER RULING ON DEVICE,
+ * 2026-08-13: `seriesEditorIssues` now refuses an empty list, and deleting a
+ * series is `Delete Series`, which confirms first. See `seriesValidation.ts`.
  */
 export async function updateSeries(
   id: string,
@@ -147,10 +171,6 @@ export async function updateSeries(
   bookKeysInOrder: string[],
   canonicalNumbers: CanonicalNumbers = [],
 ): Promise<void> {
-  if (bookKeysInOrder.length === 0) {
-    await deleteSeries(id);
-    return;
-  }
   await assertSeriesNameAvailable(name, id);
   await database.write(async () => {
     const series = await database.get<Series>('series').find(id);
@@ -158,14 +178,20 @@ export async function updateSeries(
       .get<SeriesBook>('series_books')
       .query(Q.where('series_id', id))
       .fetch();
-    const existing = existingRows.map((r) => ({
-      bookKey: r.bookKey,
-      position: r.position,
-    }));
-    const { toCreate, toDelete, toReposition } = computeMembershipDiff(
-      existing,
-      bookKeysInOrder,
-    );
+
+    const plan = planEditorSave({
+      existing: existingRows.map((r) => ({
+        bookKey: r.bookKey,
+        position: r.position,
+        canonicalNumber: r.canonicalNumber,
+        membership: r.membershipRaw,
+      })),
+      desiredKeysInOrder: bookKeysInOrder,
+      canonicalNumbers,
+      storedName: series.name,
+      desiredName: name,
+    });
+
     const now = new Date();
     const ops: any[] = [];
 
@@ -180,13 +206,14 @@ export async function updateSeries(
       series.prepareUpdate((s) => {
         s.name = name.trim();
         s.sortName = normalizeSortName(name);
+        // OWNERSHIP IS PER ASPECT: set only when the planner says the name
+        // changed, and `origin` is not touched here at all. A renamed DETECTED
+        // series is still detection's to add new books to (A10a's second pass),
+        // and a reorder must not disown the name.
+        if (plan.nameSource) s.nameSource = plan.nameSource;
         s.updatedAt = now;
       }),
     );
-    for (const key of toDelete) {
-      const row = existingRows.find((r) => r.bookKey === key);
-      if (row) ops.push(row.prepareDestroyPermanently());
-    }
 
     /*
      * ⚠ ONE `prepareUpdate` PER ROW, MERGED — never one for the position and a
@@ -197,53 +224,73 @@ export async function updateSeries(
      * the batch. The row that hits it is one that was both dragged AND
      * renumbered in the same session, which is the single most likely editor
      * session this feature has — and it is invisible to any test that performs
-     * one action at a time.
-     *
-     * Which rows changed is looked up here; WHAT the numbers should be was
-     * decided by `resolveNumbersForSave` before the save was called. Copying a
-     * value is not a decision, so this stays out of the tested seam.
+     * one action at a time. The planner guarantees at most one entry per row,
+     * and `seriesEditorSave.test.ts` pins that.
      */
-    const numberByKey = new Map(
-      bookKeysInOrder.map((key, index) => [key, canonicalNumbers[index] ?? null]),
-    );
-    const positionByKey = new Map(
-      toReposition.map(({ bookKey, position }) => [bookKey, position]),
-    );
-    // `existingRows` is disjoint from `toCreate` by construction — the diff
-    // only proposes a create for a key it did not find — so this loop cannot
-    // collide with the prepareCreate pass below.
-    for (const row of existingRows) {
-      if (!numberByKey.has(row.bookKey)) continue; // handled by toDelete
-      const nextNumber = numberByKey.get(row.bookKey) ?? null;
-      const nextPosition = positionByKey.get(row.bookKey);
-      const numberChanged = row.canonicalNumber !== nextNumber;
-      if (nextPosition === undefined && !numberChanged) continue;
+    const rowByKey = new Map(existingRows.map((r) => [r.bookKey, r]));
+    for (const update of plan.updateRows) {
+      const row = rowByKey.get(update.bookKey);
+      if (!row) continue;
       ops.push(
         row.prepareUpdate((r) => {
-          if (nextPosition !== undefined) r.position = nextPosition;
-          if (numberChanged) {
-            r.canonicalNumber = nextNumber;
-            r.canonicalSource = sourceFor(nextNumber);
+          if (update.position !== undefined) r.position = update.position;
+          // `in`, not a null check: the planner OMITS the key when the number
+          // is unchanged, and `null` is a value it legitimately writes.
+          if ('canonicalNumber' in update) {
+            r.canonicalNumber = update.canonicalNumber ?? null;
+            r.canonicalSource = update.canonicalSource ?? null;
           }
+          if (update.membership) r.membership = update.membership;
         }),
       );
     }
 
-    for (const { bookKey, position } of toCreate) {
-      const number = numberByKey.get(bookKey) ?? null;
+    for (const insert of plan.insertRows) {
       ops.push(
         database.get<SeriesBook>('series_books').prepareCreate((sb) => {
           (sb._raw as any).series_id = id;
-          sb.bookKey = bookKey;
-          sb.position = position;
-          sb.canonicalNumber = number;
-          sb.canonicalSource = sourceFor(number);
+          sb.bookKey = insert.bookKey;
+          sb.position = insert.position;
+          sb.canonicalNumber = insert.canonicalNumber;
+          sb.canonicalSource = insert.canonicalSource;
+          sb.membership = insert.membership;
           sb.createdAt = now;
         }),
       );
     }
     await database.batch(ops);
   });
+}
+
+/**
+ * A11 — the canonical numbers this series remembers about books it is NOT
+ * currently showing, keyed by structural key and formatted for a number box.
+ *
+ * The editor seeds its boxes from the visible rows, which is right for every
+ * book on screen and wrong for exactly one case: a book the user removed and
+ * then put back. Its number never went anywhere — the tombstone kept it — but
+ * without this read the box comes back blank and `Save` writes the blank over
+ * it. DEVICE-FOUND on 2026-08-13; see `rememberedNumbersFrom`, which owns the
+ * rule about which rows remember anything.
+ *
+ * One fetch of this series' rows, on editor mount. It reads the SAME rows the
+ * save path reads a moment later, so there is no third query shape to keep in
+ * step.
+ */
+export async function loadRememberedNumbers(
+  seriesId: string,
+): Promise<Record<string, string>> {
+  const rows = await database
+    .get<SeriesBook>('series_books')
+    .query(Q.where('series_id', seriesId))
+    .fetch();
+  return rememberedNumbersFrom(
+    rows.map((r) => ({
+      bookKey: r.bookKey,
+      canonicalNumber: r.canonicalNumber,
+      membership: r.membershipRaw,
+    })),
+  );
 }
 
 /* ---------------------------------------------------------- series artwork --- */
@@ -392,6 +439,11 @@ export function observeSeriesData(): Observable<{
   // browse row renders it (as the collapsed range and the next-up badge), and
   // the editor writes it without touching membership, so a number-only edit
   // would otherwise not re-emit.
+  //
+  // `membership` is observed because A11's tombstone is a WRITE, not a delete:
+  // removing the last book off the end of the list changes no other row's
+  // position, so without this column the removal would not re-emit and the book
+  // the user just removed would stay on screen until the app restarted.
   const members$ = database
     .get<SeriesBook>('series_books')
     .query()
@@ -400,6 +452,7 @@ export function observeSeriesData(): Observable<{
       'book_key',
       'position',
       'canonical_number',
+      'membership',
     ]);
   return combineLatest([series$, members$]).pipe(
     map(([seriesModels, memberModels]) => ({
@@ -418,6 +471,9 @@ export function observeSeriesData(): Observable<{
           bookKey: m.bookKey,
           position: m.position,
           canonicalNumber: m.canonicalNumber,
+          // Handed over RAW, for `loadExistingSeries`' reason: the tombstone
+          // filter is `assembleDerivedSeries`', and it does its own coalescing.
+          membership: m.membershipRaw,
         })),
     })),
   );

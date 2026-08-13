@@ -94,3 +94,60 @@ export function resolveNumbersForSave(
   if (!canBulkNumber(numbers)) return numbers;
   return numbers.map((_, index) => index + 1);
 }
+
+/**
+ * A11 — what a series REMEMBERS about the books it is not currently showing.
+ *
+ * A tombstone is the series' memory of a book, and the canonical number is
+ * part of that memory: the row keeps `canonical_number` while it is
+ * `'excluded'`, because nothing about a removal says the book's published
+ * number changed.
+ *
+ * ⚠ DEVICE-FOUND, 2026-08-13 (ticket 16). Without this the editor seeds its
+ * boxes from the VISIBLE rows only, so putting a removed book back returned it
+ * with a blank box — and `Save` then wrote that blank over the stored number,
+ * silently, on a round trip the user thought was a no-op.
+ *
+ * Formatted with a `.` regardless of locale, matching how the editor seeds
+ * every other box: K3's parse accepts both separators, and rendering per-locale
+ * would mean carrying a locale into a pure draft for a cosmetic gain.
+ */
+export function rememberedNumbersFrom(
+  rows: {
+    bookKey: string;
+    canonicalNumber?: number | null;
+    membership?: string | null;
+  }[],
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const row of rows) {
+    // Only a tombstone: a visible row's number is already in its own box, and
+    // reading it from here would fight whatever the user has typed.
+    if (row.membership !== 'excluded') continue;
+    if (row.canonicalNumber == null) continue;
+    out[row.bookKey] = String(row.canonicalNumber);
+  }
+  return out;
+}
+
+/**
+ * Fill the number boxes of books that were JUST ADDED from what the series
+ * remembers about them. Everything else is left exactly as it is.
+ *
+ * Two rules, and both are about not overreaching: only the keys being added
+ * (another row's blank is a blank the user chose), and never over a value
+ * already in the draft (what they typed this session wins).
+ */
+export function restoreRememberedNumbers(
+  current: Record<string, string>,
+  remembered: Record<string, string>,
+  addedKeys: string[],
+): Record<string, string> {
+  const next = { ...current };
+  for (const key of addedKeys) {
+    if (next[key] != null && next[key] !== '') continue;
+    const number = remembered[key];
+    if (number != null) next[key] = number;
+  }
+  return next;
+}

@@ -98,14 +98,26 @@ describe('editor surface — edit (editingSeriesId present)', () => {
   });
 
   /*
-   * The asymmetry, pinned: `updateSeries([])` delegates to `deleteSeries` and
-   * suppresses (A12), so emptying a series is a real path Save must not block.
-   * If this ever fails, someone has made the book requirement unconditional and
-   * disabled Save on the only screen that can reach that path.
+   * ⚠ RULED ON DEVICE, 2026-08-13, REVERSING THE EARLIER ASYMMETRY. An
+   * emptying save used to be allowed, and `updateSeries([])` deleted the series
+   * AND wrote A12's suppression row — an unconfirmed destroy with a lasting
+   * side effect, performed by a button labelled `Save`. Every other destroy in
+   * this app confirms, and the one that does — `Delete Series` — is one tap
+   * below `+ Add books` on the very same screen.
+   *
+   * So the book requirement is now unconditional, and the message points at
+   * the escape hatch rather than dead-ending on it.
    */
-  test('emptying an existing series is allowed', () => {
+  test('emptying an existing series is refused, and names the way out', () => {
     expect(
       seriesEditorIssues({ ...base, name: 'Dune Saga', bookCount: 0 }),
-    ).toEqual([]);
+    ).toEqual(['Add at least one book, or use Delete Series to remove it.']);
+  });
+
+  /* The create pass has no `Delete Series` to point at, so it must not. */
+  test('the create pass keeps the plain sentence', () => {
+    expect(
+      seriesEditorIssues({ name: 'Wheel of Time', series, bookCount: 0 }),
+    ).toEqual(['Add at least one book.']);
   });
 });

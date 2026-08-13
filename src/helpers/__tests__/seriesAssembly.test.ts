@@ -109,3 +109,58 @@ test('filterSeriesBySearch matches name or member title', () => {
     's2',
   ]); // blank → all
 });
+
+/*
+ * A11 — an `'excluded'` row is a TOMBSTONE: it exists to block re-derivation,
+ * and no surface may draw it. Filtered here rather than in the query layer so
+ * every surface inherits it — they all read the store, and the store reads
+ * this.
+ */
+test('an excluded membership row is invisible, and takes its number with it', () => {
+  const bookMap = {
+    b1: mkBook('b1', '/x/1.mp3', 'One'),
+    b2: mkBook('b2', '/y/1.mp3', 'Two'),
+    b3: mkBook('b3', '/z/1.mp3', 'Three'),
+  };
+  const series = [{ id: 's1', name: 'Alpha', sortName: 'alpha' }];
+  const memberships = [
+    { seriesId: 's1', bookKey: '/x/1.mp3', position: 0, canonicalNumber: 1 },
+    {
+      seriesId: 's1',
+      bookKey: '/y/1.mp3',
+      position: 1,
+      canonicalNumber: 2,
+      membership: 'excluded',
+    },
+    {
+      seriesId: 's1',
+      bookKey: '/z/1.mp3',
+      position: 2,
+      canonicalNumber: 3,
+      membership: 'detected',
+    },
+  ];
+  const [out] = assembleDerivedSeries(series, memberships, bookMap);
+  expect(out.books.map((b) => b.bookId)).toEqual(['b1', 'b3']);
+  expect(out.canonicalNumbers).toEqual([1, 3]);
+});
+
+/* G5 — every row that predates v33 carries null here, and null is a member. */
+test('a membership row with no provenance is drawn', () => {
+  const bookMap = { b1: mkBook('b1', '/x/1.mp3', 'One') };
+  const series = [{ id: 's1', name: 'Alpha', sortName: 'alpha' }];
+  const [out] = assembleDerivedSeries(
+    series,
+    [
+      {
+        seriesId: 's1',
+        bookKey: '/x/1.mp3',
+        position: 0,
+        canonicalNumber: null,
+        membership: null,
+      },
+    ],
+    bookMap,
+  );
+  expect(out.books.map((b) => b.bookId)).toEqual(['b1']);
+});

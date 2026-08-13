@@ -474,6 +474,22 @@ hidden marker that blocks re-derivation; display filters exclude it. Without it,
 removes four books from a wrong merge, rescans, and gets all four back — the most
 trust-destroying outcome available.
 
+> **Built by ticket 16, with three things worth carrying forward:**
+>
+> - **THE DISPLAY FILTER IS `assembleDerivedSeries`, and that is the only site.** Every
+>   Series surface resolves its books through it. ⚠ It is deliberately NOT applied in
+>   `loadExistingSeries` (reconcile needs the tombstones as continuity evidence) nor in
+>   `deleteEmptySeries` (K16 requires it to keep counting them).
+> - **`membership` must be in `observeWithColumns`.** Removing the last book in a list moves
+>   no other row, so the tombstone write is the *only* change — without the column observed,
+>   the removal does not re-emit and the book stays on screen until restart.
+> - **A tombstone is the series' MEMORY of a book, and that includes its number.** The row
+>   keeps `canonical_number` while excluded, and re-adding the book must put that number back
+>   **in the editor's box** — visible and editable — so `Save` still writes what the user can
+>   see. DEVICE-FOUND: without it, removing a book and putting it back silently cleared a
+>   number the user never touched. Keeping the number on the row while showing a blank box
+>   was rejected: the sheet would badge `#5` over an editor showing nothing.
+
 **A12 — Delete always suppresses.** Deleting a **detected** series writes its name to
 `suppressed_series` so detection will not recreate it; deleting a **hand-made** one writes
 nothing, because nothing would recreate it. Recovery is a browsable `Removed Series` list
@@ -780,6 +796,34 @@ detail sheet — see K7.**
    suppression.
 2. Save and Cancel exits are correct by construction once C2's routing lands; **Delete's
    is not.**
+
+> **⚠ D9 AMENDED ON DEVICE, 2026-08-13 (ticket 16), in two places.**
+>
+> **D9.1's second clause is withdrawn, and the behaviour behind it deleted.** `Save` may
+> never delete a series. Emptying the list and saving was an **unconfirmed destroy with a
+> lasting side effect** — the series went *and* its name was written to `suppressed_series`,
+> so detection would not recreate it until the user found it in `Removed Series` — performed
+> by a button labelled `Save`. Every other destroy in this app confirms first, and the one
+> that does, `Delete Series`, sits one tap below `+ Add books` on the same screen. A14's
+> standing rule is *bulk creates, per-item destroys*; a run of per-item removals quietly
+> becoming a whole-series destroy at save time was the one place the app inverted it.
+>
+> The book requirement in `seriesEditorIssues` is therefore **unconditional**, and its
+> message names the escape hatch rather than dead-ending on it: *"Add at least one book, or
+> use Delete Series to remove it."* — edit mode only, because the create pass has no
+> `Delete Series` to name. Emptying-as-rebuild (K16) is unaffected: the replacements go in
+> before the save. The disabled `Save` follows for free from the existing
+> `issues.length === 0` gate, and stays pressable so pressing it names the problem.
+>
+> It is also **less code, and one fewer path**: the editor's save plan loses its
+> `'delete' | 'save'` union, `updateSeries` loses its `deleteSeries` delegation and its
+> return value, and `handleSave` loses its second exit. **The save plan now has no
+> destructive verb at all** — not for a row, not for the series.
+>
+> **D9.2 was WRONG about Save, and the device proved it.** An emptying save was itself a
+> deletion, so it landed on exactly the dead sheet K7 describes. "Correct by construction"
+> held only while Save could not delete — which is the second reason the ruling above is
+> the right shape: it removes the state rather than patching the exit.
 
 **D10 — A known finding, kept because it reads like a bug and is not:** `Sort by number`
 silently changes the series cover, because artwork derives from the first book and follows
@@ -1296,6 +1340,28 @@ Largely a **shipping-palette** property rather than something this effort introd
 (`primary` is currently *masked* on the test device by auto-accent resolving it to a dark
 blue; at the shipping default it is 1.53:1.)
 
+> **⚠ TWO OF THE FOUR ARE NOW FIXED, AND THE PATTERN IS SETTLED (ticket 08, then ticket 16).**
+> The fix is a **per-scheme companion token**, never a local literal and never a change to
+> the shared bag — so the dark value is provably untouched and the next surface reaching for
+> the same colour inherits the fix.
+>
+> | token | companion | light | dark |
+> | --- | --- | --- | --- |
+> | `success` | `successText` | `#1B5E20` — 6.83:1 | `#8BD649` unchanged — 9.59:1 |
+> | `danger` | `dangerText` | `#B3261E` — **5.67:1** | `#FF5F56` unchanged — **5.70:1** |
+>
+> Both measured on device from real pixels (ticket 16, 2026-08-13): the light `Delete Series`
+> label sampled `#B3261E` on an `#ECEFF4` ground, and the shared `danger` measures **2.59:1**
+> on that same ground — I7's reading confirmed against pixels rather than inferred.
+>
+> **`dangerText` is deliberately NOT pushed to `successText`'s 6.83:1.** K15 established that
+> excess legibility is its own failure mode; it sits just under the light theme's muted body
+> text (6.56:1), so a destructive action does not out-shout the screen it lives on.
+>
+> **`primary` remains DEFERRED to the whole-app colour branch, and must not be patched
+> locally** — it is user-settable AND cover-derived, so it is the one of the four that a
+> per-scheme companion cannot fix. `warning` is unused by Series.
+
 **I8 — Two named surfaces were never built and so were never tested:** the
 `Series Detection` card and the `Removed Series` list. They inherit correctness
 *structurally* — a settings screen paints no surface of its own and the shared row
@@ -1395,9 +1461,28 @@ come BEFORE applying**, not as a notice afterwards.
 
 **K7 — Deleting a series currently pops onto the sheet of the series it just deleted.**
 Reproduced, and it is worse than predicted: the route resolves nothing, renders nothing,
-and — per K5 — shows **full-screen white**, with no grab handle, so the only escape is
-system back. **It needs BOTH fixes: pop *past* the sheet, and give the route a themed
+and — per K5 — shows **full-screen white**, ~~with no grab handle, so the only escape is
+system back~~. **It needs BOTH fixes: pop *past* the sheet, and give the route a themed
 background.**
+
+> **⚠ CORRECTION (driver, 2026-08-13): the "no grab handle" half was never accurate** — the
+> blank sheet always had its handle, so the state was escapable without the hardware button.
+> The white screen was real and is what mattered. **Both fixes are now in**: ticket 12 gave
+> the route its themed `contentStyle`, and ticket 16 pops past the sheet.
+>
+> **How far to pop is read off the navigation stack** (`popCountAfterSeriesDelete`), never
+> hardcoded to two: a create has no sheet under it at all, and §F's `titleDetails` series
+> line will put a book's own sheet under the series one, which is not the deletion's to
+> throw away. `dismissAll()` is wrong for the same reason.
+>
+> **Verified frame by frame in both themes**: one `pop(2)` animating both screens out, the
+> sheet visible for ~200ms of dismissal and never settling. Max luminance 0.192 across 655
+> dark frames. ⚠ **In LIGHT theme luminance cannot detect this defect** — the app's own
+> background is bright, and the editor's legitimate empty state is a flat `#ECEFF4` page
+> that reads as "uniform and bright" exactly like the fault would. Look at the frames.
+>
+> ⚠ **A DELETE IS NOT ONLY `Delete Series`.** The emptying `Save` reached this same dead
+> sheet, which is why it is now refused outright — see the amendment under D9.
 
 **K8 — Series artwork is a second producer of orphaned artwork files.** A pinned cover is a
 new file only the series references, so **deleting the series leaks it forever**, and so
@@ -1459,10 +1544,16 @@ so the empty-series reaper keeps it, and it renders with no books. That was flag
   neither.** Abstention bias, applied to the one verb that cannot be undone.
 - **Emptying is a legitimate step in REBUILDING a series by hand**, which is the only
   expressible repair for a wrong merge now that split/merge are out of scope (09).
-- **The delete-on-empty decision stays where it already lives**: `updateSeries` deletes a
+- ~~**The delete-on-empty decision stays where it already lives**: `updateSeries` deletes a
   series when its last book goes (`seriesQueries.ts:81`), and D9.1 already requires that
   path to suppress instead. That is an explicit user save. Reconcile must not duplicate it
-  by inference.
+  by inference.~~ **WITHDRAWN ON DEVICE, 2026-08-13 (ticket 16): THERE IS NO DELETE-ON-EMPTY
+  ANY MORE, ANYWHERE.** An emptying save is refused outright — see the amendment under D9 —
+  because a button labelled `Save` performing an unconfirmed destroy is the thing A14's rule
+  exists to prevent, and "it was an explicit user save" was doing too much work for a press
+  of `Save`. **This strengthens the rest of K16 rather than weakening it:** the editor no
+  longer has a delete-on-empty for reconcile to be told not to imitate, so all-excluded is
+  now a stable state on *every* path into it, with no exception to remember.
 - ⚠ **`deleteEmptySeries()` must keep counting excluded rows.** It counts every
   `series_books` row, so an all-excluded series survives — this is correct and must not be
   "fixed" to ignore tombstones. Doing so deletes the series, deletes its tombstones with
