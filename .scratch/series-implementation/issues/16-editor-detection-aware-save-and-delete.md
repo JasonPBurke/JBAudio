@@ -57,6 +57,11 @@ load-bearing route.
 - [x] A rename persists forever — the next scan does not put the machine's name back — and
       **new books keep being added** to the renamed series. `name_source = 'user'` is
       written, `origin` is untouched, and both halves are asserted through a rescan.
+      **Both halves also DEVICE-VERIFIED with a real file arrival (driver, 2026-08-13):**
+      series renamed to `Bob`, book 05 copied into the library path, rescan → it landed at
+      `pos 4 · #5`. ⚠ The row's provenance is what proves it: `membership=detected` is a
+      value only `applyPlan` writes, so reconcile inserted it into a series it can no longer
+      find by name.
 - [x] A hand-ordered series keeps its order across every rescan.
 - [x] A hand-made series (`origin = 'user'`) is **never touched** by detection. `createSeries`
       now writes `origin`/`name_source`/`membership` explicitly instead of relying on G5's

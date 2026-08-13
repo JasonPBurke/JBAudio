@@ -1,7 +1,8 @@
 # Device check — ticket 16, detection-aware save + the delete exit
 
 **COMPLETE — every criterion closed, on 2026-08-13. Two driver rulings and three
-defects came out of it.**
+defects came out of it.** Criterion 7 was closed last, by the driver, in a follow-up pass
+with a real file arrival.
 
 **Rig:** physical Pixel 7 Pro (`29131FDH3009SZ`), real library, **24 series** after the
 scan. ⚠ The app was **not installed** when the ticket was built, so the run began with
@@ -48,7 +49,7 @@ with `position`/`canonical_number`/`membership`, marks tombstones, and counts
 | 4 | Re-adding clears the tombstone | `membership=user`, **position 4 — unchanged**, so the membership diff proposed nothing for that row and the planner's independent pass is what restored it. 0 tombstones left. ⚠ First attempt exposed **defect A** (below). |
 | 5 | ~~Removing the last book suppresses~~ | **Superseded by driver ruling B.** Verified working first — emptying Bobiverse deleted it and wrote `suppressed_series: ['Bobiverse']` — and then ruled out of existence: an emptying save is now refused. |
 | 6 | A rename persists across a rescan | Renamed to `Bob`, rescanned: `[origin=detected name_source=user]`, name kept, **no duplicate under the machine name**. Ownership per aspect held on device — the rename claimed the name and left `origin` alone. |
-| 7 | New books still join a renamed series | **Not exercised on device** — it needs a new file to arrive, which means touching the real library. Pinned by jest instead (`seriesEditorSurvivesRescan.test.ts`), and criterion 6's no-duplicate result is the same mechanism (A10a's second pass) firing. |
+| 7 | New books still join a renamed series | **Closed on device by the driver, after the main run.** Library pointed at a reduced path holding `Bobiverse 01–04`; series renamed to `Bob`; **book 05 copied into the path**; rescan. It joined at `pos 4 · #5`, correct placement and numbering, in a series reading `[origin=detected name_source=user]`. ⚠ **The row's own provenance is the proof, not the screen: `membership=detected` and `canonical_source=detected` are values only `applyPlan` writes** — the editor's save path writes `'user'` for anything hand-added, by type. So reconcile inserted it, into a series it can no longer find by name. A10a's second pass and A10's `seedInsertPositions` both firing on a real file arrival. |
 | 8 | Hand ordering survives a rescan | Dragged book 01 to the bottom; after the scan the rows read `#2, #3, #4, #1` in position order. Reconcile has no reposition verb, confirmed. |
 | 8b | **The composite case** | Renamed **and** edited in one save, then rescanned: name kept, tombstone kept, no duplicate. This is A10a's live-defect case — continuity is matched by book overlap **counting tombstones**, and without it the re-created series carries the removed book back in. |
 | 9 | A hand-made series is never touched | `ZZ Hand Test [origin=user name_source=user]`, rows `membership=user`, numbers `1,2 (user)` from E7. Rescan left it untouched, and its two books stayed in Bobiverse too. Those provenance columns are **written** now — before this ticket `createSeries` wrote nothing and the protection came from null coalescing. |
