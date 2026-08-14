@@ -31,6 +31,8 @@ const mkSeries = (
   books,
   canonicalNumbers: canonicalNumbers ?? books.map(() => null),
   progressState: 'playing',
+  origin: 'detected',
+  createdAt: 0,
 });
 
 /*

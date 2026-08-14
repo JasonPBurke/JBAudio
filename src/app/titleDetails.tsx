@@ -17,10 +17,12 @@ import {
   Pause,
   EllipsisVertical,
   Pencil,
-  // Ticket 14 found `Layers` doing double duty — it is the library's Series
-  // view toggle AND was this row's glyph, so `Add to series…` would have sat
-  // directly above an identical icon meaning "chapters". Driver's call: series
-  // keeps `Layers`, auto-chapters moves to `TableOfContents`.
+  // §F10 — `Layers` was doing double duty: it is the library's Series view
+  // toggle AND was `Remove Auto-Chapters`' glyph, which would have put two
+  // identical icons on adjacent rows here. Driver's ruling: series keeps
+  // `Layers`, auto-chapters moves to `TableOfContents`. It looks like harness
+  // fallout and is not.
+  Layers,
   TableOfContents,
   ChevronRight,
   BookCheck,
@@ -39,12 +41,8 @@ import TrackPlayer, {
   useIsPlaying,
 } from 'react-native-track-player';
 
-// THROWAWAY — Series UX redesign prototype harness, ticket 14.
-// Both render null outside `__DEV__`. See src/prototypes/README.md.
-import ProtoSeriesLine, {
-  ProtoSeriesLinePill,
-  ProtoAddToSeriesMenuItem,
-} from '@/prototypes/ProtoSeriesLine';
+import BookSeriesLine from '@/components/BookSeriesLine';
+import AddToSeriesPanel from '@/components/AddToSeriesPanel';
 import { useBookById, refreshLibraryStore } from '@/store/library';
 import { unknownBookImageUri } from '@/constants/images';
 import { colors, fontSize } from '@/constants/tokens';
@@ -80,6 +78,9 @@ const TitleDetails = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showLoading, setShowLoading] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  // §F8's picker is a second CONTENT for the one modal below, never a second
+  // modal — see AddToSeriesPanel's header for why.
+  const [showAddToSeries, setShowAddToSeries] = useState(false);
   const [showProgressOptions, setShowProgressOptions] = useState(false);
   const progressExpand = useSharedValue(0);
 
@@ -226,6 +227,20 @@ const TitleDetails = () => {
     handleEditTitle();
   };
 
+  /** Dismisses whichever content the one overflow modal is showing. */
+  const closeOverflow = () => {
+    setShowMenu(false);
+    setShowAddToSeries(false);
+    setShowProgressOptions(false);
+  };
+
+  const handleAddToSeriesPress = () => {
+    // The modal stays mounted throughout — only its content changes.
+    setShowMenu(false);
+    setShowProgressOptions(false);
+    setShowAddToSeries(true);
+  };
+
   const handleProgressChange = async (newProgress: BookProgressState) => {
     setShowMenu(false);
     setShowProgressOptions(false);
@@ -311,20 +326,17 @@ const TitleDetails = () => {
           </Pressable>
 
           <Modal
-            visible={showMenu}
+            visible={showMenu || showAddToSeries}
             transparent
             animationType='fade'
-            onRequestClose={() => {
-              setShowMenu(false);
-              setShowProgressOptions(false);
-            }}
+            onRequestClose={closeOverflow}
           >
+            {showAddToSeries ? (
+              <AddToSeriesPanel book={book} onClose={closeOverflow} />
+            ) : (
             <Pressable
               style={styles.menuOverlay}
-              onPress={() => {
-                setShowMenu(false);
-                setShowProgressOptions(false);
-              }}
+              onPress={closeOverflow}
             >
               <View
                 style={[
@@ -353,16 +365,35 @@ const TitleDetails = () => {
                     Edit Book Details
                   </Text>
                 </Pressable>
-                {/* THROWAWAY — ticket 14, question 3 (overflow order). */}
-                <ProtoAddToSeriesMenuItem
-                  onPress={() => {
-                    setShowMenu(false);
-                    Alert.alert(
-                      'Add to series…',
-                      'Prototype stub — the real one opens a series picker.',
-                    );
-                  }}
-                />
+                {/*
+                  * §F8 — directly under `Edit Book Details`, grouping the two
+                  * items that act on what the book IS above the two that act
+                  * on how it PLAYS. ALWAYS PRESENT: multi-membership means any
+                  * book can always join another series, so it has no
+                  * inapplicable state and never meets the absent-vs-disabled
+                  * convention.
+                  */}
+                <Pressable
+                  onPress={handleAddToSeriesPress}
+                  style={[
+                    styles.menuItem,
+                    { borderBottomColor: themeColors.divider },
+                  ]}
+                >
+                  <Layers
+                    size={20}
+                    color={themeColors.text}
+                    strokeWidth={1.5}
+                  />
+                  <Text
+                    style={[
+                      styles.menuItemText,
+                      { color: themeColors.text },
+                    ]}
+                  >
+                    Add to series…
+                  </Text>
+                </Pressable>
                 <Pressable
                   onPress={handleRemoveAutoChapters}
                   disabled={!book.hasAutoGeneratedChapters}
@@ -487,6 +518,7 @@ const TitleDetails = () => {
                 </Animated.View>
               </View>
             </Pressable>
+            )}
           </Modal>
         </View>
         <View
@@ -537,8 +569,8 @@ const TitleDetails = () => {
               >
                 {book.bookTitle ?? bookTitle}
               </Text>
-              {/* THROWAWAY — ticket 14, the `Subheading` variant. */}
-              <ProtoSeriesLine bookId={bookId} slot='title' />
+              {/* §F1 — part of the title block, static, one series. */}
+              <BookSeriesLine bookId={bookId} />
 
               <View style={styles.authorNarratorContainer}>
                 <View
@@ -598,11 +630,6 @@ const TitleDetails = () => {
                   </Text>
                 </View>
               </View>
-              {/* THROWAWAY — Series UX redesign, ticket 14 (series line
-                  placement). Renders null in production and whenever the
-                  harness knob is `off`. Delete with `rm -rf src/prototypes`;
-                  see src/prototypes/README.md. */}
-              <ProtoSeriesLine bookId={bookId} slot='text' />
               <View
                 style={[styles.inlineInfoContainer, { flexWrap: 'wrap' }]}
               >
@@ -682,8 +709,6 @@ const TitleDetails = () => {
                   </Text>
                   <Text style={styles.listInfoText}>Chapters</Text>
                 </Pressable>
-                {/* THROWAWAY — ticket 14, the `4th card` variant. */}
-                <ProtoSeriesLine bookId={bookId} slot='cards' />
               </View>
 
               <ShadowedView
@@ -777,8 +802,6 @@ const TitleDetails = () => {
           </Pressable>
         </ScrollView>
       </View>
-      {/* THROWAWAY — ticket 14's variant switcher. Renders null in production. */}
-      <ProtoSeriesLinePill bookId={bookId} />
     </View>
   );
 };

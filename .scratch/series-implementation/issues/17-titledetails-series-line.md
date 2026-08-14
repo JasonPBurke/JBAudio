@@ -2,7 +2,7 @@
 
 **Blocked by:** [01](01-schema-v33.md), [06](06-detection-runs-on-scan.md).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **Spec:** [§F](../../series-ux-redesign/spec.md), §K9, §I2.
 
@@ -57,33 +57,60 @@ itself darkens must take its colour from that surface, not from the theme.*
 
 ## Acceptance criteria
 
-- [ ] The subheading renders directly under the title, static, one series, per F2's pick.
-- [ ] `Part of <series>` when there is no canonical number; nothing at all when there is no
+- [x] The subheading renders directly under the title, static, one series, per F2's pick.
+- [x] `Part of <series>` when there is no canonical number; nothing at all when there is no
       series.
-- [ ] The **whole string** uses the shared light-coloured muted token. This amends the
+- [x] The **whole string** uses the shared light-coloured muted token. This amends the
       two-tone `Book N of ` prefix — the hierarchy that bought is now bought by the token
       choice.
-- [ ] **F7 — the negative top margin is load-bearing. Do not "clean it up".** The info
+- [x] **F7 — the negative top margin is load-bearing. Do not "clean it up".** The info
       column sets a fixed gap between every child, which made the line read as its own
       block; the target was the gap that `Read by` has above the narrator's name, which is
       **no gap at all**. The gap **below** is deliberately kept — that is what keeps the line
       part of the title block rather than the author block. It is scale-invariant (the gap
       it cancels is fixed dp too), so it needs no font-scale re-check.
-- [ ] **F8 — `Add to series…` sits under `Edit Book Details`**, grouping the two items that
+- [x] **F8 — `Add to series…` sits under `Edit Book Details`**, grouping the two items that
       act on what the book *is* above the two that act on how it *plays*. It is **always
       present** — any book can join another series, so it has no inapplicable state. It is
       **join-only: no `New series…` row.** Book-first stays austere.
-- [ ] **F9 — no book-first remove.** Removal changes a *series'* membership, and the
+- [x] **F9 — no book-first remove.** Removal changes a *series'* membership, and the
       tombstone is series-scoped.
-- [ ] **F10 already shipped and must SURVIVE:** series keeps the `Layers` glyph and
+- [x] **F10 already shipped and must SURVIVE:** series keeps the `Layers` glyph and
       auto-chapters moved to `TableOfContents`. `Layers` was doing double duty as the
       library's Series-view toggle *and* the `Remove Auto-Chapters` glyph, which would have
       put identical icons on adjacent rows. **It looks like harness fallout and is not — it
       is a driver ruling.**
-- [ ] Device-verified **in light theme specifically**. Every visual acceptance on this
+- [x] Device-verified **in light theme specifically**. Every visual acceptance on this
       effort before 2026-08-05 was made from dark-theme screenshots, and this screen is
       where that bit.
-- [ ] `tsc` 0 errors · eslint 0 errors · jest green.
+- [x] `tsc` 0 errors · eslint 0 errors · jest green.
+
+## Resolved 2026-08-13
+
+Built and **device-verified in light theme** on a physical Pixel 7 Pro — see
+[DEVICE-CHECK-17.md](../DEVICE-CHECK-17.md) for the full run, the contrast measurements and
+the two defects it found.
+
+**What shipped:**
+
+- `src/helpers/seriesLine.ts` — §F2's pick and §F4's string, pure. `src/components/BookSeriesLine.tsx`
+  renders it; `titleDetails.tsx` mounts it in the title block and the harness mounts are gone.
+- `src/components/AddToSeriesPanel.tsx` — §F8's join-only picker. It is a second CONTENT for
+  the overflow modal, never a second modal.
+- `src/db/seriesJoin.ts` + `addBookToSeries` — a join is expressed as an editor `Save`, so
+  A11's tombstone restore and the remembered number come for free rather than being
+  re-implemented.
+- `DerivedSeries` gained `origin` and `createdAt`. §F2 cannot be answered without both, and
+  neither is recoverable downstream: the assembled list is sorted A–Z.
+
+**Two device findings, both fixed in-run:** the picker painted its empty state as the last
+thing before the success confirmation (fixed by freezing the list during the write), and a
+restored tombstone was appended rather than put back where it was (fixed by splicing it in
+after the rows that still precede it — the editor's re-add already behaved that way, and the
+same action through two doors must land in the same place).
+
+**One thing jest holds alone:** the largest-detected-wins arm. Two detected series over one
+book is not constructible on the device — only the scanner writes `origin='detected'`.
 
 ## Test the pick, not the pixels
 

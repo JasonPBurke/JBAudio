@@ -1,6 +1,10 @@
 import { Book } from '@/types/Book';
 import { bookStructuralKey } from '@/helpers/bookStructuralKey';
-import { resolveMembership } from '@/db/seriesProvenance';
+import {
+  resolveMembership,
+  resolveProvenance,
+  SeriesProvenance,
+} from '@/db/seriesProvenance';
 import {
   deriveSeriesProgressState,
   SeriesProgressState,
@@ -19,6 +23,19 @@ export type SeriesRow = {
    * Which is why the `Series Backgrounds` toggle is not called "show cover art".
    */
   artwork?: string | null;
+  /**
+   * A06's `series.origin`, RAW — `'detected' | 'user'`, null on every row that
+   * predates v33. Handed over uncoalesced for `membership`'s reason: the
+   * resolution rule lives in one place (`seriesProvenance.ts`) and this is a
+   * consumer of it, not a second copy.
+   */
+  origin?: string | null;
+  /**
+   * Epoch ms. Carried for exactly one reader — §F2's "first user-created" arm
+   * — and it cannot be recovered downstream, because the assembled list is
+   * sorted A–Z by sort name.
+   */
+  createdAt: number;
 };
 export type MembershipRow = {
   seriesId: string;
@@ -57,6 +74,13 @@ export type DerivedSeries = {
    */
   canonicalNumbers: (number | null)[];
   progressState: SeriesProgressState;
+  /**
+   * Who created this series, coalesced. §F2 branches on it: a detected series
+   * competes on size, a user-created one on creation order.
+   */
+  origin: SeriesProvenance;
+  /** Epoch ms — §F2's tiebreak among user-created series. */
+  createdAt: number;
 };
 
 /** Index the live library by structural key for O(1) membership resolution. */
@@ -118,6 +142,8 @@ export function assembleDerivedSeries(
       books,
       canonicalNumbers,
       progressState: deriveSeriesProgressState(books),
+      origin: resolveProvenance(s.origin),
+      createdAt: s.createdAt,
     };
   });
 

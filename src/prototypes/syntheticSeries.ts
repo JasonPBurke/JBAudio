@@ -265,6 +265,9 @@ function toProtoSeries(spec: Spec, pool: Book[]): ProtoSeries {
     canonicalNumbers: books.map((_, i) => spec.numbers?.[i] ?? null),
     stresses: spec.stresses,
     origin: spec.origin ?? 'detected',
+    // Synthetic series have no creation time; §F2 only reads it for
+    // user-created ones, and the harness never exercises that arm.
+    createdAt: 0,
   };
 }
 

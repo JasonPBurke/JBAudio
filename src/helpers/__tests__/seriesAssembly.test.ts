@@ -18,8 +18,8 @@ test('assemble resolves by structural key, drops missing, orders by position, A-
     b2: mkBook('b2', '/y/1.mp3', 'Alpha', 2),
   };
   const series = [
-    { id: 's2', name: 'Bravo', sortName: 'bravo' },
-    { id: 's1', name: 'Alpha', sortName: 'alpha' },
+    { id: 's2', name: 'Bravo', sortName: 'bravo', createdAt: 0 },
+    { id: 's1', name: 'Alpha', sortName: 'alpha', createdAt: 0 },
   ];
   const memberships = [
     { seriesId: 's1', bookKey: '/y/1.mp3', position: 1, canonicalNumber: 2 },
@@ -39,7 +39,7 @@ test('canonical numbers stay index-aligned with the books that resolved', () => 
     b1: mkBook('b1', '/x/1.mp3', 'Zeta'),
     b2: mkBook('b2', '/y/1.mp3', 'Alpha'),
   };
-  const series = [{ id: 's1', name: 'Alpha', sortName: 'alpha' }];
+  const series = [{ id: 's1', name: 'Alpha', sortName: 'alpha', createdAt: 0 }];
   const memberships = [
     { seriesId: 's1', bookKey: '/x/1.mp3', position: 0, canonicalNumber: 1 },
     // A dropped membership must drop its number too, or every number after it
@@ -67,10 +67,16 @@ test('pinned series artwork survives assembly, and absent means derived', () => 
   ];
   const out = assembleDerivedSeries(
     [
-      { id: 's1', name: 'Alpha', sortName: 'alpha', artwork: '/art/s1.jpg' },
-      { id: 's2', name: 'Bravo', sortName: 'bravo', artwork: null },
+      {
+        id: 's1',
+        name: 'Alpha',
+        sortName: 'alpha',
+        artwork: '/art/s1.jpg',
+        createdAt: 0,
+      },
+      { id: 's2', name: 'Bravo', sortName: 'bravo', artwork: null, createdAt: 0 },
       // A pre-column row hands over no field at all.
-      { id: 's3', name: 'Charlie', sortName: 'charlie' },
+      { id: 's3', name: 'Charlie', sortName: 'charlie', createdAt: 0 },
     ],
     memberships,
     bookMap,
@@ -122,7 +128,7 @@ test('an excluded membership row is invisible, and takes its number with it', ()
     b2: mkBook('b2', '/y/1.mp3', 'Two'),
     b3: mkBook('b3', '/z/1.mp3', 'Three'),
   };
-  const series = [{ id: 's1', name: 'Alpha', sortName: 'alpha' }];
+  const series = [{ id: 's1', name: 'Alpha', sortName: 'alpha', createdAt: 0 }];
   const memberships = [
     { seriesId: 's1', bookKey: '/x/1.mp3', position: 0, canonicalNumber: 1 },
     {
@@ -145,10 +151,48 @@ test('an excluded membership row is invisible, and takes its number with it', ()
   expect(out.canonicalNumbers).toEqual([1, 3]);
 });
 
+/*
+ * §F2 needs BOTH of these and can get neither anywhere else: the pick reads
+ * `origin` to decide which arm of the rule applies, and `createdAt` to break
+ * the user-created tie. The list itself arrives A–Z, so creation order is
+ * unrecoverable from it.
+ *
+ * G5 — `origin` is handed over RAW and coalesced here, exactly like
+ * `membership`: every row that predates v33 carries null, and null is the
+ * user's (abstention bias — a row read as 'detected' can be clobbered by
+ * regeneration).
+ */
+test('origin and creation time survive assembly, and a pre-v33 null is the user', () => {
+  const bookMap = { b1: mkBook('b1', '/x/1.mp3', 'Mort') };
+  const memberships = [
+    { seriesId: 's1', bookKey: '/x/1.mp3', position: 0, canonicalNumber: 1 },
+    { seriesId: 's2', bookKey: '/x/1.mp3', position: 0, canonicalNumber: 1 },
+    { seriesId: 's3', bookKey: '/x/1.mp3', position: 0, canonicalNumber: 1 },
+  ];
+  const out = assembleDerivedSeries(
+    [
+      {
+        id: 's1',
+        name: 'Alpha',
+        sortName: 'alpha',
+        origin: 'detected',
+        createdAt: 111,
+      },
+      { id: 's2', name: 'Bravo', sortName: 'bravo', origin: 'user', createdAt: 222 },
+      // A pre-v33 row hands over no origin at all.
+      { id: 's3', name: 'Charlie', sortName: 'charlie', createdAt: 333 },
+    ],
+    memberships,
+    bookMap,
+  );
+  expect(out.map((s) => s.origin)).toEqual(['detected', 'user', 'user']);
+  expect(out.map((s) => s.createdAt)).toEqual([111, 222, 333]);
+});
+
 /* G5 — every row that predates v33 carries null here, and null is a member. */
 test('a membership row with no provenance is drawn', () => {
   const bookMap = { b1: mkBook('b1', '/x/1.mp3', 'One') };
-  const series = [{ id: 's1', name: 'Alpha', sortName: 'alpha' }];
+  const series = [{ id: 's1', name: 'Alpha', sortName: 'alpha', createdAt: 0 }];
   const [out] = assembleDerivedSeries(
     series,
     [

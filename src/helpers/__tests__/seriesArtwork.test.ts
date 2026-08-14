@@ -32,6 +32,8 @@ const mkSeries = (books: any[], artwork: string | null = null): DerivedSeries =>
   books,
   canonicalNumbers: books.map(() => null),
   progressState: 'playing',
+  origin: 'detected',
+  createdAt: 0,
 });
 
 /*

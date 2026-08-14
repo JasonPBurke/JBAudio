@@ -6,6 +6,7 @@ import Series from '@/db/models/Series';
 import SeriesBook from '@/db/models/SeriesBook';
 import { SeriesRow, MembershipRow } from '@/helpers/seriesAssembly';
 import { planEditorSave } from '@/db/seriesEditorSave';
+import { planSeriesJoin } from '@/db/seriesJoin';
 import {
   selectOrphanedMemberships,
   selectEmptySeriesIds,
@@ -263,6 +264,56 @@ export async function updateSeries(
 }
 
 /**
+ * §F8 — `Add to series…` from a book. Join-only: it never creates a series and
+ * never removes anything (§F9).
+ *
+ * IO ONLY, on the same terms as `updateSeries`: `planSeriesJoin` decides what
+ * the series should look like afterwards, and this hands that to the editor's
+ * own save path. Nothing about tombstones, provenance or numbering is decided
+ * or repeated here — a re-added book is restored rather than duplicated
+ * because `planEditorSave` already knows how, and that is the reason a join is
+ * expressed as a save at all.
+ *
+ * A no-op when the book is already a visible member. The picker filters those
+ * series out, so reaching this is a race (a scan landing mid-tap), not a bug.
+ *
+ * The rows are read twice — once here, once inside `updateSeries` — which is
+ * accepted: it is one series' membership on a user tap, and the alternative is
+ * a second entry point into the write path that takes pre-read rows and can
+ * therefore be handed stale ones.
+ */
+export async function addBookToSeries(
+  seriesId: string,
+  bookKey: string,
+): Promise<void> {
+  const series = await database.get<Series>('series').find(seriesId);
+  const rows = await database
+    .get<SeriesBook>('series_books')
+    .query(Q.where('series_id', seriesId))
+    .fetch();
+
+  const join = planSeriesJoin({
+    existing: rows.map((r) => ({
+      bookKey: r.bookKey,
+      position: r.position,
+      canonicalNumber: r.canonicalNumber,
+      membership: r.membershipRaw,
+    })),
+    bookKey,
+  });
+  if (!join) return;
+
+  // The stored name, unchanged — which is what makes the planner leave
+  // `name_source` alone. A join must not claim a detected series' name.
+  await updateSeries(
+    seriesId,
+    series.name,
+    join.desiredKeysInOrder,
+    join.canonicalNumbers,
+  );
+}
+
+/**
  * A11 — the canonical numbers this series remembers about books it is NOT
  * currently showing, keyed by structural key and formatted for a number box.
  *
@@ -431,6 +482,13 @@ export function observeSeriesData(): Observable<{
   // `artwork` is observed for the same reason as `name`: the detail sheet's
   // hero renders it (§C8), and pinning or reverting a cover touches no
   // membership row, so a plain list observer would not re-emit.
+  //
+  // `origin` and `created_at` are MAPPED BUT NOT OBSERVED, and that is not an
+  // oversight: both are written once, at creation, and never again (the two
+  // writers are `createSeries` and `applyPlan`'s create branch — a rename
+  // deliberately touches `name_source` and leaves `origin` alone, §A10). A new
+  // row re-emits the query anyway, so observing them would only advertise a
+  // change that cannot happen.
   const series$ = database
     .get<Series>('series')
     .query()
@@ -463,6 +521,9 @@ export function observeSeriesData(): Observable<{
           name: s.name,
           sortName: s.sortName,
           artwork: s.artwork,
+          // RAW, for `membership`'s reason — the assembly coalesces.
+          origin: s.originRaw,
+          createdAt: s.createdAt.getTime(),
         })),
       memberships: memberModels
         .filter((m) => m._raw._status !== 'deleted')
