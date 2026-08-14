@@ -90,6 +90,9 @@ function applyEditorSave(
       desiredKeysInOrder.map(
         (key) => before.books.find((r) => r.bookKey === key)?.canonicalNumber ?? null,
       ),
+    // The whole library resolves in these fixtures, so what the editor could
+    // see is exactly the drawn list — the same set `visible()` returns.
+    visibleKeys: visible(before),
     storedName: before.name,
     desiredName,
   });

@@ -28,6 +28,16 @@ export type SeriesJoin = {
   desiredKeysInOrder: string[];
   /** Index-aligned with `desiredKeysInOrder`. */
   canonicalNumbers: (number | null)[];
+  /**
+   * The rows this door could see — every non-tombstoned row, which is all the
+   * visibility a DB read has. `planEditorSave` needs it to tell a removal from
+   * a row nobody could ever have removed, and returning the set computed HERE
+   * is what stops `addBookToSeries` from deriving a second one that disagrees.
+   *
+   * A join never removes anything (§F9), and this is why it structurally
+   * cannot: every visible key is also in `desiredKeysInOrder`.
+   */
+  visibleKeys: string[];
 };
 
 /**
@@ -76,15 +86,22 @@ export function planSeriesJoin(input: {
   // rather than the stored index, so a tombstone whose neighbours were dragged
   // while it was away still lands somewhere sensible instead of at a stale
   // offset. `visible.length` for a book that was never here, i.e. the end.
+  //
+  // ⚠ THIS COUNT IS ONLY HONEST BECAUSE `planEditorSave` KEEPS TOMBSTONES IN
+  // THE VISIBLE COORDINATE SPACE. Every save compacts the visible rows to
+  // `0..n-1`; a tombstone that did not come down with them would claim
+  // predecessors that had slid out from under it and the book would be
+  // appended. Two removals were enough — see the tombstone-slot note there.
   const slot =
     tombstoned === undefined
       ? visible.length
       : visible.filter((row) => row.position < tombstoned.position).length;
 
-  const keys = visible.map((row) => row.bookKey);
+  const visibleKeys = visible.map((row) => row.bookKey);
+  const keys = [...visibleKeys];
   const numbers = visible.map((row) => row.canonicalNumber ?? null);
   keys.splice(slot, 0, bookKey);
   numbers.splice(slot, 0, tombstoned?.canonicalNumber ?? null);
 
-  return { desiredKeysInOrder: keys, canonicalNumbers: numbers };
+  return { desiredKeysInOrder: keys, canonicalNumbers: numbers, visibleKeys };
 }

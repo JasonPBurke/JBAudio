@@ -4,7 +4,8 @@
 [12](12-editor-one-root-route.md), [13](13-editor-picker-panel.md),
 [14](14-editor-numbers-and-ordering.md), [15](15-editor-series-artwork.md),
 [17](17-titledetails-series-line.md) — every ticket that replaces something a prototype
-stood in for.
+stood in for — and [24](24-seriesdetail-uses-real-store.md), which removes the one harness
+import that lives in **shipping** code.
 
 **Status:** ready-for-agent
 
@@ -63,3 +64,31 @@ numbering, the detail sheet on a real route (including the reproduced white-shee
 exit), four placements of the series line, the seven create-flow shapes, the geometry rules
 on three widths, and the light-theme pass with its measuring script. **The assets are not
 deleted by this ticket — only the code is.**
+
+## Comments
+
+### 2026-08-13 — code review: the teardown command as written breaks the build
+
+From [Code review `d2195ed..HEAD`](../CODE-REVIEW-d2195ed.md), Finding 4 — CONFIRMED.
+
+`src/app/seriesDetail.tsx:32` is **shipping code** importing `@/prototypes/useSeriesSource`.
+The recipe in this ticket names the library screen's *three* `THROWAWAY` sites; this is an
+undocumented **fourth**, and the only one outside throwaway code. Running
+`rm -rf src/prototypes src/app/seriesCreateProto.tsx` as written leaves that import dangling
+and the Series detail route fails to resolve at bundle time.
+
+Split out as [24](24-seriesdetail-uses-real-store.md) and added to this ticket's
+**Blocked by**, because it is a shipping-code behaviour fix (it also closes a dataset split
+and a re-render storm) and this ticket is a deletion. Land 24 first.
+
+**⚠ The "Grep for it" acceptance criterion is not trustworthy as written.**
+`src/db/seriesQueries.ts` contains two raw `U+0000` bytes (Finding 7), which makes it binary
+to `grep`/`rg` — a plain `grep -n` returns **nothing** for that file. Use `rg --text`, or fix
+Finding 7 first.
+
+**⚠ `src/app/seriesDetail.tsx` must NOT be deleted by this ticket.** It is the shipping
+detail sheet (spec §C1/§C2), deliberately a root-level `formSheet` sibling outside the
+`series` group.
+
+Also note the jest figure in the acceptance criteria (**484**) is stale — the baseline at
+review time was **711/711, 57 suites**.

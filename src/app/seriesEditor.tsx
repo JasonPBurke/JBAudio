@@ -94,6 +94,7 @@ import {
   seriesArtworkCaption,
   sharedAuthorName,
 } from '@/helpers/seriesArtwork';
+import type { DerivedSeries } from '@/helpers/seriesAssembly';
 import {
   COVER_BOX_SIZE,
   identityRowIsStacked,
@@ -349,6 +350,27 @@ const SeriesCoverControl = React.memo(function SeriesCoverControl({
   );
 });
 
+/**
+ * ⚠ THE VISIBLE UNIVERSE — every book this screen is able to put on screen, and
+ * therefore every book the user is able to remove.
+ *
+ * `assembleDerivedSeries` SKIPS membership rows whose key does not resolve
+ * against the live library, and `scanLibrary` documents those dangling rows as
+ * a deliberate, expected state (its prune is gated on finding an orphan, so a
+ * row whose file merely moved legitimately sits there). Such a book is not in
+ * `series.books`, so it can never be in the drag order either — and a save that
+ * inferred "removed" from that absence would tombstone it permanently.
+ *
+ * So `Save` hands this to `updateSeries` alongside the drag order, and both are
+ * read from HERE, through one function, so the two cannot come to disagree
+ * about what the screen could see.
+ */
+function visibleKeysOf(series: DerivedSeries): string[] {
+  return series.books
+    .map((b) => bookStructuralKey(b))
+    .filter((k): k is string => !!k);
+}
+
 export default function SeriesEditorRoute() {
   const { colors: themeColors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -423,6 +445,22 @@ export default function SeriesEditorRoute() {
    * a dev fast-refresh does not clobber typing either.
    */
   const seeded = useRef(false);
+
+  /*
+   * ⚠ WHAT THE SCREEN COULD SEE, FROZEN AT THE MOMENT IT WAS SEEDED — the
+   * universe `Save` is allowed to remove from, and the input that stops
+   * `planEditorSave` reading a dangling row's absence as a removal.
+   *
+   * Frozen, not re-read at save time, because `series` is LIVE and a scan
+   * landing mid-edit would otherwise corrupt the answer in both directions: a
+   * book whose moved file came back would re-enter `series.books` without ever
+   * entering the draft, and get tombstoned for never having been in a list it
+   * was never offered to; and a book the user just removed could leave
+   * `series.books` under them, so their removal would be silently dropped. The
+   * question is what the user was shown, and that was decided once.
+   */
+  const visibleAtSeed = useRef<string[] | null>(null);
+
   useEffect(() => {
     if (seeded.current) return;
     const draft = useSeriesDraftStore.getState();
@@ -434,12 +472,15 @@ export default function SeriesEditorRoute() {
     }
     if (!series) return;
     if (draft.mode === 'edit' && draft.editingSeriesId === series.id) {
+      visibleAtSeed.current = visibleKeysOf(series);
       seeded.current = true;
       return;
     }
-    const keys = series.books
-      .map((b) => bookStructuralKey(b))
-      .filter((k): k is string => !!k);
+    const keys = visibleKeysOf(series);
+    // ⚠ THE SAME ARRAY the drag order is seeded from, kept so `Save` can tell a
+    // removal from a row nobody could have removed. Captured rather than re-read
+    // for the reason the seed itself is captured — see `visibleAtSeed`.
+    visibleAtSeed.current = keys;
     /*
      * Seed the boxes from the stored numbers. `canonicalNumbers` is
      * INDEX-ALIGNED with `books`, so the number is read at the book's own
@@ -744,9 +785,20 @@ export default function SeriesEditorRoute() {
        * through the other door). `seriesEditorIssues` refuses an empty list
        * now — driver ruling on device, 2026-08-13 — so the only exit here is
        * the ordinary one.
+       *
+       * ⚠ AND IT MAY ONLY REMOVE WHAT IT COULD SHOW, which is what the last
+       * argument carries. The falsy case is the safe one and not a real one: a
+       * save before the seeding effect has run would ask to remove nothing, and
+       * it takes a tap to get here.
        */
       if (editingSeriesId)
-        await updateSeries(editingSeriesId, name, orderedBookKeys, canonicalNumbers);
+        await updateSeries(
+          editingSeriesId,
+          name,
+          orderedBookKeys,
+          canonicalNumbers,
+          visibleAtSeed.current ?? orderedBookKeys,
+        );
       else await createSeries(name, orderedBookKeys, canonicalNumbers);
       useSeriesDraftStore.getState().resetForCreate();
       router.back();

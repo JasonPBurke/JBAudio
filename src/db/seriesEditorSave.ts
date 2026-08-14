@@ -99,13 +99,23 @@ function sourceFor(n: number | null): 'user' | null {
  * off the desired list DIRECTLY rather than off the membership diff: the diff
  * answers "which keys arrived, left or moved", and a re-added book whose
  * position happens to be unchanged moves nowhere at all.
+ *
+ * ⚠ YOU MAY ONLY REMOVE WHAT YOU COULD SEE. `existing - desired` is NOT the
+ * set of books the user removed — it also holds every DANGLING row, whose
+ * `bookKey` did not resolve against the live library, so `assembleDerivedSeries`
+ * skipped it and the editor could never have drawn it. Tombstoning one is
+ * permanent silent data loss: `seriesReconcile` counts tombstones as settled,
+ * so no rescan puts the book back once its file returns. `visible` is what
+ * separates the two, and a row outside it is left ENTIRELY alone.
  */
 function nextMembership(
   row: EditorExistingRow,
   desired: ReadonlySet<string>,
+  visible: ReadonlySet<string>,
 ): 'user' | 'excluded' | undefined {
   const current = resolveMembership(row.membership);
   if (!desired.has(row.bookKey)) {
+    if (!visible.has(row.bookKey)) return undefined;
     return current === 'excluded' ? undefined : 'excluded';
   }
   // Restored by hand, so it is the user's row now. What it was before the
@@ -114,18 +124,46 @@ function nextMembership(
   return current === 'excluded' ? 'user' : undefined;
 }
 
+/**
+ * Whether a row is a tombstone once this save has landed — the one it already
+ * was, or the one it is about to become. A DANGLING row is neither: it is not
+ * in `desired` and never was in `visible`, so `nextMembership` leaves it, and
+ * so must everything below.
+ */
+function staysTombstoned(
+  row: EditorExistingRow,
+  desired: ReadonlySet<string>,
+  visible: ReadonlySet<string>,
+): boolean {
+  if (desired.has(row.bookKey)) return false;
+  return resolveMembership(row.membership) === 'excluded' || visible.has(row.bookKey);
+}
+
 export function planEditorSave(input: {
   existing: EditorExistingRow[];
   /** The VISIBLE list, in drag order. Tombstones are not in it by definition. */
   desiredKeysInOrder: string[];
   /** Index-aligned with `desiredKeysInOrder` (§D3 — null is the norm). */
   canonicalNumbers: (number | null)[];
+  /**
+   * THE VISIBLE UNIVERSE — every key the caller's surface was actually able to
+   * render, whether or not it survived into `desiredKeysInOrder`. It is what
+   * lets this tell *"the user removed this"* from *"the user could never see
+   * this"*; see `nextMembership`.
+   *
+   * ⚠ It cannot be derived here, and it must not be derived in `updateSeries`
+   * either: resolving a `bookKey` needs the library book map, which the DB
+   * layer has no access to. The editor supplies it from the SAME list it seeds
+   * its drag order from, so the two cannot disagree.
+   */
+  visibleKeys: readonly string[];
   storedName: string;
   desiredName: string;
 }): EditorSavePlan {
   const { existing, desiredKeysInOrder, canonicalNumbers } = input;
 
   const desired = new Set(desiredKeysInOrder);
+  const visible = new Set(input.visibleKeys);
   const diff = computeMembershipDiff(existing, desiredKeysInOrder);
   const positionByKey = new Map(
     diff.toReposition.map(({ bookKey, position }) => [bookKey, position]),
@@ -134,12 +172,60 @@ export function planEditorSave(input: {
     desiredKeysInOrder.map((key, index) => [key, canonicalNumbers[index] ?? null]),
   );
 
+  /*
+   * ⚠ THE COORDINATE SPACE TOMBSTONES LIVE IN, and it is the same one as the
+   * visible list. A tombstone's `position` means "the index into the CURRENT
+   * visible list where I belong" — that is what `planSeriesJoin` reads to put a
+   * restored book back — and since the visible rows are compacted to `0..n-1`
+   * on every save, a tombstone left at a stale index silently decays into
+   * nonsense. Two removals is all it takes: the second compaction slides a row
+   * out from under the first tombstone, which then claims one predecessor too
+   * many and the restored book is APPENDED.
+   *
+   * These are the pre-save positions of the rows that are still visible
+   * afterwards, so a tombstone's new slot is just how many of them are in front
+   * of it. Both existing tombstones and rows being tombstoned now are placed by
+   * the same rule, because they mean the same thing.
+   *
+   * ⚠ WHY NOT THE OTHER DESIGN. Repositioning tombstones INLINE with visible
+   * rows in one shared space keeps a single coordinate system, but it breaks
+   * the `0..n-1` contiguity of the visible rows — and that contiguity is what
+   * `seedInsertPositions` leans on (it appends at `max(position) + 1` and
+   * bisects between anchors) and what §E7's `1..n` auto-numbering assumes. Two
+   * spaces kept in step is the cheaper invariant.
+   *
+   * KNOWN AND ACCEPTED: a book INSERTED by this same save has no pre-save
+   * position, so it cannot count as a predecessor. That leaves a restored book
+   * one place out in a list the user is looking at and can drag.
+   */
+  const survivingPositions = existing
+    .filter((row) => desired.has(row.bookKey))
+    .map((row) => row.position);
+  const slotOf = (position: number) =>
+    survivingPositions.filter((p) => p < position).length;
+
+  /*
+   * ⚠ A CONTESTED SLOT MOVES NOBODY. Two books removed in the SAME save belong
+   * at the same index — `a,b,c,d` losing `b` and `c` leaves `a,d`, and both
+   * tombstones point between them — so the slot cannot tell them apart. Writing
+   * it over both would discard the one thing that still can, their existing
+   * positions, and a later restore would put the second book back on the wrong
+   * side of the first. That ordering survives today and must keep surviving, so
+   * a slot more than one tombstone claims is simply not written.
+   */
+  const claimants = new Map<number, number>();
+  for (const row of existing) {
+    if (!staysTombstoned(row, desired, visible)) continue;
+    const slot = slotOf(row.position);
+    claimants.set(slot, (claimants.get(slot) ?? 0) + 1);
+  }
+
   const updateRows: EditorRowUpdate[] = [];
   for (const row of existing) {
     const update: EditorRowUpdate = { bookKey: row.bookKey };
     let changed = false;
 
-    const membership = nextMembership(row, desired);
+    const membership = nextMembership(row, desired, visible);
     if (membership) {
       update.membership = membership;
       changed = true;
@@ -149,6 +235,17 @@ export function planEditorSave(input: {
     if (position !== undefined) {
       update.position = position;
       changed = true;
+    }
+
+    // The other half of the same rule, and the two branches cannot both fire:
+    // `positionByKey` only ever holds desired keys, and a tombstone is by
+    // definition not one of them.
+    if (staysTombstoned(row, desired, visible)) {
+      const slot = slotOf(row.position);
+      if (slot !== row.position && claimants.get(slot) === 1) {
+        update.position = slot;
+        changed = true;
+      }
     }
 
     // A tombstone keeps the number it had. It is a memory of a book, not a

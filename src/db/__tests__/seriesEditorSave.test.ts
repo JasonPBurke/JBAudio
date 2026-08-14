@@ -1,7 +1,14 @@
 import { planEditorSave } from '@/db/seriesEditorSave';
 import type { EditorSavePlan } from '@/db/seriesEditorSave';
 
-/** The shape a save carries when nothing about the name changed. */
+/**
+ * The shape a save carries when nothing about the name changed.
+ *
+ * `visibleKeys` defaults to every row the editor COULD have drawn — i.e. every
+ * non-tombstoned row — which is what the screen sees when the whole library
+ * resolves. A test that wants a DANGLING row (one whose file has moved, so
+ * `assembleDerivedSeries` skipped it) says so by passing a shorter set.
+ */
 function save(
   existing: {
     bookKey: string;
@@ -11,14 +18,21 @@ function save(
   }[],
   desiredKeysInOrder: string[],
   canonicalNumbers: (number | null)[] = desiredKeysInOrder.map(() => null),
-  names: { storedName?: string; desiredName?: string } = {},
+  opts: {
+    storedName?: string;
+    desiredName?: string;
+    visibleKeys?: string[];
+  } = {},
 ): EditorSavePlan {
   return planEditorSave({
     existing,
     desiredKeysInOrder,
     canonicalNumbers,
-    storedName: names.storedName ?? 'Discworld',
-    desiredName: names.desiredName ?? names.storedName ?? 'Discworld',
+    visibleKeys:
+      opts.visibleKeys ??
+      existing.filter((r) => r.membership !== 'excluded').map((r) => r.bookKey),
+    storedName: opts.storedName ?? 'Discworld',
+    desiredName: opts.desiredName ?? opts.storedName ?? 'Discworld',
   });
 }
 
@@ -95,6 +109,63 @@ describe('A11 — a removed book leaves a tombstone', () => {
     );
 
     expect(plan.updateRows).toEqual([{ bookKey: 'b', membership: 'user' }]);
+  });
+});
+
+/*
+ * ⚠ THE RULE: YOU MAY ONLY REMOVE WHAT YOU COULD SEE.
+ *
+ * A membership row whose `bookKey` does not resolve against the live library
+ * is a DANGLING row, and `scanLibrary` documents that state as deliberate — its
+ * prune is gated on `orphanedBooks.length > 0`, so a row whose file has merely
+ * moved legitimately sits there until a scan finds an orphan. Meanwhile
+ * `assembleDerivedSeries` skips it, so the editor never draws it and it can
+ * never be in the desired list.
+ *
+ * Inferring "removed" from `existing - desired` therefore tombstones it, and
+ * `seriesReconcile` builds `settledKeys` from tombstones too — so detection
+ * never puts it back. One Save while a file was moving used to delete a book
+ * from its series FOREVER, silently. Hence the third input: the planner is told
+ * what the screen could see, and leaves everything else alone.
+ */
+describe('a save may only remove what the editor could see', () => {
+  test('a row that never reached the screen is left completely alone', () => {
+    const plan = rowsOf(
+      save(
+        [
+          { bookKey: 'a', position: 0, membership: 'detected' },
+          // Its file moved. The row is fine; the book just cannot be resolved,
+          // so `series.books` skipped it and the editor drew a two-row list.
+          { bookKey: 'moved', position: 1, canonicalNumber: 2, membership: 'detected' },
+          { bookKey: 'b', position: 2, membership: 'detected' },
+        ],
+        ['a', 'b'],
+        [null, null],
+        { visibleKeys: ['a', 'b'] },
+      ),
+    );
+
+    expect(plan.updateRows.map((r) => r.bookKey)).not.toContain('moved');
+    expect(plan.insertRows).toEqual([]);
+  });
+
+  /* A11 must not regress: a book the user could see and dropped IS removed. */
+  test('a row the editor drew and the user dropped is still tombstoned', () => {
+    const plan = rowsOf(
+      save(
+        [
+          { bookKey: 'a', position: 0, membership: 'detected' },
+          { bookKey: 'b', position: 1, membership: 'detected' },
+        ],
+        ['a'],
+        [null],
+        { visibleKeys: ['a', 'b'] },
+      ),
+    );
+
+    expect(plan.updateRows).toContainEqual(
+      expect.objectContaining({ bookKey: 'b', membership: 'excluded' }),
+    );
   });
 });
 
@@ -297,11 +368,87 @@ describe('the rows a save writes', () => {
 
   /*
    * Positions are the DESIRED list's own indices, so a tombstone left behind at
-   * position 1 cannot push the visible list into a gap. The stale position on
-   * the excluded row is deliberate — it is a tombstone, not a place in the
-   * order — and `seedInsertPositions` already reads excluded rows for their
-   * position while refusing them as anchors.
+   * position 1 cannot push the visible list into a gap. The two spaces overlap
+   * on purpose — a tombstone's position is an index INTO the visible list, not
+   * a place in it — and `seedInsertPositions` already reads excluded rows for
+   * their position while refusing them as anchors.
    */
+  /*
+   * ⚠ A TOMBSTONE'S POSITION MEANS "index into the CURRENT visible list where
+   * I belong" — and the visible list is compacted to `0..n-1` on every save, so
+   * that meaning has to be maintained or it decays.
+   *
+   * The first removal is self-correcting and hid this for a whole ticket: D at
+   * 3 still had exactly three visible rows in front of it. The SECOND removal
+   * is what breaks it — B leaves, A,C,E compact to 0,1,2, and D's stale 3 now
+   * counts all three of them as predecessors instead of two. `planSeriesJoin`
+   * reads that count to place a restored book, so the book is appended rather
+   * than put back: the exact 1,2,3,5,4 defect the ticket-17 device fix was
+   * written to kill, reopened by a second tombstone.
+   */
+  test('a tombstone comes down a slot when a row in front of it is removed', () => {
+    const plan = rowsOf(
+      save(
+        [
+          { bookKey: 'a', position: 0, membership: 'detected' },
+          { bookKey: 'b', position: 1, membership: 'detected' },
+          { bookKey: 'c', position: 2, membership: 'detected' },
+          { bookKey: 'e', position: 3, membership: 'detected' },
+          // Removed by the previous save; its position is already a slot.
+          { bookKey: 'd', position: 3, membership: 'excluded' },
+        ],
+        ['a', 'c', 'e'],
+      ),
+    );
+
+    expect(plan.updateRows).toContainEqual({ bookKey: 'd', position: 2 });
+  });
+
+  /*
+   * ⚠ THE SECOND CLAUSE, and it exists to protect a case that works TODAY.
+   *
+   * Two books removed in the SAME save both genuinely belong at the same index
+   * — with `a,b,c,d` losing `b` and `c`, the visible list is `a,d` and both
+   * tombstones point between them. The slot cannot separate them, so writing it
+   * over both would throw away the only thing that still can: their existing
+   * positions. A contested slot therefore moves nobody.
+   */
+  test('two rows removed at once keep their order rather than collapsing onto one slot', () => {
+    const plan = rowsOf(
+      save(
+        [
+          { bookKey: 'a', position: 0, membership: 'detected' },
+          { bookKey: 'b', position: 1, membership: 'detected' },
+          { bookKey: 'c', position: 2, membership: 'detected' },
+          { bookKey: 'd', position: 3, membership: 'detected' },
+        ],
+        ['a', 'd'],
+      ),
+    );
+
+    const moved = plan.updateRows.filter(
+      (r) => (r.bookKey === 'b' || r.bookKey === 'c') && 'position' in r,
+    );
+    expect(moved).toEqual([]);
+  });
+
+  /* A tombstone BEHIND the removal is unaffected — nothing moved in front. */
+  test('a tombstone the removal happened behind keeps its slot', () => {
+    const plan = rowsOf(
+      save(
+        [
+          { bookKey: 'a', position: 0, membership: 'detected' },
+          { bookKey: 'gone', position: 1, membership: 'excluded' },
+          { bookKey: 'b', position: 1, membership: 'detected' },
+          { bookKey: 'c', position: 2, membership: 'detected' },
+        ],
+        ['a', 'b'],
+      ),
+    );
+
+    expect(plan.updateRows.map((r) => r.bookKey)).not.toContain('gone');
+  });
+
   test('a tombstone does not consume a position in the visible order', () => {
     const plan = rowsOf(
       save(

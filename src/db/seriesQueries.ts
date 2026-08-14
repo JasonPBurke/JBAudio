@@ -170,7 +170,19 @@ export async function updateSeries(
   id: string,
   name: string,
   bookKeysInOrder: string[],
-  canonicalNumbers: CanonicalNumbers = [],
+  canonicalNumbers: CanonicalNumbers,
+  /**
+   * ⚠ EVERY KEY THE CALLER'S SURFACE COULD SEE, which is NOT the same as the
+   * keys it is asking for. A `series_books` row whose book did not resolve
+   * against the live library is skipped by `assembleDerivedSeries`, so it can
+   * never appear in `bookKeysInOrder` — and without this the planner would read
+   * its absence as a removal and tombstone it forever.
+   *
+   * It cannot be computed here and that is deliberate: resolving a `bookKey`
+   * needs the library book map, which this layer has no access to. Passing it
+   * in is what keeps the decision out of the IO half.
+   */
+  visibleBookKeys: readonly string[],
 ): Promise<void> {
   await assertSeriesNameAvailable(name, id);
   await database.write(async () => {
@@ -189,6 +201,7 @@ export async function updateSeries(
       })),
       desiredKeysInOrder: bookKeysInOrder,
       canonicalNumbers,
+      visibleKeys: visibleBookKeys,
       storedName: series.name,
       desiredName: name,
     });
@@ -310,6 +323,10 @@ export async function addBookToSeries(
     series.name,
     join.desiredKeysInOrder,
     join.canonicalNumbers,
+    // What a DB read can see is every non-tombstoned row, dangling ones
+    // included — and since all of them are in `desiredKeysInOrder` too, this
+    // door structurally cannot remove anything (§F9).
+    join.visibleKeys,
   );
 }
 
