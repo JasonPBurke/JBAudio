@@ -122,6 +122,18 @@ an `'excluded'` row with dead keys are both destroyed.
 Two copies of this rule is how the two sites drifted apart in the first place — a grep for
 `pruneOrphanedSeriesBooks` used to find only one of them.
 
+**Amended by ticket 22: the sites share the INPUT as well as the decision.** Sharing only
+`selectOrphanedMemberships` was not enough, because the two sites still built the live-key set
+themselves and built it differently — the scan fed every surviving chapter url, folder removal fed
+one `chapters[0].url` per book off an unsorted relation fetch. Since the decision is a BLOCKLIST, a
+key missing from that set is an order to destroy, so folder removal could delete a *surviving*
+book's row and reap its series. The live set is now `collectLiveKeys` in the same module — every
+surviving chapter url — and both sites build through it: the scan directly, folder removal via
+`partitionBooksByRemovedFolder`, which also decides which books the removal destroys and requires
+the folder prefix to end at a path separator so a sibling root sharing a name prefix is untouched.
+So `removeLibraryFolder` now inlines only the *batching*, and that is the only thing the
+nested-writer constraint excuses.
+
 **One behavioural detail changed when the sites were unified**, and it is the only one: the folder
 Remove path now also destroys membership rows that were *already* dangling for unrelated reasons,
 where before it destroyed only rows belonging to books in the removed folder. That is the same

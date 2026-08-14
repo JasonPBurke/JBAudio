@@ -39,6 +39,7 @@ import {
   pruneOrphanedSeriesBooks,
   deleteEmptySeries,
 } from '@/db/seriesQueries';
+import { collectLiveKeys } from '@/db/seriesOrphanPrune';
 import { runSeriesDetection } from '@/db/seriesDetectionRun';
 // The placeholders below are consumed as well as written: series detection
 // treats them as null, since they are absence written down rather than tags.
@@ -990,7 +991,9 @@ async function removeMissingFiles(
   // auto-delete any series left empty. Runs AFTER the cleanup batch (stable
   // post-scan state), never mid-scan. A live key = any surviving chapter url:
   // file paths are unique per book, so a surviving first file means its book
-  // survived.
+  // survived. That rule now lives in `collectLiveKeys`, which the other prune
+  // site (`removeLibraryFolder`) also reads through — it once built its own,
+  // narrower set and destroyed surviving books' rows with it (ticket 22).
   //
   // WHAT THE GATE MEANS. `orphanedBooks.length > 0` is not an optimisation
   // guard around a cheap call — it is the scan's whole trigger for touching
@@ -1009,10 +1012,9 @@ async function removeMissingFiles(
   // library folder destroys nothing while moving its contents out of it destroys
   // everything. Both are load-bearing. Neither may be tidied up.
   if (orphanedBooks.length > 0) {
-    const liveKeys = new Set<string>();
-    for (const chapter of allChapters) {
-      if (!removedChapterIds.has(chapter.id)) liveKeys.add(chapter.url);
-    }
+    const liveKeys = collectLiveKeys(
+      allChapters.filter((chapter) => !removedChapterIds.has(chapter.id)),
+    );
     await pruneOrphanedSeriesBooks(liveKeys);
     await deleteEmptySeries();
   }

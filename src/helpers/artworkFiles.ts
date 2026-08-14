@@ -52,3 +52,23 @@ export async function deleteArtworkFile(
   if (!path) return;
   await RNFS.unlink(path).catch(() => {});
 }
+
+/**
+ * Release the pinned covers of a batch of destroyed rows — §K8's plural form.
+ *
+ * WHEN TO CALL IT: after the write that destroyed the rows has COMMITTED, never
+ * inside it. Every caller collects the uris while it still has the models and
+ * unlinks once the batch is through, so a failed unlink costs one orphaned file
+ * instead of a row pointing at a file that is already gone.
+ *
+ * It exists because more than one path reaps series in bulk — `deleteEmptySeries`
+ * after a scan, and `removeLibraryFolder`'s inlined reaper — and the second one
+ * shipped without a release at all (ticket 22, defect B). A helper cannot force
+ * a third path to call it; what it can do is keep the ordering rule written down
+ * once instead of copied.
+ */
+export async function deleteArtworkFiles(
+  uris: readonly (string | null | undefined)[],
+): Promise<void> {
+  await Promise.all(uris.map((uri) => deleteArtworkFile(uri)));
+}

@@ -4,12 +4,15 @@ import database from '@/db';
 import Settings, { LibraryFolderEntry } from '@/db/models/Settings';
 import { Q } from '@nozbe/watermelondb';
 import Book from '@/db/models/Book';
+import Chapter from '@/db/models/Chapter';
 import Series from '@/db/models/Series';
 import SeriesBook from '@/db/models/SeriesBook';
 import {
   selectOrphanedMemberships,
   selectEmptySeriesIds,
+  partitionBooksByRemovedFolder,
 } from '@/db/seriesOrphanPrune';
+import { deleteArtworkFiles } from '@/helpers/artworkFiles';
 import * as RNFS from '@dr.pogodin/react-native-fs';
 
 export async function ensureSettingsRecord(): Promise<void> {
@@ -243,6 +246,13 @@ export const getLibraryFolders = async (): Promise<string[]> => {
 };
 
 export const removeLibraryFolder = async (folderPath: string) => {
+  // Pinned covers of any series this removal reaps — §K8. Collected inside the
+  // write and released after it commits, exactly as `deleteSeries` and
+  // `deleteEmptySeries` do: the row is already gone by then, so a failed unlink
+  // costs one orphaned file rather than a dangling reference. Nothing else in
+  // the app ever cleans these up.
+  const pinnedArtwork: (string | null)[] = [];
+
   await database.write(async (writer) => {
     const settingsCollection =
       database.collections.get<Settings>('settings');
@@ -269,29 +279,22 @@ export const removeLibraryFolder = async (folderPath: string) => {
     const booksCollection = database.collections.get<Book>('books');
     const allBooks = await booksCollection.query().fetch();
 
-    const booksToDelete = [];
-    // Structural keys (first-file paths), split into the books being removed
-    // and the books that survive. Both sets are needed below: `removedKeys`
-    // only gates whether the series reconcile runs at all, while `liveKeys` is
-    // what the prune decision actually reads.
-    const removedKeys = new Set<string>();
-    const liveKeys = new Set<string>();
+    // Fetch every book's chapters once, then let `partitionBooksByRemovedFolder`
+    // decide what goes and what the survivors contribute as live keys. The
+    // split is NOT inlined here on purpose — see the block comment at step 4,
+    // and `collectLiveKeys` for why the live set has to be every surviving
+    // chapter url rather than one first-file path per book.
+    const entries: { book: Book; chapters: Chapter[] }[] = [];
     for (const book of allBooks) {
-      const chapters = await (book.chapters as any).fetch();
-      if (chapters.length === 0) continue;
-      if (chapters[0].url.startsWith(absoluteFolderPath)) {
-        booksToDelete.push(book);
-        removedKeys.add(chapters[0].url);
-      } else {
-        liveKeys.add(chapters[0].url);
-      }
+      entries.push({ book, chapters: await (book.chapters as any).fetch() });
     }
+    const { removedBooks: booksToDelete, liveKeys } =
+      partitionBooksByRemovedFolder(entries, absoluteFolderPath);
 
     // 3. Prepare and execute batch deletion
     const deletions: any[] = [];
-    for (const book of booksToDelete) {
+    for (const { book, chapters } of booksToDelete) {
       // Explicitly delete chapters first (WatermelonDB doesn't auto-cascade deletes)
-      const chapters = await (book.chapters as any).fetch();
       for (const chapter of chapters) {
         deletions.push(chapter.prepareDestroyPermanently());
       }
@@ -306,10 +309,16 @@ export const removeLibraryFolder = async (folderPath: string) => {
     // THE SECOND OF TWO PRUNE SITES. The other is `pruneOrphanedSeriesBooks` in
     // seriesQueries, called at the end of a scan. Neither owns the rule and the
     // two are NOT independent implementations to be reconciled by whoever finds
-    // them: both delegate to `seriesOrphanPrune`, which is authoritative. This
-    // site inlines the batching only because it runs inside an open
-    // `database.write` and calling the seriesQueries helpers would nest a
-    // writer. Change the decision there; change the plumbing here.
+    // them: both delegate to `seriesOrphanPrune`, which is authoritative — for
+    // the DECISION (`selectOrphanedMemberships`) and, since ticket 22, for the
+    // INPUT too (`collectLiveKeys`; here via `partitionBooksByRemovedFolder`).
+    // Sharing only the decision is what let the two drift: this site used to
+    // feed one unsorted `chapters[0].url` per book where the scan fed every
+    // surviving chapter url, so a survivor could contribute the wrong key and
+    // have its row — and its whole series — destroyed. This site inlines the
+    // batching only because it runs inside an open `database.write` and calling
+    // the seriesQueries helpers would nest a writer. Change the decision there;
+    // change the plumbing here.
     //
     // PROVENANCE IS DELIBERATELY IGNORED here as it is there — a hand-made
     // ('user') row and an 'excluded' tombstone are destroyed like a 'detected'
@@ -318,7 +327,7 @@ export const removeLibraryFolder = async (folderPath: string) => {
     // the user tapped a button whose dialog says "remove this folder and all of
     // its books from your library". See
     // `docs/adr/0001-series-membership-is-keyed-by-file-path.md`.
-    if (removedKeys.size > 0) {
+    if (booksToDelete.length > 0) {
       const allSeriesBooks = await database
         .get<SeriesBook>('series_books')
         .query()
@@ -343,6 +352,7 @@ export const removeLibraryFolder = async (folderPath: string) => {
         );
         for (const s of allSeries) {
           if (emptyIds.has(s.id)) {
+            pinnedArtwork.push(s.artwork);
             deletions.push(s.prepareDestroyPermanently());
           }
         }
@@ -351,6 +361,8 @@ export const removeLibraryFolder = async (folderPath: string) => {
 
     await writer.batch(...deletions);
   });
+
+  await deleteArtworkFiles(pinnedArtwork);
 };
 
 export async function getThemeMode(): Promise<string | null> {

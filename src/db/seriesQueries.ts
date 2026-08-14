@@ -26,7 +26,10 @@ import {
   normalizeSortName,
   SeriesNameConflictError,
 } from '@/helpers/seriesName';
-import { deleteArtworkFile } from '@/helpers/artworkFiles';
+import {
+  deleteArtworkFile,
+  deleteArtworkFiles,
+} from '@/helpers/artworkFiles';
 import { rememberedNumbersFrom } from '@/helpers/seriesNumbering';
 
 export { computeMembershipDiff } from '@/db/seriesMembershipDiff';
@@ -849,5 +852,5 @@ export async function deleteEmptySeries(): Promise<void> {
   await database.write(async () => {
     await database.batch(empties.map((s) => s.prepareDestroyPermanently()));
   });
-  await Promise.all(pinned.map((uri) => deleteArtworkFile(uri)));
+  await deleteArtworkFiles(pinned);
 }

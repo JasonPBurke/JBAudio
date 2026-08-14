@@ -1,6 +1,8 @@
 import {
   selectOrphanedMemberships,
   selectEmptySeriesIds,
+  partitionBooksByRemovedFolder,
+  collectLiveKeys,
 } from '@/db/seriesOrphanPrune';
 
 describe('selectOrphanedMemberships', () => {
@@ -72,5 +74,149 @@ describe('selectEmptySeriesIds', () => {
 
   test('a series that never had a member is empty', () => {
     expect(selectEmptySeriesIds(['s1'], [])).toEqual(['s1']);
+  });
+});
+
+describe('partitionBooksByRemovedFolder', () => {
+  /**
+   * The regression this whole seam exists for (ticket 22).
+   *
+   * `removeLibraryFolder` used to build its live set from `chapters[0].url` of
+   * a raw relation fetch, whose order WatermelonDB does not guarantee. The
+   * canonical structural key is the startMs-FIRST chapter (the library store
+   * sorts before `bookStructuralKey` reads it), so any book whose rowid order
+   * differs from its startMs order contributed the WRONG key — and since the
+   * prune is a blocklist, a missing key is an order to destroy, not a no-op.
+   */
+  test('a surviving book keeps its row when its chapters arrive out of startMs order', () => {
+    const keep = {
+      book: 'keep',
+      // Fetched in rowid order: the canonical key ('.../01.mp3', startMs 0) is
+      // NOT the first element.
+      chapters: [
+        { url: '/Audiobooks/Keep/02.mp3', startMs: 1000 },
+        { url: '/Audiobooks/Keep/01.mp3', startMs: 0 },
+      ],
+    };
+    const gone = {
+      book: 'gone',
+      chapters: [{ url: '/Audiobooks/Gone/01.mp3', startMs: 0 }],
+    };
+
+    const { removedBooks, liveKeys } = partitionBooksByRemovedFolder(
+      [keep, gone],
+      '/Audiobooks/Gone',
+    );
+
+    expect(removedBooks).toEqual([gone]);
+    const rows = [
+      { bookKey: '/Audiobooks/Keep/01.mp3' },
+      { bookKey: '/Audiobooks/Gone/01.mp3' },
+    ];
+    expect(selectOrphanedMemberships(rows, liveKeys).map((r) => r.bookKey)).toEqual(
+      ['/Audiobooks/Gone/01.mp3'],
+    );
+  });
+
+  // The feature the blocklist inversion was FOR. Fixing the key mismatch must
+  // not quietly turn the prune back into a no-op.
+  test('a removed folder still prunes its books and reaps the series left empty', () => {
+    const { removedBooks, liveKeys } = partitionBooksByRemovedFolder(
+      [
+        {
+          book: 'gone-1',
+          chapters: [{ url: '/Audiobooks/Gone/Book 1/01.mp3' }],
+        },
+        {
+          book: 'gone-2',
+          chapters: [
+            { url: '/Audiobooks/Gone/Book 2/01.mp3' },
+            { url: '/Audiobooks/Gone/Book 2/02.mp3' },
+          ],
+        },
+        { book: 'keep', chapters: [{ url: '/Audiobooks/Keep/01.mp3' }] },
+      ],
+      '/Audiobooks/Gone',
+    );
+
+    expect(removedBooks.map((e) => e.book)).toEqual(['gone-1', 'gone-2']);
+
+    const rows = [
+      { id: 'r1', seriesId: 's1', bookKey: '/Audiobooks/Gone/Book 1/01.mp3' },
+      { id: 'r2', seriesId: 's1', bookKey: '/Audiobooks/Gone/Book 2/01.mp3' },
+      { id: 'r3', seriesId: 's2', bookKey: '/Audiobooks/Keep/01.mp3' },
+    ];
+    const orphans = selectOrphanedMemberships(rows, liveKeys);
+    expect(orphans.map((r) => r.id)).toEqual(['r1', 'r2']);
+
+    const destroyed = new Set(orphans.map((r) => r.id));
+    expect(
+      selectEmptySeriesIds(
+        ['s1', 's2'],
+        rows.filter((r) => !destroyed.has(r.id)),
+      ),
+    ).toEqual(['s1']);
+  });
+
+  // A bare `startsWith` on the folder path matches a SIBLING root whose name
+  // merely starts with it. That is the ticket's own headline failure reached by
+  // a different road — and worse, since the sibling's books are deleted too,
+  // not just their rows. The prefix has to end at a directory boundary.
+  test('a sibling folder whose name starts with the removed one is untouched', () => {
+    const sibling = {
+      book: 'backup',
+      chapters: [{ url: '/Audiobooks/Books Backup/01.mp3' }],
+    };
+    const { removedBooks, liveKeys } = partitionBooksByRemovedFolder(
+      [sibling, { book: 'gone', chapters: [{ url: '/Audiobooks/Books/01.mp3' }] }],
+      '/Audiobooks/Books',
+    );
+
+    expect(removedBooks.map((e) => e.book)).toEqual(['gone']);
+    expect(
+      selectOrphanedMemberships(
+        [{ bookKey: '/Audiobooks/Books Backup/01.mp3' }],
+        liveKeys,
+      ),
+    ).toEqual([]);
+  });
+
+  test('a folder path given with a trailing slash behaves identically', () => {
+    const { removedBooks } = partitionBooksByRemovedFolder(
+      [
+        { book: 'gone', chapters: [{ url: '/Audiobooks/Books/01.mp3' }] },
+        { book: 'backup', chapters: [{ url: '/Audiobooks/Books Backup/01.mp3' }] },
+      ],
+      '/Audiobooks/Books/',
+    );
+    expect(removedBooks.map((e) => e.book)).toEqual(['gone']);
+  });
+
+  test('a book with no chapters is neither removed nor a live-key contributor', () => {
+    const { removedBooks, liveKeys } = partitionBooksByRemovedFolder(
+      [{ book: 'empty', chapters: [] }],
+      '/Audiobooks/Gone',
+    );
+    expect(removedBooks).toEqual([]);
+    expect([...liveKeys]).toEqual([]);
+  });
+});
+
+describe('collectLiveKeys', () => {
+  // The shared definition both prune sites read through. The scan site feeds
+  // surviving chapters directly; folder-removal feeds the survivors' chapters
+  // via `partitionBooksByRemovedFolder`. Same rule, one place.
+  test('every surviving chapter url counts, not just a first file', () => {
+    expect([
+      ...collectLiveKeys([
+        { url: '/A/01.mp3' },
+        { url: '/A/02.mp3' },
+        { url: '/B/01.mp3' },
+      ]),
+    ]).toEqual(['/A/01.mp3', '/A/02.mp3', '/B/01.mp3']);
+  });
+
+  test('nothing surviving means nothing live', () => {
+    expect(collectLiveKeys([]).size).toBe(0);
   });
 });
