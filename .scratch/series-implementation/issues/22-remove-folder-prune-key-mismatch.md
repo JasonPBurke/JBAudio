@@ -1,6 +1,34 @@
 # 22 — `removeLibraryFolder`'s prune must not destroy surviving books' membership
 
-**Status:** resolved — jest 729/729, tsc 0, eslint 0. Not yet device-verified.
+**Status:** resolved — jest 729/729, tsc 0, eslint 0. **DEVICE-VERIFIED 2026-08-14** on the
+Pixel 7 Pro emulator (Android 15), as a real A/B against the pre-fix commit.
+
+Corpus: two library roots that are a strict name-prefix pair — `Books` (Alpha One, 2 files;
+Alpha Two, 1 file) and `Books Backup` (Beta One, 2 files) — plus a user-created `Alpha Series`
+(both Alpha books, pinned cover `series_06866eaf.webp`) and `Beta Series` (Beta One alone).
+Removing `Books` in Manage Library, twice, from the identical DB state (rolled back between
+runs by dropping the WAL while the app was stopped):
+
+| after removing `Books` | pre-fix (`45ae1eb`) | fixed (`d3f780e`) |
+| --- | --- | --- |
+| Alpha One + Alpha Two | deleted | deleted ✓ |
+| `Alpha Series` (emptied) | destroyed | reaped ✓ |
+| **Beta One** (untouched folder) | **deleted** ✗ | **intact** ✓ |
+| **`Beta Series`** | **destroyed** ✗ | **intact, row + position kept** ✓ |
+| pinned `.webp` | **leaked on disk** ✗ | **unlinked** ✓ |
+
+Pre-fix left the DB completely empty — 0 books, 0 series, 0 membership rows — from removing
+one of two folders.
+
+⚠ **What this run does NOT prove.** It exercises the BOUNDARY defect and defect B. Defect A
+(the key mismatch) is **not reachable through the UI**, and the device made the reason
+concrete: **every chapter row in the corpus has `start_ms = 0.0`**, multi-file books included
+(`scanLibrary.ts` gives each single-file chapter `startMs: 0`), so the library store's
+"stable sort by `startMs`" is a NO-OP and the canonical key is simply the first row the fetch
+returns — the same order the folder-removal site read. Add `scanLibrary.ts:192` sorting each
+book's chapters by `chapterNumber` before insert, and the two readers agree in practice.
+Defect A is a latent hole that needs SQLite to return a non-rowid order; staging it would mean
+hand-editing rowids in the app's private DB. **The unit test is the only thing that pins it.**
 
 Both defects fixed in one pass, root-cause first:
 
