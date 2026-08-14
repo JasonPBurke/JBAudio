@@ -30,6 +30,20 @@ book's chapters by `chapterNumber` before insert, and the two readers agree in p
 Defect A is a latent hole that needs SQLite to return a non-rowid order; staging it would mean
 hand-editing rowids in the app's private DB. **The unit test is the only thing that pins it.**
 
+**A second route to defect A was considered and DELIBERATELY NOT TESTED (driver's call,
+2026-08-14).** `detectionQueries` keys a book with a `chapter_number = 1` query while the
+library store takes the first row by rowid. They agree because `scanLibrary.ts:192` sorts by
+`chapterNumber` before insert — but an INCREMENTAL scan appends, so a book scanned as files
+`02`/`03` and completed with `01` later would have `chapter_number = 1` on the HIGHEST rowid,
+and the pre-fix prune would destroy that book's membership row on an unrelated folder removal.
+**Ruled not worth device time**: it requires a book to be scanned while genuinely missing its
+opening file and completed in a later scan. A mid-copy scan produces the SAFE ordering (files
+land alphabetically, so `01` is present and later arrivals append), and re-encoding a file in
+place does not renumber rowids because the scan skips urls already in the chapters table — a
+rename would kill the key under old and new code alike. **Skipping costs no coverage: the fix
+already handles it, and it is the same subset-vs-superset construction the unit test pins.**
+Do not re-raise without a real user report.
+
 Both defects fixed in one pass, root-cause first:
 
 - **A.** `collectLiveKeys(survivingChapters)` in `seriesOrphanPrune.ts` is now the ONE
