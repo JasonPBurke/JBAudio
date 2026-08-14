@@ -345,3 +345,43 @@ test('a join leaves the same rows an editor save of the same list would', () => 
 
   expect(joined).toEqual(edited);
 });
+
+/*
+ * ⚠ ADJACENT REMOVALS IN ONE SAVE, BOTH RESTORE ORDERS.
+ *
+ * `a,b,c,d` losing `b` and `c` in a single `Save` leaves the visible list `a,d`,
+ * and BOTH tombstones belong between them — one integer index cannot hold two
+ * books, so the slot alone cannot say which comes first. Leaving them where they
+ * were does not fix it either: it just chooses the other half of the same coin,
+ * and a restore of `c` alone still appends past `d`.
+ *
+ * So the two are spread across the gap BELOW their shared slot. Every value in
+ * `(slot - 1, slot]` counts the same visible predecessors, so the slot survives
+ * intact while the order between them does too. Both orders must work, because
+ * the user picks one and neither is rarer than the other.
+ */
+test('two books removed at once both come back in place, whichever goes first', () => {
+  const start = (): Row[] => [
+    { bookKey: 'a', position: 0, canonicalNumber: 1, membership: 'detected' },
+    { bookKey: 'b', position: 1, canonicalNumber: 2, membership: 'detected' },
+    { bookKey: 'c', position: 2, canonicalNumber: 3, membership: 'detected' },
+    { bookKey: 'd', position: 3, canonicalNumber: 4, membership: 'detected' },
+  ];
+  const bothRemoved = (): Row[] => {
+    const visible = visibleOrder(start());
+    return applySave(start(), ['a', 'd'], [1, 4], visible);
+  };
+  expect(visibleOrder(bothRemoved())).toEqual(['a', 'd']);
+
+  // The later book back first — the case a stale index appends.
+  let cFirst = joinFromBookScreen(bothRemoved(), 'c');
+  expect(visibleOrder(cFirst)).toEqual(['a', 'c', 'd']);
+  cFirst = joinFromBookScreen(cFirst, 'b');
+  expect(visibleOrder(cFirst)).toEqual(['a', 'b', 'c', 'd']);
+
+  // And the earlier one first.
+  let bFirst = joinFromBookScreen(bothRemoved(), 'b');
+  expect(visibleOrder(bFirst)).toEqual(['a', 'b', 'd']);
+  bFirst = joinFromBookScreen(bFirst, 'c');
+  expect(visibleOrder(bFirst)).toEqual(['a', 'b', 'c', 'd']);
+});

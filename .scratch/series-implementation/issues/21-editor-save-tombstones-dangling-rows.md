@@ -113,8 +113,22 @@ Confirmed rather than assumed. `planSeriesJoin` builds `desiredKeysInOrder` from
 row, so `desired ⊇ visible` and the join door **structurally cannot** tombstone anything — dangling
 rows included. Pinned by `a join leaves the same rows an editor save of the same list would`.
 
-### ⚠ Residual, out of scope and NOT introduced here
+### ⚠ "Left untouched" means its MEMBERSHIP, not its position
 
-A scan that **adds** a book to the series mid-edit still has it tombstoned by the next `Save` (it
-is in `visible` at seed time only if the seed ran after the scan). Pre-existing, unchanged by this
-work, and the same shape as the two races above — worth its own ticket.
+A code review caught the difference. A dangling row rejoins the visible list the moment its file
+resolves, with **no save in between** — so leaving its stale `position` while every visible row
+compacts to `0..n-1` makes it tie with whatever landed on its old index, and
+`assembleDerivedSeries` sorts purely by position. The row survives; its place in the reading order
+does not. Its position is therefore maintained on the same rule as a tombstone's — see
+[23](23-tombstone-restore-slot-stale.md). Nothing about its membership is ever written.
+
+### ⚠ Residuals, NOT introduced here
+
+- A scan that **adds** a book to the series mid-edit still has it tombstoned by the next `Save`
+  (it is in `visible` at seed time only if the seed ran after the scan). Same shape as the two
+  races above.
+- A series whose files have **all** gone missing reports zero books and cannot be saved at all —
+  raised as [25](25-all-dangling-series-cannot-be-saved.md), which needs the driver because the
+  rule it questions is a driver ruling.
+- `addBookToSeries` writes back rows it read outside the transaction — raised as
+  [26](26-addbooktoseries-reads-rows-twice.md). Pre-existing.

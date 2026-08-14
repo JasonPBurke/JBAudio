@@ -124,21 +124,6 @@ function nextMembership(
   return current === 'excluded' ? 'user' : undefined;
 }
 
-/**
- * Whether a row is a tombstone once this save has landed — the one it already
- * was, or the one it is about to become. A DANGLING row is neither: it is not
- * in `desired` and never was in `visible`, so `nextMembership` leaves it, and
- * so must everything below.
- */
-function staysTombstoned(
-  row: EditorExistingRow,
-  desired: ReadonlySet<string>,
-  visible: ReadonlySet<string>,
-): boolean {
-  if (desired.has(row.bookKey)) return false;
-  return resolveMembership(row.membership) === 'excluded' || visible.has(row.bookKey);
-}
-
 export function planEditorSave(input: {
   existing: EditorExistingRow[];
   /** The VISIBLE list, in drag order. Tombstones are not in it by definition. */
@@ -205,19 +190,59 @@ export function planEditorSave(input: {
     survivingPositions.filter((p) => p < position).length;
 
   /*
-   * ⚠ A CONTESTED SLOT MOVES NOBODY. Two books removed in the SAME save belong
-   * at the same index — `a,b,c,d` losing `b` and `c` leaves `a,d`, and both
-   * tombstones point between them — so the slot cannot tell them apart. Writing
-   * it over both would discard the one thing that still can, their existing
-   * positions, and a later restore would put the second book back on the wrong
-   * side of the first. That ordering survives today and must keep surviving, so
-   * a slot more than one tombstone claims is simply not written.
+   * Every row that will NOT be in the visible list afterwards, in the order
+   * they sit now: the tombstones, and the dangling rows `visibleKeys` protects.
+   * Their MEMBERSHIP is treated very differently — see `nextMembership` — but
+   * their position means the same thing for both, so it is maintained the same
+   * way. Leaving a dangling row's position stale is not "untouched", it is its
+   * place in the reading order silently lost.
    */
-  const claimants = new Map<number, number>();
-  for (const row of existing) {
-    if (!staysTombstoned(row, desired, visible)) continue;
+  const absent = existing
+    .filter((row) => !desired.has(row.bookKey))
+    .slice()
+    .sort((a, b) => a.position - b.position);
+
+  /*
+   * ⚠ AN ABSENT ROW SITS STRICTLY BETWEEN ITS NEIGHBOURS, NEVER ON TOP OF ONE.
+   *
+   * The slot alone is not enough, because it is the index OF a visible row and
+   * so ties with it. Two things go wrong on that tie:
+   *
+   *   - two books removed in the SAME save claim one index — `a,b,c,d` losing
+   *     `b` and `c` leaves `a,d` and both belong between them — so one integer
+   *     cannot hold both, and a restore appends past `d` (the 1,2,3,5,4 defect,
+   *     through a third door);
+   *   - a DANGLING row re-enters the visible list with NO SAVE AT ALL, the
+   *     moment its file resolves again. `assembleDerivedSeries` sorts purely by
+   *     position, so a tie there is decided by the DB's row-emission order and
+   *     can flip between runs.
+   *
+   * So each absent row takes a fraction inside the OPEN interval
+   * `(slot - 1, slot)`, ordered among the rows sharing its slot by where they
+   * already sat. Every value in that interval counts exactly the same visible
+   * predecessors, so `planSeriesJoin`'s slot is untouched, while the sort order
+   * becomes total. This is the same fractional-position trick
+   * `seedInsertPositions` already uses to insert without moving anything.
+   *
+   * It converges: an absent row that is already at its fraction is written
+   * again by nobody. The one-time cost is the first save after this shipped,
+   * which normalises the integer tombstones already on disk.
+   */
+  const absentPositions = new Map<string, number>();
+  const bySlot = new Map<number, EditorExistingRow[]>();
+  for (const row of absent) {
     const slot = slotOf(row.position);
-    claimants.set(slot, (claimants.get(slot) ?? 0) + 1);
+    const sharing = bySlot.get(slot);
+    if (sharing) sharing.push(row);
+    else bySlot.set(slot, [row]);
+  }
+  for (const [slot, sharing] of bySlot) {
+    sharing.forEach((row, index) => {
+      absentPositions.set(
+        row.bookKey,
+        slot - (sharing.length - index) / (sharing.length + 1),
+      );
+    });
   }
 
   const updateRows: EditorRowUpdate[] = [];
@@ -238,14 +263,12 @@ export function planEditorSave(input: {
     }
 
     // The other half of the same rule, and the two branches cannot both fire:
-    // `positionByKey` only ever holds desired keys, and a tombstone is by
+    // `positionByKey` only ever holds desired keys, and an absent row is by
     // definition not one of them.
-    if (staysTombstoned(row, desired, visible)) {
-      const slot = slotOf(row.position);
-      if (slot !== row.position && claimants.get(slot) === 1) {
-        update.position = slot;
-        changed = true;
-      }
+    const absentPosition = absentPositions.get(row.bookKey);
+    if (absentPosition !== undefined && absentPosition !== row.position) {
+      update.position = absentPosition;
+      changed = true;
     }
 
     // A tombstone keeps the number it had. It is a memory of a book, not a

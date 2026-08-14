@@ -61,12 +61,19 @@ describe('A11 — a removed book leaves a tombstone', () => {
     expect(Object.keys(plan)).not.toContain('removeRows');
   });
 
+  /*
+   * Its position is `0.5` because that is where a tombstone between `a` and the
+   * end of the list SITS — an absent row takes a fraction strictly inside its
+   * gap, never the integer index of a visible row. A row already at its
+   * fraction is written again by nobody, which is what this pins: an unchanged
+   * save writes nothing at all.
+   */
   test('a book that was already removed is left alone', () => {
     const plan = rowsOf(
       save(
         [
           { bookKey: 'a', position: 0, membership: 'detected' },
-          { bookKey: 'b', position: 1, membership: 'excluded' },
+          { bookKey: 'b', position: 0.5, membership: 'excluded' },
         ],
         ['a'],
       ),
@@ -129,7 +136,7 @@ describe('A11 — a removed book leaves a tombstone', () => {
  * what the screen could see, and leaves everything else alone.
  */
 describe('a save may only remove what the editor could see', () => {
-  test('a row that never reached the screen is left completely alone', () => {
+  test('a row that never reached the screen is never removed', () => {
     const plan = rowsOf(
       save(
         [
@@ -145,8 +152,22 @@ describe('a save may only remove what the editor could see', () => {
       ),
     );
 
-    expect(plan.updateRows.map((r) => r.bookKey)).not.toContain('moved');
+    // Its MEMBERSHIP is what must not be touched — that is the data loss.
+    expect(plan.updateRows).not.toContainEqual(
+      expect.objectContaining({ bookKey: 'moved', membership: 'excluded' }),
+    );
     expect(plan.insertRows).toEqual([]);
+
+    /*
+     * Its POSITION is maintained, and that is not a contradiction of "left
+     * alone" — it is the rest of the promise. A dangling row rejoins the
+     * visible list the moment its file resolves, with NO save in between, and
+     * `assembleDerivedSeries` sorts purely by position. Left at its old `1` it
+     * would tie with whatever compacted onto index 1 and render in an order the
+     * DB's row emission decides. `0.5` puts it back exactly where it was: after
+     * `a`, before `b`.
+     */
+    expect(plan.updateRows).toContainEqual({ bookKey: 'moved', position: 0.5 });
   });
 
   /* A11 must not regress: a book the user could see and dropped IS removed. */
@@ -194,9 +215,12 @@ describe('there is no verb here that destroys anything', () => {
       ),
     );
 
+    // Both belong at index 0 of an empty list, so they take the two fractions
+    // below it — negative, and correctly so: they still sort `a` before `b`, so
+    // putting them back one at a time restores the order they had.
     expect(plan.updateRows).toEqual([
-      { bookKey: 'a', membership: 'excluded' },
-      { bookKey: 'b', membership: 'excluded' },
+      { bookKey: 'a', membership: 'excluded', position: -2 / 3 },
+      { bookKey: 'b', membership: 'excluded', position: -1 / 3 },
     ]);
     expect(plan.insertRows).toEqual([]);
   });
@@ -367,13 +391,6 @@ describe('the rows a save writes', () => {
   });
 
   /*
-   * Positions are the DESIRED list's own indices, so a tombstone left behind at
-   * position 1 cannot push the visible list into a gap. The two spaces overlap
-   * on purpose — a tombstone's position is an index INTO the visible list, not
-   * a place in it — and `seedInsertPositions` already reads excluded rows for
-   * their position while refusing them as anchors.
-   */
-  /*
    * ⚠ A TOMBSTONE'S POSITION MEANS "index into the CURRENT visible list where
    * I belong" — and the visible list is compacted to `0..n-1` on every save, so
    * that meaning has to be maintained or it decays.
@@ -394,26 +411,30 @@ describe('the rows a save writes', () => {
           { bookKey: 'b', position: 1, membership: 'detected' },
           { bookKey: 'c', position: 2, membership: 'detected' },
           { bookKey: 'e', position: 3, membership: 'detected' },
-          // Removed by the previous save; its position is already a slot.
-          { bookKey: 'd', position: 3, membership: 'excluded' },
+          // Removed by the previous save, so it already sits between `c` and
+          // `e` rather than on top of either.
+          { bookKey: 'd', position: 2.5, membership: 'excluded' },
         ],
         ['a', 'c', 'e'],
       ),
     );
 
-    expect(plan.updateRows).toContainEqual({ bookKey: 'd', position: 2 });
+    // `a,c,e` compact to 0,1,2, and `d` still belongs between `c` and `e`.
+    expect(plan.updateRows).toContainEqual({ bookKey: 'd', position: 1.5 });
   });
 
   /*
-   * ⚠ THE SECOND CLAUSE, and it exists to protect a case that works TODAY.
+   * ⚠ TWO ROWS REMOVED AT ONCE SHARE A SLOT, AND MUST NOT SHARE A POSITION.
    *
-   * Two books removed in the SAME save both genuinely belong at the same index
-   * — with `a,b,c,d` losing `b` and `c`, the visible list is `a,d` and both
-   * tombstones point between them. The slot cannot separate them, so writing it
-   * over both would throw away the only thing that still can: their existing
-   * positions. A contested slot therefore moves nobody.
+   * With `a,b,c,d` losing `b` and `c`, the visible list is `a,d` and both
+   * removed books genuinely belong between them — one integer index cannot hold
+   * two books. Leaving them where they were does not work either: `c` would
+   * keep a `2` that now counts `d` as a predecessor, and re-joining it would
+   * append it past `d`. So they split the gap, in the order they already had.
+   *
+   * `seriesJoin.test.ts` drives the restore itself, in BOTH orders.
    */
-  test('two rows removed at once keep their order rather than collapsing onto one slot', () => {
+  test('two rows removed at once split the gap instead of sharing a slot', () => {
     const plan = rowsOf(
       save(
         [
@@ -426,10 +447,15 @@ describe('the rows a save writes', () => {
       ),
     );
 
-    const moved = plan.updateRows.filter(
-      (r) => (r.bookKey === 'b' || r.bookKey === 'c') && 'position' in r,
-    );
-    expect(moved).toEqual([]);
+    const positionOf = (key: string) =>
+      plan.updateRows.find((r) => r.bookKey === key)!.position!;
+
+    // `a` stays 0 and `d` compacts to 1, so the whole gap is (0, 1) — and both
+    // tombstones are strictly inside it, still in their original order.
+    expect(plan.updateRows).toContainEqual({ bookKey: 'd', position: 1 });
+    expect(positionOf('b')).toBeGreaterThan(0);
+    expect(positionOf('b')).toBeLessThan(positionOf('c'));
+    expect(positionOf('c')).toBeLessThan(1);
   });
 
   /* A tombstone BEHIND the removal is unaffected — nothing moved in front. */
@@ -438,7 +464,7 @@ describe('the rows a save writes', () => {
       save(
         [
           { bookKey: 'a', position: 0, membership: 'detected' },
-          { bookKey: 'gone', position: 1, membership: 'excluded' },
+          { bookKey: 'gone', position: 0.5, membership: 'excluded' },
           { bookKey: 'b', position: 1, membership: 'detected' },
           { bookKey: 'c', position: 2, membership: 'detected' },
         ],
@@ -449,6 +475,13 @@ describe('the rows a save writes', () => {
     expect(plan.updateRows.map((r) => r.bookKey)).not.toContain('gone');
   });
 
+  /*
+   * Positions are the DESIRED list's own indices, so an absent row cannot push
+   * the visible list into a gap: `c` still takes `1`, and the tombstone goes
+   * BETWEEN `a` and `c` rather than on top of either. `seedInsertPositions`
+   * already reads excluded rows for their position while refusing them as
+   * anchors, and already writes fractions of its own.
+   */
   test('a tombstone does not consume a position in the visible order', () => {
     const plan = rowsOf(
       save(
@@ -462,7 +495,7 @@ describe('the rows a save writes', () => {
     );
 
     expect(plan.updateRows).toEqual([
-      { bookKey: 'b', membership: 'excluded' },
+      { bookKey: 'b', membership: 'excluded', position: 0.5 },
       { bookKey: 'c', position: 1 },
     ]);
   });

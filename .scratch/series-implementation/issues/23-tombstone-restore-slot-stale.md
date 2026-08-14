@@ -104,22 +104,36 @@ Interleaving tombstones with visible rows in one shared position space was rejec
 `max(position) + 1` and bisects between anchors), and it would fight `computeMembershipDiff`, which
 assigns desired positions as array indices unconditionally. Two spaces kept in step is cheaper.
 
-### ⚠ The second clause: A CONTESTED SLOT MOVES NOBODY
+### ⚠ An absent row sits STRICTLY BETWEEN its neighbours, never on top of one
 
-Writing the slot unconditionally **regressed a case that works today**, which is why it is worth
-recording. Two books removed in the *same* save genuinely belong at the same index — `a,b,c,d`
-losing `b` and `c` leaves `a,d`, and both tombstones point between them — so the slot cannot tell
-them apart, and writing it over both discards the only thing that can: their existing positions.
-A later restore then puts the second book back on the wrong side of the first.
+The integer slot alone is not enough, because it is the index *of* a visible row and so ties with
+it. Two things go wrong on that tie, and **a code review caught both** after a first attempt shipped
+the weaker rule:
 
-So a slot claimed by more than one tombstone is not written. That also leaves K16's all-excluded
-state untouched, and its existing test needed no edit.
+- **Two books removed in the same save claim one index.** `a,b,c,d` losing `b` and `c` leaves `a,d`
+  and both belong between them. A first attempt left contested claimants where they were, which
+  merely chose the other half of the same coin: restoring `b` worked and restoring `c` still
+  appended it past `d` — the 1,2,3,5,4 defect through a third door.
+- **A dangling row rejoins the visible list with NO SAVE AT ALL**, the moment its file resolves.
+  `assembleDerivedSeries` sorts purely by `position`, so a tie there is broken by the DB's row
+  emission order and can flip between runs. A row preserved in the wrong place has still lost its
+  place.
+
+So every absent row — tombstone **and** dangling — takes a fraction inside the open interval
+`(slot - 1, slot)`, ordered among rows sharing a slot by where they already sat. Every value in that
+interval counts the same visible predecessors, so `planSeriesJoin`'s slot is untouched while the
+sort order becomes total. `seedInsertPositions` already writes fractional positions, so nothing new
+is being asked of the column.
+
+It converges: a row already at its fraction is written again by nobody, so an unchanged save still
+writes nothing. The one-time cost is the first save after this ships, which normalises the integer
+tombstones already on disk.
 
 ### Known and accepted
 
 A book **inserted** by the same save has no pre-save position, so it cannot count as a predecessor
-of a tombstone. That leaves a restored book one place out, in a list the user is looking at and can
-drag.
+of an absent row. That leaves a restored book one place out, in a list the user is looking at and
+can drag.
 
 ### Tests
 
@@ -127,4 +141,5 @@ The two-removal sequence is driven through the real planners with an in-memory a
 for `updateSeries` (`seriesJoin.test.ts`), because the defect is not a property of any one plan —
 it is what happens to a tombstone across **consecutive** saves, so no hand-written fixture could
 reach it. All three new integration tests were confirmed to fail against the pre-fix planner while
-the one-removal and never-a-member cases stayed green.
+the one-removal and never-a-member cases stayed green. Both restore ORDERS of a
+double removal are pinned, because the user picks one and neither is rarer.
