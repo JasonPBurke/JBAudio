@@ -8,7 +8,7 @@ stood in for — and ~~[24](24-seriesdetail-uses-real-store.md)~~, which removed
 harness import that lived in **shipping** code. **24 is RESOLVED (2026-08-14) and no longer
 blocks this ticket** — but read its comment below first, the recipe here is still incomplete.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **Spec:** [§Further Notes](../../series-ux-redesign/spec.md). The authoritative recipe is
 `src/prototypes/README.md`.
@@ -73,7 +73,7 @@ deleted by this ticket — only the code is.**
 From [Code review `d2195ed..HEAD`](../CODE-REVIEW-d2195ed.md), Finding 4 — CONFIRMED.
 
 `src/app/seriesDetail.tsx:32` is **shipping code** importing `@/prototypes/useSeriesSource`.
-The recipe in this ticket names the library screen's *three* `THROWAWAY` sites; this is an
+The recipe in this ticket names the library screen's _three_ `THROWAWAY` sites; this is an
 undocumented **fourth**, and the only one outside throwaway code. Running
 `rm -rf src/prototypes src/app/seriesCreateProto.tsx` as written leaves that import dangling
 and the Series detail route fails to resolve at bundle time.
@@ -131,14 +131,14 @@ rm -rf src/prototypes src/app/seriesCreateProto.tsx      → tsc 3 errors (the 3
 literal JSX attributes — so the slot has been silently swallowing
 `activeGridSections`/`setActiveGridSections`, two props `src/components/SeriesHome.tsx` has
 never declared. The library screen carries an `activeSeriesSections` `useState`
-(`index.tsx:87`) that exists *only* to feed them.
+(`index.tsx:87`) that exists _only_ to feed them.
 
 So the swap `<SeriesProtoSlot …>` → `<SeriesHome …>` fails with TS2322 until those two
 attributes **and** the `useState` behind them are deleted. Note `activeGridSections` at
 `index.tsx:302` is a **different** consumer (`BooksGrid`) and must stay.
 
-This does not contradict the existing criterion *"the shipping series home component was
-never modified"* — it wasn't. The drift is entirely on the library screen's side, hidden by
+This does not contradict the existing criterion _"the shipping series home component was
+never modified"_ — it wasn't. The drift is entirely on the library screen's side, hidden by
 the spread for the whole prototype effort.
 
 ⚠ **`src/prototypes/__tests__/harnessBoundary.test.ts` goes with the directory.** It is
