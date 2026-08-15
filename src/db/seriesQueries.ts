@@ -5,7 +5,7 @@ import database from '@/db';
 import Series from '@/db/models/Series';
 import SeriesBook from '@/db/models/SeriesBook';
 import { SeriesRow, MembershipRow } from '@/helpers/seriesAssembly';
-import { planEditorSave } from '@/db/seriesEditorSave';
+import { planEditorSave, type EditorExistingRow } from '@/db/seriesEditorSave';
 import { planSeriesJoin } from '@/db/seriesJoin';
 import { canonicalSourceFor } from '@/db/seriesProvenance';
 import {
@@ -145,14 +145,52 @@ export async function createSeries(
 }
 
 /**
- * Reconcile a series' name + ordered membership from an editor `Save`.
+ * What a series should look like after a save, index-aligned exactly like
+ * `planEditorSave`'s inputs because that is where it goes. Returned by a
+ * `DecideSeriesSave` from INSIDE the writer.
+ */
+type SeriesSaveRequest = {
+  /** The series' name afterwards. Unchanged from `stored` means "not renamed". */
+  name: string;
+  desiredKeysInOrder: string[];
+  canonicalNumbers: CanonicalNumbers;
+  /** See `updateSeries`' `visibleBookKeys` — the same set, on the same terms. */
+  visibleKeys: readonly string[];
+};
+
+/**
+ * ⚠ WHAT GOES INTO THE WRITER IS A DECIDER, NOT A SET OF ROWS — ticket 26.
  *
- * **IO ONLY. IT MAKES NO DECISIONS** — `planEditorSave` made them all, and this
- * writes the plan verbatim. That split is what puts §D9.1's two correctness
- * defects in front of jest: a removed book must leave an `'excluded'` tombstone
- * rather than be destroyed (A11), and an emptied series must be deleted-and-
- * suppressed rather than silently vanish (A12). If a conditional answering
- * *"should this row change?"* appears below, it belongs in the planner.
+ * `addBookToSeries` used to read this series' rows, plan a join against them,
+ * and then call `updateSeries`, which opened a writer and read the same rows
+ * AGAIN. Every claim in the plan — the desired list, the numbers, and above all
+ * the visible set — came from the FIRST read, so a row that changed in between
+ * was written back from a state that no longer existed: a row pruned in that
+ * window came back as a `'user'` insert, and a row tombstoned in it was
+ * un-tombstoned.
+ *
+ * Inverting the direction closes it. The caller hands in a pure function, the
+ * writer runs it on the rows it just read itself, and there is no second
+ * snapshot for the two to disagree about. `applyPlan` fixed the same shape the
+ * same way — see the "READ INSIDE THE WRITER" note there.
+ *
+ * Returning null means *nothing to do*: the writer commits nothing at all.
+ */
+type DecideSeriesSave = (
+  existing: readonly EditorExistingRow[],
+  stored: { name: string },
+) => SeriesSaveRequest | null;
+
+/**
+ * Reconcile a series' name + ordered membership inside ONE writer.
+ *
+ * **IO ONLY. IT MAKES NO DECISIONS** — `decide` and `planEditorSave` make them
+ * all, and this writes the resulting plan verbatim. That split is what puts
+ * §D9.1's two correctness defects in front of jest: a removed book must leave
+ * an `'excluded'` tombstone rather than be destroyed (A11), and an emptied
+ * series must be deleted-and-suppressed rather than silently vanish (A12). If a
+ * conditional answering *"should this row change?"* appears below, it belongs
+ * in a planner.
  *
  * ⚠ IT NEVER DELETES THE SERIES, and it used to. An emptying save fell through
  * to `deleteSeries` here, which meant a button labelled `Save` performed an
@@ -160,25 +198,10 @@ export async function createSeries(
  * 2026-08-13: `seriesEditorIssues` now refuses an empty list, and deleting a
  * series is `Delete Series`, which confirms first. See `seriesValidation.ts`.
  */
-export async function updateSeries(
+async function writeSeriesSave(
   id: string,
-  name: string,
-  bookKeysInOrder: string[],
-  canonicalNumbers: CanonicalNumbers,
-  /**
-   * ⚠ EVERY KEY THE CALLER'S SURFACE COULD SEE, which is NOT the same as the
-   * keys it is asking for. A `series_books` row whose book did not resolve
-   * against the live library is skipped by `assembleDerivedSeries`, so it can
-   * never appear in `bookKeysInOrder` — and without this the planner would read
-   * its absence as a removal and tombstone it forever.
-   *
-   * It cannot be computed here and that is deliberate: resolving a `bookKey`
-   * needs the library book map, which this layer has no access to. Passing it
-   * in is what keeps the decision out of the IO half.
-   */
-  visibleBookKeys: readonly string[],
+  decide: DecideSeriesSave,
 ): Promise<void> {
-  await assertSeriesNameAvailable(name, id);
   await database.write(async () => {
     const series = await database.get<Series>('series').find(id);
     const existingRows = await database
@@ -186,16 +209,24 @@ export async function updateSeries(
       .query(Q.where('series_id', id))
       .fetch();
 
+    // The one read. Both the decision and the plan below are taken against
+    // THESE rows, which is the whole of ticket 26's fix.
+    const existing: EditorExistingRow[] = existingRows.map((r) => ({
+      bookKey: r.bookKey,
+      position: r.position,
+      canonicalNumber: r.canonicalNumber,
+      membership: r.membershipRaw,
+    }));
+
+    const request = decide(existing, { name: series.name });
+    if (!request) return;
+    const name = request.name;
+
     const plan = planEditorSave({
-      existing: existingRows.map((r) => ({
-        bookKey: r.bookKey,
-        position: r.position,
-        canonicalNumber: r.canonicalNumber,
-        membership: r.membershipRaw,
-      })),
-      desiredKeysInOrder: bookKeysInOrder,
-      canonicalNumbers,
-      visibleKeys: visibleBookKeys,
+      existing,
+      desiredKeysInOrder: request.desiredKeysInOrder,
+      canonicalNumbers: request.canonicalNumbers,
+      visibleKeys: request.visibleKeys,
       storedName: series.name,
       desiredName: name,
     });
@@ -271,57 +302,86 @@ export async function updateSeries(
 }
 
 /**
+ * Reconcile a series' name + ordered membership from an editor `Save`.
+ *
+ * The editor's list IS the decision — the user built it, looked at it and
+ * pressed Save — so the decider below ignores the rows entirely and hands the
+ * arguments straight through. That is the difference between this door and the
+ * join door: a join has to be re-derived from whatever is on disk when the
+ * writer opens, an editor save must not be.
+ */
+export async function updateSeries(
+  id: string,
+  name: string,
+  bookKeysInOrder: string[],
+  canonicalNumbers: CanonicalNumbers,
+  /**
+   * ⚠ EVERY KEY THE CALLER'S SURFACE COULD SEE, which is NOT the same as the
+   * keys it is asking for. A `series_books` row whose book did not resolve
+   * against the live library is skipped by `assembleDerivedSeries`, so it can
+   * never appear in `bookKeysInOrder` — and without this the planner would read
+   * its absence as a removal and tombstone it forever.
+   *
+   * It cannot be computed here and that is deliberate: resolving a `bookKey`
+   * needs the library book map, which this layer has no access to. Passing it
+   * in is what keeps the decision out of the IO half.
+   */
+  visibleBookKeys: readonly string[],
+): Promise<void> {
+  await assertSeriesNameAvailable(name, id);
+  await writeSeriesSave(id, () => ({
+    name,
+    desiredKeysInOrder: bookKeysInOrder,
+    canonicalNumbers,
+    visibleKeys: visibleBookKeys,
+  }));
+}
+
+/**
  * §F8 — `Add to series…` from a book. Join-only: it never creates a series and
  * never removes anything (§F9).
  *
  * IO ONLY, on the same terms as `updateSeries`: `planSeriesJoin` decides what
- * the series should look like afterwards, and this hands that to the editor's
- * own save path. Nothing about tombstones, provenance or numbering is decided
- * or repeated here — a re-added book is restored rather than duplicated
- * because `planEditorSave` already knows how, and that is the reason a join is
+ * the series should look like afterwards and `planEditorSave` turns that into
+ * rows. Nothing about tombstones, provenance or numbering is decided or
+ * repeated here — a re-added book is restored rather than duplicated because
+ * `planEditorSave` already knows how, and that is the reason a join is
  * expressed as a save at all.
  *
  * A no-op when the book is already a visible member. The picker filters those
- * series out, so reaching this is a race (a scan landing mid-tap), not a bug.
+ * series out, so reaching this is a race (a scan landing mid-tap), not a bug —
+ * and the check now runs against the writer's own rows, so a scan that added
+ * the book first is seen rather than raced.
  *
- * The rows are read twice — once here, once inside `updateSeries` — which is
- * accepted: it is one series' membership on a user tap, and the alternative is
- * a second entry point into the write path that takes pre-read rows and can
- * therefore be handed stale ones.
+ * ⚠ THE JOIN IS PLANNED INSIDE THE WRITER, and the risk that forces it is
+ * WRITE-BACK, not staleness. This door is the one ticket 26 was written
+ * against; `DecideSeriesSave` carries the mechanism, and it is spelled out
+ * there rather than here so the two cannot drift apart.
+ *
+ * No `assertSeriesNameAvailable` either, and none is owed: a join passes the
+ * stored name back unchanged, so there is no new name to claim. (Asserting it
+ * would mean a read outside the writer, which is the thing this door no longer
+ * does.)
  */
 export async function addBookToSeries(
   seriesId: string,
   bookKey: string,
 ): Promise<void> {
-  const series = await database.get<Series>('series').find(seriesId);
-  const rows = await database
-    .get<SeriesBook>('series_books')
-    .query(Q.where('series_id', seriesId))
-    .fetch();
-
-  const join = planSeriesJoin({
-    existing: rows.map((r) => ({
-      bookKey: r.bookKey,
-      position: r.position,
-      canonicalNumber: r.canonicalNumber,
-      membership: r.membershipRaw,
-    })),
-    bookKey,
+  await writeSeriesSave(seriesId, (existing, stored) => {
+    const join = planSeriesJoin({ existing, bookKey });
+    if (!join) return null;
+    return {
+      // The stored name, unchanged — which is what makes the planner leave
+      // `name_source` alone. A join must not claim a detected series' name.
+      name: stored.name,
+      desiredKeysInOrder: join.desiredKeysInOrder,
+      canonicalNumbers: join.canonicalNumbers,
+      // What a DB read can see is every non-tombstoned row, dangling ones
+      // included — and since all of them are in `desiredKeysInOrder` too, this
+      // door structurally cannot remove anything (§F9).
+      visibleKeys: join.visibleKeys,
+    };
   });
-  if (!join) return;
-
-  // The stored name, unchanged — which is what makes the planner leave
-  // `name_source` alone. A join must not claim a detected series' name.
-  await updateSeries(
-    seriesId,
-    series.name,
-    join.desiredKeysInOrder,
-    join.canonicalNumbers,
-    // What a DB read can see is every non-tombstoned row, dangling ones
-    // included — and since all of them are in `desiredKeysInOrder` too, this
-    // door structurally cannot remove anything (§F9).
-    join.visibleKeys,
-  );
 }
 
 /**
