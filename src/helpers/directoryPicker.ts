@@ -35,7 +35,11 @@ export async function directoryPicker() {
       await updateLibraryFolderEntries(next);
     }
 
-    await scanLibrary();
+    // `afterCurrent`, not a plain call: a scan already running enumerated its
+    // library folders before this one was added, so joining it would leave the
+    // new folder's books missing until some later scan — for a user action that
+    // was explicit. This waits for that scan and then runs one that can see it.
+    await scanLibrary.afterCurrent();
   } catch (err) {
     console.error(err);
   }

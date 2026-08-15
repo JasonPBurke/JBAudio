@@ -11,6 +11,15 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
+/**
+ * Drains pending microtasks. Counting `await Promise.resolve()` ticks is not
+ * reliable here — Babel compiles async/await to generators, so the number of
+ * ticks a continuation takes is an artifact of the transpiler, not behaviour.
+ */
+function flush() {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 describe('singleFlight', () => {
   it('runs the operation once when a second call arrives mid-flight', async () => {
     const d = deferred<void>();
@@ -97,5 +106,87 @@ describe('singleFlight', () => {
 
     await expect(guarded()).rejects.toThrow('threw before returning');
     await expect(guarded()).resolves.toBe('recovered');
+  });
+});
+
+// `afterCurrent` exists for callers that changed something the operation reads
+// on entry. Joining a run that started before the change would silently miss
+// it, so these callers need a run that is guaranteed to begin afterwards.
+describe('singleFlight afterCurrent', () => {
+  it('waits for the run in flight, then starts a fresh one', async () => {
+    const first = deferred<string>();
+    const second = deferred<string>();
+    const run = jest
+      .fn<Promise<string>, []>()
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise);
+    const guarded = singleFlight(run);
+
+    const stale = guarded();
+    const fresh = guarded.afterCurrent();
+
+    // Still waiting on the first run — no second run may start yet.
+    await flush();
+    expect(run).toHaveBeenCalledTimes(1);
+
+    first.resolve('stale run');
+    await stale;
+    await flush();
+    expect(run).toHaveBeenCalledTimes(2);
+
+    second.resolve('fresh run');
+    await expect(fresh).resolves.toBe('fresh run');
+  });
+
+  // The common case: nothing is running, so there is nothing stale to wait for
+  // and a single run already observes the caller's change.
+  it('starts exactly one run when nothing is in flight', async () => {
+    const run = jest.fn<Promise<string>, []>().mockResolvedValue('only run');
+    const guarded = singleFlight(run);
+
+    await expect(guarded.afterCurrent()).resolves.toBe('only run');
+
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  // The run in flight is answering a question this caller did not ask, so its
+  // failure must not become this caller's failure.
+  it('still starts a fresh run when the run in flight rejected, and hides that failure', async () => {
+    const stale = deferred<string>();
+    const run = jest
+      .fn<Promise<string>, []>()
+      .mockReturnValueOnce(stale.promise)
+      .mockResolvedValueOnce('fresh run');
+    const guarded = singleFlight(run);
+
+    const joined = guarded();
+    const fresh = guarded.afterCurrent();
+
+    stale.reject(new Error('stale scan blew up'));
+    await expect(joined).rejects.toThrow('stale scan blew up');
+
+    await expect(fresh).resolves.toBe('fresh run');
+    expect(run).toHaveBeenCalledTimes(2);
+  });
+
+  // Two folders added in quick succession must not queue two extra runs: one
+  // run that starts after both changes already observes both.
+  it('coalesces concurrent afterCurrent callers onto a single fresh run', async () => {
+    const stale = deferred<string>();
+    const run = jest
+      .fn<Promise<string>, []>()
+      .mockReturnValueOnce(stale.promise)
+      .mockResolvedValueOnce('fresh run');
+    const guarded = singleFlight(run);
+
+    guarded();
+    const a = guarded.afterCurrent();
+    const b = guarded.afterCurrent();
+
+    stale.resolve('stale run');
+
+    await expect(a).resolves.toBe('fresh run');
+    await expect(b).resolves.toBe('fresh run');
+    expect(run).toHaveBeenCalledTimes(2);
   });
 });

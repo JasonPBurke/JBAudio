@@ -1091,14 +1091,18 @@ async function runScan(): Promise<void> {
  * files appear on the next scan. That is a deliberate driver decision (ticket
  * 30) — a trailing re-run was considered and declined. Do not add one.
  *
- * ⚠ THAT COST ALSO LANDS ON `directoryPicker`, WHICH IS THE LESS OBVIOUS HALF.
- * `runScan` reads its library folders once, at the top. A folder added while a
- * scan is already running therefore joins a scan that enumerated before the
- * folder existed, and its books appear only on the next scan — even though the
- * user's action was explicit. Before the guard that path started a second,
- * concurrent scan, which did see the new folder and corrupted data on the way
- * past; joining is the better of the two, not a free one. If this needs fixing,
- * fix it at the picker (rescan after the join settles) rather than by weakening
- * the guard or adding a general trailing re-run.
+ * ⚠ ONE CALLER MUST NOT JOIN, AND USES `scanLibrary.afterCurrent()` INSTEAD.
+ * `runScan` reads its library folders ONCE, at the top. So a scan already in
+ * flight enumerated before any folder added since it started, and joining it
+ * would leave that folder's books missing until some later scan — for a user
+ * action that was explicit. `directoryPicker` therefore waits for the running
+ * scan and then runs one that can see the new folder. That is not a trailing
+ * re-run in the sense declined above: it is scoped to the one caller that
+ * changes what the scan reads on entry, it costs nothing when no scan is
+ * running, and concurrent callers still share a single fresh run.
+ *
+ * ⚠ The rule generalises: ANY caller that mutates library configuration before
+ * scanning must use `afterCurrent`. A plain call is only correct when the
+ * caller has changed nothing the scan reads at startup.
  */
 export const scanLibrary = singleFlight(runScan);
