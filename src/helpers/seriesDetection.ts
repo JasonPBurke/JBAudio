@@ -568,11 +568,30 @@ const isAbbrev = (n: string) => /^[A-Z0-9]{2,5}$/.test(n.replace(/[^A-Za-z0-9]/g
  * `A` qualifies for `The Expanse` and the shortest-wins tie-break elects it.
  * A real replacement needs a length/containment guard on candidates as well.
  *
- * ⚠ KNOWN RESIDUAL, ticket 28: because the bound is positional, a library
- * rooted one level deeper (`/Audiobooks/Terry Pratchett`) leaves `rel` with two
- * parts, `d = 1; d < 1` runs zero times, and NO folder can contribute a display
- * name. Same books, same tags, different name, decided by where the root was
- * pointed.
+ * ⚠ KNOWN RESIDUAL — ticket 28, CLOSED `wontfix` 2026-08-15, REAL BUT NOT WORTH
+ * FIXING. Because the bound is positional, a library rooted one level deeper
+ * (`/Audiobooks/Terry Pratchett`) leaves `rel` with two parts, `d = 1; d < 1`
+ * runs zero times, and NO folder can contribute a display name. Same books,
+ * same tags, different name, decided by where the root was pointed. Measured on
+ * the corpus before closing: strip the author level and 169 of 298 units (57%)
+ * lose their folder vote with ZERO change to series count, membership, purity
+ * or canonical numbers — only `Dresden Files`/`Lockwood and Co.` shift by an
+ * article and a full stop, and neither counts under the suite's scoring key.
+ * ⚠ The ticket's premise — that the folder spelling is the tidier one — is what
+ * the corpus refuted: `The Dresden Files` is the DEEP-ROOTED result and is the
+ * better name. Do not reopen on a re-reading of the mechanism; only on a real
+ * user report, or a library with poor tags and tidy folders (the one regime the
+ * corpus cannot speak for).
+ *
+ * ⚠ AND IF YOU DO FIX IT, KNOW THESE TWO THINGS FIRST. (a) This function is a
+ * GROUPING pass, not a labelling one — it rewrites `a.key` below, and
+ * `detectSeries` buckets proposals by that key, so two groups electing names
+ * that normalise alike MERGE. (b) The obvious fix (`d = 0` + tag-based author
+ * refusal + a flat `ck.length >= key.length * 0.5` containment guard) makes the
+ * two author tests pass and then costs FOUR books their correct name:
+ * `numberAccuracy(conservative())` goes {162,168} -> {158,164}. The corpus
+ * series counts stay green through that, so pin `scored` explicitly and never
+ * move the 0.964 / 0.983 thresholds — the probe landed at 0.9634.
  */
 function electDisplayNames<T extends DetectionUnit>(assignments: Assignment<T>[]): void {
   const groups = new Map<string, Assignment<T>[]>();
