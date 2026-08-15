@@ -7,6 +7,7 @@ import SeriesBook from '@/db/models/SeriesBook';
 import { SeriesRow, MembershipRow } from '@/helpers/seriesAssembly';
 import { planEditorSave } from '@/db/seriesEditorSave';
 import { planSeriesJoin } from '@/db/seriesJoin';
+import { canonicalSourceFor } from '@/db/seriesProvenance';
 import {
   selectOrphanedMemberships,
   selectEmptySeriesIds,
@@ -91,17 +92,6 @@ async function prepareSuppressionClear(name: string): Promise<SuppressedSeries[]
 type CanonicalNumbers = (number | null)[];
 
 /**
- * The provenance a number written from the editor carries. Always `'user'`
- * when a number is present: a person typed it into a box, which is the only
- * way to reach this code. Null when no number is set, because
- * `canonical_source` deliberately does not coalesce — claiming `'user'` for a
- * number nobody entered would make an unnumbered row look pinned.
- */
-function sourceFor(n: number | null): 'user' | null {
-  return n == null ? null : 'user';
-}
-
-/**
  * Create a new series with its ordered membership. `bookKeysInOrder` are
  * structural keys (first file paths). Returns the new series id.
  *
@@ -142,7 +132,7 @@ export async function createSeries(
         sb.bookKey = bookKey;
         sb.position = position;
         sb.canonicalNumber = number;
-        sb.canonicalSource = sourceFor(number);
+        sb.canonicalSource = canonicalSourceFor(number);
         sb.membership = 'user';
         sb.createdAt = now;
       });
@@ -732,14 +722,20 @@ export async function applyPlan(plan: ReconcilePlan): Promise<ApplyPlanResult> {
   // One fetch of the whole join table rather than a chunked `Q.oneOf` over
   // series ids — it is a few hundred rows, the prune above already reads it
   // this way, and it sidesteps SQLITE_MAX_VARIABLE_NUMBER entirely.
+  //
+  // The composite key is joined on a NUL because no id or file path can
+  // contain one. Write it as the ESCAPE `\0`, never as a literal U+0000 byte:
+  // a raw byte here is legal JS and runs correctly, but it makes this whole
+  // 33 KB module binary to `grep` and `rg`, so every text-based sweep — review
+  // passes, lint rules, codemods — silently skips it.
   let removals: SeriesBook[] = [];
   if (plan.removeRows.length > 0) {
     const targets = new Set(
-      plan.removeRows.map((r) => `${r.seriesId} ${r.bookKey}`),
+      plan.removeRows.map((r) => `${r.seriesId}\0${r.bookKey}`),
     );
     const all = await database.get<SeriesBook>('series_books').query().fetch();
     removals = all.filter((row) =>
-      targets.has(`${(row._raw as any).series_id} ${row.bookKey}`),
+      targets.has(`${(row._raw as any).series_id}\0${row.bookKey}`),
     );
     result.rowsRemoved = removals.length;
   }

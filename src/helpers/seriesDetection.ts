@@ -83,8 +83,10 @@ const ROMAN: Record<string, number> = { i: 1, v: 5, x: 10, l: 50 };
 
 /** Roman numeral to int. Returns NaN on anything that is not one. */
 function roman(input: string): number {
-  // 'lll' is a real-world typo for III, so fold runs of l back to i.
-  const s = input.toLowerCase().replace(/l{2,}/, (m) => 'i'.repeat(m.length));
+  // 'lll' is a real-world typo for III, so fold runs of l back to i. EVERY run:
+  // the rule is about the character, not about where it sits, and without the
+  // `g` a second run stayed an L and scored 50.
+  const s = input.toLowerCase().replace(/l{2,}/g, (m) => 'i'.repeat(m.length));
   let total = 0;
   for (let i = 0; i < s.length; i++) {
     const a = ROMAN[s[i]];
@@ -107,8 +109,12 @@ function normNumber(raw: unknown): string | null {
     .replace(/^(book|volume|vol\.?|part|pt\.?)\s*/i, '')
     .trim();
   if (!s) return null;
+  // The capture opens with `\d+`, so it can never come back starting at the
+  // dot: `.5` fails the match outright and `0.5` backtracks `0*` to empty and
+  // arrives whole. A bare leading dot is therefore REFUSED, not promoted — if
+  // that is ever wanted, the pattern is what has to change, not this line.
   const m = s.match(/^0*(\d+(?:\.\d+)?(?:[a-z])?(?:-\d+)?)$/i);
-  if (m) return m[1].startsWith('.') ? '0' + m[1] : m[1];
+  if (m) return m[1];
   if (/^[ivxlIVXL]+$/.test(s)) {
     const v = roman(s);
     return Number.isFinite(v) ? String(v) : null;
@@ -490,7 +496,11 @@ function assign<T extends DetectionUnit>(
 // Runs AFTER assignment, never during it: a unit whose portable name is
 // withdrawn here must NOT fall through to its folder as a second chance.
 
-const SPLIT_RE = /\((\d+)\s*of\s*(\d+)\)|\bPart\s+(\d+)\s*(?:of\s*\d+)?\s*$|\b(?:Disc|CD)\s*\d+\s*$/i;
+// Group numbering runs ACROSS the alternatives, not within each one, so every
+// alternative that can win has to declare its own capture and be listed in the
+// `part` pick below. `Disc|CD` shipped without one: it matched, `part` came out
+// undefined, and the whole third of the guard could never suppress anything.
+const SPLIT_RE = /\((\d+)\s*of\s*(\d+)\)|\bPart\s+(\d+)\s*(?:of\s*\d+)?\s*$|\b(?:Disc|CD)\s*(\d+)\s*$/i;
 
 /**
  * "Warbreaker 1" alongside an album reading "(1 of 2)" is ONE book in two
@@ -500,7 +510,7 @@ const SPLIT_RE = /\((\d+)\s*of\s*(\d+)\)|\bPart\s+(\d+)\s*(?:of\s*\d+)?\s*$|\b(?
 function isSplitBookPart<T extends DetectionUnit>(a: Assignment<T>): boolean {
   const m = (a.unit.album ?? '').match(SPLIT_RE);
   if (!m) return false;
-  const part = m[1] || m[3];
+  const part = m[1] || m[3] || m[4];
   return a.signals.some((s) => s.splitRisk && String(s.num) === String(part));
 }
 

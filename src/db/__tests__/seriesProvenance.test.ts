@@ -2,6 +2,7 @@ import {
   resolveProvenance,
   resolveMembership,
   resolveCanonicalSource,
+  canonicalSourceFor,
 } from '@/db/seriesProvenance';
 
 /**
@@ -79,5 +80,34 @@ describe('resolveCanonicalSource — the one that does NOT coalesce', () => {
   it('reads an unrecognised value as no source at all', () => {
     expect(resolveCanonicalSource('')).toBeNull();
     expect(resolveCanonicalSource('auto')).toBeNull();
+  });
+});
+
+/**
+ * The write half of the same column. It lived twice — once in `seriesQueries`
+ * and once in `seriesEditorSave` — which is exactly the drift ADR 0001 was
+ * written about: two copies of one rule, free to disagree about what null
+ * means with nothing failing. It sits beside its reader now.
+ */
+describe('canonicalSourceFor — the write half', () => {
+  it('claims a number the user set, and only then', () => {
+    expect(canonicalSourceFor(4)).toBe('user');
+    // Zero is a number somebody typed, not an absent one.
+    expect(canonicalSourceFor(0)).toBe('user');
+  });
+
+  it('writes no source when there is no number', () => {
+    // The §G5 rule from the reader's side: an unnumbered row must not come out
+    // looking like one the user pinned.
+    expect(canonicalSourceFor(null)).toBeNull();
+  });
+
+  it('round-trips through its own reader', () => {
+    // The invariant the co-location buys: what this writes is what that reads.
+    for (const n of [null, 0, 1, 12]) {
+      expect(resolveCanonicalSource(canonicalSourceFor(n))).toBe(
+        canonicalSourceFor(n),
+      );
+    }
   });
 });

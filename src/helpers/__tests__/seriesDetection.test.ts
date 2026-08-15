@@ -198,6 +198,30 @@ describe('canonical numbers are normalised, not merely copied', () => {
   test('a part that is not a number at all yields no number', () => {
     expect(numbersFor(['Prologue', '2'])).toEqual([null, '2']);
   });
+
+  /**
+   * `roman()` folds runs of `l` back to `i` because `lll` is a real-world typo
+   * for III. The rule is about the CHARACTER, not about where it sits, so a
+   * later run has to fold exactly like the first one. Asserted as an
+   * equivalence rather than a literal value: the point is that the two
+   * spellings are indistinguishable, not what the odd numeral evaluates to.
+   */
+  test('every run of l folds, not just the first', () => {
+    const [typed] = numbersFor(['llxll', '2']);
+    const [spelled] = numbersFor(['iixii', '2']);
+
+    expect(typed).toBe(spelled);
+  });
+
+  /**
+   * `normNumber` accepts a fraction only with its leading digit present. `.5`
+   * is refused outright — it is not silently promoted to `0.5` — while `0.5`
+   * survives intact. Pinned because the parsing branch that once claimed to
+   * handle a bare leading dot could never run.
+   */
+  test('a fraction needs its leading digit; a bare dot is not a number', () => {
+    expect(numbersFor(['0.5', '.5', '2'])).toEqual(['0.5', null, '2']);
+  });
 });
 
 describe('A2 · folder evidence self-validates, always', () => {
@@ -376,6 +400,58 @@ describe('the split-book guard', () => {
     const discworld = [
       unit({ rel: 'Terry Pratchett/Discworld/Mort', grouping: 'Discworld 4', album: 'Mort' }),
       unit({ rel: 'Terry Pratchett/Discworld/Sourcery', grouping: 'Discworld 5', album: 'Sourcery' }),
+    ];
+
+    expect(namesOf(discworld)).toEqual(['Discworld']);
+  });
+
+  /**
+   * The `Disc N` / `CD N` shape is the third spelling of the same delivery —
+   * one book cut into discs — and must suppress exactly like `(1 of 2)`.
+   */
+  test('a disc-per-file delivery is suppressed like a part-of-N one', () => {
+    const discs = [
+      unit({
+        rel: 'Brandon Sanderson/Warbreaker',
+        grouping: 'Warbreaker 1',
+        album: 'Warbreaker - Disc 1',
+      }),
+      unit({
+        rel: 'Brandon Sanderson/Warbreaker',
+        grouping: 'Warbreaker 2',
+        album: 'Warbreaker - Disc 2',
+      }),
+    ];
+
+    expect(detectSeries(discs)).toEqual([]);
+  });
+
+  test('a CD suffix suppresses on the same rule', () => {
+    const cds = [
+      unit({ rel: 'A/Warbreaker', grouping: 'Warbreaker 1', album: 'Warbreaker CD 1' }),
+      unit({ rel: 'A/Warbreaker', grouping: 'Warbreaker 2', album: 'Warbreaker CD 2' }),
+    ];
+
+    expect(detectSeries(cds)).toEqual([]);
+  });
+
+  /**
+   * The equality half of the guard, for the disc shape: a genuine series whose
+   * files happen to carry a disc suffix keeps its numbers, because the disc
+   * number is not the series number. Without this the fix would over-suppress.
+   */
+  test('a disc suffix does NOT suppress when it disagrees with the series number', () => {
+    const discworld = [
+      unit({
+        rel: 'Terry Pratchett/Discworld/Mort',
+        grouping: 'Discworld 4',
+        album: 'Mort - Disc 1',
+      }),
+      unit({
+        rel: 'Terry Pratchett/Discworld/Sourcery',
+        grouping: 'Discworld 5',
+        album: 'Sourcery - Disc 1',
+      }),
     ];
 
     expect(namesOf(discworld)).toEqual(['Discworld']);

@@ -36,6 +36,10 @@ Open tickets raised by this review, all `ready-for-agent`:
 Findings 6, 7 and 19–24 are confirmed and small but have no ticket yet — pick them up from
 the catalogue below.
 
+**Findings 6, 7, 19, 23 and 24 were all fixed in one pass on 2026-08-14** (no ticket; they are
+small and independent, exactly as this section anticipated). jest **733 → 741**, tsc and eslint
+clean. Findings 8–18 and 20–22 remain open and still need re-verification.
+
 ---
 
 ## 1. Editor Save permanently tombstones dangling membership rows — CONFIRMED
@@ -232,7 +236,7 @@ Same function as finding 2 — **fix both in one pass.**
 
 ---
 
-## 6. A third of the split-book guard can never fire — CONFIRMED
+## 6. A third of the split-book guard can never fire — CONFIRMED · **RESOLVED 2026-08-14**
 
 **`src/helpers/seriesDetection.ts:503`** (`isSplitBookPart`)
 
@@ -252,11 +256,18 @@ claims to cover.
 
 **Fix:** add a capture group to the `Disc|CD` alternative and include it in the `part` pick.
 
+**Fixed 2026-08-14** exactly as directed — `(\d+)` on the third alternative, `m[1] || m[3] || m[4]`.
+Three tests in `seriesDetection.test.ts`' split-book guard block: `Disc N` and `CD N` deliveries
+now suppress, and a **fourth** pins the other half of the rule — a disc suffix whose number
+*disagrees* with the series number must still detect (`Discworld 4` / `Mort - Disc 1`), so the
+added capture cannot over-suppress. The 354-unit corpus test is **unchanged**: no real corpus album
+pairs a `Disc|CD` suffix with a bare-num Grouping, so the scan baseline 354→24/202 still holds.
+
 ---
 
-## 7. Raw NUL bytes make `seriesQueries.ts` invisible to grep — CONFIRMED
+## 7. Raw NUL bytes make `seriesQueries.ts` invisible to grep — CONFIRMED · **RESOLVED 2026-08-14**
 
-**`src/db/seriesQueries.ts:718` and `:722`**
+**`src/db/seriesQueries.ts:718` and `:722`** (drifted to `:738`/`:742` by the time of the fix)
 
 The file contains two raw `U+0000` bytes inside template literals used as composite-key
 delimiters:
@@ -277,6 +288,14 @@ patch tools and by ticket 18's *"Grep for it"* criterion.
 
 **Fix:** replace both with the two-character escape `\0` (or a printable delimiter such as
 `\x1f`). Behaviour is unchanged and the file becomes greppable.
+
+**Fixed 2026-08-14** with the `\0` escape, not `\x1f` — the escape denotes the same U+0000 in a
+template literal, so the key encoding is **byte-identical** and no behaviour could shift; a
+different delimiter would have been a real (if tiny) change for no extra benefit. Done as a
+byte-level replacement asserting exactly 2 NULs present before and 0 after, since an editor cannot
+reliably match a raw U+0000. `src/` now contains **zero** NUL bytes and `rg`/`grep` both read the
+file as text. A comment at the site says to keep the escape and why, so the raw byte is not
+reintroduced by a future edit.
 
 ---
 
@@ -301,12 +320,12 @@ Numbering: **Finding N** refers to a row in this document; **Ticket NN** refers 
 | 16 | `src/helpers/artworkIdentity.ts:104` | `artworkFilePath`'s containment check is a bare `startsWith` with no path normalisation, so `file://…/artwork/../books/cover.webp` passes the "inside artworkDir" guard. Not reachable through today's writers, but the comment claims a guarantee it does not provide — and finding 5 shows delete paths for this column are still being added. | PLAUSIBLE |
 | 17 | `src/helpers/seriesNumbering.ts:126` | `rememberedNumbersFrom` compares the raw column (`row.membership !== 'excluded'`) instead of going through `resolveMembership`, which `seriesProvenance.ts` declares "the single site". No behavioural difference today; widening the tombstone encoding would silently reopen the blank-number bug. | PLAUSIBLE |
 | 18 | `src/helpers/generalTags.ts:75` | `captureBookTags` JSON-stringifies the entire General track **per file**, but `groupChaptersIntoBooks` keeps only the first file's value. ~3,880 stringify calls of which ~350 persist, plus several MB held alive for the directory pass. Make `rawJson` lazy. Also: `serializeTrack` excludes only top-level `Cover_Data`, so cover bytes under `extra` would ride into the blob. | PLAUSIBLE (efficiency) |
-| 19 | `src/db/seriesQueries.ts:97` | `sourceFor` is duplicated **verbatim** in `seriesQueries.ts` and `seriesEditorSave.ts`. `updateSeries`' header says "IO ONLY. IT MAKES NO DECISIONS", yet `createSeries` computes provenance through the local copy. Exactly the drift `seriesOrphanPrune.ts` / `seriesName.ts` were extracted to prevent (ADR 0001). Import one, delete the other. | **CONFIRMED** (reuse) |
+| 19 | `src/db/seriesQueries.ts:97` | `sourceFor` is duplicated **verbatim** in `seriesQueries.ts` and `seriesEditorSave.ts`. `updateSeries`' header says "IO ONLY. IT MAKES NO DECISIONS", yet `createSeries` computes provenance through the local copy. Exactly the drift `seriesOrphanPrune.ts` / `seriesName.ts` were extracted to prevent (ADR 0001). Import one, delete the other. | **CONFIRMED** (reuse) · **RESOLVED 2026-08-14** |
 | 20 | `src/db/seriesReconcile.ts:188` | `plannedMembers` re-implements `toMember`'s body field-for-field; it reduces to `seedOrder(candidates).map(toMember)`. | PLAUSIBLE (reuse) |
 | 21 | `src/db/seriesReconcile.ts:212` | `suppressionsClearedByCreating` has **no production caller** — the write path uses `suppressionsMatching` via `prepareSuppressionClear`. Test-only second spelling of the same rule, cross-referenced in `seriesSuppression.ts:21` as if live. | PLAUSIBLE (dead code) |
 | 22 | `src/components/SeriesEditorPanel.tsx:424` | `authorCellText` pairs `fontSize: 13` with a fixed `lineHeight: 16` on a `numberOfLines={2}` `<Text>` in a `minHeight: 42` box — the exact construct `seriesEditor.tsx:1226` forbids ("A fixed line height is in dp and does NOT follow the OS font scale"). The codebase currently asserts both. **⚠ Ticket 20's picker author grid passed a device check at fs 2.0 — confirm on device before changing.** | PLAUSIBLE |
-| 23 | `src/helpers/seriesDetection.ts:87` | `roman()`'s typo-fold `.replace(/l{2,}/, …)` lacks the `g` flag, so only the **first** run of `l`s folds. `llxll` → `iixll` = 90. Very narrow; the regex reads as if it handles every run. | **CONFIRMED** (minor) |
-| 24 | `src/helpers/seriesDetection.ts:111` | `m[1].startsWith('.')` in `normNumber` is **unreachable** — group 1 begins with `\d+`, so `'.5'` fails the match entirely and `'0.5'` backtracks `0*` to empty. Dead branch advertising a case the regex refuses; invites a future reader to loosen the pattern. | **CONFIRMED** (dead code) |
+| 23 | `src/helpers/seriesDetection.ts:87` | `roman()`'s typo-fold `.replace(/l{2,}/, …)` lacks the `g` flag, so only the **first** run of `l`s folds. `llxll` → `iixll` = 90. Very narrow; the regex reads as if it handles every run. | **CONFIRMED** (minor) · **RESOLVED 2026-08-14** |
+| 24 | `src/helpers/seriesDetection.ts:111` | `m[1].startsWith('.')` in `normNumber` is **unreachable** — group 1 begins with `\d+`, so `'.5'` fails the match entirely and `'0.5'` backtracks `0*` to empty. Dead branch advertising a case the regex refuses; invites a future reader to loosen the pattern. | **CONFIRMED** (dead code) · **RESOLVED 2026-08-14** |
 
 ---
 
@@ -316,8 +335,25 @@ Numbering: **Finding N** refers to a row in this document; **Ticket NN** refers 
 2. **Ticket 23** — finding 3. Same file and same rule as 21; **do it in the same pass.**
 3. **Ticket 22** — finding 2, plus finding 5 (same function, one pass).
 4. **Finding 4** — unblocks ticket 18. Small and self-contained; can land any time.
-5. **Findings 6, 7, 19, 23, 24** — confirmed, small, independent.
-6. **Catalogue 8–18, 20–22** — re-verify each before acting.
+5. ~~**Findings 6, 7, 19, 23, 24**~~ — **DONE 2026-08-14**, one pass, jest 733 → 741.
+6. **Catalogue 8–18, 20–22** — re-verify each before acting. ← **the frontier**
+
+### What the 6/7/19/23/24 pass is worth knowing for
+
+- **Only finding 6 could change what a user sees.** 23 and 24 are latent-consistency fixes and 7
+  and 19 are non-behavioural; do not go looking for a device symptom from four of the five.
+- **Finding 23 is unreachable by any VALID roman numeral**, which the finding did not say. `L`
+  never repeats in a well-formed numeral and `I`-runs never appear twice, so no two-run input
+  exists outside garbage. The `g` was still added — it costs one character and makes the code
+  match its own comment — but it is **not** a latent user-facing bug, and the test had to be
+  written as an *equivalence* (`llxll` and `iixii` must agree) rather than pinning a magic value,
+  because the value either spelling produces is meaningless.
+- **Finding 24's test passes on the unfixed code, by design.** Removing dead code has no red
+  phase; the test pins that `.5` is *refused* and `0.5` survives, which is what makes deleting the
+  branch provably safe rather than merely plausible.
+- **The rule finding 19 encodes:** a provenance column has a WRITE half and a READ half, and they
+  belong in one file. `seriesProvenance.ts` owned only the readers, so the writer was free to be
+  copied — twice — and each copy could drift on what null means with nothing failing.
 
 ## Method notes, for whoever picks this up
 

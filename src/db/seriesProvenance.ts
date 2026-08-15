@@ -65,3 +65,20 @@ export function resolveCanonicalSource(
   if (raw === 'user') return 'user';
   return null;
 }
+
+/**
+ * The WRITE half of `canonical_source`, for every hand-made number: always
+ * `'user'` when a number is present, because a person typed it into a box, and
+ * null when none is set. The null is the same non-coalescing rule
+ * `resolveCanonicalSource` reads back — claiming `'user'` for a number nobody
+ * entered would make an unnumbered row look pinned.
+ *
+ * It sits beside its reader because it IS the other half of one column's
+ * encoding; kept apart, the two copies this replaced could disagree about what
+ * null means without anything failing. Deliberately narrower than the reader's
+ * return: detection never comes through here — it writes `'detected'` directly
+ * in `seriesReconcile.ts` — so there is no caller this may hand a choice to.
+ */
+export function canonicalSourceFor(n: number | null): 'user' | null {
+  return n == null ? null : 'user';
+}

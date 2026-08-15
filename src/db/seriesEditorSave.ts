@@ -39,7 +39,7 @@
  */
 
 import { computeMembershipDiff } from '@/db/seriesMembershipDiff';
-import { resolveMembership } from '@/db/seriesProvenance';
+import { canonicalSourceFor, resolveMembership } from '@/db/seriesProvenance';
 
 /** A `series_books` row as the editor's save path reads it. */
 export type EditorExistingRow = {
@@ -82,17 +82,6 @@ export type EditorSavePlan = {
   insertRows: EditorRowInsert[];
   updateRows: EditorRowUpdate[];
 };
-
-/**
- * The provenance a number written from the editor carries — always `'user'`
- * when a number is present, because a person typed it into a box. Null when no
- * number is set: `canonical_source` deliberately does not coalesce, so claiming
- * `'user'` for a number nobody entered would make an unnumbered row look
- * pinned.
- */
-function sourceFor(n: number | null): 'user' | null {
-  return n == null ? null : 'user';
-}
 
 /**
  * A11 — what a row's `membership` must become, or undefined to leave it. Read
@@ -277,7 +266,7 @@ export function planEditorSave(input: {
       const number = numberByKey.get(row.bookKey) ?? null;
       if ((row.canonicalNumber ?? null) !== number) {
         update.canonicalNumber = number;
-        update.canonicalSource = sourceFor(number);
+        update.canonicalSource = canonicalSourceFor(number);
         changed = true;
       }
     }
@@ -291,7 +280,7 @@ export function planEditorSave(input: {
       bookKey,
       position,
       canonicalNumber: number,
-      canonicalSource: sourceFor(number),
+      canonicalSource: canonicalSourceFor(number),
       membership: 'user' as const,
     };
   });
