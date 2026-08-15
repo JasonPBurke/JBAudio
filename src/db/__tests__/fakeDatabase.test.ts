@@ -8,9 +8,9 @@ import { FakeDatabase } from './support/fakeDatabase';
  * ⚠ IT LIVES HERE RATHER THAN IN A CONSUMER ON PURPOSE. This guard used to sit
  * in `addBookToSeries.test.ts`, which was fine while one suite used the fake
  * and wrong the moment a second did: deleting that file would have taken the
- * harness's only defence with it, silently. The repo already rules on this —
- * `src/prototypes/__tests__/harnessBoundary.test.ts` keeps its rule inside the
- * directory it governs so the rule and its subject are removed together.
+ * harness's only defence with it, silently. The repo's rule: a guard lives
+ * inside the directory it governs, so the rule and its subject are removed
+ * together.
  */
 
 /*

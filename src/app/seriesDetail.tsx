@@ -21,11 +21,11 @@
  * ⚠ It must be `useDerivedSeries()` — the SAME source `seriesEditor.tsx` reads.
  * `Edit series` hands the editor an id and the editor looks it up itself, so a
  * sheet resolving from any other dataset opens an editor that finds nothing and
- * seeds an empty create. Resolving through the prototype harness's
- * `useSeriesSource()` did exactly that under a synthetic preset, and also
- * subscribed this sheet to the whole library books map — which `library.tsx`
- * republishes on every progress write, re-rendering the hero fan, the
- * completion bar and the row list at progress-tick rate during playback.
+ * seeds an empty create. The Series prototype harness (deleted by ticket 18)
+ * resolved through a hook of its own and did exactly that under a synthetic
+ * preset; it also subscribed this sheet to the whole library books map — which
+ * `library.tsx` republishes on every progress write, re-rendering the hero fan,
+ * the completion bar and the row list at progress-tick rate during playback.
  */
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
