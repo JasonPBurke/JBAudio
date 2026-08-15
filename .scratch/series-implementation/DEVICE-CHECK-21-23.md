@@ -17,7 +17,7 @@ the end**. If you only have time for one test, do B.
 
 **Two things here are NOT device-testable, and should not be attempted:**
 
-- the seed-time freeze (`visibleAtSeed`) — it needs a background scan to land *inside* an open
+- the seed-time freeze (`visibleAtSeed`) — it needs a background scan to land _inside_ an open
   editor, which you cannot reliably time;
 - the fraction arithmetic itself — jest owns that (`seriesEditorSave.test.ts`).
 
@@ -26,7 +26,7 @@ the end**. If you only have time for one test, do B.
 ## Test A — ticket 21: a book whose file moved is no longer deleted from its series
 
 This is the silent permanent data loss. **It needs a DANGLING row, and producing one is
-counter-intuitive** — moving a whole book out *orphans* it, which trips the scan's prune and
+counter-intuitive** — moving a whole book out _orphans_ it, which trips the scan's prune and
 removes the row legitimately. That is not this bug.
 
 The recipe is in `scanLibrary.ts`'s own comment: **rename only the FIRST file of a multi-file
@@ -38,7 +38,7 @@ book.** The book survives on its remaining chapters, so nothing orphans, so the 
 2. On the device, rename **only its first file** — `01 - foo.mp3` → `01 - foo.mp3.bak`. Leave
    every other file alone, in place.
 3. Rescan. **Checkpoint:** the book is still in the library, but has **vanished from the series**.
-   If it is gone from the *library* too, you moved too much — undo and retry.
+   If it is gone from the _library_ too, you moved too much — undo and retry.
 4. Open that series in the editor. **Change nothing.** Press `Save`.
 5. Rename the file back. Rescan.
 
@@ -52,11 +52,13 @@ book.** The book survives on its remaining chapters, so nothing orphans, so the 
 
 ## Test B — ticket 23: a restored book lands in its slot after TWO removals
 
+** USER TESTED AND PASSED **
+
 Pure UI. No file surgery. **This is the highest-value test on the page.**
 
 1. A series of five numbered books — call them **A B C D E**.
 2. Editor → remove **D** → `Save`.
-3. Editor → remove **B** → `Save`. *(Two separate saves. This is the ticket's own simulation.)*
+3. Editor → remove **B** → `Save`. _(Two separate saves. This is the ticket's own simulation.)_
    List now reads **A C E**.
 4. Go to **D**'s title details → `Add to series…` → pick the series.
 
@@ -69,6 +71,8 @@ Also confirm D came back **with its canonical number**, and that **A, C and E ke
 ---
 
 ## Test C — the follow-up fix: two books removed in ONE save, both restore orders
+
+** USER TESTED AND PASSED **
 
 This is the case the **first** attempt got wrong; a code review caught it. Both orders must work,
 because the user picks one and neither is rarer.
@@ -84,7 +88,7 @@ because the user picks one and neither is rarer.
 ## Test D — optional, the one-time normalisation
 
 The first `Save` after this ships rewrites the `position` of existing tombstones from integers to
-fractions (e.g. `1` → `0.5`). Slot-preserving and harmless, but it *is* a write.
+fractions (e.g. `1` → `0.5`). Slot-preserving and harmless, but it _is_ a write.
 
 Only worth checking if you want to see it: open a series with an existing tombstone, `Save`
 without changing anything, and confirm nothing visible moves. The fraction is only observable in
