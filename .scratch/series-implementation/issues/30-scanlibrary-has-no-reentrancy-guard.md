@@ -163,25 +163,77 @@ trailing/queued re-run to "improve" this — it was considered and declined.
 - The scan-progress store's start/end actions — no API change required, but the guard must make
   the "end called while another run continues" case unreachable.
 
-**Acceptance criteria:**
-- [ ] A second call to `scanLibrary` while the first is still pending returns **the same promise
+**Acceptance criteria:** — ✅ **ALL MET.** Boxes below carry the evidence that closed them.
+Criteria 9–13 were added by the follow-up amendment, 14–17 by device verification.
+
+*Original brief (`71763db`):*
+
+- [x] A second call to `scanLibrary` while the first is still pending returns **the same promise
       instance** as the first, and the underlying scan body executes exactly once.
-- [ ] After the in-flight promise **resolves**, a subsequent call starts a new run.
-- [ ] After the in-flight promise **rejects**, a subsequent call starts a new run — the guard must
+      — `singleFlight` returns the stored `inFlight` reference itself; test asserts `toBe`, not
+      equality of value.
+- [x] After the in-flight promise **resolves**, a subsequent call starts a new run.
+      — `.finally` clears the guard, and it is attached at creation so it runs *before* any
+      caller's `await` continuation resumes.
+- [x] After the in-flight promise **rejects**, a subsequent call starts a new run — the guard must
       not latch permanently on a failed scan. A rejection still propagates to every caller that
       joined.
-- [ ] The unawaited call sites (`DrawerContent`'s `Rescan Library` row, `useScanExternalFileSystem`)
-      and the awaited one (`directoryPicker`) are unchanged, or changed only to `void`-annotate the
-      floating promise if lint requires it.
-- [ ] Unit tests cover: coalescing two overlapping calls; a third call after resolution starting a
+      — `.finally` (not `.then`) clears on both paths; two tests, one per half.
+- [x] ⚠ **SUPERSEDED IN PART — read this one, do not just take the tick.** The unawaited call sites
+      (`DrawerContent`'s `Rescan Library` row, `useScanExternalFileSystem`) and the awaited one
+      (`directoryPicker`) are unchanged, or changed only to `void`-annotate the floating promise if
+      lint requires it.
+      — **True as written at `71763db`: no call site changed, and no `void` annotation was needed.**
+      **`directoryPicker` was then deliberately changed at `cdac42f`** to `scanLibrary.afterCurrent()`
+      by driver decision, because leaving it unchanged was itself the regression (criterion 13).
+      The two unawaited sites remain untouched to this day.
+- [x] Unit tests cover: coalescing two overlapping calls; a third call after resolution starting a
       fresh run; a third call after rejection starting a fresh run; and the rejection reaching all
       joined callers.
-- [ ] `npx tsc --noEmit` is clean and `npx eslint` reports 0 errors — the repo's standing baseline.
-- [ ] The full jest suite passes with no pre-existing test regressed. Current baseline is **778**
+      — Plus a fifth the brief did not ask for: a **synchronous** throw surfacing as a rejection
+      rather than escaping the caller's frame. It was the only slice that went red.
+- [x] `npx tsc --noEmit` is clean and `npx eslint` reports 0 errors — the repo's standing baseline.
+      — Both clean; eslint also reports zero problems on the touched files specifically.
+- [x] The full jest suite passes with no pre-existing test regressed. Current baseline is **778**
       passing (ticket 29, `71dcc8d`); the new tests should raise it.
-- [ ] The `⚠ IT ASSUMES NO CONCURRENT SCAN` warning block on `pruneOrphanedSeriesBooks` is updated
+      — **778 → 783** at `71763db`, **→ 787** at `cdac42f`. 62 → 63 suites. Nothing regressed.
+- [x] The `⚠ IT ASSUMES NO CONCURRENT SCAN` warning block on `pruneOrphanedSeriesBooks` is updated
       to record that the assumption is now **enforced**, and by what — do not delete the block, and
       do not weaken the surrounding ticket-22 blocklist warning.
+      — Rewritten in place, naming ticket 30 and the mechanism, plus a `⚠ THE PROOF ABOVE RESTS ON
+      THAT GUARD` paragraph. The ticket-22 blocklist and ticket-27 fetch-inside-writer paragraphs
+      are **byte-identical** in the diff.
+
+*Added by the follow-up amendment (`cdac42f`) — see [Follow-up](#follow-up-the-folder-picker-path-is-fixed-not-accepted):*
+
+- [x] A caller that has changed what the scan reads on entry can get a run guaranteed to **start
+      after** it called, rather than joining a run that predates its change.
+      — `singleFlight.afterCurrent()`.
+- [x] That path **costs nothing when idle**: with no run in flight it performs exactly one run, not
+      two. (This is what makes it better than unconditionally scanning twice.)
+- [x] The stale run is awaited but its **outcome is discarded, failure included** — an unrelated
+      scan's failure must not fail this caller.
+- [x] Concurrent `afterCurrent` callers **coalesce onto a single fresh run** rather than queueing
+      one each — the shared run starts after all of them called, so it observes all their changes.
+- [x] `directoryPicker` uses it, and the general rule (**any caller that mutates library
+      configuration before scanning must use `afterCurrent`**) is written at the export, because
+      getting it wrong is silent — no error, just missing books.
+
+*Added by device verification (`509ca69`) — Pixel 7 Pro, Android 16, debug build:*
+
+- [x] On a real library, adding a folder **while a scan is running** results in its books appearing
+      **without a manual rescan**.
+      — Proved by file counts, not timing: the in-flight run enumerated **1290** files, the fresh
+      run **1591**. The 301 difference is exactly the folder added mid-scan — the files a join
+      would have lost.
+- [x] Two runs triggered this way are **non-overlapping**.
+      — Run 3 began 33 ms after run 2 ended, across a 58-second window.
+- [x] Tapping `Rescan` **during** a scan starts no second run.
+      — Three taps inside a 115-second corpus scan produced **exactly one** `[scan]` line, with no
+      delayed run in the 30 s after completion.
+- [x] The progress indicator no longer resets or lies.
+      — Counter climbed **146 → 208 monotonically** across all three taps; pre-fix `startScan()`
+      reset it to 0 on every call. Final state 355 books vs corpus baseline 354, zero errors logged.
 
 **Out of scope:**
 - Reverting or altering ticket 27's change that moved `pruneOrphanedSeriesBooks`' fetch inside its
@@ -194,8 +246,17 @@ trailing/queued re-run to "improve" this — it was considered and declined.
 - Disabling the `Rescan Library` drawer row while a scan runs. It is a reasonable follow-up for UI
   feedback but is not needed for correctness once the guard exists, and it is not this ticket.
 - Any queued/trailing re-run behavior (see *Desired behavior*).
-- Device verification. Triage accepted the code trace as sufficient; the fix is safe regardless of
-  how often the race fires, because serializing scans cannot regress anything that works today.
+  ⚠ **STILL IN FORCE, and `afterCurrent` did NOT break it — the distinction is the point.** The
+  declined design re-ran the scan for *any* second caller, buying nothing for callers that changed
+  nothing. `afterCurrent` is scoped to callers that mutate what the scan reads **on entry**, costs
+  nothing when idle, and coalesces concurrent callers onto one run. `Rescan` still joins and is
+  still a no-op mid-scan. **Do not read the amendment as licence to add a general trailing re-run.**
+- ~~Device verification.~~ ⚠ **REVERSED — this was DONE, and the ticket is better for it.** Triage
+  had accepted the code trace as sufficient on the grounds that serializing scans cannot regress
+  anything that works today. That reasoning still holds for the *guard*, but it would not have
+  caught the `directoryPicker` regression the guard itself introduced, and the device run is what
+  turned that from an argument into a measurement (1290 files vs 1591). See
+  *DEVICE-VERIFIED 2026-08-15*.
 
 ---
 
