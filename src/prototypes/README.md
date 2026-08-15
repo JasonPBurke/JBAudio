@@ -98,10 +98,15 @@ bespoke detail screens would have made the driver compare six things.
 > describes what 13 measured, and the rulings it produced all shipped; the file
 > itself is kept only until the harness goes.
 >
-> The route still resolves through `useSeriesSource()`, so a **synthetic series
-> opens the REAL sheet** — which is the fastest way to put the 95-character
-> name, the 22-book list and the Dresden gaps in front of the shipping screen at
-> font scale 2.0. Two knobs no longer do anything, because only the prototype
+> ⚠ **A synthetic series NO LONGER opens the real sheet** (ticket 24). The route
+> resolves through `useDerivedSeries()` now, so tapping a synthetic row lands on
+> the `MissingSeries` state — the id is not in the real store. That capability is
+> deliberately gone: while it lasted, `Edit series` from a synthetic sheet opened
+> an editor that found nothing and seeded an empty create, and the harness hook's
+> unconditional `useLibraryStore((s) => s.books)` subscription re-rendered the
+> whole sheet at progress-tick rate during playback. To put a 95-character name
+> or a 22-book list in front of the shipping sheet at font scale 2.0, use real
+> data. Two knobs no longer do anything either, because only the prototype
 > sheet read them: **`Rows`** (the split is the ruling and is now the only
 > arrangement) and **`Pinned`** (`series.artwork` is a real column now, and the
 > knob lived in `protoStore`). `Backgrounds` is likewise superseded by the real
@@ -298,6 +303,13 @@ different *grouping* is a bug.
 Prototype code is throwaway: no jest, no tablet pass, no font-scale pass. It does hold the
 repo's `tsc`/eslint-zero-errors line, because breaking that costs every other session time.
 
+**One deliberate exception to "no jest":** `__tests__/harnessBoundary.test.ts`. It does not
+test prototype code — it tests the *boundary around* it, asserting that nothing outside this
+directory imports `@/prototypes/` except the files the teardown below deletes or restores.
+It lives here so `rm -rf src/prototypes` removes the rule and its subject together. It reads
+files with `readFileSync`, deliberately, because `grep`/`rg` skip `src/db/seriesQueries.ts`
+as binary (it holds two raw `U+0000` bytes) and a grep-based sweep therefore under-reports.
+
 ## Footprint in real code
 
 Three edits in `src/app/(drawer)/(library)/index.tsx`, all marked `THROWAWAY`:
@@ -306,16 +318,26 @@ Three edits in `src/app/(drawer)/(library)/index.tsx`, all marked `THROWAWAY`:
 - `<SeriesHome …>` → `<SeriesProtoSlot …>`
 - the two imports for those
 
-Plus **four** throwaway mounts and one import in `src/app/titleDetails.tsx`
-(ticket 14), all marked `THROWAWAY`: `<ProtoSeriesLine slot='title'>` under the
-book title, `slot='text'` under Author/Narrator, `slot='cards'` inside the info
-card row, `<ProtoAddToSeriesMenuItem>` in the overflow, and
-`<ProtoSeriesLinePill>` at the screen root.
+~~Plus **four** throwaway mounts and one import in `src/app/titleDetails.tsx`
+(ticket 14)~~ — **GONE.** Implementation ticket 17 replaced every one of them
+with the real series line and `Add to series…`. Verified by sweep 2026-08-14:
+`titleDetails.tsx` contains no `@/prototypes/` import and no `THROWAWAY` mount.
+Nothing to remove there.
 
-Plus **one line** in `src/app/seriesDetail.tsx` — that route is now SHIPPING code
-(implementation ticket 11), and its only harness footprint is the same
-`useDerivedSeries()` → `useSeriesSource()` substitution the library screen
-carries, marked `THROWAWAY`. **The route and its `<Stack.Screen>` stay.**
+~~Plus **one line** in `src/app/seriesDetail.tsx`~~ — **GONE.** Ticket 24 pointed
+that route at the real `useDerivedSeries()`. It was the only harness import in
+shipping code, and the reason `rm -rf src/prototypes` used to break the build.
+**The route and its `<Stack.Screen>` stay** — they are the shipping detail sheet.
+
+**So the library screen is the only IMPORT footprint now**, and
+`src/prototypes/__tests__/harnessBoundary.test.ts` fails if that stops being true.
+
+⚠ **It is not the only footprint.** `src/app/_layout.tsx:355` registers the
+harness's `seriesCreateProto` route with a `THROWAWAY`-marked `<Stack.Screen>`,
+and **no import exists for the boundary test to find** — Expo Router resolves
+routes from the filesystem, so that registration is a name string. The teardown
+below still has to remove it by hand. The test covers the half it can: once
+`src/app/seriesCreateProto.tsx` is deleted, nothing may still name that route.
 
 Injecting the data *above* the screen's search/tab/count pipeline is what makes the
 tab-filtering dataset meaningful: `countSeriesByState`, `filterSeriesBySearch` and the tab
@@ -332,15 +354,14 @@ The one production cost is a single Zustand selector over a store that never cha
 rm -rf src/prototypes src/app/seriesCreateProto.tsx
 ```
 
-⚠ **`src/app/seriesDetail.tsx` IS NOT ON THAT LIST ANY MORE, and neither is its
+⚠ **`src/app/seriesDetail.tsx` IS NOT ON THAT LIST, and neither is its
 `<Stack.Screen>`.** Implementation ticket 11 made both shipping code — the
-Series detail sheet is a real route now. What it needs instead is **one line
-restored**: re-import `useDerivedSeries` from `@/store/seriesStore` and call it
-where `useSeriesSource()` is called, exactly as in the library screen below.
-`src/components/SeriesDetailSheet.tsx` never referenced the harness at all.
+Series detail sheet is a real route now. **There is nothing left to restore
+there:** ticket 24 already re-pointed it at `useDerivedSeries()`, so it no longer
+touches the harness at all. `src/components/SeriesDetailSheet.tsx` never
+referenced the harness either.
 
-then remove the four `THROWAWAY` mounts and the `@/prototypes/ProtoSeriesLine`
-import from `src/app/titleDetails.tsx`, remove the
+Then remove the
 `seriesCreateProto` `<Stack.Screen>` from `src/app/_layout.tsx`, remove the
 `<ProtoWizardPill />` mount and its import from
 `src/app/(drawer)/(library)/index.tsx` (ticket 15), and
@@ -348,6 +369,20 @@ in `src/app/(drawer)/(library)/index.tsx` restore the three `THROWAWAY` sites:
 re-import `SeriesHome` from `@/components/SeriesHome` and `useDerivedSeries` from
 `@/store/seriesStore`, and put both back at their use sites. `src/components/SeriesHome.tsx`
 was never modified, so there is nothing to revert there.
+
+⚠ **That last step does not typecheck on its own** — verified 2026-08-14 by running this
+teardown on a scratch checkout. `SeriesProtoSlot` takes `Omit<VariantProps, 'onEditPress'>`
+and forwards it as `<SeriesHome {...props} />`, and **TypeScript does not excess-property-check
+a spread** — only literal JSX attributes. So the slot has been quietly swallowing
+`activeGridSections` / `setActiveGridSections`, two props `SeriesHome` never declared, and the
+library screen carries an `activeSeriesSections` `useState` that exists only to feed them.
+Swapping `<SeriesProtoSlot …>` for `<SeriesHome …>` turns those into literal attributes and
+fails with TS2322. **Delete both attributes and the `useState` behind them.** Careful:
+`activeGridSections` at the `<BooksGrid>` mount above is a *different* consumer and stays.
+
+With that, the teardown reaches `tsc` **0 errors**. Note the sequence deletes
+`__tests__/harnessBoundary.test.ts` along with this directory, which is intended — jest drops
+by 2 and that is not a regression.
 
 **DO NOT revert the `TableOfContents` icon on `Remove Auto-Chapters`**
 (`titleDetails.tsx`). It looks like harness fallout and is not: ticket 14 found

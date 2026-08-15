@@ -4,8 +4,9 @@
 [12](12-editor-one-root-route.md), [13](13-editor-picker-panel.md),
 [14](14-editor-numbers-and-ordering.md), [15](15-editor-series-artwork.md),
 [17](17-titledetails-series-line.md) — every ticket that replaces something a prototype
-stood in for — and [24](24-seriesdetail-uses-real-store.md), which removes the one harness
-import that lives in **shipping** code.
+stood in for — and ~~[24](24-seriesdetail-uses-real-store.md)~~, which removed the one
+harness import that lived in **shipping** code. **24 is RESOLVED (2026-08-14) and no longer
+blocks this ticket** — but read its comment below first, the recipe here is still incomplete.
 
 **Status:** ready-for-agent
 
@@ -92,3 +93,55 @@ detail sheet (spec §C1/§C2), deliberately a root-level `formSheet` sibling out
 
 Also note the jest figure in the acceptance criteria (**484**) is stale — the baseline at
 review time was **711/711, 57 suites**.
+
+### 2026-08-14 — ticket 24 is done, and the recipe still does not compile as written
+
+[24](24-seriesdetail-uses-real-store.md) is **resolved** (jest 731/731, tsc 0, eslint 0). The
+`Blocked by` entry for it is cleared. `src/app/seriesDetail.tsx` no longer touches the
+harness, and `src/prototypes/README.md` has been corrected in four places — read it again
+rather than working from memory of it.
+
+**The library screen is now the only IMPORT footprint.** The `titleDetails.tsx` entry in the
+recipe (four `THROWAWAY` mounts + one import) was already removed by ticket 17 and had never
+been struck; there is nothing to do there. Verified by byte-aware sweep.
+
+⚠ **But "footprint" is two axes, not one, and only imports are testable.**
+`src/app/_layout.tsx:355` still registers the `seriesCreateProto` route with a
+`THROWAWAY`-marked `<Stack.Screen>`. Expo Router resolves routes from the filesystem, so that
+registration is a **name string with no import behind it** — `harnessBoundary.test.ts`
+structurally cannot see it, and neither can any import sweep. **Remove it by hand**, as the
+recipe above already says. A leftover `<Stack.Screen>` pointing at a deleted route file is not
+a bundle error, so nothing else will catch it either: `typedRoutes` (`app.json:115`) only
+notices once `.expo/types/router.d.ts` is regenerated, which `tsc` alone does not do.
+
+The boundary test covers the half it can — once `src/app/seriesCreateProto.tsx` is gone,
+nothing may still name that route.
+
+⚠ **New finding: "put both back at their use sites" does not typecheck.** This was found by
+actually running the teardown on a scratch checkout, and it is a real extra step:
+
+```
+rm -rf src/prototypes src/app/seriesCreateProto.tsx      → tsc 3 errors (the 3 library imports)
++ restore SeriesHome / useDerivedSeries at their sites   → tsc 1 error  ← this one
++ delete the activeSeriesSections state                  → tsc 0 errors
+```
+
+`SeriesProtoSlot` takes `Omit<VariantProps, 'onEditPress'>` and forwards it as
+`<SeriesHome {...props} />`. **TypeScript does not excess-property-check a spread** — only
+literal JSX attributes — so the slot has been silently swallowing
+`activeGridSections`/`setActiveGridSections`, two props `src/components/SeriesHome.tsx` has
+never declared. The library screen carries an `activeSeriesSections` `useState`
+(`index.tsx:87`) that exists *only* to feed them.
+
+So the swap `<SeriesProtoSlot …>` → `<SeriesHome …>` fails with TS2322 until those two
+attributes **and** the `useState` behind them are deleted. Note `activeGridSections` at
+`index.tsx:302` is a **different** consumer (`BooksGrid`) and must stay.
+
+This does not contradict the existing criterion *"the shipping series home component was
+never modified"* — it wasn't. The drift is entirely on the library screen's side, hidden by
+the spread for the whole prototype effort.
+
+⚠ **`src/prototypes/__tests__/harnessBoundary.test.ts` goes with the directory.** It is
+deleted by the `rm -rf` in the command above, which is deliberate — it guards the boundary
+this ticket dissolves. Expect jest to drop by 2 (731 → 729) and do not treat that as a
+regression. It is the one file under `src/prototypes/` that jest runs; see ticket 24.

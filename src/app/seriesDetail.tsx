@@ -17,6 +17,15 @@
  * params. The store it resolves from has already resolved every membership row
  * against the live library (K11), so a book that reaches the sheet is a book
  * that can be drawn.
+ *
+ * ⚠ It must be `useDerivedSeries()` — the SAME source `seriesEditor.tsx` reads.
+ * `Edit series` hands the editor an id and the editor looks it up itself, so a
+ * sheet resolving from any other dataset opens an editor that finds nothing and
+ * seeds an empty create. Resolving through the prototype harness's
+ * `useSeriesSource()` did exactly that under a synthetic preset, and also
+ * subscribed this sheet to the whole library books map — which `library.tsx`
+ * republishes on every progress write, re-rendering the hero fan, the
+ * completion bar and the row list at progress-tick rate during playback.
  */
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -26,14 +35,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SeriesDetailSheet from '@/components/SeriesDetailSheet';
 import { useTheme } from '@/hooks/useTheme';
 import { withOpacity } from '@/helpers/colorUtils';
-// THROWAWAY (harness) — `useSeriesSource()` is `useDerivedSeries()` unless a
-// synthetic preset is selected; in production it IS the real store. Same
-// substitution the library screen carries. See src/prototypes/README.md.
-import { useSeriesSource } from '@/prototypes/useSeriesSource';
+import { useDerivedSeries } from '@/store/seriesStore';
 
 export default function SeriesDetailRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const series = useSeriesSource().find((s) => s.id === id);
+  const series = useDerivedSeries().find((s) => s.id === id);
 
   if (!series) return <MissingSeries />;
 

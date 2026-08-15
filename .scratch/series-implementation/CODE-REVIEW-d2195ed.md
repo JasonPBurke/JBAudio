@@ -31,7 +31,7 @@ Open tickets raised by this review, all `ready-for-agent`:
 | [21](issues/21-editor-save-tombstones-dangling-rows.md) | Finding 1 | **Pair with 23** — same function, same rule |
 | [22](issues/22-remove-folder-prune-key-mismatch.md) | Findings 2 + 5 | Same function, one pass |
 | [23](issues/23-tombstone-restore-slot-stale.md) | Finding 3 | **Pair with 21** |
-| [24](issues/24-seriesdetail-uses-real-store.md) | Finding 4 | **Blocks ticket 18** |
+| ~~[24](issues/24-seriesdetail-uses-real-store.md)~~ | Finding 4 | **RESOLVED 2026-08-14** — no longer blocks ticket 18. Its scratch-checkout teardown turned up a *further* defect in 18's recipe; recorded there. |
 
 Findings 6, 7 and 19–24 are confirmed and small but have no ticket yet — pick them up from
 the catalogue below.
