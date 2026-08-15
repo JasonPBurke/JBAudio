@@ -247,7 +247,10 @@ export const BookGridItem = memo(function BookGridItem({
           }
         : { width: itemWidth, height: (1 / aspectRatio) * itemWidth + 90 },
       imageContainer: isRow
-        ? { height: ROW_COVER_HEIGHT, width: aspectRatio * ROW_COVER_HEIGHT }
+        ? {
+            height: ROW_COVER_HEIGHT,
+            width: aspectRatio * ROW_COVER_HEIGHT,
+          }
         : {
             paddingTop: 10,
             width: itemWidth + 2,
@@ -288,25 +291,11 @@ export const BookGridItem = memo(function BookGridItem({
     );
   }
 
-  // TEMPORARY [rowprobe] — remove after the clipped-row device verification.
-  // Spread (rather than a direct prop) because PressableScale's forwarded
-  // prop type doesn't declare onLayout, though the underlying gesture-handler
-  // BaseButton it wraps forwards it to the native View like any other prop.
-  const devItemLayoutProps = __DEV__
-    ? {
-        onLayout: (e: LayoutChangeEvent) =>
-          console.log(
-            `[rowprobe] item ${bookId} h=${e.nativeEvent.layout.height}`,
-          ),
-      }
-    : undefined;
-
   return (
     <PressableScale
       rippleRadius={0}
       style={styles.pressableContainer}
       onPress={handlePress}
-      {...(devItemLayoutProps as object)}
     >
       <View style={[styles.containerBase, itemDimensions.container]}>
         <View style={itemDimensions.imageContainer}>
@@ -390,7 +379,8 @@ const styles = StyleSheet.create({
   },
   bookTitleText: {
     ...defaultStyles.text,
-    fontFamily: 'Rubik', fontWeight: '600',
+    fontFamily: 'Rubik',
+    fontWeight: '600',
     maxWidth: '100%',
     // marginTop: 2,
   },

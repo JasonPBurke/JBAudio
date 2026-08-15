@@ -64,18 +64,7 @@ const BooksHorizontal = ({
   );
 
   return (
-    <View
-      style={styles.listContainer}
-      // TEMPORARY [rowprobe] — remove after the clipped-row device verification.
-      onLayout={
-        __DEV__
-          ? (e) =>
-              console.log(
-                `[rowprobe] inner ${sectionId} h=${e.nativeEvent.layout.height}`,
-              )
-          : undefined
-      }
-    >
+    <View style={styles.listContainer}>
       <FlashList
         ref={listRef}
         scrollEventThrottle={16}
