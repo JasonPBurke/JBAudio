@@ -34,6 +34,7 @@ import {
   shouldGenerateAutoChapters,
 } from './autoChapterGenerator';
 import { artworkFilename, coverExtractionKey } from './artworkIdentity';
+import { singleFlight } from './singleFlight';
 import {
   pruneOrphanedSeriesBooks,
   deleteEmptySeries,
@@ -921,7 +922,12 @@ function logScanTimings(t: ScanPhaseTimings): void {
   );
 }
 
-export async function scanLibrary(): Promise<void> {
+/**
+ * The scan itself. Private on purpose — every caller goes through the
+ * single-flight `scanLibrary` below, because this function is not safe to run
+ * concurrently with itself. See the export for why.
+ */
+async function runScan(): Promise<void> {
   booksWithCoverExtracted.clear();
   const scanStartedAt = Date.now();
 
@@ -1046,3 +1052,53 @@ export async function scanLibrary(): Promise<void> {
 
   useScanProgressStore.getState().endScan();
 }
+
+/**
+ * Runs a library scan. A call made while a scan is already running joins that
+ * scan instead of starting a second one.
+ *
+ * ⚠ THE GUARD IS A CORRECTNESS REQUIREMENT, NOT A PERFORMANCE ONE. Do not
+ * remove it, and do not let a second path into `runScan` around it. Two
+ * overlapping scans corrupt data three ways, because every phase of a scan
+ * reasons from snapshots it took earlier and none of them can see another
+ * scan's inserts:
+ *
+ *  1. A BOOK THE OTHER SCAN JUST IMPORTED IS DESTROYED. `removeMissingFiles`
+ *     derives orphans from two separately-fetched snapshots — `allChapters`,
+ *     then `allBooks` some awaits later. A book inserted between those two
+ *     fetches is in `allBooks` but contributes nothing to `liveBookIds`, so it
+ *     is classified orphaned and permanently destroyed. ⚠ Note the asymmetry
+ *     that hides this: the `fileSet.has(chapter.url)` guard protects CHAPTERS
+ *     from a foreign scan's inserts, but the book-orphan derivation is a plain
+ *     set difference with no such protection. The chapter guard is not evidence
+ *     that this function tolerates concurrent writers.
+ *  2. DUPLICATE BOOKS. Each scan snapshots `existingUrls` before processing, so
+ *     two scans both conclude the same files are new and both insert them —
+ *     and WatermelonDB has no unique constraints to catch it.
+ *  3. SERIES MEMBERSHIP ROWS DESTROYED. `liveKeys` is a BLOCKLIST (ticket 22):
+ *     every gap in it is an order to destroy. The other scan's books contribute
+ *     no urls to this scan's set. Consequence 1 also *causes* this one, because
+ *     destroying that book flips `orphanedBooks.length > 0` — the scan's whole
+ *     trigger for touching series at all.
+ *
+ * It also fixes two visible symptoms: `startScan()` resets the progress
+ * counters (so a second scan made the bar jump backwards), and `endScan()` from
+ * whichever run finished first hid the indicator while the other was still
+ * writing.
+ *
+ * ⚠ A SECOND CALL JOINS THE RUN IN FLIGHT; IT DOES NOT QUEUE A FOLLOW-UP. So a
+ * user who adds files and then taps Rescan mid-scan gets a no-op, and the new
+ * files appear on the next scan. That is a deliberate driver decision (ticket
+ * 30) — a trailing re-run was considered and declined. Do not add one.
+ *
+ * ⚠ THAT COST ALSO LANDS ON `directoryPicker`, WHICH IS THE LESS OBVIOUS HALF.
+ * `runScan` reads its library folders once, at the top. A folder added while a
+ * scan is already running therefore joins a scan that enumerated before the
+ * folder existed, and its books appear only on the next scan — even though the
+ * user's action was explicit. Before the guard that path started a second,
+ * concurrent scan, which did see the new folder and corrupted data on the way
+ * past; joining is the better of the two, not a free one. If this needs fixing,
+ * fix it at the picker (rescan after the join settles) rather than by weakening
+ * the guard or adding a general trailing re-run.
+ */
+export const scanLibrary = singleFlight(runScan);

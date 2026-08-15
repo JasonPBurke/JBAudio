@@ -910,13 +910,18 @@ export async function applyPlan(plan: ReconcilePlan): Promise<ApplyPlanResult> {
  * already contributed its urls. If book insertion ever moves after cleanup,
  * that is what breaks first.
  *
- * ⚠ IT ASSUMES NO CONCURRENT SCAN, and that assumption is NOT enforced —
- * `scanLibrary` has no re-entrancy guard and two of its callers invoke it
- * unawaited. Two overlapping scans break the paragraph above, because the
- * second one inserts books the first one's `liveKeys` has never heard of. That
- * hazard is pre-existing and wider than this function (the whole of a scan's
- * cleanup reasons from its own snapshot), but this is the site where it turns
- * destructive, so it is written down here. See ticket 30.
+ * ⚠ IT ASSUMES NO CONCURRENT SCAN. That assumption is now ENFORCED, and it did
+ * not used to be: `scanLibrary` had no re-entrancy guard and two of its callers
+ * invoked it unawaited, so two overlapping scans broke the paragraph above —
+ * the second inserts books the first one's `liveKeys` has never heard of.
+ * `scanLibrary` is now single-flight (ticket 30): a call arriving while a scan
+ * runs joins it rather than starting a second one, so only one scan can ever be
+ * between `removeMissingFiles`' fetches and this prune.
+ *
+ * ⚠ THE PROOF ABOVE RESTS ON THAT GUARD. If the guard is ever removed, or a
+ * second path into the scan body is added around it, this function becomes
+ * destructive again — and so does the plain book-orphan cleanup upstream, which
+ * is the worse of the two. Do not treat the guard as a performance tweak.
  */
 export async function pruneOrphanedSeriesBooks(
   liveKeys: Set<string>,
