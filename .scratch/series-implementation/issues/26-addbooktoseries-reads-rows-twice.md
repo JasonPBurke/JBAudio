@@ -55,6 +55,9 @@ both is to plan **inside** the transaction, not to pass rows into it.
 
 ## ⚠ Notes
 
-- ⚠ **`src/db/seriesQueries.ts` contains raw NUL bytes and is BINARY to `grep`/`rg`** — use
-  `--text`.
+- ✅ **`src/db/seriesQueries.ts` is plain text again** — the two raw NUL bytes were replaced with
+  the `\0` escape under finding 7 (2026-08-14). `grep`/`rg` read it normally; `--text` is no
+  longer needed. This note previously said the opposite.
+- See also **ticket 27**: three more write paths in this same file read outside their writer.
+  `applyPlan`'s was closed under finding 11 and is the pattern to reuse here.
 - Never run a formatter over this repo — there is no config file.

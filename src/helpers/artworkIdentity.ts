@@ -86,6 +86,15 @@ const FILE_SCHEME = 'file://';
  *    rather than impossible, and an unlink through that path would delete a
  *    cover the book still references. Cheaper to make it unrepresentable.
  *
+ * ⚠ THE CONTAINMENT CHECK IS A STRING PREFIX, AND A PREFIX IS NOT CONTAINMENT.
+ * `…/artwork/../books/cover.webp` starts with `…/artwork/` and resolves outside
+ * it, so a `..` segment is refused outright (code review finding 16). Refused
+ * rather than normalised: every path this app writes is built from
+ * `sanitizeForFilename`/`shortHash`, so a traversal segment is a bug or an
+ * attack, never a value to be tidied up. The same string-vs-semantics gap gave
+ * ticket 22 its `Books` / `Books Backup` defect; the trailing `/` below is that
+ * lesson, and this is the other half of it.
+ *
  * Deliberately does NOT percent-decode: every path written here is
  * `<documents>/artwork/<name>.webp` where the name comes from
  * `sanitizeForFilename` or `shortHash`, so it is `[A-Za-z0-9_.]` throughout and
@@ -100,6 +109,7 @@ export function artworkFilePath(
   const withoutQuery = uri.split('?')[0];
   if (!withoutQuery.startsWith(FILE_SCHEME)) return null;
   const absolute = withoutQuery.slice(FILE_SCHEME.length);
+  if (absolute.split('/').includes('..')) return null;
   const dir = artworkDir.replace(/\/+$/, '');
   return absolute.startsWith(`${dir}/`) ? absolute : null;
 }

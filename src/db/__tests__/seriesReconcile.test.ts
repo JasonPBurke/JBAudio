@@ -1,7 +1,5 @@
-import {
-  reconcileSeries,
-  suppressionsClearedByCreating,
-} from '@/db/seriesReconcile';
+import { reconcileSeries, selectPlannedRemovals } from '@/db/seriesReconcile';
+import { suppressionsMatching } from '@/db/seriesSuppression';
 import type { ProposedSeries } from '@/helpers/seriesDetection';
 import type { ExistingSeries, ReconcilePlan } from '@/db/seriesReconcile';
 
@@ -208,7 +206,9 @@ describe('A10 — the five-line contract, per row', () => {
       [],
     );
 
-    expect(plan.removeRows).toEqual([{ seriesId: 's1', bookKey: 'gone' }]);
+    expect(plan.removeRows).toEqual([
+      { seriesId: 's1', bookKey: 'gone', expectedMembership: 'detected' },
+    ]);
     expect(plan.insertRows).toEqual([]);
   });
 
@@ -445,7 +445,9 @@ describe('per-aspect ownership — renaming costs the user nothing else', () => 
     expect(plan.createSeries).toEqual([]);
     // Membership still reconciles, in both directions.
     expect(plan.insertRows.map((r) => r.bookKey)).toEqual(['b3']);
-    expect(plan.removeRows).toEqual([{ seriesId: 's1', bookKey: 'stale' }]);
+    expect(plan.removeRows).toEqual([
+      { seriesId: 's1', bookKey: 'stale', expectedMembership: 'detected' },
+    ]);
   });
 
   test('a proposal overlapping a USER-ORIGIN playlist still gets its own series', () => {
@@ -772,35 +774,46 @@ describe('K16 — a series whose every row is excluded', () => {
   });
 });
 
+/*
+ * A13, asserted against the function the WRITE PATH actually calls.
+ *
+ * ⚠ These four used to exercise `suppressionsClearedByCreating` in
+ * `seriesReconcile`, which had no production caller — so this coverage, the
+ * duplicate-row case included, pinned a function that never ran and would have
+ * stayed green while the live path broke. `prepareSuppressionClear` in the
+ * query layer reaches `suppressionsMatching`; that is the rule under test.
+ * Code review finding 21.
+ */
 describe('A13 — hand-creating a suppressed name clears the veto', () => {
+  const cleared = (name: string, suppressed: string[]) =>
+    suppressionsMatching(
+      name,
+      suppressed.map((n) => ({ name: n })),
+    ).map((row) => row.name);
+
   test('the suppression row for that name is cleared', () => {
     // Otherwise the user's own new series is shadowed by an invisible veto:
     // they make it, the next scan sees the name suppressed, and they can never
     // work out why it will not stay.
-    expect(
-      suppressionsClearedByCreating('Discworld', ['Discworld', 'Other']),
-    ).toEqual(['Discworld']);
+    expect(cleared('Discworld', ['Discworld', 'Other'])).toEqual(['Discworld']);
   });
 
   test('matched on the same key as everything else', () => {
-    expect(suppressionsClearedByCreating('discworld ', ['Discworld'])).toEqual([
-      'Discworld',
-    ]);
+    expect(cleared('discworld ', ['Discworld'])).toEqual(['Discworld']);
   });
 
   test('EVERY duplicate row is cleared, because duplicates can exist', () => {
     // G7 — there is no unique-constraint support anywhere in this DB library,
     // so a double-delete really can leave two rows. Clearing one would leave
     // the veto standing.
-    expect(
-      suppressionsClearedByCreating('Discworld', ['Discworld', 'discworld']),
-    ).toEqual(['Discworld', 'discworld']);
+    expect(cleared('Discworld', ['Discworld', 'discworld'])).toEqual([
+      'Discworld',
+      'discworld',
+    ]);
   });
 
   test('an unrelated name clears nothing', () => {
-    expect(suppressionsClearedByCreating('Discworld', ['Wheel of Time'])).toEqual(
-      [],
-    );
+    expect(cleared('Discworld', ['Wheel of Time'])).toEqual([]);
   });
 });
 
@@ -884,7 +897,7 @@ describe('idempotence — what makes "scan again" safe', () => {
       },
     ]);
     expect(first.removeRows).toEqual([
-      { seriesId: 'renamed', bookKey: 'stale' },
+      { seriesId: 'renamed', bookKey: 'stale', expectedMembership: 'detected' },
     ]);
     expect(first.skipped).toEqual([
       { name: 'Bedtime Favourites', reason: 'user-owned' },
@@ -917,5 +930,81 @@ describe('idempotence — what makes "scan again" safe', () => {
     const a = applyPlan(before, reconcileSeries(proposals, before, []));
     const b = applyPlan(a, reconcileSeries(proposals, a, []));
     expect(reconcileSeries(proposals, b, [])).toEqual(EMPTY);
+  });
+});
+
+/*
+ * `selectPlannedRemovals` — the compare-and-swap that stands between a plan and
+ * the rows it destroys (code review finding 11).
+ *
+ * The removal is decided in `reconcileSeries` behind the "only a DETECTED row
+ * is regeneration's to take back" guard, and executed much later by
+ * `applyPlan`. WatermelonDB serializes writers but NOT readers, and the
+ * decision itself predates even the fetch — so between deciding and destroying,
+ * an editor Save can adopt the row (`'user'`) or tombstone it (`'excluded'`).
+ * Before this, either was silently overwritten.
+ *
+ * ⚠ Destroying a tombstone is the nastier half and does not look like data loss
+ * at the time: the series simply FORGETS a removal, so the next rescan puts the
+ * book back — the user's removal undone by a scan they never saw.
+ */
+describe('selectPlannedRemovals — a plan may only destroy what it still recognises', () => {
+  type Row = { seriesId: string; bookKey: string; membership: string };
+  const read = (r: Row) => ({
+    seriesId: r.seriesId,
+    bookKey: r.bookKey,
+    membership: r.membership as 'detected' | 'user' | 'excluded',
+  });
+  const row = (seriesId: string, bookKey: string, membership: string): Row => ({
+    seriesId,
+    bookKey,
+    membership,
+  });
+  const planned = (seriesId: string, bookKey: string) => ({
+    seriesId,
+    bookKey,
+    expectedMembership: 'detected' as const,
+  });
+
+  it('selects a row whose provenance is unchanged', () => {
+    const rows = [row('s1', 'b1', 'detected')];
+    expect(selectPlannedRemovals(rows, [planned('s1', 'b1')], read)).toEqual(
+      rows,
+    );
+  });
+
+  it('spares a row the user adopted after the plan was made', () => {
+    const rows = [row('s1', 'b1', 'user')];
+    expect(selectPlannedRemovals(rows, [planned('s1', 'b1')], read)).toEqual([]);
+  });
+
+  /*
+   * The tombstone case. A11's `'excluded'` row must outlive every rescan, and
+   * it is created by exactly the editor Save that races this.
+   */
+  it('spares a tombstone written after the plan was made', () => {
+    const rows = [row('s1', 'b1', 'excluded')];
+    expect(selectPlannedRemovals(rows, [planned('s1', 'b1')], read)).toEqual([]);
+  });
+
+  it('ignores rows the plan never named', () => {
+    const rows = [row('s1', 'b1', 'detected'), row('s1', 'other', 'detected')];
+    expect(selectPlannedRemovals(rows, [planned('s1', 'b1')], read)).toEqual([
+      rows[0],
+    ]);
+  });
+
+  /*
+   * The key is composite for a reason: one book can sit in more than one
+   * series, and a bookKey-only match would destroy the wrong membership.
+   */
+  it('does not match the same book in a different series', () => {
+    const rows = [row('s2', 'b1', 'detected')];
+    expect(selectPlannedRemovals(rows, [planned('s1', 'b1')], read)).toEqual([]);
+  });
+
+  it('reads nothing when there is nothing planned', () => {
+    const rows = [row('s1', 'b1', 'detected')];
+    expect(selectPlannedRemovals(rows, [], read)).toEqual([]);
   });
 });

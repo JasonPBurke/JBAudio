@@ -136,6 +136,24 @@ describe('rememberedNumbersFrom', () => {
     ).toEqual({ a: '5' });
   });
 
+  /*
+   * ⚠ Only an EXACT 'excluded' is a tombstone, and that has to come from
+   * `resolveMembership` rather than a raw `!==` on the column. The two agree
+   * today; the point is that they keep agreeing. If the encoding is ever
+   * widened, a raw comparison silently stops matching and ticket 16's
+   * device-found defect returns — a re-added book comes back with a blank box
+   * and `Save` writes the blank over its stored number. Code review finding 17.
+   */
+  test('an unrecognised membership value is not a tombstone', () => {
+    expect(
+      rememberedNumbersFrom([
+        { bookKey: 'a', canonicalNumber: 5, membership: 'excluded-by-scan' },
+        { bookKey: 'b', canonicalNumber: 6, membership: null },
+        { bookKey: 'c', canonicalNumber: 7, membership: undefined },
+      ]),
+    ).toEqual({});
+  });
+
   test('a visible row remembers nothing — its number is already in the box', () => {
     expect(
       rememberedNumbersFrom([

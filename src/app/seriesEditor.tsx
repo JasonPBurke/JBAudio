@@ -108,7 +108,6 @@ import {
   orderByCanonicalNumber,
   parseCanonicalNumber,
   resolveNumbersForSave,
-  restoreRememberedNumbers,
 } from '@/helpers/seriesNumbering';
 import {
   pickerSubtitle,
@@ -412,7 +411,9 @@ export default function SeriesEditorRoute() {
   const setName = useSeriesDraftStore((s) => s.setName);
   const orderedBookKeys = useSeriesDraftStore((s) => s.orderedBookKeys);
   const setOrderedKeys = useSeriesDraftStore((s) => s.setOrderedKeys);
-  const appendBookKeys = useSeriesDraftStore((s) => s.appendBookKeys);
+  const commitPickerSelection = useSeriesDraftStore(
+    (s) => s.commitPickerSelection,
+  );
   const beginPicker = useSeriesDraftStore((s) => s.beginPicker);
   const numbersByKey = useSeriesDraftStore((s) => s.numbersByKey);
   const setNumbers = useSeriesDraftStore((s) => s.setNumbers);
@@ -810,7 +811,24 @@ export default function SeriesEditorRoute() {
         Alert.alert("Can't save", duplicateNameIssue(e.conflictingName));
         return;
       }
-      console.error(editingSeriesId ? 'updateSeries failed' : 'createSeries failed', e);
+      /*
+       * ⚠ AN UNRECOGNISED FAILURE IS THE ONE THE USER MOST NEEDS TOLD ABOUT —
+       * neither of us knows what landed. Without this the button simply
+       * re-enables and the sheet stays open, which is pixel-identical to a
+       * mis-registered tap: the success path's only signal is `router.back()`,
+       * so "the screen did not close" was doing double duty as both `error`
+       * and `nothing happened`.
+       *
+       * `console.error`-only is still right for `revertCoverArt` and the
+       * remembered-numbers effect — those are fire-and-forget with no gesture
+       * waiting on them. This is the commit. (Code review finding 9; the join
+       * door in `AddToSeriesPanel` already alerted on the same write path.)
+       */
+      console.error(
+        editingSeriesId ? 'updateSeries failed' : 'createSeries failed',
+        e,
+      );
+      Alert.alert("Can't save", 'Something went wrong. Please try again.');
     }
   }, [
     submitting,
@@ -891,17 +909,10 @@ export default function SeriesEditorRoute() {
         Alert.alert("Can't continue", stepIssues.join('\n'));
         return;
       }
-      appendBookKeys(selectedBookKeys);
-      // A11 — a book coming BACK brings its number with it. Read from the
-      // store rather than the subscribed value so this cannot fill from a
-      // stale map, and applied only to the keys just added.
-      setNumbers(
-        restoreRememberedNumbers(
-          useSeriesDraftStore.getState().numbersByKey,
-          rememberedNumbers.current,
-          selectedBookKeys,
-        ),
-      );
+      // A11 — a book coming BACK brings its number with it. The store applies
+      // it to the keys this pass actually ADDS, computed from the same
+      // snapshot as the union, so neither can be filled from a stale read.
+      commitPickerSelection(rememberedNumbers.current);
       setPanel(null);
       return;
     }
@@ -910,8 +921,7 @@ export default function SeriesEditorRoute() {
     panel,
     selectedAuthorNames,
     selectedBookKeys,
-    appendBookKeys,
-    setNumbers,
+    commitPickerSelection,
     handleSave,
   ]);
 
@@ -1277,10 +1287,25 @@ const styles = StyleSheet.create({
    * 13px author cell, which an agent once "corrected" upward and the driver
    * reverted.
    *
-   * ⚠ AND IT CARRIES NO `lineHeight`. A fixed line height is in dp and does
-   * NOT follow the OS font scale, so the prototype's `lineHeight: 13` would
-   * have drawn 20px glyphs into a 13px box at font scale 2.0 — overlapping
-   * lines on the smallest type on the screen. The default is proportional.
+   * It carries no `lineHeight`, and the proportional default is right for a
+   * 10px caption — but NOT for the reason this comment used to give.
+   *
+   * ⚠ CORRECTION (code review finding 22, 2026-08-14). This said "a fixed line
+   * height is in dp and does NOT follow the OS font scale". **That is false on
+   * this stack.** `TextAttributeProps.kt:36-45` converts `lineHeight` with
+   * `toPixelFromSP` whenever `allowFontScaling` is set, and it defaults to
+   * true (`maxFontSizeMultiplier` is NaN, so nothing caps it either);
+   * `toPixelFromDIP` is the `allowFontScaling={false}` branch only. A fixed
+   * `lineHeight` therefore scales WITH the glyphs and cannot collapse onto
+   * them.
+   *
+   * ⚠ **Do not go hunting `lineHeight` on small type as a font-scale bug.** The
+   * old claim sent a review at `SeriesEditorPanel`'s `fontSize: 13 /
+   * lineHeight: 16` author cell, which is correct and had already PASSED a
+   * device check at fs 2.0 under ticket 20 — the cells grew taller, which is
+   * itself the proof the line height scaled, since a fixed 16dp would have fit
+   * two lines inside `minHeight: 42` without growing. A rule with a wrong
+   * reason and a harmless conclusion never fails, so nothing corrects it.
    */
   coverCaption: { fontFamily: 'Rubik', fontSize: 10 },
   coverCaptionButton: { paddingVertical: 2 },

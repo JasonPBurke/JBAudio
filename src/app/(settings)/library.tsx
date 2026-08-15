@@ -324,9 +324,20 @@ const LibrarySettingsScreen = () => {
    * detection here turns both into a sentence the user reads immediately.
    *
    * `runSeriesDetection` measures 181–643ms on a real 3,461-file library and
-   * never throws, so there is nothing to catch; the flag clears in `finally`.
+   * never throws (it wraps everything and reports `ran: false` instead).
    * A14 is untouched — the run is creative-only, and reconcile cannot remove a
    * series it did not match.
+   *
+   * ⚠ BUT IT IS ONE OF THREE AWAITS, and the other two are ordinary DB calls
+   * that can throw. This comment used to end at "so there is nothing to catch",
+   * which was true of the await it named and silent about the ones either side
+   * of it (code review finding 14). `finally` alone only guarantees cleanup: it
+   * reset the card to "ready, nothing happened", which is the most misleading
+   * possible answer to a failed write, and both call sites invoke this bare so
+   * the rejection floated with nobody upstream to catch it.
+   *
+   * The `loadRemovedSeries` case is the nastier one — the restore has ALREADY
+   * landed, so silence there leaves the list contradicting the database.
    */
   const runRestore = useCallback(
     async (entries: RemovedSeriesEntry[]) => {
@@ -342,6 +353,11 @@ const LibrarySettingsScreen = () => {
         );
         setRemovedSeries(await loadRemovedSeries());
         Alert.alert(report.title, report.message, [{ text: 'OK' }]);
+      } catch (e) {
+        console.error('runRestore failed', e);
+        Alert.alert('Error', 'Failed to restore. Please try again.', [
+          { text: 'OK' },
+        ]);
       } finally {
         setIsRestoring(false);
       }

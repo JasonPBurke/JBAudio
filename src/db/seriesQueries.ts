@@ -12,6 +12,7 @@ import {
   selectOrphanedMemberships,
   selectEmptySeriesIds,
 } from '@/db/seriesOrphanPrune';
+import { selectPlannedRemovals } from '@/db/seriesReconcile';
 import type {
   ExistingSeries,
   PlannedMember,
@@ -719,34 +720,13 @@ export async function applyPlan(plan: ReconcilePlan): Promise<ApplyPlanResult> {
     rowsRemoved: 0,
   };
 
-  // One fetch of the whole join table rather than a chunked `Q.oneOf` over
-  // series ids — it is a few hundred rows, the prune above already reads it
-  // this way, and it sidesteps SQLITE_MAX_VARIABLE_NUMBER entirely.
-  //
-  // The composite key is joined on a NUL because no id or file path can
-  // contain one. Write it as the ESCAPE `\0`, never as a literal U+0000 byte:
-  // a raw byte here is legal JS and runs correctly, but it makes this whole
-  // 33 KB module binary to `grep` and `rg`, so every text-based sweep — review
-  // passes, lint rules, codemods — silently skips it.
-  let removals: SeriesBook[] = [];
-  if (plan.removeRows.length > 0) {
-    const targets = new Set(
-      plan.removeRows.map((r) => `${r.seriesId}\0${r.bookKey}`),
-    );
-    const all = await database.get<SeriesBook>('series_books').query().fetch();
-    removals = all.filter((row) =>
-      targets.has(`${(row._raw as any).series_id}\0${row.bookKey}`),
-    );
-    result.rowsRemoved = removals.length;
-  }
-
   if (
     result.seriesCreated === 0 &&
     result.rowsInserted === 0 &&
-    result.rowsRemoved === 0
+    plan.removeRows.length === 0
   ) {
     // The idempotent case, and the common one: a rescan of an unchanged
-    // library plans nothing, so it opens no writer at all.
+    // library plans nothing, so it opens no writer and reads nothing at all.
     return result;
   }
 
@@ -775,8 +755,36 @@ export async function applyPlan(plan: ReconcilePlan): Promise<ApplyPlanResult> {
       ops.push(prepareMemberRow(row.seriesId, row, now));
     }
 
-    for (const row of removals) {
-      ops.push(row.prepareDestroyPermanently());
+    /*
+     * ⚠ READ INSIDE THE WRITER, and destroy only what still matches the plan.
+     *
+     * This fetch used to sit outside `database.write`. WatermelonDB serializes
+     * writers but not readers, so an editor Save could land between the read
+     * and the batch and have its row destroyed anyway — and the removal
+     * decision itself is older still, taken back in `reconcileSeries` against a
+     * separate read of the library. Reading in here closes the near window;
+     * `expectedMembership` closes the far one.
+     *
+     * One fetch of the whole join table rather than a chunked `Q.oneOf` over
+     * series ids — it is a few hundred rows, the prune reads it this way too,
+     * and it sidesteps SQLITE_MAX_VARIABLE_NUMBER entirely.
+     *
+     * NO DECISION IS MADE HERE. `selectPlannedRemovals` holds the rule and is
+     * unit-tested; this supplies the rows and an accessor. `row.membership`
+     * resolves through `seriesProvenance`'s single site by way of the model's
+     * getter, so the comparison cannot drift from the planner's reading.
+     */
+    if (plan.removeRows.length > 0) {
+      const all = await database.get<SeriesBook>('series_books').query().fetch();
+      const removals = selectPlannedRemovals(all, plan.removeRows, (row) => ({
+        seriesId: (row._raw as any).series_id,
+        bookKey: row.bookKey,
+        membership: row.membership,
+      }));
+      result.rowsRemoved = removals.length;
+      for (const row of removals) {
+        ops.push(row.prepareDestroyPermanently());
+      }
     }
 
     await database.batch(ops);

@@ -4,7 +4,14 @@
  * PURE, and deliberately so. Per the spec's testing decisions, the decision is
  * tested here and the write is IO left untested; `jest.config.js` carries no
  * React Native preset, so anything importing a screen cannot be tested at all.
+ *
+ * Its one import is provenance VOCABULARY from `@/db/seriesProvenance`, which
+ * imports nothing itself, so purity and testability are untouched. It is worth
+ * the `helpers/` → `db/` reach because that module is the declared single site
+ * for what these columns mean, and a second reading of one is how the two drift.
  */
+
+import { resolveMembership } from '@/db/seriesProvenance';
 
 /**
  * K3 — `decimal-pad` renders the LOCALE's decimal separator, so a
@@ -123,7 +130,14 @@ export function rememberedNumbersFrom(
   for (const row of rows) {
     // Only a tombstone: a visible row's number is already in its own box, and
     // reading it from here would fight whatever the user has typed.
-    if (row.membership !== 'excluded') continue;
+    //
+    // ⚠ Read through `resolveMembership`, never off the raw column. The two
+    // agree EXACTLY today, which is what makes this safe — and is also why it
+    // sat unnoticed. Widen the tombstone encoding and a raw `!==` silently
+    // stops matching, which reopens ticket 16's device-found defect: re-adding
+    // a removed book comes back with a blank box and `Save` writes the blank
+    // over its stored number. Code review finding 17.
+    if (resolveMembership(row.membership) !== 'excluded') continue;
     if (row.canonicalNumber == null) continue;
     out[row.bookKey] = String(row.canonicalNumber);
   }

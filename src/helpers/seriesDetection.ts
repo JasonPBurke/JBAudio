@@ -549,6 +549,30 @@ const isAbbrev = (n: string) => /^[A-Z0-9]{2,5}$/.test(n.replace(/[^A-Za-z0-9]/g
  * Elect ONE display name per group. Candidates are each member's own parsed
  * name plus every folder on its path; a candidate only stands if it normalises
  * to the group's key (or a tidier form of it).
+ *
+ * ⚠ THE `d = 1` START IS DELIBERATE AND MEASURED — it is the AUTHOR GUARD, and
+ * it is the one place in this file where depth IS consulted. Do not "fix" it to
+ * `d = 0`: `parts[0]` is the author level in a normally-rooted library, and
+ * including it elects `Martha Wells` over `The Murderbot Diaries`. Two tests
+ * pin this (code review finding 15, measured 2026-08-14). The upper bound
+ * excludes the book's own directory; `rel` is the DIRECTORY, never the file, so
+ * `parts.length - 1` is the deepest folder, not a filename.
+ *
+ * ⚠ It sits in real tension with `folderClusters`' header, which says DEPTH IS
+ * NEVER CONSULTED and reports that this exact heuristic was ported from the
+ * research harness and then REMOVED there, with `isAuthorish` — tag-based, so
+ * it works at every depth — taking over the refusal. This is the survivor.
+ * Replacing it with `isAuthorish` was measured too: it fixes the author case
+ * properly, but a second weakness then shows through. The candidate filter
+ * below accepts anything where `key.includes(ck)`, so a one-character folder
+ * `A` qualifies for `The Expanse` and the shortest-wins tie-break elects it.
+ * A real replacement needs a length/containment guard on candidates as well.
+ *
+ * ⚠ KNOWN RESIDUAL, ticket 28: because the bound is positional, a library
+ * rooted one level deeper (`/Audiobooks/Terry Pratchett`) leaves `rel` with two
+ * parts, `d = 1; d < 1` runs zero times, and NO folder can contribute a display
+ * name. Same books, same tags, different name, decided by where the root was
+ * pointed.
  */
 function electDisplayNames<T extends DetectionUnit>(assignments: Assignment<T>[]): void {
   const groups = new Map<string, Assignment<T>[]>();

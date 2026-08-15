@@ -144,6 +144,35 @@ describe('artworkFilePath', () => {
     expect(artworkFilePath(`file://${ARTWORK_DIR}-other/a.webp`, ARTWORK_DIR)).toBeNull();
   });
 
+  /*
+   * ⚠ A STRING PREFIX IS NOT CONTAINMENT. This one PASSES `startsWith` and
+   * resolves outside the directory anyway, so the prefix test alone would hand
+   * `RNFS.unlink` a book's own cover — or the database. Same string-vs-semantics
+   * gap that gave ticket 22 its `Books` / `Books Backup` defect, from the other
+   * end. Code review finding 16.
+   */
+  test('refuses a traversal segment that escapes the artwork directory', () => {
+    const escaped = `file://${ARTWORK_DIR}/../books/cover.webp`;
+    expect(escaped.slice('file://'.length).startsWith(`${ARTWORK_DIR}/`)).toBe(
+      true,
+    );
+    expect(artworkFilePath(escaped, ARTWORK_DIR)).toBeNull();
+    expect(
+      artworkFilePath(`file://${ARTWORK_DIR}/../../db.sqlite`, ARTWORK_DIR),
+    ).toBeNull();
+  });
+
+  /*
+   * The refusal must not overreach: `..` is refused as a SEGMENT, not as a
+   * substring, or a legitimate `shortHash` name containing dots would be
+   * rejected and its file leaked instead.
+   */
+  test('still accepts a real filename that merely contains dots', () => {
+    expect(
+      artworkFilePath(`file://${ARTWORK_DIR}/cover..webp`, ARTWORK_DIR),
+    ).toBe(`${ARTWORK_DIR}/cover..webp`);
+  });
+
   test('refuses anything that is not a local file', () => {
     // Both real shapes a placeholder took before the v31 migration: a Metro
     // URL in debug, a schemeless resource id in release.

@@ -18,8 +18,16 @@
  *    three failures because it is silent: the series simply never comes back.
  *
  * All three are the same question — "which rows are this series?" — so they
- * are one function here, and `suppressionsClearedByCreating` in
- * `seriesReconcile` asks it of a bare name list through the same comparison.
+ * are ONE function here, `suppressionsMatching`, and every write path reaches
+ * it through `prepareSuppressionClear` in the query layer.
+ *
+ * ⚠ This used to name a second spelling in `seriesReconcile`,
+ * `suppressionsClearedByCreating`, as if it were a live consumer. It never had
+ * a production caller — only tests — so A13's coverage, including the
+ * load-bearing "every duplicate row is cleared" case, was pinning a function
+ * that never ran. Deleted, and those tests now exercise this one. Dead code
+ * with green tests is stickier than dead code without: the tests read as proof
+ * of use. Code review finding 21.
  */
 
 import { isSameSeriesName, normalizeSortName } from '@/helpers/seriesName';

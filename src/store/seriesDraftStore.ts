@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 
+import { restoreRememberedNumbers } from '@/helpers/seriesNumbering';
+
 /**
  * Working draft for the one create/edit surface (§E1). Kept OUTSIDE the screen
  * because the picker's staged selection has to survive the panel opening and
@@ -49,7 +51,11 @@ interface SeriesDraftState {
   toggleAuthor: (name: string) => void;
   toggleBookKey: (key: string) => void;
   setOrderedKeys: (keys: string[]) => void;
-  appendBookKeys: (keys: string[]) => void;
+  /**
+   * Commit the staged picker selection (§E3), carrying A11's remembered
+   * numbers for the books this pass ACTUALLY adds.
+   */
+  commitPickerSelection: (remembered: Record<string, string>) => void;
   setNumber: (key: string, value: string) => void;
   setNumbers: (numbersByKey: Record<string, string>) => void;
   beginPicker: () => void;
@@ -111,11 +117,34 @@ export const useSeriesDraftStore = create<SeriesDraftState>()((set) => ({
 
   setOrderedKeys: (keys) => set({ orderedBookKeys: keys }),
 
-  appendBookKeys: (keys) =>
-    set((s) => ({
-      orderedBookKeys: union(s.orderedBookKeys, keys),
-      selectedBookKeys: union(s.selectedBookKeys, keys),
-    })),
+  /**
+   * ⚠ ONE `set` over ONE snapshot, and that is the whole point. The union and
+   * A11's number restore need the SAME "before" list: the commit ADDS the
+   * staged set, but it may only RESTORE what the staged set actually adds.
+   *
+   * `beginPicker` re-seeds the staging from the entire list, so the staged set
+   * is a superset of the added set — every existing member is in it. Handing
+   * that to `restoreRememberedNumbers` as its `addedKeys` refills a box the
+   * user deliberately cleared, on the next pass (code review finding 8).
+   *
+   * Deriving both from `s` is what keeps them honest. The screen used to read
+   * the "before" list once for the append and once for the restore, and the two
+   * reads were free to disagree — the same input-drift shape as ticket 22.
+   */
+  commitPickerSelection: (remembered) =>
+    set((s) => {
+      const added = s.selectedBookKeys.filter(
+        (k) => !s.orderedBookKeys.includes(k),
+      );
+      return {
+        orderedBookKeys: union(s.orderedBookKeys, s.selectedBookKeys),
+        numbersByKey: restoreRememberedNumbers(
+          s.numbersByKey,
+          remembered,
+          added,
+        ),
+      };
+    }),
 
   setNumber: (key, value) =>
     set((s) => ({ numbersByKey: { ...s.numbersByKey, [key]: value } })),

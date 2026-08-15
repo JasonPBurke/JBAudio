@@ -26,6 +26,32 @@ export enum BookProgressState {
   Finished = 2,
 }
 
+/**
+ * Move a book onto `Started`, reporting whether the write actually LANDED.
+ *
+ * ⚠ THE RETURN VALUE IS LOAD-BEARING, not a courtesy. §C5's restart is a
+ * once-per-listen event that consumes the `Finished` flag, so it may only fire
+ * when the flag is known to be gone — see the call site.
+ *
+ * Two ways to fail, and BOTH used to be silent. `getBookById` catches its own
+ * error and returns `null`, so a missing row arrives here as an ordinary falsy
+ * value rather than as a throw — a helper that turns errors into `null`
+ * reclassifies "broken" as "not there", and the caller's null-check reads like
+ * a check for absence.
+ */
+const demoteToStarted = async (bookId: string | undefined): Promise<boolean> => {
+  if (!bookId) return false;
+  try {
+    const bookModel = await getBookById(bookId);
+    if (!bookModel) return false;
+    await bookModel.updateBookProgress(BookProgressState.Started);
+    return true;
+  } catch (error) {
+    console.error('Failed to update book progress:', error);
+    return false;
+  }
+};
+
 const handleBookPlayInner = async (
   book: Book | undefined,
   playing: boolean | undefined,
@@ -68,27 +94,29 @@ const handleBookPlayInner = async (
    * It also stops a second lie: `computeBookProgress` short-circuits `Finished`
    * to 100% / `0m`, so a re-listen used to render a full progress capsule and
    * the total duration for its whole duration.
+   *
+   * ⚠ SO THE RESTART IS CONDITIONAL ON THE DEMOTION LANDING, and the write is
+   * AWAITED (code review finding 10). It used to be an unawaited IIFE with a
+   * swallowed error, which made the invariant above enforced by nothing: the
+   * zeroing below IS awaited and does land, so a failed demotion left the book
+   * at position 0 and STILL `Finished` — armed to discard every later listen,
+   * permanently, because nothing else moves it off. `bookProgressValue` is read
+   * from a props snapshot and never re-read, so "flipping the flag consumes it"
+   * only holds if we know the flip happened.
+   *
+   * Declining the restart is the cheap failure: the book resumes near its end
+   * and the user seeks back once. Firing it unconsumed costs them the whole
+   * listen, every time.
    */
-  const restartFromZero =
-    book.bookProgressValue === BookProgressState.Finished;
+  const wasFinished = book.bookProgressValue === BookProgressState.Finished;
 
   // Both states mean the same thing to the rest of the app once you press play:
   // this is now a book you are listening to.
-  if (
-    book.bookProgressValue === BookProgressState.NotStarted ||
-    restartFromZero
-  ) {
-    (async () => {
-      try {
-        const bookModel = await getBookById(book.bookId!);
-        if (bookModel) {
-          await bookModel.updateBookProgress(BookProgressState.Started);
-        }
-      } catch (error) {
-        console.error('Failed to update book progress:', error);
-      }
-    })();
-  }
+  const needsDemotion =
+    wasFinished || book.bookProgressValue === BookProgressState.NotStarted;
+  const demoted = needsDemotion ? await demoteToStarted(book.bookId) : false;
+
+  const restartFromZero = wasFinished && demoted;
 
   const progressInfo = await getChapterProgressInDB(book.bookId!);
 

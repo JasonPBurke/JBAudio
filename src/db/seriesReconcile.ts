@@ -2,15 +2,19 @@
  * A10 — the reconcile decision, as a pure function. Extracted from the query
  * layer for the same reason `seriesMembershipDiff` was: so it can be unit
  * tested without importing the native SQLite adapter. Imports nothing from
- * `@/db` and nothing from React Native.
+ * React Native, and nothing from `@/db` but the provenance VOCABULARY — a
+ * type-only import from `seriesProvenance`, which is itself pure and is the
+ * declared single site for what these columns mean. Spelling the union out
+ * again here would be the drift that module exists to prevent.
  *
  * `seriesQueries.applyPlan(plan)` is the IO half and MUST NOT make decisions —
  * if a conditional appears there, it belongs here.
  */
 
 import { orderByCanonicalNumber } from '@/helpers/seriesNumbering';
-import { isSameSeriesName, normalizeSortName } from '@/helpers/seriesName';
+import { normalizeSortName } from '@/helpers/seriesName';
 import type { DetectionUnit, ProposedSeries } from '@/helpers/seriesDetection';
+import type { SeriesMembership } from '@/db/seriesProvenance';
 
 /** The unit shape reconcile needs: a detection unit that knows its book key. */
 export type KeyedUnit = DetectionUnit & { bookKey: string };
@@ -57,12 +61,79 @@ export type PlannedSeries = {
   books: PlannedMember[];
 };
 
+/**
+ * A membership row to destroy, carrying the provenance the planner SAW.
+ *
+ * ⚠ `expectedMembership` is a COMPARE-AND-SWAP token, not decoration. The
+ * removal is decided here, behind the "only a DETECTED row is regeneration's to
+ * take back" guard, and executed much later by `applyPlan` — and between the
+ * two, an editor Save can flip the row to `'user'` (the user adopted it) or
+ * `'excluded'` (the user removed it, and the tombstone must outlive every
+ * rescan). Without this token that Save is silently overwritten: destroying a
+ * tombstone makes the series forget a removal, so the NEXT rescan puts the book
+ * back — the user's removal undone by a scan they never saw.
+ *
+ * It stays a token rather than a rule in `applyPlan`, deliberately.
+ * `applyPlan` must make no decisions; checking that the row it is about to
+ * destroy still looks like the row that was planned is a precondition the plan
+ * itself states, which is why the expected value is carried rather than
+ * hardcoded downstream. Code review finding 11.
+ */
+export type PlannedRemoval = {
+  seriesId: string;
+  bookKey: string;
+  expectedMembership: SeriesMembership;
+};
+
 export type ReconcilePlan = {
   createSeries: PlannedSeries[];
   insertRows: (PlannedMember & { seriesId: string })[];
-  removeRows: { seriesId: string; bookKey: string }[];
+  removeRows: PlannedRemoval[];
   skipped: { name: string; reason: 'user-owned' | 'suppressed' }[];
 };
+
+/**
+ * The composite key a removal resolves through.
+ *
+ * ⚠ Joined on a NUL because no id or file path can contain one. Write it as the
+ * ESCAPE `\0`, never as a literal U+0000 byte: a raw byte is legal JS and runs
+ * correctly, but it makes the whole module binary to `grep` and `rg`, so every
+ * text-based sweep — review passes, lint rules, codemods — silently skips it.
+ */
+const removalKey = (seriesId: string, bookKey: string) =>
+  `${seriesId}\0${bookKey}`;
+
+/**
+ * Resolve a plan's removals against the rows that are actually on disk, keeping
+ * only those whose provenance still matches what the planner saw.
+ *
+ * Pure, and extracted for the same reason `selectOrphanedMemberships` was: the
+ * decision that says which rows die belongs somewhere jest can watch it, not
+ * inside the writer. `applyPlan` supplies the rows and the accessor and does no
+ * more than execute the answer.
+ */
+export function selectPlannedRemovals<T>(
+  rows: readonly T[],
+  removals: readonly PlannedRemoval[],
+  read: (row: T) => {
+    seriesId: string;
+    bookKey: string;
+    membership: SeriesMembership;
+  },
+): T[] {
+  if (removals.length === 0) return [];
+  const expected = new Map(
+    removals.map((r) => [
+      removalKey(r.seriesId, r.bookKey),
+      r.expectedMembership,
+    ]),
+  );
+  return rows.filter((row) => {
+    const { seriesId, bookKey, membership } = read(row);
+    const want = expected.get(removalKey(seriesId, bookKey));
+    return want !== undefined && membership === want;
+  });
+}
 
 /**
  * D3 — `canonical_number` is a nullable NUMBER, so the detector's normalised
@@ -185,35 +256,20 @@ function seedInsertPositions(
   return planned;
 }
 
-function plannedMembers(candidates: Candidate[]): PlannedMember[] {
-  return seedOrder(candidates).map((c, position) => ({
-    bookKey: c.bookKey,
-    position,
-    canonicalNumber: c.canonicalNumber,
-    canonicalSource: c.canonicalNumber == null ? null : ('detected' as const),
-    membership: 'detected' as const,
-  }));
-}
-
 /**
- * A13 — the suppression rows that hand-creating `name` must delete. Detection
- * consults `suppressed_series` before creating anything, so a name left in
- * there after the user has deliberately re-made that series would shadow their
- * own work with an invisible veto.
+ * A create's members: seeded order, positions `0..n-1`.
  *
- * Returns EVERY match, not the first: G7 records that this DB library has no
- * unique-constraint support anywhere, so a double-delete can genuinely leave
- * two rows, and clearing one would leave the veto standing.
- *
- * The row-shaped twin of this — the one the query layer actually writes
- * through — is `suppressionsMatching` in `seriesSuppression`. Both ask
- * `isSameSeriesName`, so they cannot disagree about what counts as a match.
+ * ⚠ Built through `toMember`, never a second copy of its body. `map` supplies
+ * `(element, index)`, which is exactly `toMember`'s signature, so the only
+ * thing that differed between the two spellings — where `position` comes from
+ * — is already the parameter. This is where the `'detected'` provenance values
+ * are written, and since finding 11 those values are a compare-and-swap token,
+ * so a drift here would give rows created for a NEW series different
+ * provenance from rows inserted into an existing one. Same debt as the orphan
+ * prune in docs/adr/0001, one scope smaller. Code review finding 20.
  */
-export function suppressionsClearedByCreating(
-  name: string,
-  suppressedNames: readonly string[],
-): string[] {
-  return suppressedNames.filter((n) => isSameSeriesName(n, name));
+function plannedMembers(candidates: Candidate[]): PlannedMember[] {
+  return seedOrder(candidates).map(toMember);
 }
 
 /**
@@ -248,6 +304,31 @@ export function suppressionsClearedByCreating(
  * it is not, and every detected row that proposal lacks is then removed.
  * Matching too reluctantly leaves a duplicate series, which is annoying and
  * entirely recoverable.
+ *
+ * ⚠ THE STRICT THRESHOLD IS ALSO WHAT MAKES THE CALLER'S GREEDY LOOP SOUND, and
+ * that is not obvious from either site. Pass 2 walks proposals in order and
+ * lets each one claim its best unclaimed series, with nothing reconsidering an
+ * earlier claim — which reads like a bug where a weak match could take a series
+ * a later, stronger one needed. It cannot happen:
+ *
+ *   - PROPOSALS PARTITION THE BOOKS. `assign` is `units.map(...)`, one
+ *     assignment per unit, and each assignment lands in exactly one proposal by
+ *     key — so no book key appears in two proposals.
+ *   - The overlaps of all proposals with a given series are therefore DISJOINT
+ *     subsets of that series' rows, and sum to at most its row count.
+ *   - Clearing `overlap * 2 > books.length` twice would need the two overlaps
+ *     to sum to MORE than the row count. Contradiction.
+ *
+ * So at most ONE proposal can ever qualify for a given series, and the order
+ * they are considered in cannot change the outcome. The same inequality rules
+ * out the mirror case (a proposal taking a series a later one needed): a later
+ * proposal is disjoint, so its overlap is bounded below half by construction.
+ *
+ * ⚠ **LOOSEN THIS THRESHOLD AND THE GREEDY LOOP SILENTLY BECOMES WRONG.** At
+ * one third, two proposals could qualify and claim order would start deciding
+ * which one wins. Raised as code review finding 13 (2026-08-13), traced and
+ * closed as not reachable 2026-08-14; the proof is recorded here so it does not
+ * have to be derived a third time.
  */
 function continuationOf(
   proposal: ProposedSeries<KeyedUnit>,
@@ -370,7 +451,14 @@ export function reconcileSeries(
         // tombstone, which must outlive every rescan.
         if (coalesceToUser(row.membership) !== 'detected') continue;
         if (!detectedKeys.has(row.bookKey)) {
-          plan.removeRows.push({ seriesId: match.id, bookKey: row.bookKey });
+          plan.removeRows.push({
+            seriesId: match.id,
+            bookKey: row.bookKey,
+            // The provenance this decision rests on, written where the guard
+            // above has just proved it. `applyPlan` destroys the row only if it
+            // STILL reads this way — see `PlannedRemoval`.
+            expectedMembership: 'detected',
+          });
         }
       }
 

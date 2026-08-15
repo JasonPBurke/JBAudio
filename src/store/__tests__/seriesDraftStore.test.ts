@@ -34,12 +34,15 @@ test('resetForEdit seeds name, ordered + selected keys, and mode', () => {
   expect(s.selectedBookKeys).toEqual(['/a', '/b']);
 });
 
-test('appendBookKeys unions without duplicates', () => {
+test('commitPickerSelection unions without duplicates', () => {
   useSeriesDraftStore.getState().resetForEdit('s1', 'X', ['/a']);
-  useSeriesDraftStore.getState().appendBookKeys(['/a', '/b', '/c']);
+  useSeriesDraftStore.getState().beginPicker(); // re-seeds ['/a']
+  useSeriesDraftStore.getState().toggleBookKey('/b');
+  useSeriesDraftStore.getState().toggleBookKey('/c');
+  useSeriesDraftStore.getState().commitPickerSelection({});
+
   const s = useSeriesDraftStore.getState();
   expect(s.orderedBookKeys).toEqual(['/a', '/b', '/c']);
-  expect(s.selectedBookKeys).toEqual(['/a', '/b', '/c']);
 });
 
 describe('beginPicker — `+ Add books` starts a fresh pass', () => {
@@ -63,10 +66,41 @@ describe('beginPicker — `+ Add books` starts a fresh pass', () => {
     useSeriesDraftStore.getState().resetForEdit('s1', 'X', ['/a', '/b']);
     useSeriesDraftStore.getState().beginPicker();
     useSeriesDraftStore.getState().toggleBookKey('/a');
-    const staged = useSeriesDraftStore.getState().selectedBookKeys;
-    useSeriesDraftStore.getState().appendBookKeys(staged);
+    useSeriesDraftStore.getState().commitPickerSelection({});
 
     expect(useSeriesDraftStore.getState().orderedBookKeys).toEqual(['/a', '/b']);
+  });
+
+  /*
+   * A11's remembered numbers are for the books a pass ACTUALLY ADDS, and
+   * `beginPicker` re-seeds the staging from the WHOLE list — so the staged set
+   * is not the added set, and handing it to `restoreRememberedNumbers` treats
+   * every existing member as if it had just arrived.
+   *
+   * ⚠ It takes TWO passes to see, which is why no single-action test found it:
+   * on the first pass the book genuinely is new and filling it is CORRECT. The
+   * tombstone map is loaded once per session and stays armed, so the second
+   * pass re-fills a box the user has since deliberately cleared. Code review
+   * finding 8 (2026-08-13).
+   */
+  test('a second pass does not refill a number the user cleared', () => {
+    const remembered = { '/b': '3' }; // /b's tombstone remembers #3
+
+    useSeriesDraftStore.getState().resetForEdit('s1', 'X', ['/a'], { '/a': '1' });
+    useSeriesDraftStore.getState().beginPicker();
+    useSeriesDraftStore.getState().toggleBookKey('/b'); // put /b back
+    useSeriesDraftStore.getState().commitPickerSelection(remembered);
+    expect(useSeriesDraftStore.getState().numbersByKey['/b']).toBe('3');
+
+    useSeriesDraftStore.getState().setNumber('/b', ''); // ...then clear it
+
+    useSeriesDraftStore.getState().beginPicker(); // `+ Add books` again
+    useSeriesDraftStore.getState().toggleBookKey('/c');
+    useSeriesDraftStore.getState().commitPickerSelection(remembered);
+
+    const s = useSeriesDraftStore.getState();
+    expect(s.numbersByKey['/b']).toBe('');
+    expect(s.orderedBookKeys).toEqual(['/a', '/b', '/c']);
   });
 
   test('a fresh create stages nothing', () => {
@@ -110,8 +144,7 @@ describe('the author filter never touches the staged books', () => {
     useSeriesDraftStore.getState().toggleBookKey('/ann/one');
     useSeriesDraftStore.getState().toggleAuthor('Ann');
 
-    const staged = useSeriesDraftStore.getState().selectedBookKeys;
-    useSeriesDraftStore.getState().appendBookKeys(staged);
+    useSeriesDraftStore.getState().commitPickerSelection({});
 
     expect(useSeriesDraftStore.getState().orderedBookKeys).toEqual(['/ann/one']);
   });
