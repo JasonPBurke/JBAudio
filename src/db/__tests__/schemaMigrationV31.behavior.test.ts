@@ -41,7 +41,7 @@ function soleSqlStep(toVersion: number): string {
   return step.sql;
 }
 
-// Real scan-extracted cover (scanLibrary.ts:752).
+// Real scan-extracted cover (scanLibrary.ts:649).
 const SCAN_COVER =
   'file:///data/user/0/com.jbaudio/files/artwork/Pratchett_TheCarpetPeople_1a2b3c4d.webp';
 // Manually-picked cover with cache-buster (replaceArtwork.ts, `replaceArtwork`).

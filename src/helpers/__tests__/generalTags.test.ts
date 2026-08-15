@@ -90,7 +90,7 @@ describe('captureBookTags · the four columns', () => {
 
 describe('captureBookTags · the raw blob', () => {
   test('keeps the whole General track, extra bag included', () => {
-    const raw = JSON.parse(captureBookTags(audibleGeneral).rawJson!);
+    const raw = JSON.parse(captureBookTags(audibleGeneral).rawJson!());
 
     expect(raw.Album).toBe("The Daughters' War");
     expect(raw.extra.SUBTITLE).toBe('Blacktongue, Book 2');
@@ -104,12 +104,12 @@ describe('captureBookTags · the raw blob', () => {
       Cover_Mime: 'image/jpeg',
       Cover_Data: 'iVBORw0KGgoAAAANSUhEUg'.repeat(5000),
     });
-    const raw = JSON.parse(tags.rawJson!);
+    const raw = JSON.parse(tags.rawJson!());
 
     expect(raw.Cover_Data).toBeUndefined();
     expect(raw.Cover).toBe('Yes');
     expect(raw.Cover_Mime).toBe('image/jpeg');
-    expect(tags.rawJson!.length).toBeLessThan(2000);
+    expect(tags.rawJson!().length).toBeLessThan(2000);
   });
 
   test('an empty General track produces no blob to store', () => {
@@ -119,6 +119,110 @@ describe('captureBookTags · the raw blob', () => {
 
   test('a track carrying only Cover_Data produces no blob to store', () => {
     expect(captureBookTags({ Cover_Data: 'abc' }).rawJson).toBeUndefined();
+  });
+});
+
+/**
+ * The blob is deferred because grouping keeps one per BOOK and throws the rest
+ * away (see `scannedBookGrouping.test.ts` for the count). Deferral is only
+ * worth having if what it retains is small — a thunk closing over the live
+ * General track would pin `Cover_Data`, hundreds of KB per file across ~3,880
+ * files, and read as an optimisation while being far worse than the waste it
+ * replaced.
+ *
+ * Retention is not directly observable, so it is proved in two halves: the
+ * closure holds a COPY (mutating the source afterwards changes nothing), and
+ * producing that copy never so much as READS the cover value. A copy that
+ * never touched the bytes cannot be holding them.
+ */
+describe('captureBookTags · what the deferred blob retains', () => {
+  test('capturing does no stringify work at all — that is the point', () => {
+    const stringify = jest.spyOn(JSON, 'stringify');
+
+    try {
+      captureBookTags(audibleGeneral);
+      expect(stringify).not.toHaveBeenCalled();
+    } finally {
+      stringify.mockRestore();
+    }
+  });
+
+  test('the cover bytes are never read, at capture or at stringify', () => {
+    let coverReads = 0;
+    const track: Record<string, unknown> = {
+      Format: 'MPEG-4',
+      Album: 'Artemis',
+    };
+    Object.defineProperty(track, 'Cover_Data', {
+      enumerable: true,
+      configurable: true,
+      get() {
+        coverReads += 1;
+        return 'iVBORw0KGgoAAAANSUhEUg'.repeat(20000);
+      },
+    });
+
+    const tags = captureBookTags(track);
+    expect(coverReads).toBe(0);
+
+    // Still 0 once the blob is actually produced: a spread-then-delete prune
+    // would have read it here, and a thunk over the live track would read it
+    // on every call.
+    expect(JSON.parse(tags.rawJson!()).Cover_Data).toBeUndefined();
+    expect(coverReads).toBe(0);
+  });
+
+  test('the blob is taken from a copy, not from the live track', () => {
+    const track: Record<string, unknown> = {
+      Album: 'Artemis',
+      Format: 'MPEG-4',
+    };
+
+    const tags = captureBookTags(track);
+    track.Album = 'rewritten long after the file was read';
+    track.Cover_Data = 'iVBORw0KGgoAAAANSUhEUg'.repeat(20000);
+
+    const raw = JSON.parse(tags.rawJson!());
+    expect(raw.Album).toBe('Artemis');
+    expect(raw.Cover_Data).toBeUndefined();
+  });
+
+  test('the blob is byte-identical with and without cover bytes', () => {
+    const bare = {
+      ...audibleGeneral,
+      Cover: 'Yes',
+      Cover_Mime: 'image/jpeg',
+    };
+    const withCover = {
+      ...bare,
+      Cover_Data: 'iVBORw0KGgoAAAANSUhEUg'.repeat(20000),
+    };
+
+    expect(captureBookTags(withCover).rawJson!()).toBe(
+      captureBookTags(bare).rawJson!(),
+    );
+  });
+
+  test('called twice it returns the same JSON both times', () => {
+    const rawJson = captureBookTags(audibleGeneral).rawJson!;
+
+    expect(rawJson()).toBe(rawJson());
+  });
+
+  /**
+   * `book_tags.raw_json` is stored bytes, so key ORDER is part of the output,
+   * not an implementation detail. Pruning copies the surviving keys across in
+   * their original order and closes the gap the cover leaves behind — the
+   * exact bytes the eager version wrote.
+   */
+  test('surviving keys keep their original order across the dropped cover', () => {
+    const tags = captureBookTags({
+      Format: 'MPEG-4',
+      Cover_Data: 'iVBORw0KGgo',
+      Album: 'Artemis',
+    });
+
+    expect(tags.rawJson!()).toBe('{"Format":"MPEG-4","Album":"Artemis"}');
   });
 });
 

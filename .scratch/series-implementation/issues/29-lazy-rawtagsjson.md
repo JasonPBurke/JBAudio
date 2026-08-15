@@ -1,6 +1,10 @@
 # 29 — `rawTagsJson` is stringified once per FILE and kept once per BOOK
 
-**Status:** ready-for-agent · **perf, not correctness** — nothing is wrong on screen or on disk
+**Status:** resolved — 2026-08-15, jest 778/778 (62 suites, +1 suite / +11 tests, none lost),
+tsc 0, eslint 0 errors / 37 warnings (unchanged baseline). `JSON.stringify` now runs once per
+book. **Not device-verified**: no visual surface, and the ticket's own note says to expect no
+visible speedup. ⚠ **The ticket's cost model needed correcting — see the resolution at the
+bottom.** Originally: **perf, not correctness** — nothing is wrong on screen or on disk
 
 **Source:** **Finding 18** of the [code review vs d2195ed](../CODE-REVIEW-d2195ed.md). Efficiency
 half hand-traced and confirmed 2026-08-14; the finding's second half was **rejected**, see below.
@@ -59,15 +63,99 @@ comment implying the shape exists.
 
 ## Acceptance criteria
 
-- [ ] `JSON.stringify` runs once per BOOK, not once per FILE. Assert it — a spy/counter over a
+- [x] `JSON.stringify` runs once per BOOK, not once per FILE. Assert it — a spy/counter over a
       multi-file-book fixture is the honest test, since the saving is invisible in output.
-- [ ] **The closure captures no cover bytes.** This is the criterion that matters most; a test that
+- [x] **The closure captures no cover bytes.** This is the criterion that matters most; a test that
       the retained value is independent of `Cover_Data` size.
-- [ ] `book_tags.raw_json` is byte-identical to today for the same input, first-file-wins intact.
-- [ ] jest green · `tsc` 0 errors · eslint 0 errors.
+- [x] `book_tags.raw_json` is byte-identical to today for the same input, first-file-wins intact.
+- [x] jest green · `tsc` 0 errors · eslint 0 errors.
 
 ## ⚠ Notes
 
 - **Expect no visible speedup.** `RNFS.readDir` is the dominant scan phase (see the perf record);
   this is a memory-retention fix, not a latency one. Do not sell it as the latter.
 - Never run a formatter over this repo — there is no config file.
+
+## Resolution — 2026-08-15
+
+`CapturedTags.rawJson` is a thunk over a pre-pruned shallow copy. `serializeTrack` split into
+`pruneTrack` (eager, drops `Cover_Data`) and a closure that stringifies the copy. All six touch
+points threaded; `extra` deliberately **not** pruned, per this ticket.
+
+### ⚠ THE COST MODEL IN THIS TICKET IS WRONG AND THE CORRECTION MATTERS
+
+*"~7.6 MB of transient string allocation to keep ~700 KB"* is right about the **transient** half
+and wrong about the **retained** half, so **this is an allocation-churn fix, not a retention
+fix** — the opposite of what `## Notes` says ("this is a memory-retention fix, not a latency
+one").
+
+Traced: before, a `ScannedChapter` held a freshly allocated ~2 KB string and the General track
+was then collectable (`raw: res` is commented out at `mediainfo.ts:214`, so nothing else pins
+it). After, it holds a shallow copy that pins the track's existing top-level strings **and the
+`extra` bag by reference**. Comparable bytes either way. What actually goes away is ~3,530
+`JSON.stringify` calls and ~6.9 MB of garbage per full scan; what survives grouping is the same
+~700 KB of book blobs it always was. **Do not sell the retention half.** The win is real and
+worth having — it is just GC pressure, not footprint.
+
+The cover exclusion is where the footprint claim IS true, and that is the half worth guarding:
+a thunk over the live track would have pinned `Cover_Data` per file.
+
+### ⚠ IT EXTRACTED `groupChaptersIntoBooks`, WHICH THIS TICKET DID NOT ASK FOR
+
+New zero-runtime-import module `src/helpers/scannedBookGrouping.ts` holds `ScannedChapter` +
+`groupChaptersIntoBooks`, moved verbatim out of `scanLibrary.ts` apart from the one added `()`.
+
+**Criterion 1 is unreachable without it.** `scanLibrary.ts` cannot be imported from jest (RNFS
+throws `SyntaxError: Cannot use import statement outside a module` — the same wall that created
+`generalTags.ts` in ticket 02), so "a spy/counter over a multi-file-book fixture" had no home.
+The only alternative was a hand-built simulation of the grouping loop, which is the
+vacuously-green fixture this effort has been bitten by twice. The review's spec axis reproduced
+the import failure independently before agreeing.
+
+`ScannedChapter` is **not** re-exported from `scanLibrary.ts`: nothing outside ever imported it
+from there, even when it was declared there.
+
+### ⚠ MOVING 152 LINES OUT OF `scanLibrary.ts` INVALIDATED EVERY LINE CITATION BELOW IT
+
+This repo cites `scanLibrary.ts:<line>` as evidence in ~30 places and nothing checks them. Two
+were **live source comments** and are corrected: `readsInsideTheWriter.test.ts` (`:1014` →
+`:870`, the `orphanedBooks.length > 0` gate) and `schemaMigrationV31.behavior.test.ts` (`:752` →
+`:649`, the scan-extracted cover write). ⚠ **Both were already stale before this change** — the
+true lines were 1022 and 801 — so the drift predates the move and will recur.
+
+The ~28 in `.scratch/` and `docs/` are frozen ticket history and were left alone. The one that
+matters is **ticket 22's `scanLibrary.ts:192`, the chapter sort**: it is load-bearing for
+`bookStructuralKey` → `series_books.book_key` under ADR 0001, and it now lives in
+`scannedBookGrouping.ts`. Its new module header says so.
+
+### The tests, and proof they bite
+
+`generalTags.test.ts` (+7) and `scannedBookGrouping.test.ts` (new, 5). Retention is not directly
+observable, so criterion 2 is proved in two halves: the closure holds a **copy** (mutating the
+source afterwards changes nothing) and producing that copy **never reads the cover value** (an
+`Object.defineProperty` getter counter stays at 0 through capture *and* stringify). A copy that
+never touched the bytes cannot be holding them.
+
+Three mutations were run to confirm the guards are not decorative:
+
+| Mutation | Caught by |
+|---|---|
+| thunk closes over the live `track` | `the blob is taken from a copy, not from the live track` |
+| `{...track}` then `delete` — reads the cover | `the cover bytes are never read` |
+| consumer drops the `()` | 4 grouping tests |
+
+⚠ **`tsc` is SILENT on the third.** `Book.metadata` is `{ [key: string]: any }`, so a forgotten
+`()` type-checks, and WatermelonDB's `@text` setter then coerces the function to null — 
+`book_tags.raw_json` would empty silently, with no type error and nothing on screen. **The test
+pinning the stored value's TYPE is the only defence that exists.** Verified by running the
+mutation and watching `tsc --noEmit` report nothing.
+
+### Smaller
+
+- The thunk is **deliberately not memoised** — caching would retain the string *and* the copy,
+  both halves of the cost. Stated in `DeferredTagBlob`'s doc so nobody "optimises" it back.
+- The contract is declared once as `DeferredTagBlob` in `generalTags.ts` and named (not
+  restated) at the other two sites. Three prose copies is how ticket 27's arguments drifted
+  before its commit even landed.
+- Byte-identity is pinned by a test on key ORDER across the dropped cover key
+  (`{"Format":"MPEG-4","Album":"Artemis"}`), since `raw_json` is stored bytes.

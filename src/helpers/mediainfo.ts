@@ -4,7 +4,11 @@ import {
   getMediaInfoNoCover,
   MediaInfoResult,
 } from '../lib/mediainfoAdapter';
-import { captureBookTags, readReleaseDate } from './generalTags';
+import {
+  captureBookTags,
+  readReleaseDate,
+  type DeferredTagBlob,
+} from './generalTags';
 
 export type ExtractedMetadata = {
   fileFormat?: string;
@@ -14,8 +18,8 @@ export type ExtractedMetadata = {
   part?: number;
   /** Top-level `Grouping` (iTunes `©grp`). */
   grouping?: string;
-  /** The whole General track as JSON, bound for `book_tags.raw_json`. */
-  rawTagsJson?: string;
+  /** Carried, never called here. See `DeferredTagBlob` in generalTags.ts. */
+  rawTagsJson?: DeferredTagBlob;
   durationMs?: number;
   title?: string;
   album?: string;

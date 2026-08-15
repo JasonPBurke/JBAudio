@@ -139,7 +139,7 @@ test('a series that is still empty when the writer opens is reaped, cover and al
  * stale read cost was rows it could not SEE — a join landing a row with an
  * already-dead key behind the prune's back, which then dangles until some
  * later, unrelated scan runs the prune again (its trigger is
- * `scanLibrary.ts:1014`, not every scan).
+ * `scanLibrary.ts:870`, not every scan).
  *
  * ⚠ Whether widening what a BLOCKLIST can see is safe — and the concurrent-scan
  * assumption it rests on — is argued at `pruneOrphanedSeriesBooks` itself.

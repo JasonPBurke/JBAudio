@@ -19,6 +19,29 @@ type GeneralTrack = Record<string, unknown> & {
   extra?: Record<string, unknown>;
 };
 
+/**
+ * The whole General track as JSON, bound for `book_tags.raw_json` — DEFERRED,
+ * and this is the one place the reason is written down. Every declaration of
+ * it downstream names this type rather than restating the argument.
+ *
+ * A thunk rather than a string because only one file's blob per BOOK is ever
+ * stored: `groupChaptersIntoBooks` copies it inside its `!bookMap.has(...)`
+ * branch and drops every other file's. On the recorded corpus (~3,880 files,
+ * ~350 books) eager serialisation computed ~3,530 results, held them for the
+ * whole directory pass and threw them away.
+ *
+ * Calling it is `groupChaptersIntoBooks`' job and nobody else's. Call it per
+ * file and the deferral buys nothing; never call it and `book_tags.raw_json`
+ * empties silently, because `Book.metadata` is `{ [key: string]: any }` and
+ * WatermelonDB's `@text` setter turns the uncalled function into null.
+ *
+ * ⚠ Deliberately NOT memoised. Caching the result would retain the string
+ * *and* the pruned copy for every file, which is both halves of the cost this
+ * exists to avoid. It is called at most once per book; there is nothing to
+ * cache.
+ */
+export type DeferredTagBlob = () => string;
+
 export type CapturedTags = {
   /** `extra.SERIES` — the raw tag, not series membership. */
   series?: string;
@@ -28,8 +51,11 @@ export type CapturedTags = {
   grouping?: string;
   /** Top-level `Format`, e.g. `MPEG-4`. */
   fileFormat?: string;
-  /** The whole track as JSON, for `book_tags.raw_json`. */
-  rawJson?: string;
+  /**
+   * `undefined` still means *nothing worth writing* — the same signal the
+   * string carried, so the `if (rawTagsJson)` at the write site is unchanged.
+   */
+  rawJson?: DeferredTagBlob;
 };
 
 /**
@@ -66,26 +92,52 @@ function partNumber(value: unknown): number | undefined {
 export function captureBookTags(general: unknown): CapturedTags {
   const track = (general ?? {}) as GeneralTrack;
   const extra = (track.extra ?? {}) as Record<string, unknown>;
+  const storable = pruneTrack(track);
 
   return {
     series: trimmedString(extra.SERIES),
     part: partNumber(extra.PART),
     grouping: trimmedString(track.Grouping),
     fileFormat: trimmedString(track.Format),
-    rawJson: serializeTrack(track),
+    // The closure captures the PRUNED COPY, never `track`. Closing over the
+    // track would pin `Cover_Data` — a whole base64 JPEG — for as long as the
+    // thunk lives, which is the entire directory pass. That reads as an
+    // optimisation and is far worse than the waste it replaces.
+    rawJson:
+      storable === undefined ? undefined : () => JSON.stringify(storable),
   };
 }
 
-function serializeTrack(track: GeneralTrack): string | undefined {
-  const keepable = Object.keys(track).filter((key) => key !== COVER_DATA_KEY);
-  // Nothing but cover art, or nothing at all: no row worth writing.
-  if (keepable.length === 0) return undefined;
-
+/**
+ * The cheap half of the old `serializeTrack`, still eager: dropping the cover
+ * key is what makes the deferred half safe to hold on to.
+ *
+ * The kept keys are COPIED across rather than spread-then-deleted, so the
+ * cover's value is never read. `Cover_Data` arrives as base64 already in
+ * memory, so reading it costs nothing by itself — but a prune that touches it
+ * is one edit away from retaining it, and the test pins the stronger property.
+ *
+ * Shallow on purpose. `extra` rides along by reference: this codebase's
+ * extractor reads cover bytes from the TOP-LEVEL `Cover_Data` only
+ * (`mediainfo.ts`, `mediainfoAdapter.ts`), and no fixture or real record has
+ * ever shown them under `extra`. Pruning it too would be guessing at a shape
+ * we have not seen — the same refusal `partNumber` above makes.
+ */
+function pruneTrack(track: GeneralTrack): Record<string, unknown> | undefined {
   const kept: Record<string, unknown> = {};
-  for (const key of keepable) {
+  // A flag rather than `Object.keys(kept).length` at the end: this runs once
+  // per FILE (~3,880 of them), and a second keys array is the kind of throwaway
+  // allocation this whole change exists to stop making.
+  let keptAny = false;
+
+  for (const key of Object.keys(track)) {
+    if (key === COVER_DATA_KEY) continue;
     kept[key] = track[key];
+    keptAny = true;
   }
-  return JSON.stringify(kept);
+
+  // Nothing but cover art, or nothing at all: no row worth writing.
+  return keptAny ? kept : undefined;
 }
 
 /**
