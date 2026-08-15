@@ -1,17 +1,15 @@
-import { Q } from '@nozbe/watermelondb';
-
 import {
   addBookToSeries,
   SeriesNameConflictError,
   updateSeries,
 } from '@/db/seriesQueries';
 import { normalizeSortName } from '@/helpers/seriesName';
+import { type SeriesMembership } from '@/db/seriesProvenance';
 import {
-  resolveCanonicalSource,
-  resolveMembership,
-  type SeriesMembership,
-  type SeriesProvenance,
-} from '@/db/seriesProvenance';
+  FakeDatabase,
+  FakeSeries,
+  FakeSeriesBook,
+} from './support/fakeDatabase';
 
 /**
  * Ticket 26 — `Add to series…` must decide from the rows its own writer read.
@@ -31,13 +29,9 @@ import {
  * to be able to change the world between the two — which means a database, and
  * a hook that fires exactly where a competing writer would land.
  *
- * ── Why the database is faked rather than booted ──────────────────────────
- *
- * Same reason `seriesBackgroundsSetting.test.ts` gives: WatermelonDB's LokiJS
- * adapter leaves an interval alive that stops jest exiting, and the SQLite
- * adapter is native. The fake below implements only the surface `seriesQueries`
- * actually touches and THROWS on anything it does not understand, so it cannot
- * quietly answer a query wrongly.
+ * The harness itself — and why it is faked rather than booted, and why every
+ * guard in it is transcribed from `node_modules` rather than invented — lives
+ * in `./support/fakeDatabase`. Ticket 27 shares it.
  */
 
 // `seriesQueries` reaches RNFS through `artworkFiles` (K8's unlink). Nothing
@@ -53,265 +47,6 @@ jest.mock('@/db', () => ({
     return mockDb;
   },
 }));
-
-/* ------------------------------------------------------ the fake database --- */
-
-type Raw = Record<string, any>;
-type PreparedState = 'create' | 'update' | 'destroyPermanently' | null;
-
-/**
- * A `@text` column, which SANITIZES on the way in — WatermelonDB's decorator is
- * `'string' === typeof value ? value.trim() : null`. `@field` and `@date`
- * columns do not, which is why only some setters below go through this.
- */
-function sanitizeText(value: unknown): string | null {
-  return typeof value === 'string' ? value.trim() : null;
-}
-
-/**
- * The half of `Model` the query layer uses, with the invariants that half
- * actually carries. Every one of them is transcribed from the real thing
- * rather than invented — a fake that guards something WatermelonDB permits
- * would fail code that works on a device, which is the same failure as letting
- * something through, pointing the other way:
- *
- *  - `prepareUpdate` refuses a second call before the batch (`Model:104`). This
- *    is the one `updateSeries`' merged one-update-per-row rule exists to
- *    satisfy, and the row that hits it is one both dragged AND renumbered.
- *  - `prepareDestroyPermanently` refuses the same (`Model:199`) and flips
- *    `_status` to `'deleted'` (`Model:201`), which is a value the query layer
- *    reads: `assertSeriesNameAvailable` ignores rows already deleted.
- */
-class FakeRecord {
-  _raw: Raw;
-  _table: string;
-  _preparedState: PreparedState = null;
-
-  constructor(table: string, raw: Raw) {
-    this._table = table;
-    this._raw = raw;
-  }
-
-  get id(): string {
-    return this._raw.id;
-  }
-
-  prepareUpdate(updater: (record: any) => void): this {
-    if (this._preparedState) {
-      throw new Error('Cannot update a record with pending changes');
-    }
-    this._preparedState = 'update';
-    updater(this);
-    return this;
-  }
-
-  prepareDestroyPermanently(): this {
-    if (this._preparedState) {
-      throw new Error('Cannot destroy permanently record with pending changes');
-    }
-    this._raw._status = 'deleted';
-    this._preparedState = 'destroyPermanently';
-    return this;
-  }
-}
-
-class FakeSeries extends FakeRecord {
-  get name(): string {
-    return this._raw.name;
-  }
-  set name(value: string) {
-    this._raw.name = sanitizeText(value);
-  }
-  get sortName(): string {
-    return this._raw.sort_name;
-  }
-  set sortName(value: string) {
-    this._raw.sort_name = sanitizeText(value);
-  }
-  get nameSource(): string {
-    return this._raw.name_source ?? 'user';
-  }
-  set nameSource(value: string) {
-    this._raw.name_source = sanitizeText(value);
-  }
-  get updatedAt(): Date {
-    return this._raw.updated_at;
-  }
-  set updatedAt(value: Date) {
-    this._raw.updated_at = value;
-  }
-}
-
-class FakeSeriesBook extends FakeRecord {
-  get bookKey(): string {
-    return this._raw.book_key;
-  }
-  set bookKey(value: string) {
-    this._raw.book_key = sanitizeText(value);
-  }
-  get position(): number {
-    return this._raw.position;
-  }
-  set position(value: number) {
-    this._raw.position = value;
-  }
-  get canonicalNumber(): number | null {
-    return this._raw.canonical_number ?? null;
-  }
-  set canonicalNumber(value: number | null) {
-    this._raw.canonical_number = value;
-  }
-  get canonicalSourceRaw(): string | null {
-    return this._raw.canonical_source ?? null;
-  }
-  get canonicalSource(): SeriesProvenance | null {
-    return resolveCanonicalSource(this.canonicalSourceRaw);
-  }
-  set canonicalSource(value: SeriesProvenance | null) {
-    this._raw.canonical_source = sanitizeText(value);
-  }
-  get membershipRaw(): string | null {
-    return this._raw.membership ?? null;
-  }
-  get membership(): SeriesMembership {
-    return resolveMembership(this.membershipRaw);
-  }
-  set membership(value: SeriesMembership) {
-    this._raw.membership = sanitizeText(value);
-  }
-  get createdAt(): Date {
-    return this._raw.created_at;
-  }
-  set createdAt(value: Date) {
-    this._raw.created_at = value;
-  }
-}
-
-class FakeSuppressedSeries extends FakeRecord {
-  get name(): string {
-    return this._raw.name;
-  }
-}
-
-const RECORD_CLASSES: Record<string, new (table: string, raw: Raw) => FakeRecord> =
-  {
-    series: FakeSeries,
-    series_books: FakeSeriesBook,
-    suppressed_series: FakeSuppressedSeries,
-  };
-
-/** Only `Q.where(column, value)`. Anything else is a query the fake never saw. */
-function matchesClauses(raw: Raw, clauses: readonly any[]): boolean {
-  return clauses.every((clause) => {
-    if (clause?.type !== 'where' || clause?.comparison?.operator !== 'eq') {
-      throw new Error(
-        `fake database understands only Q.where(col, value): ${JSON.stringify(clause)}`,
-      );
-    }
-    return raw[clause.left] === clause.comparison.right.value;
-  });
-}
-
-class FakeDatabase {
-  tables: Record<string, FakeRecord[]> = {
-    series: [],
-    series_books: [],
-    suppressed_series: [],
-  };
-  /** Fires once, the moment a writer opens — where a competing writer lands. */
-  private writerHook: (() => void) | null = null;
-  private writerRunning = false;
-  private nextId = 1;
-
-  onNextWriter(hook: () => void): void {
-    this.writerHook = hook;
-  }
-
-  rowsIn(table: string): FakeRecord[] {
-    const rows = this.tables[table];
-    if (!rows) throw new Error(`fake database has no table "${table}"`);
-    return rows;
-  }
-
-  seed(table: string, raw: Raw): FakeRecord {
-    const Class = RECORD_CLASSES[table] ?? FakeRecord;
-    const record = new Class(table, { _status: 'created', ...raw });
-    this.rowsIn(table).push(record);
-    return record;
-  }
-
-  get(table: string) {
-    const db = this;
-    return {
-      async find(id: string) {
-        const found = db.rowsIn(table).find((row) => row.id === id);
-        if (!found) throw new Error(`record ${id} not found in ${table}`);
-        return found;
-      },
-      query(...clauses: any[]) {
-        return {
-          async fetch() {
-            return db
-              .rowsIn(table)
-              .filter((row) => matchesClauses(row._raw, clauses));
-          },
-        };
-      },
-      prepareCreate(builder: (record: any) => void) {
-        const Class = RECORD_CLASSES[table] ?? FakeRecord;
-        const record = new Class(table, {
-          id: `${table}-${db.nextId++}`,
-          _status: 'created',
-        });
-        record._preparedState = 'create';
-        builder(record);
-        return record;
-      },
-    };
-  }
-
-  async write<T>(work: () => Promise<T>): Promise<T> {
-    const hook = this.writerHook;
-    this.writerHook = null;
-    hook?.();
-    this.writerRunning = true;
-    try {
-      return await work();
-    } finally {
-      this.writerRunning = false;
-    }
-  }
-
-  /**
-   * Both guards are the real `Database.batch`'s, not inventions: it calls
-   * `_ensureInWriter` (`Database:83`) and throws on a record with no prepared
-   * state (`Database:93-95`). Either one silently tolerated here would let a
-   * write through jest that crashes on a device — which for a fake standing in
-   * for the thing ticket 26 is about is the whole risk.
-   */
-  async batch(ops: FakeRecord[]): Promise<void> {
-    if (!this.writerRunning) {
-      throw new Error(
-        'Database.batch() can only be called from inside of a Writer.',
-      );
-    }
-    for (const op of ops) {
-      if (!op._preparedState) {
-        throw new Error(
-          "Cannot batch a record that doesn't have a prepared create/update/delete",
-        );
-      }
-      if (op._preparedState === 'create') this.rowsIn(op._table).push(op);
-      if (op._preparedState === 'destroyPermanently') {
-        const rows = this.rowsIn(op._table);
-        const index = rows.indexOf(op);
-        if (index >= 0) rows.splice(index, 1);
-      }
-      // An 'update' already applied its changes in place, as the real one does.
-      op._preparedState = null;
-    }
-  }
-}
 
 let mockDb: FakeDatabase;
 
@@ -384,24 +119,6 @@ function visibleOrder(): string[] {
 beforeEach(() => {
   mockDb = new FakeDatabase();
 });
-
-/*
- * The fake reads WatermelonDB's clause objects directly, which is a dependency
- * on a shape the library owns. `matchesClauses` THROWS on anything it does not
- * recognise, so a renamed `type` or `operator` fails loudly — but a renamed
- * `left` or `right` would just filter everything out and turn every test below
- * green-for-the-wrong-reason. This is the assumption, stated against the real
- * `Q`, so an upgrade that moves it says so here rather than there.
- */
-test('the fake reads the clause shape `Q.where` actually produces', () => {
-  expect(Q.where('series_id', 's1')).toEqual({
-    type: 'where',
-    left: 'series_id',
-    comparison: { operator: 'eq', right: { value: 's1' } },
-  });
-});
-
-/* ------------------------------------------------------------ the ticket --- */
 
 /*
  * ⚠ THE DEFECT (ticket 26). A scan's `pruneOrphanedSeriesBooks` destroys `c`'s

@@ -701,19 +701,31 @@ export async function loadRemovedSeries(): Promise<RemovedSeriesEntry[]> {
  * allowed to exist where "delete all detected series" is not. The rows it
  * removes are the app's own veto records, and removing them gives the user
  * their series back.
+ *
+ * ⚠ THE FETCH IS INSIDE THE WRITER (ticket 27), AND NO DEFECT PROMPTED IT. Of
+ * the three sites the ticket named this is the one with no victim at all: the
+ * decision input is the row id, which is immutable, matched against ids the
+ * user just picked off a list — a competing writer cannot change that answer,
+ * and the one thing it can do (destroy a row first) leaves our destroy a no-op
+ * either way. The ticket said as much ("possibly not worth changing"). It moved
+ * because the alternative was a comment asserting all of the above, resting on
+ * facts in other files, with nothing to fail if one of them changed. Three
+ * lines beat a standing claim.
+ *
+ * The `rowIds` gate stays OUTSIDE, so the no-op call still opens no writer.
  */
 export async function restoreRemovedSeries(rowIds: string[]): Promise<void> {
   if (rowIds.length === 0) return;
   const wanted = new Set(rowIds);
-  // One fetch of the whole table, not a chunked `Q.oneOf` — G6's reasoning for
-  // leaving it unindexed is that it holds a handful of rows.
-  const rows = await database
-    .get<SuppressedSeries>('suppressed_series')
-    .query()
-    .fetch();
-  const targets = rows.filter((row) => wanted.has(row.id));
-  if (targets.length === 0) return;
   await database.write(async () => {
+    // One fetch of the whole table, not a chunked `Q.oneOf` — G6's reasoning
+    // for leaving it unindexed is that it holds a handful of rows.
+    const rows = await database
+      .get<SuppressedSeries>('suppressed_series')
+      .query()
+      .fetch();
+    const targets = rows.filter((row) => wanted.has(row.id));
+    if (targets.length === 0) return;
     await database.batch(targets.map((row) => row.prepareDestroyPermanently()));
   });
 }
@@ -876,14 +888,43 @@ export async function applyPlan(plan: ReconcilePlan): Promise<ApplyPlanResult> {
  * must inline its own copy (it runs inside one write batch and cannot call into
  * here without nesting a writer). Neither site owns the rule: both delegate to
  * `seriesOrphanPrune`, which is authoritative. Change it there, not here.
+ *
+ * ⚠ THE FETCH IS INSIDE THE WRITER (ticket 27), THOUGH NOT FOR THE USUAL
+ * REASON. A stale read could not make this destroy the WRONG row: the only
+ * decision input is `book_key`, which is written at three `prepareCreate` sites
+ * and never updated, and the rule is provenance-blind by ADR 0001 — so nothing
+ * a competing writer does changes the answer for a row already read. What the
+ * outside read cost was rows it could not SEE. A book this scan orphaned is
+ * gone from the DB before cleanup gets here, but `AddToSeriesPanel` still holds
+ * its key in a snapshot taken on tap, so a join lands a membership row with an
+ * already-dead key behind the prune's back — and it then dangles until some
+ * later, unrelated scan orphans another book, because the prune's trigger is
+ * `orphanedBooks.length > 0`, not every scan.
+ *
+ * ⚠ WHY WIDENING WHAT IT SEES IS SAFE HERE, and this needed checking rather
+ * than assuming. `liveKeys` is a BLOCKLIST input (ticket 22): every gap in it
+ * is an order to DESTROY, so exposing more rows to it would be dangerous if a
+ * row could appear for a book whose urls are missing from the set. Within one
+ * scan it cannot: `processDirectoryFiles` finishes before `removeMissingFiles`
+ * fetches `allChapters`, so every book that can acquire a row during cleanup
+ * already contributed its urls. If book insertion ever moves after cleanup,
+ * that is what breaks first.
+ *
+ * ⚠ IT ASSUMES NO CONCURRENT SCAN, and that assumption is NOT enforced —
+ * `scanLibrary` has no re-entrancy guard and two of its callers invoke it
+ * unawaited. Two overlapping scans break the paragraph above, because the
+ * second one inserts books the first one's `liveKeys` has never heard of. That
+ * hazard is pre-existing and wider than this function (the whole of a scan's
+ * cleanup reasons from its own snapshot), but this is the site where it turns
+ * destructive, so it is written down here. See ticket 30.
  */
 export async function pruneOrphanedSeriesBooks(
   liveKeys: Set<string>,
 ): Promise<void> {
-  const all = await database.get<SeriesBook>('series_books').query().fetch();
-  const orphans = selectOrphanedMemberships(all, liveKeys);
-  if (orphans.length === 0) return;
   await database.write(async () => {
+    const all = await database.get<SeriesBook>('series_books').query().fetch();
+    const orphans = selectOrphanedMemberships(all, liveKeys);
+    if (orphans.length === 0) return;
     await database.batch(orphans.map((m) => m.prepareDestroyPermanently()));
   });
 }
@@ -897,24 +938,49 @@ export async function pruneOrphanedSeriesBooks(
  * destroys a series.** A series whose every book was moved on disk is reaped
  * right here, by a scan, with nobody watching — and it takes its pinned cover
  * off the books with it.
+ *
+ * ⚠ BOTH FETCHES ARE INSIDE THE WRITER, and of the three sites ticket 27 named
+ * this is the one that had a real victim. Emptiness was decided from a snapshot
+ * taken outside, and the window is ordinary: a scan prunes S's last row, this
+ * reads and marks S empty, and the user taps `Add to series… → S` from a panel
+ * that SNAPSHOTS its list on tap. The join commits a row; the reaper destroys S
+ * anyway. The cover is then unlinked IRREVERSIBLY (see below), and the row the
+ * join just created outlives its series pointing at an id nothing resolves —
+ * the prune keeps it, because its book key is live.
+ *
+ * It was also two separate fetches, which is a torn snapshot even without a
+ * competing writer. One writer, one consistent read of both tables.
+ *
+ * ⚠ THE UNLINK STAYS OUTSIDE, AND AFTER. §K8: a file delete cannot be rolled
+ * back with the transaction, so it must follow a COMMITTED row delete.
+ * `pinnedArtwork` carries the uris out of the writer for exactly that reason
+ * (the same idiom `deleteSeries` uses), and it is assigned only on the path
+ * that actually destroys something — so a writer that throws unlinks nothing.
+ *
+ * Opening a writer to discover there is nothing to do is the cost of the fix,
+ * and it is paid at most once per scan: the only caller gates on
+ * `orphanedBooks.length > 0`, so an unchanged library never reaches here. A
+ * cheap outside pre-check was considered and REJECTED — a second snapshot is
+ * the defect, not the cure.
  */
 export async function deleteEmptySeries(): Promise<void> {
-  const seriesModels = await database.get<Series>('series').query().fetch();
-  const memberModels = await database
-    .get<SeriesBook>('series_books')
-    .query()
-    .fetch();
-  const emptyIds = new Set(
-    selectEmptySeriesIds(
-      seriesModels.map((s) => s.id),
-      memberModels.map((m) => ({ seriesId: (m._raw as any).series_id })),
-    ),
-  );
-  const empties = seriesModels.filter((s) => emptyIds.has(s.id));
-  if (empties.length === 0) return;
-  const pinned = empties.map((s) => s.artwork);
+  let pinnedArtwork: (string | null)[] = [];
   await database.write(async () => {
+    const seriesModels = await database.get<Series>('series').query().fetch();
+    const memberModels = await database
+      .get<SeriesBook>('series_books')
+      .query()
+      .fetch();
+    const emptyIds = new Set(
+      selectEmptySeriesIds(
+        seriesModels.map((s) => s.id),
+        memberModels.map((m) => ({ seriesId: (m._raw as any).series_id })),
+      ),
+    );
+    const empties = seriesModels.filter((s) => emptyIds.has(s.id));
+    if (empties.length === 0) return;
+    pinnedArtwork = empties.map((s) => s.artwork);
     await database.batch(empties.map((s) => s.prepareDestroyPermanently()));
   });
-  await deleteArtworkFiles(pinned);
+  await deleteArtworkFiles(pinnedArtwork);
 }
