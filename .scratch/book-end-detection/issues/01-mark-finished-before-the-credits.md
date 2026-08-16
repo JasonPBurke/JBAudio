@@ -14,7 +14,7 @@ compose, and this one only became worth doing once §C5 landed.
 Most audiobooks end with several minutes of non-book audio: credits, an ad for the next
 title, a narrator sign-off. The app only marks a book `Finished` when playback reaches the
 **true end of the media**, so **the user has to sit through or skip past material that is not
-the book in order to get the ✓**. The book is over; the app disagrees.
+the book in order to get the ✓**. The book is over; the app disagrees. This also effects non-series books switching into the 'Finished' tab on the main authors library screen.
 
 Under §C5 this now costs twice, because a book that never gets marked finished also never
 gets the restart-from-zero treatment on its next play.
@@ -24,10 +24,10 @@ gets the restart-from-zero treatment on its next play.
 **D1 — Mark the book `Finished` when playback passes within a lead time of the end**,
 defaulting to **60 seconds**. Not at the true end.
 
-**D2 — Marking must NEVER stop, pause or rewind playback.** Driver, verbatim: *"playback
+**D2 — Marking must NEVER stop, pause or rewind playback.** Driver, verbatim: _"playback
 should always continue without user interaction… continue playback but mark the book as
-finished while playback is occurring"*, and *"if a user plays through the end, they should
-hear all of it."*
+finished while playback is occurring"_, and _"if a user plays through the end, they should
+hear all of it."_
 
 > ⚠ **This is the whole trap, and it is why D2 is a separate rule from D1.** Today ONE
 > constant does BOTH jobs. `service.js`'s progress handler carries
@@ -41,7 +41,7 @@ hear all of it."*
 > the existing end-of-media handling left to do the stopping.
 
 **D3 — The driver also wants the existing 0.2s stop removed.** Playing through to the true
-end should play *all* of it; the queue-ending path already marks the book finished and resets
+end should play _all_ of it; the queue-ending path already marks the book finished and resets
 the position, so the early stop is not load-bearing. Removing it is a real behaviour change
 and needs its own device check (below).
 
@@ -49,11 +49,11 @@ and needs its own device check (below).
 lives only in the single-file branch. A multi-file book is finished by
 `Event.PlaybackQueueEnded` — i.e. only at the true end. The tick handler already receives
 `track`, `position` and `duration` in its event payload, and reads the book from the library
-store, so the condition is *last track* **and** *within the lead of that track's end*.
+store, so the condition is _last track_ **and** _within the lead of that track's end_.
 
 **D5 — Guard against re-marking.** Once marked, the 1 Hz tick keeps firing for the rest of
 the lead time — that is ~60 writes, and **each one rewrites `finished_at = new Date()**`,
-because the model's `updateBookProgress` sets it for `Finished` and clears it otherwise.
+because the model's `updateBookProgress`sets it for`Finished` and clears it otherwise.
 Guard on the book's current progress value; the handler already holds it.
 
 ## Cost — this needs no new work per tick
@@ -73,7 +73,7 @@ happened to stop.
 
 - **A 60-second window trusts the reported duration in a way 0.2s never did.** A mis-tagged
   file that overstates its length marks the book finished early. Because D2 makes marking
-  *only* marking, an early mark is cosmetic and recoverable rather than a truncation.
+  _only_ marking, an early mark is cosmetic and recoverable rather than a truncation.
 - **A last track shorter than the lead time marks the book finished the moment it starts.**
   For a 45-second credits track that is exactly the desired behaviour; for a genuinely short
   final chapter it is early. Decide whether to clamp (e.g. `min(lead, trackDuration × k)`) or
@@ -86,8 +86,8 @@ happened to stop.
 Well, and it closes the loop the driver described. A book marked finished at T−60 keeps
 playing its credits; the user stops whenever. Pressing play on it later from any card
 restarts it at 0:00 and flips it back to `Started`, regardless of how it came to be marked.
-**Driver, verbatim: *"if the user pauses within the 60secs, a play press starts the book from
-the beginning."*** That falls out of §C5 with no extra code — but it is a criterion here,
+**Driver, verbatim: _"if the user pauses within the 60secs, a play press starts the book from
+the beginning."_** That falls out of §C5 with no extra code — but it is a criterion here,
 because it is the behaviour this ticket is for.
 
 ⚠ Note while testing: §C5's restart only fires through `handleBookPlay`. Resuming from the
@@ -151,13 +151,13 @@ two kinds of book. There are **four authoring shapes**, and — the part that ac
 they collapse into **TWO runtime queue shapes**, which is what the 1 Hz tick's `position` and
 `duration` mean. The mapping is NOT the obvious one.
 
-| # | Authoring shape | `shouldUseClippedChapters` | Queue built | Service branch |
-|---|---|---|---|---|
-| A | **Multi-file** — N files, one chapter each | false (not single-file) | **N items**, one per file | `else` |
-| B | **Single file + REAL chapter markers**, sample table fits the heap | **true** | **N items**, one per chapter, all same URL, clipped windows | `else` |
-| C | **Single file + REAL chapter markers**, sample table too big | false (heap gate) | **ONE item**, whole book | single-file |
-| D | **Single file + AUTO-generated chapters** (no built-in markers) | false (auto excluded) | **ONE item**, whole book | single-file |
-| E | **Single file, ONE chapter**, possibly hours long | false (needs >1 chapter) | **ONE item** | `else` (branch also requires `chapters.length > 1`) |
+| #   | Authoring shape                                                    | `shouldUseClippedChapters` | Queue built                                                 | Service branch                                      |
+| --- | ------------------------------------------------------------------ | -------------------------- | ----------------------------------------------------------- | --------------------------------------------------- |
+| A   | **Multi-file** — N files, one chapter each                         | false (not single-file)    | **N items**, one per file                                   | `else`                                              |
+| B   | **Single file + REAL chapter markers**, sample table fits the heap | **true**                   | **N items**, one per chapter, all same URL, clipped windows | `else`                                              |
+| C   | **Single file + REAL chapter markers**, sample table too big       | false (heap gate)          | **ONE item**, whole book                                    | single-file                                         |
+| D   | **Single file + AUTO-generated chapters** (no built-in markers)    | false (auto excluded)      | **ONE item**, whole book                                    | single-file                                         |
+| E   | **Single file, ONE chapter**, possibly hours long                  | false (needs >1 chapter)   | **ONE item**                                                | `else` (branch also requires `chapters.length > 1`) |
 
 ⚠ **Two things here contradict the mental model we started from:**
 
@@ -197,14 +197,14 @@ In the reverted implementation the effective lead on an N-item book was:
 min(FINISH_LEAD_SECONDS, lastTrackDuration / 2)
 ```
 
-| Final track | Window opened | Actual lead |
-|---|---|---|
-| 8 min | 420s in | 60s (full) |
-| 120s | 60s in | 60s (the exact boundary) |
-| 90s | 45s in | 45s |
-| 45s | 22.5s in | 22.5s |
-| **30s** | **15s in** | **15s** |
-| 10s | 5s in | 5s |
+| Final track | Window opened | Actual lead              |
+| ----------- | ------------- | ------------------------ |
+| 8 min       | 420s in       | 60s (full)               |
+| 120s        | 60s in        | 60s (the exact boundary) |
+| 90s         | 45s in        | 45s                      |
+| 45s         | 22.5s in      | 22.5s                    |
+| **30s**     | **15s in**    | **15s**                  |
+| 10s         | 5s in         | 5s                       |
 
 The `/2` is a clamp that existed because two cases are indistinguishable from `duration` alone:
 the final track being **the credits** (want to mark at its START) versus being **genuinely short
@@ -220,7 +220,7 @@ returned "not near the end" regardless of position.
 
 #### The driver's proposal for the next pass
 
-> *"if a final chapter <= 60 seconds, then just mark it finished"*
+> _"if a final chapter <= 60 seconds, then just mark it finished"_
 
 i.e. drop the clamp and mark the moment the final track starts, when that track is shorter than
 the lead. **This is sound for A and B, and the research says it is safer than it first looks:**
@@ -262,9 +262,9 @@ case that did not exist before:
 > user is inside the last 60s, pauses, comes back later, presses play from a card → the book
 > restarts from the beginning, rather than resuming the ~40s they had left.
 
-**Driver's leaning, recorded verbatim: *"this would be very unlikely and rare, as they would
+**Driver's leaning, recorded verbatim: _"this would be very unlikely and rare, as they would
 most likely just finish out the < 60 seconds of the end of a book first so we may just let the
-user deal with that case manually."*** — i.e. ACCEPT the restart, do not special-case it.
+user deal with that case manually."_** — i.e. ACCEPT the restart, do not special-case it.
 
 Worth noting if that is revisited: the escape hatch already exists and needs no code. Resuming
 from **the player screen, the floating player, the notification or Android Auto transport**
@@ -296,7 +296,7 @@ moves to (b), that recovery path changes shape too. Decide 1 and 3 together.
    timestamp being dragged forward to the true end by the other two. D5 is not a one-site fix.
 2. ⚠ **Any "already marked" latch must be set AFTER the write lands, never before.** Latching
    first silences the per-tick path AND any true-end fallback that trusts the same latch, so a
-   book whose `getBookById` missed would end up marked *never*.
+   book whose `getBookById` missed would end up marked _never_.
 3. ⚠ **A guard on the store's `bookProgressValue` alone is not enough.** The store only refreshes
    when the WatermelonDB observer fires, several ticks after the write, leaving a window of 2-3
    duplicate writes. Two-part guard (module latch + store value) or nothing.
