@@ -25,7 +25,7 @@ import {
   type RemovedSeriesEntry,
 } from '@/db/seriesSuppression';
 import {
-  normalizeSortName,
+  seriesIdentityKey,
   SeriesNameConflictError,
 } from '@/helpers/seriesName';
 import {
@@ -35,23 +35,23 @@ import {
 import { rememberedNumbersFrom } from '@/helpers/seriesNumbering';
 
 export { computeMembershipDiff } from '@/db/seriesMembershipDiff';
-export { normalizeSortName, SeriesNameConflictError };
+export { seriesIdentityKey, SeriesNameConflictError };
 
 /**
- * Throw if `name` collides with an existing series' sort_name. `excludeId`
+ * Throw if `name` collides with an existing series' identity_key. `excludeId`
  * omits the series being renamed so saving an unchanged name still works.
- * Queries sort_name directly rather than reusing isDuplicateSeriesName so the
+ * Queries identity_key directly rather than reusing isDuplicateSeriesName so the
  * check runs against the database, not a possibly-stale store snapshot.
  */
 async function assertSeriesNameAvailable(
   name: string,
   excludeId?: string,
 ): Promise<void> {
-  const key = normalizeSortName(name);
+  const key = seriesIdentityKey(name);
   if (!key) return;
   const clashes = await database
     .get<Series>('series')
-    .query(Q.where('sort_name', key))
+    .query(Q.where('identity_key', key))
     .fetch();
   const conflict = clashes.some(
     (s) => s.id !== excludeId && s._raw._status !== 'deleted',
@@ -118,7 +118,7 @@ export async function createSeries(
     const clears = await prepareSuppressionClear(name);
     const series = await database.get<Series>('series').create((s) => {
       s.name = name.trim();
-      s.sortName = normalizeSortName(name);
+      s.identityKey = seriesIdentityKey(name);
       s.origin = 'user';
       s.nameSource = 'user';
       s.createdAt = now;
@@ -244,7 +244,7 @@ async function writeSeriesSave(
     ops.push(
       series.prepareUpdate((s) => {
         s.name = name.trim();
-        s.sortName = normalizeSortName(name);
+        s.identityKey = seriesIdentityKey(name);
         // OWNERSHIP IS PER ASPECT: set only when the planner says the name
         // changed, and `origin` is not touched here at all. A renamed DETECTED
         // series is still detection's to add new books to (A10a's second pass),
@@ -563,7 +563,7 @@ export function observeSeriesData(): Observable<{
   const series$ = database
     .get<Series>('series')
     .query()
-    .observeWithColumns(['name', 'sort_name', 'artwork']);
+    .observeWithColumns(['name', 'identity_key', 'artwork']);
   // `canonical_number` is observed for the same reason as `position`: the
   // browse row renders it (as the collapsed range and the next-up badge), and
   // the editor writes it without touching membership, so a number-only edit
@@ -590,7 +590,7 @@ export function observeSeriesData(): Observable<{
         .map((s) => ({
           id: s.id,
           name: s.name,
-          sortName: s.sortName,
+          identityKey: s.identityKey,
           artwork: s.artwork,
           // RAW, for `membership`'s reason — the assembly coalesces.
           origin: s.originRaw,
@@ -771,7 +771,7 @@ export type ApplyPlanResult = {
  * Two things it does NOT do, both on purpose:
  *
  *  - **No `assertSeriesNameAvailable`.** A create only reaches here for a name
- *    that matched no existing series under `normalizeSortName` — reconcile's
+ *    that matched no existing series under `seriesIdentityKey` — reconcile's
  *    first pass claims or skips every name that did — so the check could only
  *    ever throw on a name detection is entitled to use, aborting the whole run.
  *    A15's disambiguation is what keeps detected names apart.
@@ -811,7 +811,7 @@ export async function applyPlan(plan: ReconcilePlan): Promise<ApplyPlanResult> {
       // its members share one batch instead of one write per series.
       const series = database.get<Series>('series').prepareCreate((s) => {
         s.name = planned.name;
-        s.sortName = normalizeSortName(planned.name);
+        s.identityKey = seriesIdentityKey(planned.name);
         s.origin = planned.origin;
         s.nameSource = planned.nameSource;
         s.createdAt = now;

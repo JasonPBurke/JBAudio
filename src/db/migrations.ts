@@ -163,7 +163,15 @@ export default schemaMigrations({
           name: 'series',
           columns: [
             { name: 'name', type: 'string' },
-            { name: 'sort_name', type: 'string', isIndexed: true },
+            // ⚠ EDITED IN PLACE 2026-08-16, renamed from `sort_name`. Legal
+            // only because these tables never shipped: main has no series
+            // table at all and sits at v31, so no install outside this branch
+            // has ever run this step. WatermelonDB has no renameColumn, so an
+            // amendment was the alternative — and an amendment for a column no
+            // device holds is permanent cruft. Any dev device that ran the old
+            // v32/v33 must be wiped; it will fail loudly on the missing column.
+            // The value is unchanged: seriesIdentityKey(name). See ADR 0002.
+            { name: 'identity_key', type: 'string', isIndexed: true },
             { name: 'created_at', type: 'number' },
             { name: 'updated_at', type: 'number' },
           ],

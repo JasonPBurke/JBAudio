@@ -3,7 +3,7 @@ import {
   SeriesNameConflictError,
   updateSeries,
 } from '@/db/seriesQueries';
-import { normalizeSortName } from '@/helpers/seriesName';
+import { seriesIdentityKey } from '@/helpers/seriesName';
 import { type SeriesMembership } from '@/db/seriesProvenance';
 import {
   FakeDatabase,
@@ -63,7 +63,7 @@ function seedSeries(rows: SeededRow[], name = 'Discworld'): string {
   const series = mockDb.seed('series', {
     id: 'series-1',
     name,
-    sort_name: normalizeSortName(name),
+    identity_key: seriesIdentityKey(name),
     origin: 'detected',
     name_source: 'detected',
     created_at: new Date(0),
@@ -276,7 +276,7 @@ test('an editor save refuses a name another series already holds, writing nothin
   mockDb.seed('series', {
     id: 'series-2',
     name: 'Nightwatch',
-    sort_name: normalizeSortName('Nightwatch'),
+    identity_key: seriesIdentityKey('Nightwatch'),
     origin: 'user',
     name_source: 'user',
     created_at: new Date(0),

@@ -11,7 +11,7 @@ export default class Series extends Model {
   };
 
   @text('name') name!: string;
-  @text('sort_name') sortName!: string;
+  @text('identity_key') identityKey!: string;
   @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;
   @children('series_books') seriesBooks!: SeriesBook[];

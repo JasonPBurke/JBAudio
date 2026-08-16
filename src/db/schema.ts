@@ -312,7 +312,18 @@ export default appSchema({
       name: 'series',
       columns: [
         { name: 'name', type: 'string' },
-        { name: 'sort_name', type: 'string', isIndexed: true },
+        // Holds `seriesIdentityKey(name)` (helpers/seriesName.ts). It answers
+        // "is this the same series?" — duplicate validation, reconcile name
+        // matching, suppression — and every SQL query against it is an equality
+        // lookup. A leading article is part of the key, NOT stripped: doing so
+        // would merge `The Dresden Files` into `Dresden Files`. See ADR 0002.
+        //
+        // ⚠ Was called `sort_name` until 2026-08-16, which is how the browse
+        // list came to be ordered by it in JS. Renaming was free only because
+        // the series tables had never shipped — main has no series table and
+        // sits at v31, so the v32 createTable was edited in place. Any device
+        // that ran the old v32/v33 must be wiped.
+        { name: 'identity_key', type: 'string', isIndexed: true },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
         // 'detected' | 'user' — null reads as 'user'.

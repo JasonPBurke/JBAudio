@@ -18,8 +18,8 @@ test('assemble resolves by structural key, drops missing, orders by position, A-
     b2: mkBook('b2', '/y/1.mp3', 'Alpha', 2),
   };
   const series = [
-    { id: 's2', name: 'Bravo', sortName: 'bravo', createdAt: 0 },
-    { id: 's1', name: 'Alpha', sortName: 'alpha', createdAt: 0 },
+    { id: 's2', name: 'Bravo', identityKey: 'bravo', createdAt: 0 },
+    { id: 's1', name: 'Alpha', identityKey: 'alpha', createdAt: 0 },
   ];
   const memberships = [
     { seriesId: 's1', bookKey: '/y/1.mp3', position: 1, canonicalNumber: 2 },
@@ -29,7 +29,7 @@ test('assemble resolves by structural key, drops missing, orders by position, A-
     { seriesId: 's2', bookKey: '/x/1.mp3', position: 0, canonicalNumber: null },
   ];
   const out = assembleDerivedSeries(series, memberships, bookMap);
-  expect(out.map((s) => s.id)).toEqual(['s1', 's2']); // A-Z by sortName
+  expect(out.map((s) => s.id)).toEqual(['s1', 's2']); // A-Z by identityKey
   expect(out[0].books.map((b) => b.bookId)).toEqual(['b1', 'b2']); // by position, missing dropped
   expect(out[0].progressState).toBe('playing'); // [Zeta=0, Alpha=2]
 });
@@ -39,7 +39,7 @@ test('canonical numbers stay index-aligned with the books that resolved', () => 
     b1: mkBook('b1', '/x/1.mp3', 'Zeta'),
     b2: mkBook('b2', '/y/1.mp3', 'Alpha'),
   };
-  const series = [{ id: 's1', name: 'Alpha', sortName: 'alpha', createdAt: 0 }];
+  const series = [{ id: 's1', name: 'Alpha', identityKey: 'alpha', createdAt: 0 }];
   const memberships = [
     { seriesId: 's1', bookKey: '/x/1.mp3', position: 0, canonicalNumber: 1 },
     // A dropped membership must drop its number too, or every number after it
@@ -70,13 +70,13 @@ test('pinned series artwork survives assembly, and absent means derived', () => 
       {
         id: 's1',
         name: 'Alpha',
-        sortName: 'alpha',
+        identityKey: 'alpha',
         artwork: '/art/s1.jpg',
         createdAt: 0,
       },
-      { id: 's2', name: 'Bravo', sortName: 'bravo', artwork: null, createdAt: 0 },
+      { id: 's2', name: 'Bravo', identityKey: 'bravo', artwork: null, createdAt: 0 },
       // A pre-column row hands over no field at all.
-      { id: 's3', name: 'Charlie', sortName: 'charlie', createdAt: 0 },
+      { id: 's3', name: 'Charlie', identityKey: 'charlie', createdAt: 0 },
     ],
     memberships,
     bookMap,
@@ -128,7 +128,7 @@ test('an excluded membership row is invisible, and takes its number with it', ()
     b2: mkBook('b2', '/y/1.mp3', 'Two'),
     b3: mkBook('b3', '/z/1.mp3', 'Three'),
   };
-  const series = [{ id: 's1', name: 'Alpha', sortName: 'alpha', createdAt: 0 }];
+  const series = [{ id: 's1', name: 'Alpha', identityKey: 'alpha', createdAt: 0 }];
   const memberships = [
     { seriesId: 's1', bookKey: '/x/1.mp3', position: 0, canonicalNumber: 1 },
     {
@@ -174,13 +174,13 @@ test('origin and creation time survive assembly, and a pre-v33 null is the user'
       {
         id: 's1',
         name: 'Alpha',
-        sortName: 'alpha',
+        identityKey: 'alpha',
         origin: 'detected',
         createdAt: 111,
       },
-      { id: 's2', name: 'Bravo', sortName: 'bravo', origin: 'user', createdAt: 222 },
+      { id: 's2', name: 'Bravo', identityKey: 'bravo', origin: 'user', createdAt: 222 },
       // A pre-v33 row hands over no origin at all.
-      { id: 's3', name: 'Charlie', sortName: 'charlie', createdAt: 333 },
+      { id: 's3', name: 'Charlie', identityKey: 'charlie', createdAt: 333 },
     ],
     memberships,
     bookMap,
@@ -192,7 +192,7 @@ test('origin and creation time survive assembly, and a pre-v33 null is the user'
 /* G5 — every row that predates v33 carries null here, and null is a member. */
 test('a membership row with no provenance is drawn', () => {
   const bookMap = { b1: mkBook('b1', '/x/1.mp3', 'One') };
-  const series = [{ id: 's1', name: 'Alpha', sortName: 'alpha', createdAt: 0 }];
+  const series = [{ id: 's1', name: 'Alpha', identityKey: 'alpha', createdAt: 0 }];
   const [out] = assembleDerivedSeries(
     series,
     [

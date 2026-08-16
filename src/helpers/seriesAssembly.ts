@@ -13,7 +13,7 @@ import {
 export type SeriesRow = {
   id: string;
   name: string;
-  sortName: string;
+  identityKey: string;
   /**
    * A pinned series cover, or null to derive it from the member books.
    *
@@ -97,7 +97,14 @@ function buildKeyMap(bookMap: Record<string, Book>): Map<string, Book> {
  * Combine observed series + membership rows with the live library book map into
  * render-ready series. Membership keys that don't resolve against the live
  * library are silently skipped (graceful skip). Books are ordered by their
- * membership `position`; series are ordered A–Z by `sortName`.
+ * membership `position`; series are ordered A–Z by `identityKey`.
+ *
+ * ⚠ **Ordering by `identityKey` is the KNOWN DEFECT, not the design.** That key
+ * exists to answer "are these the same series?", and borrowing it to sort is
+ * why `The Dresden Files` files under T. Ticket 32 replaces the comparator
+ * below with `compareSeriesNames`, which strips a leading article. Fix it
+ * THERE — never by changing what `seriesIdentityKey` returns, which would merge
+ * two distinct series. See ADR 0002.
  */
 export function assembleDerivedSeries(
   series: SeriesRow[],
@@ -112,7 +119,7 @@ export function assembleDerivedSeries(
     bySeries.get(m.seriesId)!.push(m);
   }
 
-  const sortNameById = new Map(series.map((s) => [s.id, s.sortName]));
+  const identityKeyById = new Map(series.map((s) => [s.id, s.identityKey]));
 
   const derived = series.map((s) => {
     const rows = (bySeries.get(s.id) ?? [])
@@ -148,7 +155,9 @@ export function assembleDerivedSeries(
   });
 
   return derived.sort((a, b) =>
-    (sortNameById.get(a.id) ?? '').localeCompare(sortNameById.get(b.id) ?? ''),
+    (identityKeyById.get(a.id) ?? '').localeCompare(
+      identityKeyById.get(b.id) ?? '',
+    ),
   );
 }
 

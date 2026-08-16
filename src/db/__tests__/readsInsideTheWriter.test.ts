@@ -3,7 +3,7 @@ import {
   pruneOrphanedSeriesBooks,
   restoreRemovedSeries,
 } from '@/db/seriesQueries';
-import { normalizeSortName } from '@/helpers/seriesName';
+import { seriesIdentityKey } from '@/helpers/seriesName';
 import {
   FakeDatabase,
   FakeSeries,
@@ -60,7 +60,7 @@ function seedSeries(id: string, name: string, artwork: string | null = null) {
   mockDb.seed('series', {
     id,
     name,
-    sort_name: normalizeSortName(name),
+    identity_key: seriesIdentityKey(name),
     origin: 'detected',
     name_source: 'detected',
     artwork,

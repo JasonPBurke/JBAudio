@@ -29,7 +29,7 @@ describe('suppressionsMatching', () => {
   });
 
   // A15 — identity is the name under the app's one comparison key, the same
-  // one `sort_name` and `isDuplicateSeriesName` use.
+  // one `identity_key` and `isDuplicateSeriesName` use.
   it('matches case-insensitively and ignores surrounding space', () => {
     const rows = [row('a', 'Discworld')];
     expect(suppressionsMatching('  discworld ', rows)).toEqual([rows[0]]);

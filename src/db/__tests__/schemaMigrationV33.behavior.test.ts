@@ -123,7 +123,7 @@ describe('the newest migration, run against a real database of the previous vers
     // A device sitting on the previous version, with a series the user made.
     db.run(encodeSchema(previousSchema()));
     db.run(
-      `INSERT INTO series (id, _status, _changed, name, sort_name, created_at, updated_at)
+      `INSERT INTO series (id, _status, _changed, name, identity_key, created_at, updated_at)
        VALUES ('s1', 'synced', '', 'Discworld', 'discworld', 1754000000000, 1754000000000);`,
     );
     db.run(

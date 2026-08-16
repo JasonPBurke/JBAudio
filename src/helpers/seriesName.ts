@@ -1,11 +1,31 @@
 /**
  * DB-free series-name utilities. Deliberately imports nothing from `@/db` so
  * validation stays unit-testable without pulling WatermelonDB into Jest;
- * `db/seriesQueries.ts` re-exports normalizeSortName for its own use.
+ * `db/seriesQueries.ts` re-exports `seriesIdentityKey` for its own use.
  */
 
-/** Comparison key for a series name: trimmed and case-folded. */
-export const normalizeSortName = (name: string) => name.trim().toLowerCase();
+/**
+ * The IDENTITY key for a series name — trimmed and case-folded. It answers ONE
+ * question: **are these two names the same series?** Duplicate validation,
+ * reconcile's name matching and the suppression table are all that question.
+ * Persisted as `series.identity_key`.
+ *
+ * ⚠ **DO NOT FOLD A LEADING-ARTICLE STRIP IN HERE.** It looks like a sorting
+ * tweak and is not one: it would make `The Dresden Files` and `Dresden Files`
+ * the SAME series, so the second could never be created, reconcile would match
+ * across them and the suppression table would conflate them. The tripwire is in
+ * `__tests__/seriesName.test.ts`; the ruling is
+ * `docs/adr/0002-series-identity-key-is-article-sensitive.md`.
+ *
+ * ⚠ **STATE OF PLAY — this value currently does a second job it should not.**
+ * `assembleDerivedSeries` orders the browse list by this key, which is why
+ * `The Dresden Files` files under T today. That is the conflation ADR 0002
+ * names, and **ticket 32 removes it** by ordering on `compareSeriesNames`
+ * instead. Until then, "identity key" describes what this value MEANS, not
+ * every job it is doing — and the fix is to move the sort off it, never to
+ * change what it returns.
+ */
+export const seriesIdentityKey = (name: string) => name.trim().toLowerCase();
 
 /**
  * A15 — two names denote the same series iff their comparison keys agree.
@@ -15,7 +35,7 @@ export const normalizeSortName = (name: string) => name.trim().toLowerCase();
  * question, and a second spelling of it is how they would drift apart.
  */
 export const isSameSeriesName = (a: string, b: string) =>
-  normalizeSortName(a) === normalizeSortName(b);
+  seriesIdentityKey(a) === seriesIdentityKey(b);
 
 /**
  * The one definition of the duplicate-name sentence. Both the Error's message
@@ -26,8 +46,9 @@ export const duplicateNameIssue = (name: string) =>
 
 /**
  * True when `name` collides with an existing series. Comparison is
- * case-insensitive and whitespace-trimmed (i.e. sortName equality), matching
- * the `sort_name` column persisted on create and update.
+ * case-insensitive and whitespace-trimmed (i.e. `seriesIdentityKey` equality),
+ * matching the `identity_key` column persisted on create and update. A leading
+ * article is NOT stripped — see `seriesIdentityKey`.
  *
  * `excludeId` omits one series from the check so renaming a series to its own
  * name is never reported as a conflict.
@@ -37,7 +58,7 @@ export function isDuplicateSeriesName(
   series: { id: string; name: string }[],
   excludeId?: string,
 ): boolean {
-  if (!normalizeSortName(name)) return false;
+  if (!seriesIdentityKey(name)) return false;
   return series.some(
     (s) => s.id !== excludeId && isSameSeriesName(s.name, name),
   );

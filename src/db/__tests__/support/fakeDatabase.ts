@@ -106,11 +106,11 @@ export class FakeSeries extends FakeRecord {
   set name(value: string) {
     this._raw.name = sanitizeText(value);
   }
-  get sortName(): string {
-    return this._raw.sort_name;
+  get identityKey(): string {
+    return this._raw.identity_key;
   }
-  set sortName(value: string) {
-    this._raw.sort_name = sanitizeText(value);
+  set identityKey(value: string) {
+    this._raw.identity_key = sanitizeText(value);
   }
   get nameSource(): string {
     return this._raw.name_source ?? 'user';
@@ -194,7 +194,7 @@ const RECORD_CLASSES: Record<string, new (table: string, raw: Raw) => FakeRecord
  * Only `Q.where(column, value)`. Anything else is a query the fake never saw,
  * and throwing is the point: a fake that answers an unrecognised query by
  * returning everything would have answered `assertSeriesNameAvailable`'s
- * `sort_name` query wrongly and silently.
+ * `identity_key` query wrongly and silently.
  *
  * ⚠ The clause SHAPE is WatermelonDB's, not ours, and a rename of `left` or
  * `right` would filter everything out instead of throwing — every window test

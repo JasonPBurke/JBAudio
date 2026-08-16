@@ -74,6 +74,55 @@ describe('editor surface — create (no editingSeriesId)', () => {
   });
 });
 
+/*
+ * ⚠ CHARACTERIZATION — pinned 2026-08-16 (ticket 31), and it asserts CURRENT
+ * behaviour, not a pending change.
+ *
+ * Two names that differ only by a leading article are two DIFFERENT series, so
+ * both may exist side by side. Ticket 32 will make the browse list SORT as if
+ * the article were absent; if it lands, these tests must still pass unchanged,
+ * because ordering and identity are separate questions. If it never lands, they
+ * are still correct.
+ *
+ * This is the executable form of that split. If it fails, someone has folded
+ * the article strip into `seriesIdentityKey` and merged two real series.
+ */
+describe('a leading article distinguishes two series', () => {
+  const withArticle = [{ id: 's1', name: 'The Dresden Files' }];
+
+  test('creating the un-prefixed name alongside it is allowed', () => {
+    expect(
+      seriesEditorIssues({
+        name: 'Dresden Files',
+        series: withArticle,
+        bookCount: 1,
+      }),
+    ).toEqual([]);
+  });
+
+  test('and the reverse — the prefixed name alongside the plain one', () => {
+    expect(
+      seriesEditorIssues({
+        name: 'The Dresden Files',
+        series: [{ id: 's1', name: 'Dresden Files' }],
+        bookCount: 1,
+      }),
+    ).toEqual([]);
+  });
+
+  test('but the SAME name is still a duplicate, article and all', () => {
+    expect(
+      seriesEditorIssues({
+        name: 'the dresden files',
+        series: withArticle,
+        bookCount: 1,
+      }),
+    ).toEqual([
+      'A series named "the dresden files" already exists. Choose a different name.',
+    ]);
+  });
+});
+
 describe('editor surface — edit (editingSeriesId present)', () => {
   const base = { series, bookCount: 3, editingSeriesId: 's1' };
 

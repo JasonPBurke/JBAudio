@@ -1,5 +1,5 @@
 import {
-  normalizeSortName,
+  seriesIdentityKey,
   isDuplicateSeriesName,
   SeriesNameConflictError,
   duplicateNameIssue,
@@ -10,8 +10,26 @@ const series = [
   { id: 's2', name: 'Foundation' },
 ];
 
-test('normalizeSortName trims and lowercases', () => {
-  expect(normalizeSortName('  Dune Saga ')).toBe('dune saga');
+test('seriesIdentityKey trims and lowercases', () => {
+  expect(seriesIdentityKey('  Dune Saga ')).toBe('dune saga');
+});
+
+/*
+ * ⚠ THE IDENTITY KEY IS ARTICLE-SENSITIVE, AND THAT IS LOAD-BEARING.
+ *
+ * This key answers "are these the same series?". Wanting `The Dresden Files`
+ * to file under D is a DISPLAY-ORDER wish, and folding the article strip in
+ * here to grant it would merge two distinct series into one — breaking
+ * duplicate validation, reconcile matching and suppression at a stroke.
+ *
+ * The test below is the tripwire. If it ever fails, someone has re-coupled
+ * identity to ordering — see
+ * `docs/adr/0002-series-identity-key-is-article-sensitive.md`.
+ */
+test('a leading article is part of the identity key, not stripped from it', () => {
+  expect(seriesIdentityKey('The Dresden Files')).not.toBe(
+    seriesIdentityKey('Dresden Files'),
+  );
 });
 
 test('exact name is a duplicate', () => {

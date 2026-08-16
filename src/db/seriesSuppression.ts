@@ -30,7 +30,7 @@
  * of use. Code review finding 21.
  */
 
-import { isSameSeriesName, normalizeSortName } from '@/helpers/seriesName';
+import { isSameSeriesName, seriesIdentityKey } from '@/helpers/seriesName';
 
 /** A `suppressed_series` row, in the shape the UI and the query layer share. */
 export type SuppressedRow = { id: string; name: string };
@@ -70,7 +70,7 @@ export function groupRemovedSeries(
 ): RemovedSeriesEntry[] {
   const byKey = new Map<string, RemovedSeriesEntry>();
   for (const row of rows) {
-    const key = normalizeSortName(row.name);
+    const key = seriesIdentityKey(row.name);
     const entry = byKey.get(key);
     if (entry) {
       entry.rowIds.push(row.id);

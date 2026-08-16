@@ -12,7 +12,7 @@
  */
 
 import { orderByCanonicalNumber } from '@/helpers/seriesNumbering';
-import { normalizeSortName } from '@/helpers/seriesName';
+import { seriesIdentityKey } from '@/helpers/seriesName';
 import type { DetectionUnit, ProposedSeries } from '@/helpers/seriesDetection';
 import type { SeriesMembership } from '@/db/seriesProvenance';
 
@@ -374,15 +374,15 @@ export function reconcileSeries(
   };
 
   // A15 — identity is `name` alone, compared on the app's one key, the same
-  // one `isDuplicateSeriesName` and the `sort_name` column use.
-  const suppressed = new Set(suppressedNames.map(normalizeSortName));
+  // one `isDuplicateSeriesName` and the `identity_key` column use.
+  const suppressed = new Set(suppressedNames.map(seriesIdentityKey));
 
   // First match wins. A second row under one key cannot arise through the app
   // — the duplicate-name check blocks hand-creates and A15 disambiguates
   // detected names — but picking deterministically beats picking arbitrarily.
   const byName = new Map<string, ExistingSeries>();
   for (const s of existingSeries) {
-    const key = normalizeSortName(s.name);
+    const key = seriesIdentityKey(s.name);
     if (!byName.has(key)) byName.set(key, s);
   }
 
@@ -392,7 +392,7 @@ export function reconcileSeries(
   const claimed = new Set<string>();
 
   for (const proposal of proposals) {
-    const key = normalizeSortName(proposal.name);
+    const key = seriesIdentityKey(proposal.name);
     if (suppressed.has(key)) {
       plan.skipped.push({ name: proposal.name, reason: 'suppressed' });
       continue;

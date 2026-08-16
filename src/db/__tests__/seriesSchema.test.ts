@@ -14,7 +14,7 @@ test('series + series_books tables exist with the expected shape', () => {
   expect(join).toBeDefined();
 
   expect(series.columns['name']).toBeDefined();
-  expect(series.columns['sort_name']).toBeDefined();
+  expect(series.columns['identity_key']).toBeDefined();
 
   // Membership is keyed by a book's structural key (first file path), not
   // book.id, so both sides of the join are looked up and must be indexed.
