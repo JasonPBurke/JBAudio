@@ -169,7 +169,12 @@ export default schemaMigrations({
             // has ever run this step. WatermelonDB has no renameColumn, so an
             // amendment was the alternative — and an amendment for a column no
             // device holds is permanent cruft. Any dev device that ran the old
-            // v32/v33 must be wiped; it will fail loudly on the missing column.
+            // v32/v33 must be wiped. ⚠ It fails loudly on WRITES (createSeries,
+            // saves, and the Q.where duplicate check all throw), but READS are
+            // quiet: `SELECT *` just returns rows without the column, so
+            // `identityKey` reads `undefined` and — now that nothing sorts by
+            // it — the library still renders. A stale device can look healthy
+            // and only hit the wall on the first edit.
             // The value is unchanged: seriesIdentityKey(name). See ADR 0002.
             { name: 'identity_key', type: 'string', isIndexed: true },
             { name: 'created_at', type: 'number' },

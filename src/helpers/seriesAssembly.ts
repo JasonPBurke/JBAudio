@@ -9,10 +9,19 @@ import {
   deriveSeriesProgressState,
   SeriesProgressState,
 } from '@/helpers/seriesProgress';
+import { compareSeriesNames } from '@/helpers/seriesName';
 
 export type SeriesRow = {
   id: string;
   name: string;
+  /**
+   * `seriesIdentityKey(name)` as persisted. ⚠ **Nothing in this module reads
+   * it any more.** It was the sort key until ticket 32 moved ordering onto
+   * `compareSeriesNames(name)`; it is carried because `observeSeriesData`
+   * already projects it and every fixture sets it, and dropping it would be a
+   * type change for no gain. **Do not reintroduce it as a sort input** — that
+   * is the conflation ADR 0002 exists to prevent.
+   */
   identityKey: string;
   /**
    * A pinned series cover, or null to derive it from the member books.
@@ -33,7 +42,7 @@ export type SeriesRow = {
   /**
    * Epoch ms. Carried for exactly one reader — §F2's "first user-created" arm
    * — and it cannot be recovered downstream, because the assembled list is
-   * sorted A–Z by sort name.
+   * sorted A–Z by display order (`compareSeriesNames`).
    */
   createdAt: number;
 };
@@ -97,14 +106,23 @@ function buildKeyMap(bookMap: Record<string, Book>): Map<string, Book> {
  * Combine observed series + membership rows with the live library book map into
  * render-ready series. Membership keys that don't resolve against the live
  * library are silently skipped (graceful skip). Books are ordered by their
- * membership `position`; series are ordered A–Z by `identityKey`.
+ * membership `position`; series are ordered A–Z by `compareSeriesNames`, which
+ * ignores a leading `The`/`A`/`An`, so `The Dresden Files` files under D.
  *
- * ⚠ **Ordering by `identityKey` is the KNOWN DEFECT, not the design.** That key
- * exists to answer "are these the same series?", and borrowing it to sort is
- * why `The Dresden Files` files under T. Ticket 32 replaces the comparator
- * below with `compareSeriesNames`, which strips a leading article. Fix it
- * THERE — never by changing what `seriesIdentityKey` returns, which would merge
- * two distinct series. See ADR 0002.
+ * ⚠ **The sort reads `name`, never the persisted identity key.** It used to
+ * read the key, which is why series filed under their article — and borrowing
+ * an identity key to sort is the conflation ADR 0002 exists to prevent. If the
+ * order is ever wrong again, fix the comparator; changing what
+ * `seriesIdentityKey` returns would merge two distinct series instead.
+ *
+ * This is the one ordering site **for derived series** — the function has a
+ * single caller (`store/seriesStore.ts`) and every surface that renders a
+ * `DerivedSeries` reads through it (browse, detail, editor, the add-to-series
+ * picker, the book's series line). ⚠ **It is not the only place series names
+ * are ordered.** `groupRemovedSeries` orders the `Removed Series` list from a
+ * different source and was updated alongside this; `seriesDetectionRun`'s
+ * `listingOrder` is deliberately left raw because it orders LOG output, where
+ * a stable diff matters more than shelf order.
  */
 export function assembleDerivedSeries(
   series: SeriesRow[],
@@ -118,8 +136,6 @@ export function assembleDerivedSeries(
     if (!bySeries.has(m.seriesId)) bySeries.set(m.seriesId, []);
     bySeries.get(m.seriesId)!.push(m);
   }
-
-  const identityKeyById = new Map(series.map((s) => [s.id, s.identityKey]));
 
   const derived = series.map((s) => {
     const rows = (bySeries.get(s.id) ?? [])
@@ -154,11 +170,7 @@ export function assembleDerivedSeries(
     };
   });
 
-  return derived.sort((a, b) =>
-    (identityKeyById.get(a.id) ?? '').localeCompare(
-      identityKeyById.get(b.id) ?? '',
-    ),
-  );
+  return derived.sort((a, b) => compareSeriesNames(a.name, b.name));
 }
 
 /** Series counts by aggregate state, for the tab bar in Series view. */

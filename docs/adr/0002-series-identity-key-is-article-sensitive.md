@@ -1,6 +1,7 @@
 # A series' identity key is article-sensitive; its display order is not
 
-**Status:** accepted (driver, 2026-08-16)
+**Status:** accepted (driver, 2026-08-16). Amended in place 2026-08-16 when ticket 32 landed the
+display-order half — see the amendment note at the foot.
 
 `The Dresden Files` and `Dresden Files` are **two different series**, and both may exist at once.
 The browse list nonetheless files them together under D, because **ordering and identity are
@@ -48,7 +49,7 @@ exist on installs we do not control.
 
 | the user does | what happens |
 | --- | --- |
-| owns `The Dresden Files` | it files under **D**, between `Discworld` and `Drenai` |
+| owns `The Dresden Files` | it files under **D**, after `Drenai` — `dre-s` > `dre-n` |
 | creates `Dresden Files` as well | **allowed** — a second, distinct series; the two sort adjacently |
 | creates `the dresden files` | **refused** as a duplicate — identity is case-folded, article and all |
 | renames `The Dresden Files` → `Dresden Files` | allowed unless a series already holds that exact key |
@@ -61,16 +62,18 @@ exist on installs we do not control.
   `isDuplicateSeriesName` beside it. Persisted as `series.identity_key` (indexed). The tripwire
   is `src/helpers/__tests__/seriesName.test.ts` — it asserts the two keys **differ** — plus the
   gate-level characterization tests in `seriesValidation.test.ts`.
-- **Order**: `compareSeriesNames`, beside the identity key it is deliberately not, consumed at
-  the single ordering site in `assembleDerivedSeries` (`src/helpers/seriesAssembly.ts`). That
-  function has one caller (`src/store/seriesStore.ts`) and every Series surface reads through it,
-  so there is no second copy to drift. **§E10 closed the A–Z rail**, so no alphabet index needs
-  the same rule.
+- **Order**: `compareSeriesNames` in `src/helpers/seriesName.ts`, sited beside the identity key
+  it is deliberately not, so the difference is visible at the point of temptation. It delegates
+  to `compareBookTitles` and is consumed at the single ordering site in `assembleDerivedSeries`
+  (`src/helpers/seriesAssembly.ts`) — one caller (`src/store/seriesStore.ts`), every Series
+  surface reading through it, so there is no second copy to drift. **§E10 closed the A–Z rail**,
+  so no alphabet index needs the same rule. `SeriesRow.identityKey` survives as a carried field
+  with **no reader**; it is commented as such precisely so it is not re-adopted as a sort input.
 
-⚠ **Landing order.** Ticket 31 delivered the split in *name* and the identity guarantee. Ticket
-32 delivers `compareSeriesNames` and moves the sort onto it. Between the two, the browse list
-still orders by the identity key, so `The Dresden Files` still files under T — that interim state
-is documented at both sites and is the defect, not the design.
+**Both halves have landed.** Ticket 31 split the names and pinned the identity guarantee; ticket
+32 added `compareSeriesNames` and moved the ordering onto it. `assembleDerivedSeries` now sorts
+on `name`, not on the persisted key, so the sort can no longer quietly depend on a database
+column.
 
 ## Considered and rejected — do not re-raise
 
@@ -101,3 +104,19 @@ Name a key after **the question it answers**, not the shape of the value or the 
 currently read. `sort_name` and `book_key` were both misread by a later reader, and in both cases
 the misreading was about to cause a data-level change while looking like a display-level one.
 `CONTEXT.md`'s `Keys and identity` section exists to hold that distinction in one place.
+
+## Amendment — 2026-08-16, ticket 32
+
+The display-order half landed. Two things learned in the landing, both worth keeping:
+
+**The "between `Discworld` and `Drenai`" example in this document was wrong**, and so was the
+same claim in tickets 31 and 32. `Dresden Files` sorts *after* `Drenai`, because `dre-s` > `dre-n`.
+Nobody caught it by reading; the test caught it on first run. ⚠ **A worked example in prose is an
+assertion with no test behind it** — this ADR's own case table had been repeated three times
+before anything executed it. The example is now pinned in `seriesName.test.ts`, neighbour and all.
+
+**The tie is deliberate and is not a defect.** `The Dresden Files` and `Dresden Files` compare
+equal, so two genuinely different Series sit adjacent on the shelf. `Array.prototype.sort` is
+stable, so their relative order is the input's and does not flicker between renders. Do not
+"fix" the tie by falling back to the identity key as a tiebreak — that reintroduces the
+dependency this decision removed, for a cosmetic gain on a pair that should be adjacent anyway.

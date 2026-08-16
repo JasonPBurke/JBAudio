@@ -90,8 +90,12 @@ export function bookSeriesMemberships(
  * opening the series sheet — verified against a book in 12 series.
  *
  * Both arms keep the FIRST candidate on a tie, so the pick is stable: the list
- * arrives A–Z by sort name, and a tie therefore resolves alphabetically rather
- * than by whatever order the observer happened to emit.
+ * arrives A–Z by display order (`compareSeriesNames`), and a tie therefore
+ * resolves alphabetically rather than by whatever order the observer happened
+ * to emit. ⚠ One exception since ticket 32: two names that differ ONLY by a
+ * leading article tie under that comparator too, so between `The Dresden
+ * Files` and `Dresden Files` of equal size the pick falls back to observer
+ * order. Vanishingly rare, and noted rather than coded around.
  */
 export function pickPrimarySeries(
   items: readonly SeriesLineMembership[],

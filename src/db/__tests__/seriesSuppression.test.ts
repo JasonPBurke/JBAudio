@@ -92,6 +92,38 @@ describe('groupRemovedSeries', () => {
     ).toEqual(['Discworld', 'Discworld (2022)']);
   });
 
+  /*
+   * ⚠ THE REMOVED LIST MUST FILE THE WAY THE BROWSE LIST FILES — ticket 32.
+   *
+   * This grouping is keyed by the identity key (A15), which keeps the leading
+   * article, and it used to SORT on that key too. Once the browse list moved to
+   * `compareSeriesNames`, that left `The Dresden Files` under D on one screen
+   * and under T on the other. Two orderings of the same concept is the drift
+   * ADR 0001 warns about, so this reads `compareSeriesNames` as well.
+   *
+   * ⚠ Grouping still uses the identity key and MUST — `The Dresden Files` and
+   * `Dresden Files` are different series and may not collapse into one entry.
+   * Same rule as everywhere: order ignores the article, identity does not.
+   */
+  it('files a removed series under its first significant word', () => {
+    expect(
+      groupRemovedSeries([
+        row('a', 'Threshold'),
+        row('b', 'The Dresden Files'),
+        row('c', 'Silo'),
+      ]).map((e) => e.name),
+    ).toEqual(['The Dresden Files', 'Silo', 'Threshold']);
+  });
+
+  it('still keeps a name and its article-prefixed twin as separate entries', () => {
+    expect(
+      groupRemovedSeries([
+        row('a', 'The Dresden Files'),
+        row('b', 'Dresden Files'),
+      ]).map((e) => e.rowIds),
+    ).toEqual([['a'], ['b']]);
+  });
+
   it('sorts alphabetically, ignoring case, whatever order the rows arrive in', () => {
     expect(
       groupRemovedSeries([

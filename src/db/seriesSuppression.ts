@@ -30,7 +30,11 @@
  * of use. Code review finding 21.
  */
 
-import { isSameSeriesName, seriesIdentityKey } from '@/helpers/seriesName';
+import {
+  compareSeriesNames,
+  isSameSeriesName,
+  seriesIdentityKey,
+} from '@/helpers/seriesName';
 
 /** A `suppressed_series` row, in the shape the UI and the query layer share. */
 export type SuppressedRow = { id: string; name: string };
@@ -78,7 +82,11 @@ export function groupRemovedSeries(
       byKey.set(key, { name: row.name.trim(), rowIds: [row.id] });
     }
   }
-  return [...byKey.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([, entry]) => entry);
+  // ⚠ GROUPED by the identity key, ORDERED by the display rule — the two are
+  // different questions and this function needs both. Grouping on the key is
+  // what keeps `The Dresden Files` and `Dresden Files` as separate entries;
+  // ordering on the NAME is what makes this list file them the way the browse
+  // list does. Sorting on the key (as this did until ticket 32) put one screen
+  // under D and the other under T. See ADR 0002.
+  return [...byKey.values()].sort((a, b) => compareSeriesNames(a.name, b.name));
 }

@@ -208,3 +208,64 @@ test('a membership row with no provenance is drawn', () => {
   );
   expect(out.books.map((b) => b.bookId)).toEqual(['b1']);
 });
+
+/*
+ * ⚠ ORDERING MOVED OFF THE IDENTITY KEY — ticket 32, ADR 0002.
+ *
+ * These series used to file under T, because the sort borrowed
+ * `seriesIdentityKey`, which keeps the article. The fix is HERE, in what the
+ * comparator reads; it is never a change to what the identity key returns,
+ * which would merge `The Dresden Files` into `Dresden Files`.
+ */
+test('series file under their first significant word, not their article', () => {
+  const series = [
+    { id: 't', name: 'Threshold', identityKey: 'threshold', createdAt: 0 },
+    {
+      id: 'd',
+      name: 'The Dresden Files',
+      identityKey: 'the dresden files',
+      createdAt: 0,
+    },
+    { id: 's', name: 'Silo', identityKey: 'silo', createdAt: 0 },
+  ];
+  const out = assembleDerivedSeries(series, [], {});
+  expect(out.map((s) => s.name)).toEqual([
+    'The Dresden Files',
+    'Silo',
+    'Threshold',
+  ]);
+});
+
+/*
+ * The ordering reads `name`, NOT the persisted identity key. A series whose
+ * stored key is stale or absent must still file by the name on screen — and
+ * this is what stops the sort quietly depending on a DB column again.
+ */
+test('ordering follows the displayed name, not the persisted identity key', () => {
+  const series = [
+    { id: 'b', name: 'Bravo', identityKey: 'zzz-stale', createdAt: 0 },
+    { id: 'a', name: 'Alpha', identityKey: 'zzz-stale', createdAt: 0 },
+  ];
+  const out = assembleDerivedSeries(series, [], {});
+  expect(out.map((s) => s.name)).toEqual(['Alpha', 'Bravo']);
+});
+
+/* Two different series that tie under the comparator keep a stable order. */
+test('a series and its article-prefixed twin sit adjacent, input order kept', () => {
+  const series = [
+    {
+      id: 'plain',
+      name: 'Dresden Files',
+      identityKey: 'dresden files',
+      createdAt: 0,
+    },
+    {
+      id: 'the',
+      name: 'The Dresden Files',
+      identityKey: 'the dresden files',
+      createdAt: 0,
+    },
+  ];
+  const out = assembleDerivedSeries(series, [], {});
+  expect(out.map((s) => s.id)).toEqual(['plain', 'the']);
+});
