@@ -210,6 +210,58 @@ describe('evaluateBookEnd — undefined and unusable inputs', () => {
     ).toBe('none');
   });
 
+  it('never marks when a chapter row carries no usable duration', () => {
+    // scanLibrary's makeErrorChapter stores `duration: 0` for a file whose
+    // metadata extraction failed, and the single-chapter path falls back to 0
+    // whenever the duration tag is missing. Counting such a row as 0 seconds
+    // would drop it out of the "still to come" sum: on a 20-file book with
+    // files 6-20 unreadable, the sum is empty and the book gets marked
+    // Finished at the end of chapter 5, hours early. There is no cheap way
+    // back from that — nothing moves a book off Finished except a play press,
+    // and that RESTARTS it from 0:00 rather than resuming.
+    const input = multiItem([600, 600, 600, 600], 1);
+    const rows = [...input.queueChapters];
+    rows[3] = { ...rows[3], chapterDuration: 0 };
+    expect(
+      evaluateBookEnd({ ...input, position: 599, queueChapters: rows }),
+    ).toBe('none');
+  });
+
+  it('never marks a one-item queue that is playing a later index', () => {
+    // A one-item queue can only ever tick at index 0. Any other index means
+    // the caller's claim about the queue shape is contradicted by the payload
+    // it came with — which is reachable, because the caller re-derives the
+    // shape from the store's CURRENT chapter rows while the queue was built
+    // from an earlier snapshot, and the clipped-chapters gate can flip
+    // between the two. Believing the claim would read a chapter-relative
+    // `duration` as the whole book's.
+    expect(
+      evaluateBookEnd({ ...wholeBook, position: 3550, currentIndex: 2 }),
+    ).toBe('none');
+    expect(
+      evaluateBookEnd({ ...wholeBook, position: 3550, currentIndex: 0 }),
+    ).toBe('mark');
+  });
+
+  it('never marks a book whose whole runtime is inside the lead', () => {
+    // A stray intro file scanned as its own book. Without this the book is
+    // Finished from its first tick and can never be seen as Started: a play
+    // press demotes it and the next tick promotes it straight back, two
+    // full-library writes per press. The lead-time rule is about the credits
+    // at the end of a real book; a book shorter than the credits is left to
+    // the true-end path exactly as before this ticket.
+    expect(
+      evaluateBookEnd({ ...wholeBook, duration: 45, position: 0 }),
+    ).toBe('none');
+    expect(
+      evaluateBookEnd({ ...wholeBook, duration: 45, position: 44 }),
+    ).toBe('none');
+    // One second over the lead, the rule applies again.
+    expect(
+      evaluateBookEnd({ ...wholeBook, duration: 61, position: 1 }),
+    ).toBe('mark');
+  });
+
   it('marks a clipped single-file book, whose items all share one url', () => {
     // Shape B: N queue items, all pointing at the same file with different
     // clip windows. The url check must be inert here, not fatal.

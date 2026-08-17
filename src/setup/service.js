@@ -117,6 +117,16 @@ function invalidateProgressTrackCache() {
 // refreshes when the WatermelonDB observer fires — several ticks later.
 // Cleared as soon as playback is known to be outside the window, so a book
 // replayed from 0:00 (§C5's restart) can be marked again on its next pass.
+//
+// ⚠ THIS LATCH IS FOR THE 1 Hz TICK AND NOTHING ELSE. It is module state
+// living for the whole process, and the only thing that releases it is a
+// tick that can positively measure itself outside the window — so on a listen
+// where the helper refuses to decide (queue/store disagreement, an index the
+// store can no longer supply), it keeps whatever value an EARLIER listen left
+// in it. The true-end fallbacks below must therefore never consult it: doing
+// so would let a stale latch suppress their mark and lose the ✓ altogether,
+// which is the very bug this ticket exists to fix. They read the store, which
+// has had the whole lead window to catch up by the time they run.
 let finishMarkedBookId = null;
 
 // Applies an evaluateBookEnd() decision. Marking is ALL it does: it never
@@ -129,15 +139,23 @@ async function applyBookEndDecision(bookId, decision) {
   }
   if (decision !== 'mark') return;
 
-  // Latch only AFTER the write lands. Latching first would silence both
-  // fallbacks at once if the write never happened: every remaining tick in
-  // the window would see the latch, and PlaybackQueueEnded's guard trusts
-  // this same latch — so a book whose getBookById missed would end up never
-  // marked at all.
-  const bookModel = await getBookById(bookId);
-  if (!bookModel) return;
-  await bookModel.updateBookProgress(BookProgressState.Finished);
-  finishMarkedBookId = bookId;
+  try {
+    // Latch only AFTER the write lands. Latching first would silence every
+    // remaining tick in the window if the write never happened, so a book
+    // whose getBookById missed would go unmarked until the true end.
+    const bookModel = await getBookById(bookId);
+    if (!bookModel) return;
+    await bookModel.updateBookProgress(BookProgressState.Finished);
+    finishMarkedBookId = bookId;
+  } catch (error) {
+    // updateBookProgress is a raw WatermelonDB writer and throws if the row
+    // was destroyed underneath us (a concurrent scan's removeMissingFiles).
+    // This runs inside the progress tick, which is driven by an un-awaited
+    // IIFE — an escaping rejection would be unhandled AND would skip the
+    // sleep-timer tick that follows. The latch stays clear, so the next tick
+    // simply tries again. demoteToStarted guards the same call the same way.
+    console.error('[service] book end mark failed:', error);
+  }
 }
 
 // Extracted body of the PlaybackProgressUpdated listener; invoked only via
@@ -456,14 +474,17 @@ export default module.exports = async function () {
         // deliberate user press asking to leave the last chapter, so there is
         // nowhere left to play. Only the MARK is guarded: a press inside the
         // lead window must not rewrite an already-set `finished_at`.
+        //
+        // Guarded on the STORE, never on finishMarkedBookId — see the latch's
+        // comment. A lead-time mark landed at least a tick ago and the
+        // observer refreshes within about one, so the store is the reliable
+        // reading here and it cannot go stale across listens.
         const alreadyFinished =
-          finishMarkedBookId === activeTrack.bookId ||
           book?.bookProgressValue === BookProgressState.Finished;
         if (!alreadyFinished) {
           const bookModel = await getBookById(activeTrack.bookId);
           if (bookModel) {
             await bookModel.updateBookProgress(BookProgressState.Finished);
-            finishMarkedBookId = activeTrack.bookId;
           }
         }
         await TrackPlayer.seekTo(0);
@@ -567,14 +588,19 @@ export default module.exports = async function () {
     // handleProgressUpdated already did it a minute ago. Re-marking here
     // would be harmless to the flag but would drag `finished_at` forward to
     // the true end, which is the one timestamp D5 asks us to keep.
+    //
+    // ⚠ Guarded on the STORE, never on finishMarkedBookId. This is the LAST
+    // chance to mark the book, and the latch is process-lifetime state that a
+    // previous listen can leave set — trusting it here would silently skip
+    // the mark and lose the ✓ on exactly the books whose ticks were
+    // undecidable. The store cannot go stale that way, and a lead-time mark
+    // happened a whole lead window ago, so it has certainly refreshed.
     const alreadyFinished =
-      finishMarkedBookId === trackToUpdate.bookId ||
       book?.bookProgressValue === BookProgressState.Finished;
     if (!alreadyFinished) {
       const bookModel = await getBookById(trackToUpdate.bookId);
       if (bookModel) {
         await bookModel.updateBookProgress(BookProgressState.Finished);
-        finishMarkedBookId = trackToUpdate.bookId;
       }
     }
 

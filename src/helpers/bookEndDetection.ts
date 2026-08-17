@@ -65,9 +65,16 @@ export type BookEndInput = {
  */
 export type BookEndDecision = 'mark' | 'none' | 'clear';
 
+/** How much audio a book holds, and how much of it is still to come. */
+type QueueMeasurement = {
+  /** Seconds of audio in every queue item AFTER the playing one. */
+  laterSeconds: number;
+  /** Seconds of audio in the whole book. */
+  totalSeconds: number;
+};
+
 /**
- * Sums the audio in every queue item AFTER the playing one, or `null` when
- * that cannot be worked out.
+ * Measures a multi-item queue, or returns `null` when it cannot be trusted.
  *
  * ⚠ "After" means LATER IN THE ARRAY and nothing else. `startMs` is 0 on
  * every row of a multi-file book, and `chapterNumber` is the file's track tag
@@ -77,14 +84,21 @@ export type BookEndDecision = 'mark' | 'none' | 'clear';
  * nor sorts, so array position IS queue position. See CORRECTION 3 in
  * `.scratch/book-end-detection/issues/01-mark-finished-before-the-credits.md`.
  *
- * `null` covers all three ways the sum can be untrustworthy: no array, an
- * index outside it, or an array the playing queue visibly disagrees with.
+ * ⚠ A row with no usable `chapterDuration` voids the whole measurement rather
+ * than counting as zero. `scanLibrary`'s `makeErrorChapter` stores `0` for a
+ * file whose metadata extraction failed, and the single-chapter path falls
+ * back to `0` whenever the duration tag is missing — so on a book with
+ * unreadable files near the end, treating those as zero empties the "still to
+ * come" sum and marks the book Finished hours early. There is no cheap way
+ * back from a wrong mark: nothing moves a book off Finished except a play
+ * press, and that RESTARTS it from 0:00 rather than resuming. Failing closed
+ * costs such a book only its early mark — the true-end path still marks it.
  */
-function sumLaterQueueItemSeconds(
+function measureQueue(
   queueChapters: readonly QueueChapter[] | undefined,
   currentIndex: number | undefined,
   currentTrackUrl: string | undefined,
-): number | null {
+): QueueMeasurement | null {
   if (!Array.isArray(queueChapters) || queueChapters.length === 0) return null;
   if (
     typeof currentIndex !== 'number' ||
@@ -98,18 +112,21 @@ function sumLaterQueueItemSeconds(
     return null;
   }
 
-  let total = 0;
-  for (let i = currentIndex + 1; i < queueChapters.length; i++) {
+  let laterSeconds = 0;
+  let totalSeconds = 0;
+  for (let i = 0; i < queueChapters.length; i++) {
     const seconds = queueChapters[i]?.chapterDuration;
-    // A row whose metadata extraction failed is stored with duration 0
-    // (scanLibrary's makeErrorChapter), so 0 is a real value, not a bug. It
-    // makes the sum understate and the mark land early, which the ticket
-    // rules is cosmetic and self-healing — better than never marking.
-    if (typeof seconds === 'number' && Number.isFinite(seconds) && seconds > 0) {
-      total += seconds;
+    if (
+      typeof seconds !== 'number' ||
+      !Number.isFinite(seconds) ||
+      seconds <= 0
+    ) {
+      return null;
     }
+    totalSeconds += seconds;
+    if (i > currentIndex) laterSeconds += seconds;
   }
-  return total;
+  return { laterSeconds, totalSeconds };
 }
 
 /**
@@ -171,13 +188,29 @@ export function evaluateBookEnd({
 
   // On a one-item queue `duration` already spans the whole book, so nothing
   // follows the playing item and the sum is empty by definition.
-  const laterItems =
+  //
+  // ⚠ That claim is checked, not taken: a one-item queue can only ever tick
+  // at index 0. The caller re-derives the shape from the store's CURRENT
+  // chapter rows while the queue was built from an earlier snapshot, and the
+  // clipped-chapters gate can answer differently between the two — believing
+  // a contradicted claim would read a chapter-relative `duration` as the
+  // whole book's and mark at the end of whichever chapter is playing.
+  const measurement =
     queueShape === 'one-item'
-      ? 0
-      : sumLaterQueueItemSeconds(queueChapters, currentIndex, currentTrackUrl);
-  if (laterItems === null) return 'none';
+      ? currentIndex !== undefined && currentIndex !== 0
+        ? null
+        : { laterSeconds: 0, totalSeconds: duration! }
+      : measureQueue(queueChapters, currentIndex, currentTrackUrl);
+  if (measurement === null) return 'none';
 
-  const remaining = duration! - position! + laterItems;
+  // A book with less audio in it than the lead time would be Finished from
+  // its first tick, and could never be seen as Started: a play press demotes
+  // it and the next tick promotes it straight back. This rule is about the
+  // credits at the end of a real book — a book shorter than the credits is
+  // left to the true-end path, exactly as it was before this rule existed.
+  if (measurement.totalSeconds <= leadSeconds) return 'none';
+
+  const remaining = duration! - position! + measurement.laterSeconds;
 
   if (remaining > leadSeconds) return 'clear';
 

@@ -644,3 +644,59 @@ negative durations are skipped.
    the producers really do disagree, silently suppress the mark instead of firing it wrongly.
 3. **`finished_at` holds the FIRST mark.** Let a book run from inside the window through to the
    true end and confirm the timestamp did not move when `PlaybackQueueEnded` ran.
+
+#### Code review, same day — 6 findings, 5 fixed in code, 1 folded into device verification
+
+Reviewed on both axes against the branch diff. jest 825 → **828**.
+
+**1. MEDIUM, valid, FIXED — a `chapterDuration` of 0 emptied the "still to come" sum.**
+`scanLibrary`'s `makeErrorChapter` stores `duration: 0` for a file whose metadata extraction
+failed, and the single-chapter path falls back to `0` whenever the duration tag is missing. On a
+20-file book with files 6–20 unreadable the sum was empty, so the book was marked Finished at the
+end of **chapter 5**. ⚠ **The build note above got this wrong and the wrong reasoning is worth
+keeping:** it called an early mark "cosmetic and self-healing via §C5". It is not — §C5's recovery
+is a **restart from 0:00**, so recovering costs the user their position. A row with no usable
+duration now voids the whole measurement (fail closed, like everything else in the module); such a
+book simply loses its early mark and is still marked at the true end.
+*(The review also claimed the mark then repeats for every remaining chapter. It does not: after the
+first write the store reads `Finished`, so every later end-of-chapter returns `'none'`. One bad
+write, not fifteen — the finding stands on the first write alone.)*
+
+**2. MEDIUM, valid, FIXED — a stale latch could disarm the true-end fallback and lose the ✓
+entirely.** `finishMarkedBookId` is process-lifetime state released *only* by a tick that can
+positively measure itself outside the window. On a listen where the helper refuses to decide, it
+keeps whatever an earlier listen left in it — and `PlaybackQueueEnded` was consulting it, so the
+last-chance mark was skipped. **This was a NEW way to lose the ✓, in exactly the case the url
+assertion exists to protect.** ⚠ **Rule now written into the code: the latch is for the 1 Hz tick
+and nothing else.** Both fallbacks (`PlaybackQueueEnded`, `RemoteNext`) guard on the STORE alone,
+which cannot go stale across listens and has had the whole lead window to refresh. The brief's
+"not a one-site fix" still holds — all three writers are still guarded, just not all by the latch.
+
+**3. LOW, valid, FIXED** — `applyBookEndDecision` had no `try/catch`. `updateBookProgress` is a raw
+WatermelonDB writer that throws if the row was destroyed underneath it (a concurrent scan's
+`removeMissingFiles`), and the progress tick is driven by an un-awaited IIFE with a `finally` but
+no `catch`: the rejection would be unhandled *and* would skip the sleep-timer tick after it.
+`demoteToStarted` guards the identical call the same way.
+
+**4. LOW, valid, FIXED — the `'one-item'` claim was taken on trust.** The caller re-derives the
+shape from the store's CURRENT chapter rows while the queue was built from an earlier snapshot, and
+a rescan can flip `shouldUseClippedChapters` between the two; believing a contradicted claim reads
+a chapter-relative `duration` as the whole book's. **A one-item queue can only ever tick at index
+0**, so the helper now checks that and refuses otherwise. (The opposite divergence was already
+safe: the sum overstates and nothing is marked.)
+
+**5. LOW, valid, FIXED — but NOT the way the review proposed.** A book whose whole runtime is
+inside the lead was Finished from its first tick and could never be seen as Started: a play press
+demotes it, the next tick promotes it straight back, two full-library writes per press. Reachable
+with a stray intro file scanned as its own book. ⚠ **The review suggested
+`Math.min(leadSeconds, duration * fraction)` — that is the `/2` clamp decision 2(a) deleted, and it
+was not reintroduced.** Instead: a book with less total audio than the lead is left to the true-end
+path, exactly as before this ticket. The rule is about the credits at the end of a real book.
+
+**6. LOW, valid, NOT a code change — folded into device verification.** Single-file books now end
+via `PlaybackQueueEnded`'s `TrackPlayer.stop()` where the deleted block ended them with
+`seekTo(0); pause()`. `stop()` tears down the session and dismisses the notification; `pause()` left
+it live and resumable. That block also pre-empted `PlaybackQueueEnded` for these books most of the
+time, so its `isSingleFile` branch was only intermittently reached before and is now the sole path.
+**Added to device check (1) below: watch what the notification does the moment a single-file book
+ends — that is now different for every `.m4b` in the library.**
