@@ -1,6 +1,9 @@
 # Device check plan — tickets 21 + 23
 
-**Not yet run.** Written 2026-08-14 against `45ae1eb`.
+**Partially run 2026-08-14** (`d8025f4`), written the same day against `45ae1eb`.
+**Tests B and C PASSED** — see their headings. ⚠ **Test A was never run**, which leaves ticket 21's
+dangling-row path resting on jest alone; it is the counter-intuitive one (rename only the FIRST
+file), so it is the easiest to skip and the most expensive to be wrong about.
 
 **JS-only change** — `planEditorSave`, `planSeriesJoin`, `updateSeries`, `seriesEditor.tsx`.
 No native, no `res/`, no patch-package. **A Metro reload is enough**; no `npm run android`.

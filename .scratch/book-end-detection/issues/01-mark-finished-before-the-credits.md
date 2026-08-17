@@ -1,8 +1,9 @@
 # 01 — Mark a book finished before its credits, and stop truncating playback
 
-**Status:** in-review — SECOND implementation built 2026-08-17 against decision 2(a), `tsc` 0 /
-eslint 0 / jest 825. ⚠ **DEVICE VERIFICATION OUTSTANDING** — see the 2026-08-17 build note at the
-bottom of `## Comments` for the three things only a device can answer. The agent brief remains the
+**Status:** resolved — SECOND implementation built 2026-08-17 against decision 2(a), `tsc` 0 /
+eslint 0 / jest 828. ✅ **DEVICE-VERIFIED 2026-08-17** on a physical Pixel 7 Pro, **both runtime
+queue shapes**, plus the cold-start restore and the §C5 restart; the device-only logging was then
+removed (`44dc244`). Full results are at the bottom of `## Comments`. The agent brief remains the
 contract. The body below is still accurate EXCEPT for its two-way file-shape model, corrected by
 "CORRECTION 1" in `## Comments`.
 

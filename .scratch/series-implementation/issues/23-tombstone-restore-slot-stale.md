@@ -1,6 +1,8 @@
 # 23 — A restored tombstone must land in the right slot after two removals
 
-**Status:** resolved — jest 721/721, tsc 0, eslint 0. Not yet device-verified.
+**Status:** resolved — jest 721/721, tsc 0, eslint 0. ✅ **DEVICE-VERIFIED 2026-08-14**
+(`d8025f4`): `DEVICE-CHECK-21-23.md` Test B (two separate removals) and Test C (two books removed
+in one save, both restore orders) both passed on device.
 
 **Source:** [Code review `d2195ed..HEAD`](../CODE-REVIEW-d2195ed.md), Finding 3 — CONFIRMED.
 

@@ -1,6 +1,10 @@
 # 21 — Editor Save must not tombstone rows the user could never see
 
-**Status:** resolved — jest 721/721, tsc 0, eslint 0. Not yet device-verified.
+**Status:** resolved — jest 721/721, tsc 0, eslint 0. ⚠ **NOT device-verified.** The 2026-08-14
+device run (`d8025f4`) passed Tests B and C, but those belong to
+[23](23-tombstone-restore-slot-stale.md); **Test A — this ticket's only device test — was never
+marked run.** Closed on the jest coverage in `seriesEditorSave.test.ts`. If the dangling-row path
+ever misbehaves, Test A in `DEVICE-CHECK-21-23.md` is the unrun check to start from.
 
 **Source:** [Code review `d2195ed..HEAD`](../CODE-REVIEW-d2195ed.md), Finding 1 — CONFIRMED.
 
