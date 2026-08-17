@@ -741,3 +741,133 @@ that `(time left in it) + (duration of the last item) ≤ 60s`. Under the revert
 nothing would be marked there; under the book-level rule it marks — and playback must keep running
 through both items. That distinguishes the new behaviour from the old one far better than any test
 at the true end does.
+
+---
+
+### 2026-08-17 — DEVICE VERIFICATION, Pixel 7 Pro (physical), debug build
+
+Rig: physical Pixel 7 Pro `29131FDH3009SZ`, debug build off `4deddca`, Metro attached. Host, phone
+and emulator clocks all agreed to within a second (checked before trusting any timestamp).
+
+**Test subjects were SYNTHESISED, and that turned out to be necessary.** No real book in the
+corpus can distinguish this ticket's rule from the one it replaced: every real book's final item is
+tens of minutes long, so "60s before the BOOK's end" and "60s before the LAST TRACK's end" are the
+same instant. The rule only becomes observable when the final item is SHORTER than the lead. Two
+books were generated with ffmpeg (sine tones at different pitches, so the ear can tell items apart):
+
+| Book | Files | Rows | Loads as |
+| --- | --- | --- | --- |
+| `ZZ Lead Time Test` | 3 mp3 (180.0s / 60.0s / 30.0s) | 3 real chapters | **multi-item** (shape A) |
+| `ZZ Lead Time Single` | 1 mp3 (4200.0s) | 3 AUTO-generated (1800/1800/600) | **one-item** (shape D) |
+
+⚠ **The multi-file book reproduced CORRECTION 3's hazard naturally: all three of its chapter rows
+carry `startMs = 0`.** So the store's `.sort((a,b) => a.startMs - b.startMs)` on it is a comparator
+returning 0 for every pair — a complete no-op. This book is therefore a live test of the ordering
+contract, not a simulated one: an `startMs`-ordered sum would find "nothing later" and mark at the
+end of track 1.
+
+⚠ **`adb push` makes files INVISIBLE to this app** (cost a scan cycle). The scan enumerates via
+MediaStore, and pushing writes to the filesystem without notifying the media index — the log said it
+plainly: `MediaStore enumeration returned 0 files for configured libraries` with the folder
+correctly registered as a root. Fix:
+`adb shell 'content call --uri content://media --method scan_volume --arg external_primary'`.
+(Also: `content query --projection` wants COLONS, not commas; commas produce a misleading
+"Invalid column" naming the whole joined string.) Incidentally this exercised ticket 30's guard,
+which correctly refused to run `removeMissingFiles` on a 0-file enumeration.
+
+#### Multi-item queue — PASSED, every criterion
+
+```
+01:22:26.932  FINISHED (lead-time) OfPRu7aa9qW2h560 shape=multi-item item=1/3 pos=30.2/60.0 remaining=59.8s
+01:23:26.699  queue ended, already finished, not re-marking OfPRu7aa9qW2h560 shape=multi-item
+```
+
+- **D1/D4 — `item=1/3` IS THE PROOF.** The mark fired on the SECOND of three queue items. The
+  reverted implementation gated on `isLastTrack`, so at that exact moment it would have answered
+  "not near the end" regardless of position. One field settles which rule ran.
+- **The sum is demonstrably book-level:** the playing item had only 29.8s left; `remaining=59.8`
+  only exists if the 30.0s item AFTER it was summed in — and that came from array position, on rows
+  whose `startMs` are all 0.
+- **No mark at the end of item 0** (would have been the `startMs`-ordering bug); **no mark at 4:29**
+  (would have been track-local). Both failure signatures were named in advance and neither occurred.
+- **D2 — driver confirmed by ear: no interruption, stutter or jump** at the mark; the pitch change
+  to the final item came 30s LATER, as designed.
+- **D5 — 41 ticks between the mark and the true end produced exactly ONE write.**
+- ⚠ **An unplanned independent cross-check fell out of it:** the gap between the two log lines is
+  **59.767s of wall clock**, against a predicted `remaining` of **59.8s**. Two unrelated
+  measurements — one summing DB chapter durations, one the device clock — agreeing to ~30ms. That is
+  much stronger evidence the sum is honest than the mark merely landing at a plausible moment.
+- **`finished_at` read from the DB: `01:22:26.815`** — 117ms BEFORE its own log line (write lands,
+  then logs, exactly as the "latch only after the write" rule requires), and NOT the 01:23:26 the
+  true-end path would have written. `progress=2`. The other book was untouched
+  (`progress=0, finished_at=null`), a clean control showing the write went to one book only.
+
+#### One-item queue — PASSED
+
+```
+01:26:26.587  FINISHED (lead-time) oJtiThWG1jDFtSDq shape=one-item item=0/3 pos=4140.5/4200.0 remaining=59.6s
+01:27:26.238  queue ended, already finished, not re-marking oJtiThWG1jDFtSDq shape=one-item
+```
+
+- ⚠ **This run validates the "pass the queue shape in EXPLICITLY" decision, on device.** The book has
+  3 chapter ROWS but 1 queue ITEM. Had the one-item branch handed those rows to the sum,
+  `laterSeconds` would be `1800 + 600 = 2400` and `remaining` ≈ 2460 — **no single-file book in the
+  library would ever be marked.** `shape=one-item` is what stops the sum running. Note also that
+  `duration` here is `4200.0` (the whole book) where the multi-item line showed `60.0` for a
+  270-second book: same field, different meaning, which is exactly the ambiguity the discriminator
+  resolves.
+- `item=0/3` also satisfies review finding 4's new guard (a one-item queue may only tick at index 0).
+- **D3 — `PlaybackQueueEnded` DOES fire for a one-item book.** This was the biggest open risk: the
+  deleted 0.2s block used to `pause()` just before the media ended, so this path may effectively
+  never have run before. It ran, and it did the resetting — DB confirmed `current_chapter_index=0`,
+  `current_chapter_progress=0`. **The ticket's claim that "the early stop is not load-bearing" holds.**
+- **Finding 6 — RESOLVED, and the prediction in the build note was WRONG.** The notification does
+  NOT disappear after `stop()`. It persists (`flags=…|NO_CLEAR`, `category=transport`, actions=5)
+  showing a Play button, and **pressing Play works** — verified with `input keyevent
+  KEYCODE_MEDIA_PLAY`, which took the session to `state=PLAYING(3), position=0`. The only real
+  difference from `pause()` is the session resting at `state=NONE(0)` instead of `PAUSED(2)`. In
+  hindsight this is unsurprising: `stop()` was already the true-end path for every multi-file book;
+  D3 only extended it to single-file books.
+
+#### Cold-start restore — PASSED (the path CORRECTION 3 was written about)
+
+App force-stopped mid-playback (`am force-stop`, PID gone — the playback service died with it),
+relaunched, resumed. **PID 21237 → 25180.**
+
+```
+01:44:30.779  PID 25180  FINISHED (lead-time) OfPRu7aa9qW2h560 shape=multi-item item=1/3 pos=30.6/60.0 remaining=59.5s
+01:45:30.150  PID 25180  queue ended, already finished, not re-marking OfPRu7aa9qW2h560 shape=multi-item
+```
+
+On this path the queue is built by `getBookWithChaptersForRestoration` while the tick sums the array
+from `convertBookModelToBook` — two independently written, unsorted queries. `item=1/3` landing
+correctly means **they agree**. The url assertion stayed silent, which is the correct silence: it
+only blocks when the playing item's url appears at a different index. ⚠ **So CORRECTION 3's hazard
+is real in principle but the producers DO agree in practice — that is now a measurement, not an
+assumption.** Restored position was 151.3s against a 160s kill, the ~9s loss being the 30-second
+`savePeriodicProgress` window, exactly as expected.
+
+`finished_at = 01:44:30.632` — 147ms before its own log line, and NOT the 01:45:30 queue-end.
+
+#### §C5 restart — PASSED
+
+Pressing play from the card on a `Finished` book: `position=0`, `description=01 Long…` (first
+chapter), and the DB flipped to `progress=1` with **`finished_at=null`**. Restart, demotion and
+timestamp clear, all three.
+
+#### Reproducibility
+
+Three full multi-item runs (two warm, one cold) all marked at `item=1/3` with `remaining` in
+59.5–59.9s. ⚠ **An unplanned cross-check ran four times:** the wall-clock gap between the mark and
+the queue-end (59.767 / 59.744 / 59.371 / 59.651s) against the predicted `remaining` — two unrelated
+measurements, one summing DB chapter durations and one the device clock, agreeing within ~30-150ms
+every time.
+
+#### Testing-rig gotcha worth keeping
+
+⚠ **`dumpsys media_session`'s `position` is NOT a live counter.** Media3 publishes a `PlaybackState`
+snapshot (`position` + `speed` + `updated=`) and clients EXTRAPOLATE; the field only refreshes on
+state changes. A watcher polling it to fire at "2:40 into the track" never triggered, because during
+a 180s track the published value sat near 0 the whole time (observed: `position=64` while a track
+was actively playing). Time the kill off the wall clock instead, or extrapolate
+`position + (now - updated) * speed`.

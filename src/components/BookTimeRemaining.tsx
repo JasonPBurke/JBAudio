@@ -8,6 +8,7 @@ import { Text } from 'react-native';
 import TrackPlayer, {
   useActiveTrack,
   Event,
+  State,
 } from 'react-native-track-player';
 import { useBookById } from '@/store/library';
 import { useAppStateStore } from '@/store/appState';
@@ -90,7 +91,44 @@ const BookTimeRemainingInner = React.memo(
         },
       );
 
-      return () => subscription.remove();
+      // Progress events are the ONLY other input, and they stop arriving the
+      // moment playback does — so without this the last value ever computed
+      // sticks. That is visible at the end of a book: PlaybackQueueEnded
+      // resets the position to 0:00, but it does so through seekTo/skip and
+      // the DB, none of which emit a progress event, leaving "0m left" on
+      // screen next to a book sitting at the beginning. (Closing and
+      // reopening the player hid it, because that remounts and re-runs the
+      // initial read above.) Recomputing whenever playback stops covers the
+      // whole class, not just the queue-ended case, and it runs after the
+      // service's seekTo(0) because stop() is the last thing that handler
+      // does.
+      const stateSubscription = TrackPlayer.addEventListener(
+        Event.PlaybackState,
+        async ({ state }) => {
+          if (
+            state !== State.Paused &&
+            state !== State.Stopped &&
+            state !== State.Ended &&
+            state !== State.None
+          ) {
+            return;
+          }
+          try {
+            const { position } = await TrackPlayer.getProgress();
+            // Identical strings bail out of the re-render, so a pause that
+            // changes nothing costs nothing.
+            setRemainingText(calculateRemaining(position));
+            lastUpdateRef.current = Math.floor(position / 5);
+          } catch {
+            // Player torn down — nothing to show.
+          }
+        },
+      );
+
+      return () => {
+        subscription.remove();
+        stateSubscription.remove();
+      };
     }, [calculateRemaining]);
 
     return (
