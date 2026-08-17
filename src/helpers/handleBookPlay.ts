@@ -19,12 +19,11 @@ import {
   buildClippedChapterTracks,
 } from '@/helpers/clippedChapters';
 import { applyPersistedPlaybackRate } from '@/helpers/applyPlaybackRate';
+import { BookProgressState } from '@/helpers/bookProgressState';
 
-export enum BookProgressState {
-  NotStarted = 0,
-  Started = 1,
-  Finished = 2,
-}
+// The enum itself lives in a dependency-free module so pure helpers can use
+// it; re-exported here because most of the app imports it from this file.
+export { BookProgressState };
 
 /**
  * Move a book onto `Started`, reporting whether the write actually LANDED.

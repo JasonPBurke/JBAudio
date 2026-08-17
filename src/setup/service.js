@@ -24,6 +24,7 @@ import {
   hasValidChapterData,
   getNextChapterStartSeconds,
 } from '@/helpers/singleFileBook';
+import { evaluateBookEnd } from '@/helpers/bookEndDetection';
 import { seekBack, seekForward } from '@/helpers/relativeSeek';
 import { skipToPreviousChapter } from '@/helpers/chapterSkip';
 import {
@@ -98,14 +99,45 @@ function onProgressUpdatedCoalesced(event) {
   })();
 }
 
-// The 1 Hz handler only ever reads bookId off the track, and a queue index
-// can't map to a different bookId without the queue being rebuilt — which
-// fires PlaybackActiveTrackChanged (where this cache is invalidated). Caching
-// it removes a getTrack() bridge round-trip from every tick.
-let progressTrackCache = { index: -1, bookId: null };
+// The 1 Hz handler only ever reads bookId and url off the track, and a queue
+// index can't map to a different track without the queue being rebuilt —
+// which fires PlaybackActiveTrackChanged (where this cache is invalidated).
+// Caching them removes a getTrack() bridge round-trip from every tick.
+let progressTrackCache = { index: -1, bookId: null, url: null };
 
 function invalidateProgressTrackCache() {
-  progressTrackCache = { index: -1, bookId: null };
+  progressTrackCache = { index: -1, bookId: null, url: null };
+}
+
+// The book most recently marked finished by the lead-time check. The 1 Hz
+// tick keeps firing for the whole lead window (~60 ticks), and every
+// updateBookProgress(Finished) rewrites `finished_at = new Date()`, so
+// without this the stored time would crawl forward to the true end. The
+// store's bookProgressValue is the other half of the guard, but it only
+// refreshes when the WatermelonDB observer fires — several ticks later.
+// Cleared as soon as playback is known to be outside the window, so a book
+// replayed from 0:00 (§C5's restart) can be marked again on its next pass.
+let finishMarkedBookId = null;
+
+// Applies an evaluateBookEnd() decision. Marking is ALL it does: it never
+// pauses, stops or seeks — see D2 in
+// .scratch/book-end-detection/issues/01-mark-finished-before-the-credits.md.
+async function applyBookEndDecision(bookId, decision) {
+  if (decision === 'clear') {
+    if (finishMarkedBookId === bookId) finishMarkedBookId = null;
+    return;
+  }
+  if (decision !== 'mark') return;
+
+  // Latch only AFTER the write lands. Latching first would silence both
+  // fallbacks at once if the write never happened: every remaining tick in
+  // the window would see the latch, and PlaybackQueueEnded's guard trusts
+  // this same latch — so a book whose getBookById missed would end up never
+  // marked at all.
+  const bookModel = await getBookById(bookId);
+  if (!bookModel) return;
+  await bookModel.updateBookProgress(BookProgressState.Finished);
+  finishMarkedBookId = bookId;
 }
 
 // Extracted body of the PlaybackProgressUpdated listener; invoked only via
@@ -113,8 +145,10 @@ function invalidateProgressTrackCache() {
 async function handleProgressUpdated({ position, duration, track }) {
   //? event {"buffered": 107.232, "duration": 4626.991, "position": 0.526, "track": 3}
   let bookId;
+  let trackUrl;
   if (progressTrackCache.index === track && progressTrackCache.bookId) {
     bookId = progressTrackCache.bookId;
+    trackUrl = progressTrackCache.url;
   } else {
     const trackToUpdate = await TrackPlayer.getTrack(track);
 
@@ -126,7 +160,8 @@ async function handleProgressUpdated({ position, duration, track }) {
       return;
     }
     bookId = trackToUpdate.bookId;
-    progressTrackCache = { index: track, bookId };
+    trackUrl = trackToUpdate.url;
+    progressTrackCache = { index: track, bookId, url: trackUrl };
   }
 
   // Get book data from library store - use isSingleFile from DB to avoid queue race condition
@@ -135,6 +170,14 @@ async function handleProgressUpdated({ position, duration, track }) {
   // Use isSingleFile from database (set at scan time) instead of queue.length
   // This eliminates the race condition where queue isn't ready after app restart
   const isSingleFile = treatAsSingleFile(book);
+
+  // Which of the two RUNTIME QUEUE SHAPES this tick is in, set by whichever
+  // branch below runs and consumed by the shared end-detection call after
+  // them. The branch IS the shape: this one is the book loaded as a single
+  // queue item, so `duration` spans the whole book. Everything else — real
+  // multi-file books, clipped per-chapter queues, and single-chapter books —
+  // is one item per chapter with a chapter-relative `duration`.
+  let queueShape = 'multi-item';
 
   if (isSingleFile && book && book.chapters && book.chapters.length > 1) {
     const chapters = book.chapters;
@@ -208,29 +251,16 @@ async function handleProgressUpdated({ position, duration, track }) {
     // Periodic progress save (defense in depth for force-close scenarios)
     await savePeriodicProgress(bookId, progressWithinChapter);
 
-    // Book end detection: check if position is near end of book.
-    // `duration` comes from the event payload — no getProgress() round-trip.
-    const END_THRESHOLD = 0.2; // .2 seconds before end to trigger
-    if (duration > 0 && position >= duration - END_THRESHOLD) {
-      // Mark book as finished
-      const bookModel = await getBookById(bookId);
-      if (bookModel) {
-        await bookModel.updateBookProgress(BookProgressState.Finished);
-      }
+    // This book is ONE queue item spanning the whole book, so the payload's
+    // `duration` is the book's duration and `position` is absolute.
+    queueShape = 'one-item';
 
-      // Save final progress
-      await updateChapterProgressInDB(bookId, 0);
-      await updateChapterIndexInDB(bookId, 0);
-
-      // Reset to beginning and stop
-      await TrackPlayer.seekTo(0);
-      await TrackPlayer.pause();
-
-      // Reset chapter tracking state
-      singleFileChapterState.lastChapterIndex = 0;
-
-      return;
-    }
+    // There used to be a 0.2s "book end" block here that marked the book
+    // finished AND zeroed the stored progress AND seeked to 0 AND paused.
+    // Those four jobs are now split: the lead-time check below owns the mark
+    // and does nothing else, and PlaybackQueueEnded owns the resetting. The
+    // early stop is gone on purpose — playing to the true end plays all of
+    // it. See D3 in the ticket.
   } else {
     // Multi-file book OR single-chapter book - just update progress normally
     setPlaybackProgress(bookId, position);
@@ -239,6 +269,33 @@ async function handleProgressUpdated({ position, duration, track }) {
     // the whole chapter's position.
     await savePeriodicProgress(bookId, position);
   }
+
+  // Book end detection: mark the book Finished once the audio remaining in
+  // the WHOLE book is within the lead time. `position` and `duration` come
+  // from the event payload — no getProgress() round-trip — and the later
+  // items are summed from the chapter array the store already holds, so this
+  // costs arithmetic over an array the handler has scanned twice already.
+  //
+  // MARKING ONLY: no seek, no pause. A book is finished a minute before its
+  // credits and the credits still play through to the true end.
+  //
+  // ⚠ `track` is the QUEUE's index and `book.chapters` is the STORE's array.
+  // They are separate producers (see CORRECTION 3 in the ticket); the helper
+  // checks the playing url against the row at that index and refuses to
+  // guess if they visibly disagree.
+  await applyBookEndDecision(
+    bookId,
+    evaluateBookEnd({
+      position,
+      duration,
+      queueShape,
+      queueChapters: book?.chapters,
+      currentIndex: track,
+      currentTrackUrl: trackUrl,
+      progressState: book?.bookProgressValue,
+      alreadyMarked: finishMarkedBookId === bookId,
+    }),
+  );
 
   await sleepTimer.onProgressTick(position);
 }
@@ -394,10 +451,20 @@ export default module.exports = async function () {
       if (nextStart !== null) {
         await TrackPlayer.seekTo(nextStart);
       } else {
-        // At last chapter: mark finished, reset and pause
-        const bookModel = await getBookById(activeTrack.bookId);
-        if (bookModel) {
-          await bookModel.updateBookProgress(BookProgressState.Finished);
+        // At last chapter: mark finished, reset and pause. The stop is kept
+        // here on purpose — unlike the 1 Hz lead-time mark, this is a
+        // deliberate user press asking to leave the last chapter, so there is
+        // nowhere left to play. Only the MARK is guarded: a press inside the
+        // lead window must not rewrite an already-set `finished_at`.
+        const alreadyFinished =
+          finishMarkedBookId === activeTrack.bookId ||
+          book?.bookProgressValue === BookProgressState.Finished;
+        if (!alreadyFinished) {
+          const bookModel = await getBookById(activeTrack.bookId);
+          if (bookModel) {
+            await bookModel.updateBookProgress(BookProgressState.Finished);
+            finishMarkedBookId = activeTrack.bookId;
+          }
         }
         await TrackPlayer.seekTo(0);
         await TrackPlayer.pause();
@@ -496,10 +563,19 @@ export default module.exports = async function () {
       await updateChapterProgressInDB(trackToUpdate.bookId, 0);
     }
 
-    // Mark book as finished when queue ends
-    const bookModel = await getBookById(trackToUpdate.bookId);
-    if (bookModel) {
-      await bookModel.updateBookProgress(BookProgressState.Finished);
+    // Mark book as finished when queue ends — unless the lead-time check in
+    // handleProgressUpdated already did it a minute ago. Re-marking here
+    // would be harmless to the flag but would drag `finished_at` forward to
+    // the true end, which is the one timestamp D5 asks us to keep.
+    const alreadyFinished =
+      finishMarkedBookId === trackToUpdate.bookId ||
+      book?.bookProgressValue === BookProgressState.Finished;
+    if (!alreadyFinished) {
+      const bookModel = await getBookById(trackToUpdate.bookId);
+      if (bookModel) {
+        await bookModel.updateBookProgress(BookProgressState.Finished);
+        finishMarkedBookId = trackToUpdate.bookId;
+      }
     }
 
     // Reset to beginning and stop playback
