@@ -8,15 +8,89 @@ import { BookProgressState } from '@/helpers/handleBookPlay';
  * Native seekBy() clamps within the CURRENT queue item, so on multi-track
  * queues (multi-file books, and single-file books under clipped chapters —
  * one queue item per chapter) a remote jump-back would stop dead at the
- * chapter start. These helpers compute the overshoot in JS and issue an
+ * chapter start. These helpers compute the landing spot in JS and issue an
  * explicit skip + seek instead, so the notification player, Android Auto
  * (RemoteJumpBackward/Forward) and the in-app buttons all behave the same:
  * 15s into chapter 2 minus 30s lands 15s before the end of chapter 1.
  *
+ * A jump may span ANY number of chapters. Books routinely open with a 14s
+ * intro and a 13s copyright notice, so a 60s skip has to cross two boundaries
+ * in one tap; landing the whole remainder in the adjacent chapter would
+ * produce an impossible position that native clamps back to the boundary —
+ * which is exactly the "the seek stopped at the chapter edge" symptom this
+ * file exists to prevent. The walk below is therefore over the WHOLE queue,
+ * not just the neighbor.
+ *
  * Single-item queues (legacy single-file books) keep absolute positions, so
  * an in-track seek already crosses virtual chapters; only the book edges
- * need clamping/finishing.
+ * need clamping/finishing. The walker handles that as the degenerate case.
  */
+
+/** A queue item's playable length, or null when the metadata is unusable. */
+function usableDuration(duration: unknown): number | null {
+  return typeof duration === 'number' && Number.isFinite(duration) && duration > 0
+    ? duration
+    : null;
+}
+
+export type RelativeSeekTarget =
+  | { kind: 'seek'; index: number; position: number }
+  | { kind: 'finished' };
+
+export interface RelativeSeekInput {
+  /** Per-queue-item durations in seconds, in queue order. */
+  durations: readonly (number | undefined)[];
+  /** Index of the active queue item. */
+  index: number;
+  /** Position within the active item, in seconds. */
+  position: number;
+  /** Seconds to move; negative seeks back, positive seeks forward. */
+  delta: number;
+}
+
+/**
+ * Where a relative seek lands, as a queue index plus a position inside it.
+ *
+ * Pure, so the boundary arithmetic can be tested without a player. Kept
+ * separate from the two async helpers below because the arithmetic is the
+ * part that has been wrong twice.
+ *
+ * A queue item whose duration is missing cannot be traversed — there is no
+ * way to know how much of the jump it absorbs. Rather than guess, the walk
+ * stops at that boundary, which degrades to the pre-walk behavior instead
+ * of landing somewhere wrong.
+ */
+export function resolveRelativeSeek({
+  durations,
+  index,
+  position,
+  delta,
+}: RelativeSeekInput): RelativeSeekTarget {
+  const lastIndex = durations.length - 1;
+  let landingIndex = Math.max(0, Math.min(index, lastIndex));
+  let remaining = position + delta;
+
+  if (delta < 0) {
+    while (remaining < 0 && landingIndex > 0) {
+      const previous = usableDuration(durations[landingIndex - 1]);
+      if (previous === null) break;
+      landingIndex -= 1;
+      remaining += previous;
+    }
+    // Still negative means the start of the book (or of the last item we can
+    // measure) — clamp rather than hand native a negative position.
+    return { kind: 'seek', index: landingIndex, position: Math.max(0, remaining) };
+  }
+
+  let landingDuration = usableDuration(durations[landingIndex]);
+  while (landingDuration !== null && remaining > landingDuration) {
+    if (landingIndex === lastIndex) return { kind: 'finished' };
+    remaining -= landingDuration;
+    landingIndex += 1;
+    landingDuration = usableDuration(durations[landingIndex]);
+  }
+  return { kind: 'seek', index: landingIndex, position: Math.max(0, remaining) };
+}
 
 async function isPlayingNow(): Promise<boolean> {
   const { state } = await TrackPlayer.getPlaybackState();
@@ -31,28 +105,62 @@ async function restorePlayStateIfNeeded(wasPlaying: boolean): Promise<void> {
   }
 }
 
+/**
+ * Reads the queue shape once, in one place, so both helpers walk the same
+ * numbers.
+ *
+ * The ACTIVE item's duration comes from the player rather than the queue: it
+ * is what the decoder actually found, whereas a queue item's `duration` is
+ * the chapter row's tag-derived estimate. Every other item can only be the
+ * estimate, which is fine — those are used to measure a jump, not to land it.
+ */
+async function readQueueShape(): Promise<{
+  durations: (number | undefined)[];
+  index: number;
+  position: number;
+} | null> {
+  const [queue, activeIndex, progress] = await Promise.all([
+    TrackPlayer.getQueue(),
+    TrackPlayer.getActiveTrackIndex(),
+    TrackPlayer.getProgress(),
+  ]);
+
+  if (queue.length === 0) return null;
+
+  const index = activeIndex ?? 0;
+  const durations = queue.map((track) => track.duration);
+  const liveDuration = usableDuration(progress.duration);
+  if (liveDuration !== null && index >= 0 && index < durations.length) {
+    durations[index] = liveDuration;
+  }
+
+  return { durations, index, position: progress.position };
+}
+
+/** Moves to the landing spot, skipping queue items only when needed. */
+async function applyTarget(
+  target: Extract<RelativeSeekTarget, { kind: 'seek' }>,
+  currentIndex: number,
+): Promise<void> {
+  if (target.index !== currentIndex) {
+    // skip(index) rather than repeated skipToNext/skipToPrevious: one native
+    // call lands any number of chapters away, and no intermediate item is
+    // ever prepared just to be abandoned.
+    await TrackPlayer.skip(target.index);
+  }
+  await TrackPlayer.seekTo(target.position);
+}
+
 export async function seekBack(seconds: number): Promise<void> {
   const wasPlaying = await isPlayingNow();
 
-  const currentTrackIndex = await TrackPlayer.getActiveTrackIndex();
-  const { position } = await TrackPlayer.getProgress();
-  const newPosition = position - seconds;
+  const shape = await readQueueShape();
+  if (!shape) return;
 
-  const queue = await TrackPlayer.getQueue();
-  const isSingleFile = queue.length === 1;
-
-  if (newPosition < 0) {
-    if (isSingleFile || currentTrackIndex === 0) {
-      // Single-file book or first track: clamp to start
-      await TrackPlayer.seekTo(0);
-    } else {
-      // Multi-track queue: land the remainder before the previous track's end
-      await TrackPlayer.skipToPrevious();
-      const { duration } = await TrackPlayer.getProgress();
-      await TrackPlayer.seekTo(duration + newPosition);
-    }
-  } else {
-    await TrackPlayer.seekTo(newPosition);
+  const target = resolveRelativeSeek({ ...shape, delta: -seconds });
+  // A backward seek can never finish a book; the walker clamps at index 0.
+  if (target.kind === 'seek') {
+    await applyTarget(target, shape.index);
   }
 
   await restorePlayStateIfNeeded(wasPlaying);
@@ -61,43 +169,29 @@ export async function seekBack(seconds: number): Promise<void> {
 export async function seekForward(seconds: number): Promise<void> {
   const wasPlaying = await isPlayingNow();
 
-  const currentTrackIndex = await TrackPlayer.getActiveTrackIndex();
-  const queue = await TrackPlayer.getQueue();
-  const { position, duration } = await TrackPlayer.getProgress();
-  const newPosition = position + seconds;
+  const shape = await readQueueShape();
+  if (!shape) return;
 
-  const isSingleFile = queue.length === 1;
+  const target = resolveRelativeSeek({ ...shape, delta: seconds });
 
-  if (newPosition > duration) {
-    if (
-      isSingleFile ||
-      (currentTrackIndex !== undefined &&
-        currentTrackIndex === queue.length - 1)
-    ) {
-      // Single-file book or last track: mark as finished, reset and stop
-      const activeTrack = await TrackPlayer.getActiveTrack();
-      if (activeTrack?.bookId) {
-        const bookModel = await getBookById(activeTrack.bookId);
-        if (bookModel) {
-          await bookModel.updateBookProgress(BookProgressState.Finished);
-        }
+  if (target.kind === 'finished') {
+    const activeTrack = await TrackPlayer.getActiveTrack();
+    if (activeTrack?.bookId) {
+      const bookModel = await getBookById(activeTrack.bookId);
+      if (bookModel) {
+        await bookModel.updateBookProgress(BookProgressState.Finished);
       }
-      if (isSingleFile) {
-        await TrackPlayer.seekTo(0);
-      } else {
-        await TrackPlayer.skip(0);
-        await TrackPlayer.seekTo(0);
-      }
-      // Intentional pause — skip the play-state guard
-      await TrackPlayer.pause();
-      return;
     }
-    // Multi-track queue: carry the overshoot into the next track
-    await TrackPlayer.skipToNext();
-    await TrackPlayer.seekTo(newPosition - duration);
-  } else {
-    await TrackPlayer.seekTo(newPosition);
+    if (shape.index !== 0) {
+      await TrackPlayer.skip(0);
+    }
+    await TrackPlayer.seekTo(0);
+    // Intentional pause — skip the play-state guard
+    await TrackPlayer.pause();
+    return;
   }
+
+  await applyTarget(target, shape.index);
 
   await restorePlayStateIfNeeded(wasPlaying);
 }

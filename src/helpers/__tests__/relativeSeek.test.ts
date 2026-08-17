@@ -44,14 +44,19 @@ const mockGetQueue = TrackPlayer.getQueue as jest.Mock;
 const mockGetActiveTrackIndex = TrackPlayer.getActiveTrackIndex as jest.Mock;
 const mockGetActiveTrack = TrackPlayer.getActiveTrack as jest.Mock;
 const mockSeekTo = TrackPlayer.seekTo as jest.Mock;
-const mockSkipToPrevious = TrackPlayer.skipToPrevious as jest.Mock;
-const mockSkipToNext = TrackPlayer.skipToNext as jest.Mock;
 const mockSkip = TrackPlayer.skip as jest.Mock;
 const mockPlay = TrackPlayer.play as jest.Mock;
 const mockPause = TrackPlayer.pause as jest.Mock;
 const mockGetBookById = getBookById as jest.Mock;
 
-const queueOf = (n: number) => Array.from({ length: n }, (_, i) => ({ id: i }));
+// Queue items carry the chapter's duration (see buildClippedChapterTracks and
+// the multi-file branch of handleBookPlay); relativeSeek measures a jump with
+// them, so a queue mock without durations would not be a queue.
+const queueOf = (n: number, durations: number[] = []) =>
+  Array.from({ length: n }, (_, i) => ({
+    id: i,
+    duration: durations[i] ?? 600,
+  }));
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -70,20 +75,17 @@ describe('seekBack', () => {
     await seekBack(30);
 
     expect(mockSeekTo).toHaveBeenCalledWith(70);
-    expect(mockSkipToPrevious).not.toHaveBeenCalled();
+    expect(mockSkip).not.toHaveBeenCalled();
   });
 
   it('crosses into the previous track with the remainder (15s into ch2, -30s => 15s before end of ch1)', async () => {
-    mockGetQueue.mockResolvedValue(queueOf(3));
+    mockGetQueue.mockResolvedValue(queueOf(3, [900, 600, 600]));
     mockGetActiveTrackIndex.mockResolvedValue(1);
-    // First read: current position. Second read (after skipToPrevious): previous track duration.
-    mockGetProgress
-      .mockResolvedValueOnce({ position: 15, duration: 600 })
-      .mockResolvedValueOnce({ position: 0, duration: 900 });
+    mockGetProgress.mockResolvedValue({ position: 15, duration: 600 });
 
     await seekBack(30);
 
-    expect(mockSkipToPrevious).toHaveBeenCalledTimes(1);
+    expect(mockSkip).toHaveBeenCalledWith(0);
     // newPosition = 15 - 30 = -15; target = 900 + (-15) = 885
     expect(mockSeekTo).toHaveBeenCalledWith(885);
   });
@@ -96,7 +98,7 @@ describe('seekBack', () => {
     await seekBack(30);
 
     expect(mockSeekTo).toHaveBeenCalledWith(0);
-    expect(mockSkipToPrevious).not.toHaveBeenCalled();
+    expect(mockSkip).not.toHaveBeenCalled();
   });
 
   it('clamps to 0 for a single-item queue (legacy single-file book)', async () => {
@@ -107,7 +109,7 @@ describe('seekBack', () => {
     await seekBack(30);
 
     expect(mockSeekTo).toHaveBeenCalledWith(0);
-    expect(mockSkipToPrevious).not.toHaveBeenCalled();
+    expect(mockSkip).not.toHaveBeenCalled();
   });
 
   it('restores playback if the seek caused an unexpected pause', async () => {
@@ -143,7 +145,7 @@ describe('seekForward', () => {
     await seekForward(30);
 
     expect(mockSeekTo).toHaveBeenCalledWith(130);
-    expect(mockSkipToNext).not.toHaveBeenCalled();
+    expect(mockSkip).not.toHaveBeenCalled();
   });
 
   it('crosses into the next track with the overshoot', async () => {
@@ -153,7 +155,7 @@ describe('seekForward', () => {
 
     await seekForward(30);
 
-    expect(mockSkipToNext).toHaveBeenCalledTimes(1);
+    expect(mockSkip).toHaveBeenCalledWith(2);
     // overshoot = (590 + 30) - 600 = 20
     expect(mockSeekTo).toHaveBeenCalledWith(20);
   });
