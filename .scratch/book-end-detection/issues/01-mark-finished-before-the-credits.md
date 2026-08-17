@@ -395,15 +395,44 @@ only half the story, and the missing half is a silent-failure trap:
    or badly-tagged rip that `|| 1` fires for *every* file, so the whole book collapses to
    `chapterNumber === 1`. Ordering by it would produce a wrong sum on exactly the messy books
    this feature is aimed at, and would do so without erroring.
-3. **The rescue: ordering never needs re-deriving.** `handleBookPlay.ts:188` builds the
-   multi-file queue with `book.chapters.map(...)`, so **queue index and store-array index are
-   the same index by construction** — which is also why the parked commit could say "queue
-   index == chapter index, so no `getQueue` round-trip". "Every later track" is therefore
-   `book.chapters.slice(currentIndex + 1)` and nothing more.
+3. **Array position is the only usable ordering**, and both queue builders preserve it:
+   `handleBookPlay.ts:188` maps `book.chapters` for shape A, and `buildClippedChapterTracks`
+   (`clippedChapters.ts:96`) is `chapters.map((ch, i) => …)` with no filter and no sort for
+   shape B. So "every later track" is `chapters.slice(currentIndex + 1)` and nothing more.
 
-**Rule for the implementation: derive "later" from ARRAY POSITION in the same `book.chapters`
-array the queue was built from. Never from `startMs`, never from `chapterNumber`.** Both are
-readable, both look authoritative, and both are wrong on shape A.
+⚠ **But "the array" is not one array.** There are **two independent producers** of a book's
+chapter array, and they are near-duplicates of each other:
+
+| Producer                                                     | Feeds                                                     |
+| ------------------------------------------------------------ | --------------------------------------------------------- |
+| `convertBookModelToBook` (`library.tsx:50-61`)                 | the Zustand store — **what the 1 Hz tick handler reads**   |
+| `getBookWithChaptersForRestoration` (`bookQueries.ts:50-61`)   | `restoreLastActiveBook` (**cold start**) + `remotePlayBook` — **what the queue gets built from on those paths** |
+
+Both run `.query(Q.where('book_id', bookId)).fetch()` with **no `Q.sortBy`**, then apply the
+same `.sort((a, b) => (a.startMs ?? 0) - (b.startMs ?? 0))`. On shape A that sort is a no-op in
+both, so each array is raw fetch order from a separate unordered query. They will agree in
+practice — same simple scan, rowid order — but **nothing enforces it**, and the comment at
+`bookQueries.ts:49` already scopes its own correctness claim to single-file books
+(_"Sort by startMs to ensure consistent ordering for single-file books"_).
+
+⚠ **Shape B is self-validating; shape A is not.** `buildClippedChapterTracks` derives
+`clipStartMs`/`clipEndMs` from `ch.startMs` and `chapters[i + 1]?.startMs`, so a misordered
+array on shape B produces audibly wrong clip windows and gets caught. **A misordered multi-file
+array has no other consumer whatsoever** — the book-level sum would be its first and only
+detector, and it would be wrong silently.
+
+**Rule for the implementation — reworded to survive the two-producer problem:**
+
+1. Derive "later" from **ARRAY POSITION**. Never from `startMs` (all-zero on shape A, and the
+   sort on it is a silent no-op), never from `chapterNumber` (it is `metadata.trackPosition || 1`,
+   so untagged rips collapse to `1`).
+2. **Take the current index and the sum from ONE array, in one read.** That makes the arithmetic
+   self-consistent even if the queue disagrees with the store.
+3. ⚠ **If you index the store array with the event payload's `track`** — which is what the
+   parked commit did, reasoning "queue index == chapter index, so no `getQueue` round-trip" —
+   **you are relying on the two producers agreeing**, and on the cold-start restore path the
+   queue was demonstrably built from the *other* one. That reliance is probably fine, but it is
+   currently undefended and untested. Either avoid it, or assert it and cover it.
 
 ---
 
@@ -422,6 +451,14 @@ for one reason only: its lead was track-local with a `/2` clamp, which decision 
 overturned. Its structure — the pure seam, the decision/effect split, the `BookProgressState`
 extraction — is the intended shape and should be reused rather than reinvented. Cherry-pick it
 and change the rule, or rebuild it with the same seams; either is fine.
+
+✅ **Verified 2026-08-17: the cherry-pick is clean on every code file.** `96b10f3`'s parent is
+`1d8df4b`; the only things that landed on the branch since are tickets 31/32, entirely inside
+`src/db/` and `src/helpers/series*`. None of the five code files the parked commit touches
+(`bookEndDetection.ts`, its test, `bookProgressState.ts`, `handleBookPlay.ts`, `service.js`)
+has been modified since. **`git cherry-pick 96b10f3` will conflict on exactly one file — THIS
+ticket — and the resolution is to keep the current version** (it carries the rulings the parked
+commit predates).
 
 **Current behavior:**
 A book is marked `Finished` only when playback reaches the true end of the media. On a one-item
@@ -462,11 +499,19 @@ whole book's duration. There is no "last track only" gate and no short-track cla
   add a `getProgress()` round-trip — plus the book's chapter array, current index, and current
   progress state.
 
-**Ordering contract (read CORRECTION 3 above before writing the sum):** "later items" means
-array positions after the current index in the same `book.chapters` array the queue was built
-from. Do **not** order by `startMs` (it is `0` on every multi-file row, and the store's sort on
-it is a silent no-op) or by `chapterNumber` (it is the file's track tag and collapses to `1` for
-every file on an untagged rip).
+**Ordering contract (read CORRECTION 3 above IN FULL before writing the sum — this is the part
+most likely to be got wrong, and it fails silently):**
+
+- "Later items" means **array positions after the current index**. Do **not** order by `startMs`
+  (it is `0` on every multi-file row, and the sort on it is a silent no-op) or by `chapterNumber`
+  (it is the file's track tag and collapses to `1` for every file on an untagged rip).
+- Take the current index and the sum **from one array in one read**, so the arithmetic is
+  internally consistent.
+- ⚠ There are **two** chapter-array producers — the store's converter and
+  `getBookWithChaptersForRestoration` — and the cold-start restore path builds the queue from the
+  latter while the tick handler reads the former. Using the event payload's `track` as an index
+  into the store array assumes the two agree. They almost certainly do; nothing enforces it and
+  no test covers it. Make that assumption explicit wherever you take it.
 
 **Guarding the write (D5) — three things the reverted attempt proved, all still true:**
 
@@ -498,7 +543,11 @@ checking them. **Assume every input to the new seam can be `undefined`** and han
       second-to-last chapter followed by a 30s final chapter **is** marked.
 - [ ] The remaining-audio sum is derived from array position, not `startMs` or `chapterNumber`.
       A unit test covers a multi-file book whose rows all carry `startMs: 0` and
-      `chapterNumber: 1` — this is the regression that CORRECTION 3 exists to prevent.
+      `chapterNumber: 1` — this is the regression that CORRECTION 3 exists to prevent, and the
+      one that cannot be caught on device because nothing else consumes that ordering.
+- [ ] The cold-start restore path is exercised at least once on device: kill the app while a
+      multi-item book is playing near its end, relaunch, and confirm the mark still fires
+      correctly. This is the path where the queue and the store come from different producers.
 - [ ] Marking happens once per listen: no repeated writes across the lead window, and
       `finished_at` holds the time of the FIRST mark even after the queue-ended and remote-next
       paths have run.
