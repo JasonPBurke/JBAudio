@@ -700,3 +700,44 @@ it live and resumable. That block also pre-empted `PlaybackQueueEnded` for these
 time, so its `isSingleFile` branch was only intermittently reached before and is now the sole path.
 **Added to device check (1) below: watch what the notification does the moment a single-file book
 ends — that is now different for every `.m4b` in the library.**
+
+#### How to read the device verification — the three writers now log
+
+Added so the checks below are readable instead of inferred. The `Finished` flag has three writers
+and **all three log, including when they SKIP** — a skip at the true end is the positive result, not
+the absence of one. They fire once per book-end event, never at 1 Hz.
+
+```
+adb logcat -s ReactNativeJS:V | grep -E "FINISHED|not re-marking|queue ended"
+```
+
+| Line | Means |
+| --- | --- |
+| `FINISHED (lead-time) <id> shape=… item=…/… pos=…/… remaining=…s` | the 1 Hz tick marked it early — **this is the feature working** |
+| `queue ended, already finished, not re-marking <id> shape=…` | ✅ **D5 passed**: the lead-time mark stood and `finished_at` was not dragged to the true end |
+| `queue ended, FINISHED (true end) <id> shape=…` | the lead-time check never fired. Correct for a book shorter than the lead or one with an unreadable chapter row; **otherwise this is the failure to investigate** |
+| `already finished, not re-marking <id>` (no `queue ended`) | the remote-next last-chapter press correctly declined to re-mark |
+
+⚠ **`remaining` is the number that matters, not `pos`/`duration`.** On a multi-item queue those two
+are CHAPTER-relative and say nothing about how close the book is to ending — reading them as if
+they did is the pre-ticket mental model this change replaces. `remaining` is the book-level figure
+the rule actually decided on, and it should be at or just under 60.
+
+⚠ **`shape=` tells you which queue shape the book actually loaded as — read it, do not assume.**
+`largeHeap` is on and `getHeapLimitBytes()` reads `Runtime.maxMemory()`, so the clipped-chapters
+gate can answer differently on a 2 GB emulator than on a 12 GB phone: **the same `.m4b` can be
+`multi-item` on one rig and `one-item` on the other.** That is coverage, not a problem — but it
+means neither rig alone proves both paths, and it is why both are worth running.
+
+⚠ **Emulator only: check `adb shell date` first.** A Quick Boot snapshot restore brings back the
+wall clock, and D5's whole evidence is whether `finished_at` moved between two writes. On a frozen
+clock both writes carry the same timestamp and the check reads as passing whether or not it did.
+Cold boot with `-no-snapshot-load` if the date is wrong. To read `finished_at` directly, pull
+`watermelon.db`, `-wal` AND `-shm` together (WAL mode — the main file alone can be days stale) from
+the app-data ROOT, and open with `node --experimental-sqlite`.
+
+**Sharpest single test of the new rule** (multi-item book): seek into the **second-to-last** item so
+that `(time left in it) + (duration of the last item) ≤ 60s`. Under the reverted track-local rule
+nothing would be marked there; under the book-level rule it marks — and playback must keep running
+through both items. That distinguishes the new behaviour from the old one far better than any test
+at the true end does.

@@ -1,6 +1,7 @@
 import {
   FINISH_LEAD_SECONDS,
   evaluateBookEnd,
+  remainingBookSeconds,
 } from '@/helpers/bookEndDetection';
 import { BookProgressState } from '@/helpers/bookProgressState';
 
@@ -342,5 +343,44 @@ describe('evaluateBookEnd — the queue and the store must agree', () => {
         currentTrackUrl: undefined,
       }),
     ).toBe('mark');
+  });
+});
+
+/**
+ * The number the playback service logs when it marks a book. It is the only
+ * way the book-level rule can be checked on a device: on a multi-item queue
+ * the payload's `position` and `duration` are chapter-relative, so they say
+ * nothing about how close the BOOK is to its end — reading them as if they
+ * did is the pre-ticket mental model this whole change exists to replace.
+ */
+describe('remainingBookSeconds', () => {
+  it('reports the whole book’s remaining audio on a one-item queue', () => {
+    expect(
+      remainingBookSeconds({ ...wholeBook, position: 3550 }),
+    ).toBeCloseTo(50);
+  });
+
+  it('adds every later queue item on a multi-item queue', () => {
+    // 10s left in this chapter, plus a 60s and a 30s chapter after it.
+    const input = multiItem([600, 600, 600, 60, 30], 2);
+    expect(
+      remainingBookSeconds({ ...input, position: 590 }),
+    ).toBeCloseTo(100);
+  });
+
+  it('agrees with the decision at the exact boundary', () => {
+    const input = multiItem([600, 600, 60, 30], 2);
+    expect(remainingBookSeconds({ ...input, position: 30 })).toBeCloseTo(60);
+    expect(evaluateBookEnd({ ...input, position: 30 })).toBe('mark');
+  });
+
+  it('returns null whenever the book cannot be measured', () => {
+    expect(
+      remainingBookSeconds({ ...wholeBook, duration: undefined }),
+    ).toBeNull();
+    const input = multiItem([600, 600], 1);
+    expect(
+      remainingBookSeconds({ ...input, queueChapters: undefined }),
+    ).toBeNull();
   });
 });

@@ -161,30 +161,23 @@ function queueDisagreesWithStore(
   return queueChapters.some((ch) => ch?.url === currentTrackUrl);
 }
 
-/**
- * Decides, from numbers the 1 Hz progress tick already holds, whether a book
- * has reached its end for the purposes of the ✓.
- *
- * This function decides ONLY about the flag. It says nothing about stopping,
- * pausing or seeking, and its return type cannot express those: the point of
- * the lead time is that playback runs on through the credits untouched.
- */
-export function evaluateBookEnd({
+/** What the book looks like from this tick, or `null` if it cannot be read. */
+type BookMeasurement = {
+  /** Seconds of audio left in the whole book. */
+  remainingSeconds: number;
+  /** Seconds of audio in the whole book. */
+  totalSeconds: number;
+};
+
+function measureBook({
   position,
   duration,
   queueShape,
   queueChapters,
   currentIndex,
   currentTrackUrl,
-  progressState,
-  alreadyMarked,
-  leadSeconds = FINISH_LEAD_SECONDS,
-}: BookEndInput): BookEndDecision {
-  // Undecidable ticks return 'none', never 'clear': releasing the latch on a
-  // tick we could not measure would let the next measurable one mark the book
-  // a second time, and every mark rewrites `finished_at`. 'clear' means "this
-  // is outside the window", never "I could not tell".
-  if (!Number.isFinite(position) || !(duration! > 0)) return 'none';
+}: BookEndInput): BookMeasurement | null {
+  if (!Number.isFinite(position) || !(duration! > 0)) return null;
 
   // On a one-item queue `duration` already spans the whole book, so nothing
   // follows the playing item and the sum is empty by definition.
@@ -195,12 +188,54 @@ export function evaluateBookEnd({
   // clipped-chapters gate can answer differently between the two — believing
   // a contradicted claim would read a chapter-relative `duration` as the
   // whole book's and mark at the end of whichever chapter is playing.
-  const measurement =
+  const queue =
     queueShape === 'one-item'
       ? currentIndex !== undefined && currentIndex !== 0
         ? null
         : { laterSeconds: 0, totalSeconds: duration! }
       : measureQueue(queueChapters, currentIndex, currentTrackUrl);
+  if (queue === null) return null;
+
+  return {
+    remainingSeconds: duration! - position! + queue.laterSeconds,
+    totalSeconds: queue.totalSeconds,
+  };
+}
+
+/**
+ * How much audio is left in the WHOLE book, or `null` if it cannot be read.
+ *
+ * Exported for the playback service's logging, and it earns its place there:
+ * on a multi-item queue the tick's `position` and `duration` are
+ * chapter-relative, so they say nothing about how close the book is to
+ * ending. Reading them as if they did IS the pre-ticket mental model this
+ * change replaces, which makes this the only number that can show, on a
+ * device, that the book-level rule is the one that fired.
+ */
+export function remainingBookSeconds(input: BookEndInput): number | null {
+  return measureBook(input)?.remainingSeconds ?? null;
+}
+
+/**
+ * Decides, from numbers the 1 Hz progress tick already holds, whether a book
+ * has reached its end for the purposes of the ✓.
+ *
+ * This function decides ONLY about the flag. It says nothing about stopping,
+ * pausing or seeking, and its return type cannot express those: the point of
+ * the lead time is that playback runs on through the credits untouched.
+ */
+export function evaluateBookEnd(input: BookEndInput): BookEndDecision {
+  const {
+    progressState,
+    alreadyMarked,
+    leadSeconds = FINISH_LEAD_SECONDS,
+  } = input;
+
+  // Undecidable ticks return 'none', never 'clear': releasing the latch on a
+  // tick we could not measure would let the next measurable one mark the book
+  // a second time, and every mark rewrites `finished_at`. 'clear' means "this
+  // is outside the window", never "I could not tell".
+  const measurement = measureBook(input);
   if (measurement === null) return 'none';
 
   // A book with less audio in it than the lead time would be Finished from
@@ -210,9 +245,7 @@ export function evaluateBookEnd({
   // left to the true-end path, exactly as it was before this rule existed.
   if (measurement.totalSeconds <= leadSeconds) return 'none';
 
-  const remaining = duration! - position! + measurement.laterSeconds;
-
-  if (remaining > leadSeconds) return 'clear';
+  if (measurement.remainingSeconds > leadSeconds) return 'clear';
 
   if (alreadyMarked || progressState === BookProgressState.Finished) {
     return 'none';
