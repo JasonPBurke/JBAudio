@@ -203,20 +203,6 @@ function measureBook({
 }
 
 /**
- * How much audio is left in the WHOLE book, or `null` if it cannot be read.
- *
- * Exported for the playback service's logging, and it earns its place there:
- * on a multi-item queue the tick's `position` and `duration` are
- * chapter-relative, so they say nothing about how close the book is to
- * ending. Reading them as if they did IS the pre-ticket mental model this
- * change replaces, which makes this the only number that can show, on a
- * device, that the book-level rule is the one that fired.
- */
-export function remainingBookSeconds(input: BookEndInput): number | null {
-  return measureBook(input)?.remainingSeconds ?? null;
-}
-
-/**
  * Decides, from numbers the 1 Hz progress tick already holds, whether a book
  * has reached its end for the purposes of the ✓.
  *

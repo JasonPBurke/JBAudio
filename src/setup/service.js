@@ -24,10 +24,7 @@ import {
   hasValidChapterData,
   getNextChapterStartSeconds,
 } from '@/helpers/singleFileBook';
-import {
-  evaluateBookEnd,
-  remainingBookSeconds,
-} from '@/helpers/bookEndDetection';
+import { evaluateBookEnd } from '@/helpers/bookEndDetection';
 import { seekBack, seekForward } from '@/helpers/relativeSeek';
 import { skipToPreviousChapter } from '@/helpers/chapterSkip';
 import {
@@ -135,7 +132,7 @@ let finishMarkedBookId = null;
 // Applies an evaluateBookEnd() decision. Marking is ALL it does: it never
 // pauses, stops or seeks — see D2 in
 // .scratch/book-end-detection/issues/01-mark-finished-before-the-credits.md.
-async function applyBookEndDecision(bookId, decision, endInput) {
+async function applyBookEndDecision(bookId, decision) {
   if (decision === 'clear') {
     if (finishMarkedBookId === bookId) finishMarkedBookId = null;
     return;
@@ -150,21 +147,6 @@ async function applyBookEndDecision(bookId, decision, endInput) {
     if (!bookModel) return;
     await bookModel.updateBookProgress(BookProgressState.Finished);
     finishMarkedBookId = bookId;
-
-    // Fires once per book, not per tick — the latch above and the store's
-    // value both suppress the rest of the window. `remaining` is the number
-    // that matters: on a multi-item queue `position` and `duration` are
-    // chapter-relative and say nothing about the book's end, so this is the
-    // only way to see on a device that the BOOK-level rule is what fired.
-    // `shape` is worth reading too — the clipped-chapters heap gate means the
-    // same book can load as either shape on different devices.
-    const remaining = remainingBookSeconds(endInput);
-    console.log(
-      `[service] FINISHED (lead-time) ${bookId} shape=${endInput?.queueShape}` +
-        ` item=${endInput?.currentIndex}/${endInput?.queueChapters?.length ?? 1}` +
-        ` pos=${endInput?.position?.toFixed(1)}/${endInput?.duration?.toFixed(1)}` +
-        ` remaining=${remaining === null ? 'unknown' : remaining.toFixed(1)}s`,
-    );
   } catch (error) {
     // updateBookProgress is a raw WatermelonDB writer and throws if the row
     // was destroyed underneath us (a concurrent scan's removeMissingFiles).
@@ -319,17 +301,19 @@ async function handleProgressUpdated({ position, duration, track }) {
   // They are separate producers (see CORRECTION 3 in the ticket); the helper
   // checks the playing url against the row at that index and refuses to
   // guess if they visibly disagree.
-  const endInput = {
-    position,
-    duration,
-    queueShape,
-    queueChapters: book?.chapters,
-    currentIndex: track,
-    currentTrackUrl: trackUrl,
-    progressState: book?.bookProgressValue,
-    alreadyMarked: finishMarkedBookId === bookId,
-  };
-  await applyBookEndDecision(bookId, evaluateBookEnd(endInput), endInput);
+  await applyBookEndDecision(
+    bookId,
+    evaluateBookEnd({
+      position,
+      duration,
+      queueShape,
+      queueChapters: book?.chapters,
+      currentIndex: track,
+      currentTrackUrl: trackUrl,
+      progressState: book?.bookProgressValue,
+      alreadyMarked: finishMarkedBookId === bookId,
+    }),
+  );
 
   await sleepTimer.onProgressTick(position);
 }
@@ -503,11 +487,6 @@ export default module.exports = async function () {
             await bookModel.updateBookProgress(BookProgressState.Finished);
           }
         }
-        // Both branches log: a SKIP here is the positive result, because it
-        // is what keeps `finished_at` on the first mark (D5).
-        console.log(
-          `[service] ${alreadyFinished ? 'already finished, not re-marking' : 'FINISHED (remote-next past last chapter)'} ${activeTrack.bookId}`,
-        );
         await TrackPlayer.seekTo(0);
         await TrackPlayer.pause();
       }
@@ -624,19 +603,6 @@ export default module.exports = async function () {
         await bookModel.updateBookProgress(BookProgressState.Finished);
       }
     }
-    // Both branches log. A SKIP here is the whole of D5's evidence — it means
-    // the lead-time mark stood and `finished_at` was not dragged to the true
-    // end. A MARK here means the lead-time check never fired, which on a book
-    // that should have been marked early is the failure to investigate.
-    // The shape label uses the SAME condition the progress tick branches on,
-    // so the two log lines can be compared directly. A single-chapter book is
-    // `isSingleFile` but takes the multi-item path in both places.
-    const shapeLabel =
-      isSingleFile && book?.chapters?.length > 1 ? 'one-item' : 'multi-item';
-    console.log(
-      `[service] queue ended, ${alreadyFinished ? 'already finished, not re-marking' : 'FINISHED (true end)'} ${trackToUpdate.bookId}` +
-        ` shape=${shapeLabel}`,
-    );
 
     // Reset to beginning and stop playback
     if (isSingleFile) {
