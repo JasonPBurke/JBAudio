@@ -254,6 +254,7 @@ export const populateDatabase = async (authors: AuthorType[]) => {
         settings.timerFadeoutDuration = null;
         settings.customTimer = null;
         settings.timerChapters = null;
+        settings.timerFrozenRemaining = null;
         settings.lastActiveBook = null;
       });
       batchOperations.push(newSettings);

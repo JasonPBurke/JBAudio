@@ -8,6 +8,37 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      // Sleep timer: persist the FROZEN half of a duration timer.
+      //
+      // Before this, pausing froze the countdown only in module-scope JS state
+      // (`frozenRemainingMs` + the zustand store). The DB kept the RUNNING
+      // form — timer_active = true with sleep_time still holding the absolute
+      // end instant computed while playing. Anything that lost the JS runtime
+      // (swipe off recents; the foreground service is demoted on pause, so the
+      // swipe kills the process) rehydrated from that absolute instant and the
+      // timer had "run" for the whole time the app was gone.
+      //
+      // isOptional, per the standing rule in this file: addColumns cannot
+      // backfill, so a non-optional number column would land 0 on every
+      // existing row — and 0 is a meaningful value here (a lapsed timer),
+      // not an absence. null is the correct "no frozen value" state and is
+      // exactly what nullValue() gives an optional column.
+      //
+      // No backfill step. A row mid-pause at upgrade time keeps its stale
+      // sleep_time and resolves on the next pause/resume/cancel; a one-shot
+      // SQL guess would be raw SQL on a silently-failing surface to save one
+      // countdown from being wrong once.
+      toVersion: 34,
+      steps: [
+        addColumns({
+          table: 'settings',
+          columns: [
+            { name: 'timer_frozen_remaining', type: 'number', isOptional: true },
+          ],
+        }),
+      ],
+    },
+    {
       // Series redesign: the WHOLE data model, in one version number.
       //
       // APPENDED, never a rewrite of v32. Rewriting v32 was live — no real

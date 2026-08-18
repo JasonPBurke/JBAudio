@@ -14,7 +14,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
 // migration cannot backfill a value (see the v33 block in migrations.ts).
 // src/db/seriesProvenance.ts is the single place that null is resolved.
 export default appSchema({
-  version: 33,
+  version: 34,
   tables: [
     tableSchema({
       name: 'authors',
@@ -191,6 +191,15 @@ export default appSchema({
         {
           name: 'timer_active',
           type: 'boolean',
+        },
+        // Remaining ms of a duration timer that is armed but frozen (paused).
+        // Mutually exclusive with sleep_time: an armed duration timer is
+        // either RUNNING (sleep_time = absolute end instant, this null) or
+        // FROZEN (this = remaining ms, sleep_time null). See sleepTimer.ts.
+        {
+          name: 'timer_frozen_remaining',
+          type: 'number',
+          isOptional: true,
         },
         {
           name: 'library_paths',

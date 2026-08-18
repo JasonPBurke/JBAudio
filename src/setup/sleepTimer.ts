@@ -7,6 +7,7 @@ import {
   updateTimerActive,
   updateChapterTimer,
   updateTimerDuration,
+  updateFrozenRemaining,
 } from '@/db/settingsQueries';
 import { isWithinBedtimeWindow } from '@/helpers/bedtimeUtils';
 import { recordFootprint } from '@/db/footprintQueries';
@@ -79,7 +80,17 @@ let cachedTimer = {
   timerChapters: null as number | null,
 };
 
-// In-memory frozen remaining ms (duration timer while paused)
+// In-memory mirror of the persisted frozen remaining ms (duration timer while
+// paused). This is a CACHE, not the source of truth: it dies with the JS
+// runtime, and the app's runtime dies whenever the user swipes the task away
+// (pausing demotes the foreground service, so nothing keeps the process up).
+// The durable copy lives in settings.timer_frozen_remaining.
+//
+// INVARIANT, in memory and on disk alike: an armed duration timer is either
+//   RUNNING — sleepTime = absolute end instant, frozen remaining null
+//   FROZEN  — frozen remaining = ms left,      sleepTime null
+// Never both. Leaving sleepTime set while frozen is what let a paused timer
+// count down across a restart, and let the backup timer fire while paused.
 let frozenRemainingMs: number | null = null;
 
 let backupTimerId: ReturnType<typeof setTimeout> | null = null;
@@ -182,6 +193,7 @@ async function _fireInner(): Promise<void> {
 
     await updateTimerActive(false);
     await updateSleepTime(null);
+    await updateFrozenRemaining(null);
 
     frozenRemainingMs = null;
     cachedTimer.lastRefreshedAt = 0;
@@ -232,6 +244,7 @@ export async function activate(mode: TimerMode): Promise<void> {
         isFading: false,
       });
       await updateSleepTime(endTimeMs);
+      await updateFrozenRemaining(null);
       scheduleBackupTimer(endTimeMs);
     } else {
       frozenRemainingMs = mode.durationMs;
@@ -248,6 +261,7 @@ export async function activate(mode: TimerMode): Promise<void> {
         isFading: false,
       });
       await updateSleepTime(null);
+      await updateFrozenRemaining(mode.durationMs);
     }
     await updateTimerActive(true);
     await updateTimerDuration(mode.durationMs);
@@ -269,6 +283,7 @@ export async function activate(mode: TimerMode): Promise<void> {
     await updateTimerActive(true);
     await updateTimerDuration(null);
     await updateSleepTime(null);
+    await updateFrozenRemaining(null);
     await updateChapterTimer(mode.chaptersRemaining);
   }
 
@@ -305,6 +320,7 @@ export async function cancel(): Promise<void> {
 
   await updateTimerActive(false);
   await updateSleepTime(null);
+  await updateFrozenRemaining(null);
   await TrackPlayer.setVolume(1);
 }
 
@@ -419,8 +435,22 @@ export async function onPlaybackPaused(): Promise<void> {
   const { sleepTime, timerActive } = await getTimerSettings();
   if (timerActive && sleepTime !== null) {
     const remaining = Math.max(0, sleepTime - Date.now());
+
+    // The pending backup timer was scheduled against the RUNNING end instant.
+    // Left armed it would fire mid-pause and stop a timer that is frozen.
+    cancelBackupTimer();
+
     frozenRemainingMs = remaining;
     _setStore({ frozenRemainingMs: remaining, endTimeMs: null });
+
+    // Persist the FROZEN form, and clear the RUNNING one in the same breath.
+    // Both halves matter: without the write the freeze dies with the process;
+    // without clearing sleepTime, a stale absolute end instant survives that
+    // every other path (syncFromDB, _fire, the isExpired check in
+    // onPlaybackResumed) reads as a countdown still in flight.
+    cachedTimer.sleepTime = null;
+    await updateFrozenRemaining(remaining);
+    await updateSleepTime(null);
   }
 }
 
@@ -443,6 +473,7 @@ export async function onPlaybackResumed(): Promise<void> {
     cancelBackupTimer();
     await updateTimerActive(false);
     await updateSleepTime(null);
+    await updateFrozenRemaining(null);
     await TrackPlayer.setVolume(1);
     fadeState.isFading = false;
     fadeState.lastAppliedVolume = 1;
@@ -455,12 +486,22 @@ export async function onPlaybackResumed(): Promise<void> {
     return;
   }
 
-  // Resume timer from frozen remaining time
-  if (frozenRemainingMs !== null && frozenRemainingMs > 0) {
-    const newSleepTime = Date.now() + frozenRemainingMs;
+  // Resume timer from frozen remaining time. The DB value is the fallback,
+  // not a redundancy: after a swipe-away the in-memory mirror is gone, and
+  // this is the path that turns the restored freeze back into a countdown.
+  const frozen = frozenRemainingMs ?? settings.frozenRemainingMs;
+  if (frozen !== null && frozen > 0) {
+    const newSleepTime = Date.now() + frozen;
     await updateSleepTime(newSleepTime);
+    await updateFrozenRemaining(null);
     cachedTimer.sleepTime = newSleepTime;
-    _setStore({ endTimeMs: newSleepTime, frozenRemainingMs: null });
+    cachedTimer.timerActive = true;
+    _setStore({
+      isActive: true,
+      mode: 'duration',
+      endTimeMs: newSleepTime,
+      frozenRemainingMs: null,
+    });
     frozenRemainingMs = null;
     scheduleBackupTimer(newSleepTime);
     return;
@@ -523,6 +564,7 @@ export async function onPlaybackResumed(): Promise<void> {
 export async function onPlaybackStopped(): Promise<void> {
   cancelBackupTimer();
   frozenRemainingMs = null;
+  await updateFrozenRemaining(null);
   await updateChapterTimer(null);
   await updateTimerActive(false);
   _clearStore();
@@ -623,9 +665,23 @@ export async function syncFromDB(): Promise<void> {
   cachedTimer.timerChapters = settings.timerChapters;
   cachedTimer.lastRefreshedAt = Date.now();
 
+  frozenRemainingMs = settings.frozenRemainingMs;
+
   if (!settings.timerActive) return;
 
-  if (settings.sleepTime !== null) {
+  // Checked BEFORE sleepTime. A duration timer has two armed shapes and only
+  // one of them counts down; restoring the running shape for a timer that was
+  // frozen is what made a paused timer lose the whole time the app was away.
+  if (settings.frozenRemainingMs !== null && settings.frozenRemainingMs > 0) {
+    _setStore({
+      isActive: true,
+      mode: 'duration',
+      endTimeMs: null,
+      frozenRemainingMs: settings.frozenRemainingMs,
+      remainingChapters: null,
+      isFading: false,
+    });
+  } else if (settings.sleepTime !== null) {
     _setStore({
       isActive: true,
       mode: 'duration',

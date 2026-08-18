@@ -62,6 +62,20 @@ export function updateSleepTime(duration: number | null) {
   });
 }
 
+/**
+ * Persist the remaining ms of an armed-but-paused duration timer.
+ *
+ * Callers must keep this mutually exclusive with sleepTime: an armed duration
+ * timer is either RUNNING (sleepTime set, this null) or FROZEN (this set,
+ * sleepTime null). Leaving both set is what let a paused timer keep counting
+ * down across a process restart.
+ */
+export async function updateFrozenRemaining(remainingMs: number | null) {
+  return updateSetting((record) => {
+    record.timerFrozenRemaining = remainingMs;
+  });
+}
+
 export async function updateTimerDuration(duration: number | null) {
   return updateSetting((record) => {
     record.timerDuration = duration;
@@ -194,6 +208,7 @@ export async function getTimerSettings() {
       timerActive: settings.timerActive,
       timerChapters: settings.timerChapters,
       sleepTime: settings.sleepTime,
+      frozenRemainingMs: settings.timerFrozenRemaining,
       fadeoutDuration: settings.timerFadeoutDuration,
       bedtimeModeEnabled: settings.bedtimeModeEnabled === true,
       bedtimeStart: settings.bedtimeStart,
@@ -206,6 +221,7 @@ export async function getTimerSettings() {
     timerActive: false,
     timerChapters: null,
     sleepTime: null,
+    frozenRemainingMs: null,
     fadeoutDuration: null,
     bedtimeModeEnabled: false,
     bedtimeStart: null,
