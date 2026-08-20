@@ -160,11 +160,11 @@ Fill in as they are run. `—` = not yet run.
 | DT-8 | **PASS** | Pixel 7 Pro / A16 | 38 / 38 / **44** all exact; BooksList unmeasurable |
 | DT-9 | **REFUTED** | Pixel 7 Pro / A16 | reads **0**, not `firstItemOffset` — see below |
 | DT-10 | **PASS, amended** | Pixel 7 Pro / A16 | once when clean, **twice** when interrupting a fling |
-| DT-11 | — | | Build B |
+| DT-11 | **PASS** (log half) | Pixel 7 Pro / A16 | visual-silence half pending driver's eyes |
 | DT-12 | **PASS** | Pixel 7 Pro / A16 | gate proven load-bearing; see F-A |
 | DT-13 | — | | Build B |
 | DT-14 | **PASS** | Pixel 7 Pro / A16 | sweep still fires at scale 0 |
-| DT-15 | — | | Build B |
+| DT-15 | **PASS** | Pixel 7 Pro / A16 | header lands clear of the search bar |
 
 **Run 1 rig.** Pixel 7 Pro (`cheetah`), Android **16** / SDK **36**, build
 `CP1A.260405.005`, **gesture navigation**, animator scales all `1.0`. Debug build
@@ -291,6 +291,57 @@ rung correctly skipped, and each landed at exactly 0.
   moment the gate becomes the *only* thing standing between "user arrives at the
   top of SeriesHome" and "every BooksHome expansion is silently wiped". The hazard
   is latent today and goes live the instant the uniform contract lands.
+
+### DT-15 — PASS. The corrected rung landing clears the search bar
+
+Setup: 4 author sections expanded, Recents collapsed, scrolled mid-way into the
+lowest expanded section (offset **30820**).
+
+    #167 back:rung {"from":30820.29,"target":22445.95,"animated":true}
+    #168 momentumEnd {"offset":22446}
+
+The rung fired (**not** `back:master`), correctly detecting the viewport was
+inside an expanded section. On the landing frame the "Terry Pratchett" header sits
+**below** the search bar — search bar ≈ y 312–396, header ≈ y 466 — in the same
+slot item 0 occupies at master-top. Ticket 05's fix (land on plain `y`, not
+`y + firstItemOffset`) is confirmed on device; the occlusion the driver hit on the
+first device run is gone.
+
+⚠ **DT-15 does not need the preview build.** Whether a header is occluded is pure
+layout, not frame cost, so the debug build answers it. Only DT-13 (smear) genuinely
+requires `--profile preview`.
+
+### DT-11 — the sweep is correct; visual silence still needs eyes
+
+Second back press, from the rung's landing:
+
+    #171 back:master {"from":22446,"animated":true}
+    #172 momentumEnd {"offset":0}
+    #173 sweep {"visible":["recentlyAdded","Agatha Christie","Andy Weir"],
+                "openBefore":["Ben Aaronovitch","Bonnie Garmus","Brandon Sanderson","Terry Pratchett"],
+                "collapsed":["Ben Aaronovitch","Bonnie Garmus","Brandon Sanderson","Terry Pratchett"],
+                "openAfter":[]}
+
+All four expanded sections collapsed; nothing visible was touched. **`visible` and
+`openBefore` were disjoint** — every open section was below the fold — which is
+ticket 04's structural invariant observed rather than argued. The post-jump frame
+shows the list correctly at master-top with Recents directly below the search bar.
+
+The full 3-rung ladder therefore works end to end on device: deep inside a section
+→ section header → master-top + collapse-all → background.
+
+- **F-F — the resting offset at the top can be NEGATIVE, so the predicate must stay
+  an inequality.** Immediately after the sweep, `getAbsoluteLastScrollOffset()`
+  read **`-59.476`** while the list was visually and correctly at the top (frame
+  captured; no overscroll gap, Recents in its normal slot). The sweep mutates the
+  list *at* offset 0 and MVCP's adjustment leaves the tracker slightly negative.
+  The shipping predicate absorbs this — `-59.48 <= 38` is true, so back correctly
+  backgrounds — but **the spec must not say "the resting offset at the top is 0"**.
+  It is 0 on a settled list and can be negative after a sweep. Anyone later
+  "tightening" the test to `offset === 0`, `Math.abs(offset) < eps`, or a
+  strict-positive form would break the ladder in exactly the state the feature
+  creates. State it as an invariant: **the at-top test is an inequality by
+  necessity, not by style.**
 
 ## New findings (no DT asked for these)
 
