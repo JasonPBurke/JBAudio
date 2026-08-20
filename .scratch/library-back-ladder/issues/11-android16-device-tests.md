@@ -156,7 +156,7 @@ Fill in as they are run. `—` = not yet run.
 | DT-4 ⛔ | **PASS** | Pixel 7 Pro / A16 | drawer consumes upstream; guard never reached |
 | DT-5 | **PASS** | Pixel 7 Pro / A16 | IME consumes upstream; offset untouched |
 | DT-6 | **PASS** | Pixel 7 Pro / A16 | both halves; fresh SeriesHome read 0 |
-| DT-7 | — | | pending |
+| DT-7 | **PASS** | Pixel 7 Pro / A16 | all 3 routes; no `back` line, no jump |
 | DT-8 | **PASS** | Pixel 7 Pro / A16 | 38 / 38 / **44** all exact; BooksList unmeasurable |
 | DT-9 | **REFUTED** | Pixel 7 Pro / A16 | reads **0**, not `firstItemOffset` — see below |
 | DT-10 | **PASS, amended** | Pixel 7 Pro / A16 | once when clean, **twice** when interrupting a fling |
@@ -386,6 +386,31 @@ content"**, not "nothing moves".
   lifts; velocity excludes leaving-the-top. Neither alone is sufficient**, and the
   spec should say so — a reader can easily mistake the velocity gate for a
   redundant safety net and drop it.
+
+### DT-7 — PASS on all three modal routes
+
+Driver opened and backed out of the **player** (`formSheet`), **titleDetails**
+(`formSheet`) and **chapterList** (`transparentModal`) from a scrolled library.
+Confirmed visually: all three opened, each dismissed on back, and the list stayed
+put behind every one.
+
+Log corroborates from the other side: across the whole modal sequence **no `back`
+line was emitted at all**, and the offset stayed in the 24,955–27,042 band
+(`#295`–`#310`). Had the ladder eaten a press meant for a sheet there would be a
+`back` + `back:master` pair and the offset would drop to 0.
+
+Ticket 01's INFERRED claim and ticket 02's sharpening are confirmed: these routes
+are siblings of `(drawer)` on the **root** stack, the blur propagates down to
+`index`, and `useFocusEffect` tears the handler down. **No additional guard is
+needed at the installation site.**
+
+⚠ Note on evidence shape: absence of a `back` line is on its own consistent with
+"the sheets never opened", so this result rests on the driver's visual
+confirmation *plus* the unchanged offset — not on the log alone.
+
+**A second independent DT-6 confirmation** arrived unprompted in the same run:
+`#293 back {"offset":31348}` when the last settled reading was `#291 {25795}` —
+the handler read a live offset 5,553 px beyond the last momentum-end, mid-fling.
 
 ## New findings (no DT asked for these)
 
