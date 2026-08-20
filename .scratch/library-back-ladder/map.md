@@ -214,6 +214,33 @@ the map is built on them.
   a pre-existing main-branch defect, recorded separately in
   `flashlist-blank-screen-collapse-above` (memory topic), not fixed here.
 
+- [09 — How is the ladder shared across four list views with an uncertain future?](issues/09-four-views-sharing.md)
+  — **One exported type, one named identity, one capability gate.** The ladder takes a
+  **named `LadderView`**, never a toggle ordinal (ordinals are a UI toggle position,
+  persisted nowhere, and both candidate futures renumber them); `SECTIONED_VIEWS` derived
+  from that identity gates **the rung *and* the sweep**, so the 2-rung ladder is the same
+  ladder with the gate closed, not a base class. `SectionRange {sectionId,start,end}`
+  ratified. `listRef` becomes a **required** prop on all four (internal fallback refs
+  deleted; it also drives `useResetScrollOnTabChange`), and the whole contract is an
+  exported **`LadderListProps`** all four props types intersect — which is what stops it
+  drifting away from the list nothing mounts. `BooksList` is made **uniform**: contract
+  props *and* its `<FlashList>` mounts unconditionally, so its empty case runs ticket 03's
+  `getFirstItemOffset()` path instead of a null-ref path. One-list-at-a-time is a stated
+  **invariant**; a shared ref is kept and a split layout is a conscious redesign.
+  ⚠ **CORRECTS ticket 04's uniform-installation argument (F1):** `sectionRangesRef` is
+  never emptied (no cleanup on BooksHome's push) **and** an empty one would be a
+  *collapse-everything*, not a no-op, because `computeRemainingOpen` iterates `open`, not
+  `visible` — so wiring SeriesHome/BooksGrid would silently wipe the user's BooksHome
+  expansions from another view. Ticket 04's *decision* stands; its *reason* did not survive
+  tracing. Also: ranges must push from a **`useLayoutEffect`** (D4) — a passive effect
+  leaves a window where a stale range resolves to the *correct section id* with a *stale
+  `start`*, so the rung lands on the wrong header and every sanity check passes; ⚠ **F2 —
+  charting decision 4 rests entirely on `useResetScrollOnTabChange`'s `animated: false`**,
+  one word in an unrelated file, so name it an invariant; **F3 — the ladder contributes no
+  `onScroll`** (died with ticket 06's instant arm), so it never sits in the per-frame path;
+  **F4** — `firstItemOffset` is 44 (grid) vs 50 (list), which a density sub-toggle would
+  swap under one toggle position.
+
 ## Not yet specified
 
 - **Accessibility / TalkBack.** A back press that moves the viewport without
@@ -222,12 +249,6 @@ the map is built on them.
   decision is to do nothing (the OS animator scale governs the jump directly, and the
   collapse sweep survives a 0 ms duration). What remains here is the **screen-reader
   announcement** question alone.
-- **Whether the collapse sweep should apply to SeriesHome.** Largely answered by
-  ticket 04: the sweep is installed uniformly for all views and is a **structural
-  no-op** wherever `sectionRangesRef` is empty (`computeRemainingOpen` returns the
-  same `Set` reference, React bails out), so no per-view branching is needed.
-  Ticket 09 formalises this as part of the shared list contract. Revisit only if
-  something re-introduces expansion on SeriesHome.
 
 ## Out of scope
 
@@ -241,3 +262,10 @@ the map is built on them.
 - **Unwinding search / tab / view-toggle state via back** (charting decision 7).
 - **Reviving or retiring `BooksList` as a product decision.** Ticket 09 decides
   only how the ladder is *shared* across list components under both futures.
+- **Building the `BooksGrid` ↔ `BooksList` density sub-toggle.** Raised during
+  ticket 09 as the driver's likelier shape for reviving `BooksList` — a compactness
+  toggle *inside* `toggleView 2` rather than a 4th toggle. Ticket 09 confirmed it
+  changes nothing structural (one list still mounted at a time; identity becomes a
+  function of two state values, which is one line at the mount site), and that the
+  ladder imposes **no constraint** on whether the swap preserves scroll position.
+  Shipping it is a separate effort.
