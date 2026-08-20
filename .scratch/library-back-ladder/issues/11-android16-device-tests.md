@@ -477,6 +477,61 @@ Drift requires **both** an actual collapse **and** a visible section staying
 expanded. Magnitude does not track the number collapsed (4 → 943, 5 → 213), so it
 is a re-anchor, not an accumulation.
 
+### ⚠ CORRECTION 2 — variant is NOT the cause; JUMP DISTANCE is the correlate
+
+The driver proposed the defect is specific to the 2-rung variant (which does not
+ship). **Tested and rejected, on two independent grounds.**
+
+**1. The code paths are identical.** In `useBackToTopLadderPrototype.ts` variant
+A's rung is an early-return block sitting *above* the shared master-top code:
+
+    if (variantRef.current === 'A' && toggleViewRef.current === 0) {
+      if (target !== null) { ...; return true; }   // rung
+    }
+    // falls through -- IDENTICAL for both variants
+    list.scrollToOffset({ offset: 0, animated });
+
+When the rung is skipped, variant A executes **byte-identical code** to variant B.
+A variant-specific bug is mechanically impossible; the variant only changes *which
+situations* reach a master jump.
+
+**2. Variant A survived the full trigger condition.** Driven via adb with the
+driver's hands off: variant A, hard fling (`dragEnd {vy:-9.52}`), back pressed
+3,721 px into the glide, rung correctly skipped, 3 sections collapsed with
+`openAfter:["Agatha Christie"]`:
+
+    #777 back {variant:"A", offset:12454.86}   <- mid-fling
+    #778 back:master
+    #779 momentumEnd {"offset":0} / #780 sweep {collapsed:[3]}
+    #781 momentumEnd {"offset":0} / #782 sweep {collapsed:[]}   <- double, idempotent
+    #783 rest {"offset":0,"atTop":true}        <- NO DRIFT
+    #784 back -> #785 back:decline {at-top}    <- app closed correctly
+
+**The actual correlate is the distance of the master jump:**
+
+| run | variant | jump from | collapsed | result |
+|---|---|---|---|---|
+| `#313` | B | **31,507** | 4 | **+943.71 DRIFT** |
+| `#350` | B | **29,145** | 5 | **+213.71 DRIFT** |
+| `#630` | A | 16,076 | 3 | 0 clean |
+| `#777` | A | 12,454 | 3 | 0 clean |
+| `#537` | **B** | 11,222 | 3 | 0 clean |
+| `#461` | **B** | 10,287 | 2 | 0 clean |
+| `#548` | A | 7,647 | 1 | 0 clean |
+
+Both variants appear on the clean side; the split is **above ~29,000 drifts,
+below ~17,000 clean**. Neither fling-interruption nor `openAfter` nor variant
+survives as the discriminator — **distance does**, across all seven observations.
+
+⚠ **This keeps the defect firmly in production scope.** Variant A reaches long
+master jumps easily: a rung landing deep inside a large section followed by a
+second press, or any deep scroll in a collapsed stretch. Offsets of **39,064**
+were observed in this very session on the driver's 355-book library.
+
+**Still to test: variant A, master jump from above ~29,000, with real collapses.**
+That is the one gap between "reproduced twice" and "characterised". The band
+between 17,000 and 29,000 is also unsampled.
+
 ### ⚠ CORRECTION (same session) — the first mechanism guess was REFUTED
 
 The hypothesis below (drift requires a visible section to stay expanded) **was
