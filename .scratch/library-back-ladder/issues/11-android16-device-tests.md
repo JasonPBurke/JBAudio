@@ -246,8 +246,10 @@ the programmatic smooth-scroll completing. The sweep therefore **runs twice**.
 
 At offset 0 with the same visible set the second run is idempotent, so this is
 currently harmless — but the spec should say the sweep fires **at least once** on
-arrival and must be **idempotent**, rather than asserting exactly-once. ⚠ Not yet
-confirmed with sections actually expanded; that is folded into DT-11.
+arrival and must be **idempotent**, rather than asserting exactly-once. ✅ **CONFIRMED IDEMPOTENT (2026-08-20).** The double pair finally reproduced
+repeatedly — `#463/#466`, `#473/#476`, `#539/#542` — and in **every** case the
+second sweep reported `collapsed: []`. The sweep is safely idempotent; the spec
+still needs to say **at least once**, not exactly once.
 
 ### DT-8 / DT-6b — all three measurable views, all exact
 
@@ -475,7 +477,50 @@ Drift requires **both** an actual collapse **and** a visible section staying
 expanded. Magnitude does not track the number collapsed (4 → 943, 5 → 213), so it
 is a re-anchor, not an accumulation.
 
-### Mechanism (hypothesis, not yet proven on device)
+### ⚠ CORRECTION (same session) — the first mechanism guess was REFUTED
+
+The hypothesis below (drift requires a visible section to stay expanded) **was
+tested and is wrong**. The driver ran variant A with exactly that condition and
+the list did **not** drift:
+
+    #630 back {variant:"A", offset:16076.57}  ->  #631 back:master
+    #633 sweep {collapsed:["Ben Aaronovitch","Christopher Moore","Terry Pratchett"],
+                openAfter:["Agatha Christie"]}
+    #634 back {offset:0}  ->  #635 back:decline {at-top}   <- app closed correctly
+
+    #548 back {variant:"A", offset:7647.14}
+    #551 sweep {collapsed:["GraphicAudio"], openAfter:["Agatha Christie"]}
+    #552 back {offset:0}  ->  #553 back:decline            <- app closed correctly
+
+A non-empty `openAfter` alongside real collapses is therefore **not sufficient**.
+
+**The surviving candidate is fling interruption, and it is not proven either.**
+Both drifting runs interrupted a fling in progress; both clean variant A runs
+pressed back from a fully settled list:
+
+| run | variant | back pressed | drift |
+|---|---|---|---|
+| `#312` | B | **mid-fling** (31507 vs settled 27042), after `dragEnd {vy:-14.16}` | **+943.71** |
+| `#349` | B | **mid-fling** (29145 vs settled 24053) | **+213.71** |
+| `#548` | A | settled (7647.14 == `#547`) | none |
+| `#630` | A | settled (16076.57 == `#629`) | none |
+
+⚠ **But no single factor survives.** `#537` was variant B, mid-fling, collapsed 3
+with `openAfter` non-empty — and did **not** drift (`#542 momentumEnd {0}`). And
+`#560` was variant **A**, mid-fling, with a collapse — but the driver scrolled
+before it could be probed, so its offset is **unknown**: the single most valuable
+missing data point on the map.
+
+`#312`'s fling was `vy -14.16`, roughly 3x the typical `-3`..`-5`, which raises a
+**magnitude** explanation — how much momentum remains when the programmatic scroll
+cancels it — rather than a mode. Untested.
+
+**Status: the defect is REAL and REPRODUCED TWICE, but its trigger is NOT
+characterised.** Do not record it as 2-rung-only; variant A has never been tested
+under the condition that produces it, and pressing back while the list still
+glides is an ordinary user action.
+
+### Original mechanism guess (kept for the record — REFUTED above)
 
 This fits `flashlist-2.3.2-mvcp-header-anchor`: with a visible section still open,
 MVCP's anchor sits on an item whose **index** shifts when other sections collapse,
