@@ -3,7 +3,11 @@
 Label: `wayfinder:map`
 Effort: `library-back-ladder`
 Charted: 2026-08-18
-Branch: TBD (prototypes may resume `fix/collapse-offscreen-lists-onMomentumScrollEnd`)
+Branch: **`proto/back-ladder-rung-ab`** — the throwaway prototype build (tickets
+05/06, instrumented for 11). Level with `main` on code; behind only on `.scratch/`.
+⚠ **Findings are recorded on `main`, in `.scratch/library-back-ladder/`** — the
+branch's copy of these docs is stale and dies with the branch.
+(The older `fix/collapse-offscreen-lists-onMomentumScrollEnd` is superseded.)
 Driver: Jason Burke
 
 ## Destination

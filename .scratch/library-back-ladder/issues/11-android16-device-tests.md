@@ -19,6 +19,153 @@ Blocked by ticket 05 because DT-2/3/4 need a build with the ladder actually in i
 **DT-1 and DT-5 need no code change and run on today's build** — whoever is on a
 device first should run them and record the result here rather than waiting.
 
+## How to run
+
+**Prototype branch: `proto/back-ladder-rung-ab`.** The ladder lives there and
+nowhere else — `main` has no ladder in `src/`. The branch is level with `main` on
+code; it is behind only on `.scratch/` docs.
+
+⚠ **Findings are recorded on `main`, in this file.** The branch carries a stale
+copy of this ticket from before tickets 07/08/09 resolved. Do not write results
+into it — they would be lost when the throwaway branch is deleted.
+
+    git checkout proto/back-ladder-rung-ab     # to build
+    git checkout main                          # to record
+
+### Reading the probe
+
+Five tests (DT-2, DT-6, DT-8, DT-9, DT-10) are phrased as "log X and confirm".
+The ticket-05/06 prototype logged nothing, so a probe was added
+(`src/helpers/ladderProbe.ts`, commit `49c54dc`). Every event is one line:
+
+    [DT] #<seq> <event> {json}
+
+    adb logcat -c && adb logcat -s ReactNativeJS:V | grep --line-buffered DT
+
+| event | fires when | carries |
+|---|---|---|
+| `back` | back handler entered, **before any guard** | `offset`, `firstItemOffset`, `drawer`, `toggleView`, `variant`, `jump` |
+| `back:decline` | press handed to Android | `reason`: `drawer` / `no-list-ref` / `at-top` |
+| `back:rung` | intermediate rung taken | `from`, `target`, `animated` |
+| `back:master` | master-top jump taken | `from`, `animated` |
+| `momentumEnd` | momentum/animator settle | `offset`, `firstItemOffset` |
+| `dragEnd` | finger lift | `vy`, `gated` |
+| `sweep` | collapse ran | `visible`, `openBefore`, `openAfter`, `collapsed` |
+| `sweep:skip` | sweep gated off a non-sectioned view | `toggleView` |
+| `rest` | **"11 · probe" chip tapped** | `view`, `offset`, `firstItemOffset`, `atTop` |
+
+**The `#seq` counter is the point.** It makes "fires exactly once" (DT-10) and
+"never fires" (DT-2) *observable* rather than inferred from an absence — a gap in
+the numbers means logcat dropped a line, not that the event did not happen.
+
+### The three on-screen chips (bottom left)
+
+| chip | does |
+|---|---|
+| `11 · probe` | logs a `rest` line for the currently mounted view (DT-8/DT-9) |
+| `05 · A/B` | flips 3-rung ↔ 2-rung |
+| `06 · animated/instant` | flips jump style |
+
+### Two builds, and why
+
+- **Build A — debug + Metro.** Everything log-driven or purely behavioural. JS
+  reload is instant, so a surprise can be re-probed without a rebuild.
+- **Build B — `--profile preview`.** Only the three *visual-judgment* tests
+  (DT-11, DT-13, DT-15). A debug build changes frame cost, so it is exactly the
+  build that lies about smear and settle-jitter. Judging those on debug would
+  produce a confident wrong answer.
+
+## Run sheet
+
+Ordered so the two **design-invalidating** tests run early: if DT-3 or DT-4 fails,
+stop — the rest of the sheet is measuring a design that needs redrawing first.
+
+### Build A — `proto/back-ladder-rung-ab`, debug + Metro
+
+| # | test | why here |
+|---|---|---|
+| 1 | **DT-8** | cheapest, and calibrates every later reading |
+| 2 | **DT-3** ⛔ | **design-invalidating** — the RN 0.83 latch. Fail = stop. |
+| 3 | **DT-4** ⛔ | **design-invalidating** — drawer ordering. Fail = ticket 02 reopens. |
+| 4 | **DT-1** | peek animation; independent of the ladder |
+| 5 | **DT-2** | cancelled gesture must produce **no** `back` line |
+| 6 | **DT-5** | IME must beat the ladder |
+| 7 | **DT-7** | modal blur — player (`formSheet`), `titleDetails`, `chapterList` |
+| 8 | **DT-6** | ref freshness mid-fling; run on a **populated** view (see the DT-9 refinement) |
+| 9 | **DT-9** | empty-list reading, via a no-results search |
+| 10 | **DT-10** | `momentumEnd` exactly once, `offset: 0` |
+| 11 | **DT-12** | downward flick at top → `dragEnd {gated: false}`, no `sweep` |
+| 12 | **DT-14** | `animator_duration_scale 0.0`, **then restore** |
+
+⚠ **DT-14 is last in Build A for a reason.** It sets the OS animator scale to 0.
+Any motion judgement taken while it is still 0 is worthless — an animated jump is
+indistinguishable from an instant one. Restore before Build B:
+
+    adb shell settings put global animator_duration_scale 1.0
+    adb shell settings get global animator_duration_scale   # must print 1.0
+
+### Build B — same branch, `--profile preview`
+
+Confirm the animator scale reads `1.0` before starting.
+
+| # | test | why here |
+|---|---|---|
+| 13 | **DT-15** | rung landing must clear the search bar (the fix is unverified on device) |
+| 14 | **DT-11** | sweep visually silent |
+| 15 | **DT-13** | animated jump at the far end of the largest library |
+
+### Not runnable, and why
+
+- **DT-8's `BooksList` number (predicted 50).** `BooksList` is mounted **nowhere**
+  in the app — zero references outside its own file — so there is no path on which
+  to measure it. Ticket 09 already makes it uniform in the *implementation*; it
+  cannot be measured from this prototype without mounting dead code. DT-8's own
+  note says a wrong table "costs nothing structurally" because the predicate reads
+  the value at runtime, so this is deferred, not lost. Expect **three** numbers
+  from DT-8 (BooksHome / SeriesHome / BooksGrid), not four.
+
+## Notes from instrumenting (2026-08-20)
+
+Not device findings — these came out of preparing the build, and both are for
+ticket 10 to carry into the spec.
+
+- **Ticket 09's F1 has teeth, and it bites the moment a second view is wired.**
+  DT-8/DT-9 need per-view numbers, so the shared `listRef` had to go on
+  `SeriesHome` and `BooksGrid`. That alone activates the **sweep** on those views
+  — and `sweepIfAtTop` matches `sectionRangesRef` (written only by `BooksHome`,
+  and per ticket 09 **never cleared**) against the new view's indices. Because
+  `computeRemainingOpen` iterates `open` rather than `visible`, the resulting
+  mismatched set is a **collapse-everything**, not a no-op: arriving at the top of
+  `SeriesHome` would silently wipe every `BooksHome` section the user had
+  expanded. The prototype now carries ticket 09's `SECTIONED_VIEWS` gate for this
+  reason. **The spec should state the gate as load-bearing, with this failure as
+  its justification** — written as tidiness it is exactly the kind of guard a
+  later refactor deletes.
+- **`BooksList` cannot be measured from this prototype.** It is referenced
+  nowhere in `src/`, so DT-8 returns three numbers, not four. See "Not runnable".
+
+## Results
+
+Fill in as they are run. `—` = not yet run.
+
+| test | result | device / build | note |
+|---|---|---|---|
+| DT-1 | — | | |
+| DT-2 | — | | |
+| DT-3 ⛔ | — | | |
+| DT-4 ⛔ | — | | |
+| DT-5 | — | | |
+| DT-6 | — | | |
+| DT-7 | — | | |
+| DT-8 | — | | expect 3 of 4 views |
+| DT-9 | — | | |
+| DT-10 | — | | |
+| DT-11 | — | | Build B |
+| DT-12 | — | | |
+| DT-13 | — | | Build B |
+| DT-14 | — | | restore scale after |
+| DT-15 | — | | Build B |
+
 ## The tests
 
 - **DT-1** — Edge-swipe and *hold* at ~50% on the library screen. Confirm **no
@@ -185,7 +332,12 @@ choice, and DT-14 covers a path the driver's test could not have exercised.
 
 ## Added by ticket 05 (2026-08-18)
 
-- **DT-13** — **confirm the corrected rung landing clears the search bar.** Scroll
+> ⚠ **Renumbered 2026-08-20.** Ticket 05 appended this as "DT-13", but ticket 06
+> had already taken that name for the library-scale smear test. Two different
+> tests, one name, in an append-only file. This one is **DT-15**; ticket 06's
+> DT-13 is unchanged. Nothing else moves.
+
+- **DT-15** — **confirm the corrected rung landing clears the search bar.** Scroll
   deep inside a large expanded author section and press back. The section header
   must settle **below** the search bar, in the same slot the first item occupies at
   master-top — not underneath it. The first device run hit exactly this occlusion,
