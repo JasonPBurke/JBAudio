@@ -441,3 +441,15 @@ from the device's `OverScroller` and may differ, including reaching 0 under a
 system animation scale of 0 — which would make the "animated" variant silently
 instant on such a device. That is ticket 06's problem, flagged here because it
 also means DT-10 could fail for a reason unrelated to F3.
+
+## Correction (2026-08-20, from ticket 11's device run)
+
+**"only the scrollbar shrinks" is wrong.** DT-11's wording, which originates in
+this ticket, describes a scrollbar this app does not have — all four list views
+set `showsVerticalScrollIndicator={false}`. Struck from ticket 11; do not carry it
+into the spec.
+
+Also sharpened there: **"nothing on screen moves" applies only to the sweep phase**,
+not to the jump. The jump is visibly a scroll — that is the feature. The invariant
+is that the sweep never moves *already-visible* content. Ticket 04's decision is
+unaffected; only its observable phrasing was misleading.

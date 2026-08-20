@@ -160,7 +160,7 @@ Fill in as they are run. `—` = not yet run.
 | DT-8 | **PASS** | Pixel 7 Pro / A16 | 38 / 38 / **44** all exact; BooksList unmeasurable |
 | DT-9 | **REFUTED** | Pixel 7 Pro / A16 | reads **0**, not `firstItemOffset` — see below |
 | DT-10 | **PASS, amended** | Pixel 7 Pro / A16 | once when clean, **twice** when interrupting a fling |
-| DT-11 | **PASS** (log half) | Pixel 7 Pro / A16 | visual-silence half pending driver's eyes |
+| DT-11 | **PASS** | Pixel 7 Pro / A16 | both halves; driver confirmed visually |
 | DT-12 | **PASS** | Pixel 7 Pro / A16 | gate proven load-bearing; see F-A |
 | DT-13 | — | | Build B |
 | DT-14 | **PASS** | Pixel 7 Pro / A16 | sweep still fires at scale 0 |
@@ -343,6 +343,50 @@ The full 3-rung ladder therefore works end to end on device: deep inside a secti
   creates. State it as an invariant: **the at-top test is an inequality by
   necessity, not by style.**
 
+### DT-11 — PASS, both halves, and two corrections to how it was written
+
+Driver's run (`#224`–`#230`), 4 sections expanded, Recents collapsed:
+
+    #225 back:rung   {"from":32388,"target":23032.90}
+    #228 back:master {"from":23032.86}
+    #229 momentumEnd {"offset":0}
+    #230 sweep {"visible":["recentlyAdded","Agatha Christie","Andy Weir"],
+                "openBefore":["Ben Aaronovitch","Brandon Sanderson","Dennis E. Taylor","Terry Pratchett"],
+                "collapsed":[all four],"openAfter":[]}
+
+`visible` and `openBefore` **disjoint** for the second independent time — no
+visible section was ever collapsed. Driver's visual verdict: the list scrolls to
+the top, cards settle with some fading in (ticket 07's known, approved cosmetic),
+and the stable state is correct with all visible rows collapsed.
+
+**Correction 1 — "only the scrollbar shrinks" is wrong and is struck.** All four
+views set `showsVerticalScrollIndicator={false}`; this app has no scrollbar on any
+list. The phrase entered in ticket 04 (`04-collapse-scroll-sequencing.md`) and was
+copied into DT-11 unexamined. **The spec must not inherit it.**
+
+**Correction 2 — "nothing on screen moves" needs its phase stated.** The driver
+reasonably read it as covering the whole gesture, under which the feature's own
+jump looks like a violation. The back press has two phases and DT-11 constrains
+only the second:
+
+1. **The jump** — the list visibly scrolls to the top. This *is* the feature.
+2. **The sweep** — fires on arrival, strictly after the list settles (ticket 04).
+   *This* is "the moment of the sweep", and the invariant is that already-visible
+   content does not shift, because everything collapsed is below the fold.
+
+The spec should phrase the invariant as **"the sweep never moves already-visible
+content"**, not "nothing moves".
+
+- **F-G — the at-top guard and the velocity gate are complementary, not
+  belt-and-braces.** The driver's free scrolling produced finger-lifts as slow as
+  `#176 {vy: -0.0147}` — only 1.5× the `0.01` threshold. A slightly slower lift
+  would pass the gate mid-list; that is harmless **only** because `sweepIfAtTop`
+  independently checks at-top and returns early. Conversely F-B/DT-12 showed the
+  at-top guard alone admits a fling leaving the top. **At-top excludes mid-list
+  lifts; velocity excludes leaving-the-top. Neither alone is sufficient**, and the
+  spec should say so — a reader can easily mistake the velocity gate for a
+  redundant safety net and drop it.
+
 ## New findings (no DT asked for these)
 
 - **F-A — an overscroll bounce at the top fires the sweep.** At offset 0, dragging
@@ -508,8 +552,13 @@ a false failure.
   and would explain a missing momentum event without disproving the mechanism.
 - **DT-11 — confirm the sweep is visually silent.** With several author sections
   expanded and Recents collapsed, back-jump from deep in the list; verify nothing
-  on screen moves at the moment of the sweep (only the scrollbar shrinks), then
-  scroll down to confirm those sections are in fact collapsed. This is the
+  on screen moves at the moment of the sweep, then
+  scroll down to confirm those sections are in fact collapsed.
+  ⚠ **Corrected 2026-08-20:** this originally read "(only the scrollbar shrinks)".
+  **There is no scrollbar** — all four list views set
+  `showsVerticalScrollIndicator={false}`. The clause described something that does
+  not exist in this app and has been struck. See the DT-11 result for the
+  two-phase timing the test actually means. This is the
   observable form of ticket 04's invariant.
 - **DT-12 — confirm the drag-end velocity gate.** At the top, flick **downwards**
   and verify no collapse fires at finger-lift. The at-top predicate is true at the
