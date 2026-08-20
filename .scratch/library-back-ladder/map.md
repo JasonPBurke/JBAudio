@@ -1,0 +1,243 @@
+# Library Back Ladder — Wayfinder Map
+
+Label: `wayfinder:map`
+Effort: `library-back-ladder`
+Charted: 2026-08-18
+Branch: TBD (prototypes may resume `fix/collapse-offscreen-lists-onMomentumScrollEnd`)
+Driver: Jason Burke
+
+## Destination
+
+A **driver-approved `spec.md`** for a back-press ladder on the library screen:
+a back gesture/button press while scrolled down scrolls the list to the top
+(collapsing expanded sections on arrival), and the next press backgrounds the
+app.
+
+Covers all four library list views, the BooksHome intermediate rung, the
+collapse sweep, and the Android back-interception mechanism this app has never
+used before.
+
+**Implementation is a separate effort** — this map produces decisions, not
+shipped UI. Prototypes built here are throwaway.
+
+## Notes
+
+**Domain.** Android audiobook player (Sonicbooks/JBAudio). Expo Router + Drawer;
+the library screen `src/app/(drawer)/(library)/index.tsx` is the drawer root and
+hosts the list views by `toggleView`: `0` BooksHome, `1` SeriesHome, `2`
+BooksGrid. `BooksList` is **dead code today but in scope** — it may replace
+`BooksGrid`, or join it as a 4th toggle. Design for both futures.
+
+**Skills every session should consult:** `/grilling` and `/domain-modeling` for
+decisions; `/prototype` for the device variants; `/research` for the AFK
+research tickets.
+
+**Memory topics to read before touching this area** (in
+`~/.claude/projects/-home-jason-Development-JBAudio/memory/`):
+`android-back-latch-rn083`, `collapse-offscreen-sections-flicker`,
+`flashlist-2.3.2-mvcp-header-anchor`.
+
+### Why this feature exists
+
+Not tidiness. **Unlimited-open has no cheap inverse.** BooksHome deliberately
+allows any number of expanded sections at once (to dodge the FlashList v2
+"case 3" jump/flash — see `flashlist-2.3.2-mvcp-header-anchor`). The cost is
+that re-compacting the list means hunting down every header you opened and
+tapping each one, scrolling the whole way. **Scroll-to-top-collapses-all is the
+missing reset gesture.** Every decision on this map should be judged against
+that purpose.
+
+### Charting decisions (settled during the charting grill, 2026-08-18)
+
+These are settled inputs, not tickets. They came out of the charting session and
+the map is built on them.
+
+| # | Decision |
+|---|---|
+| 1 | **Four views in scope**, including the currently-dead `BooksList`. |
+| 2 | **The rung predicate is derived from live scroll offset, armed at any offset > 0.** No counter, no timer, no timeout. Self-healing by construction. |
+| 3 | **The BooksHome intermediate rung fires only when the topmost expanded section's HEADER is above the viewport top** — i.e. you are genuinely inside that list. Otherwise it is skipped and back goes straight to master-top. A **no-intermediate-rung variant is built for comparison**; "sounds good on paper, may be frustrating on device". |
+| 4 | **The collapse sweep fires on any USER-DRIVEN arrival at the top** — momentum-scroll-end, velocity-gated drag-end, and the back jump. **Not** on mount, **not** on the `useResetScrollOnTabChange` reset. Arriving at the top *is* the collapse gesture; a tab change is not that gesture. |
+| 5 | **Library screen only.** Everywhere else back keeps its current meaning. The library screen is the only place where back already means "background the app", so this intercepts a press no navigator wants. |
+| 6 | **No toast, no haptic.** The visible jump is the feedback. The "press back again to exit" convention exists for apps where the first press does nothing visible. |
+| 7 | **Scroll position is the only rung.** Search query, selected tab and view toggle are untouched by back. The drawer and the soft keyboard already consume back upstream. |
+| 8 | **Animated is the preference; an instant variant is built** to weigh style against long-list cost. |
+
+### Evidence carried in, not assumption
+
+- **The parked flicker is an OPEN QUESTION, not a blocker.** Driver tested a
+  build from `fix/collapse-offscreen-lists-onMomentumScrollEnd` on 2026-08-18:
+  off-screen collapse showed **no flicker**, and collapsing a section *above*
+  the view was "almost flawless". The FastImage-fade attribution recorded in
+  `collapse-offscreen-sections-flicker` is a **lead, not a finding** — reassess
+  with fresh eyes during the work. That branch may have been closer to correct
+  than was realised.
+- **New defect, observed 2026-08-18:** collapsing a **100+ book** expanded
+  section while it is *in or above* the viewport **blanks the screen** until a
+  scroll forces re-render. Does **not** occur when that section is below the
+  view.
+- **Structural consequence worth asserting as an invariant:** at offset 0,
+  "not visible" and "below the fold" are the *same set* — nothing is above the
+  fold when you are at the top. So a sweep that only ever fires at the top can
+  only ever collapse below-fold sections, which is the case measured as clean.
+  The blank-screen case is unreachable **by construction** — provided the
+  visible set is sampled *after* the list settles (ticket 04).
+
+## Decisions so far
+
+<!-- one line per closed ticket: gist + link -->
+
+- [01 — How does this app intercept a back press, on RN 0.83 + Android 16?](issues/01-back-interception-mechanism.md)
+  — **Implementable as specified on RN 0.83.2; no native patch, no SDK 56 upgrade.**
+  Use `BackHandler.addEventListener('hardwareBackPress', …)` inside React Navigation's
+  `useFocusEffect`. The RN 0.83 latch **cannot** be re-exposed by consume/decline
+  interleaving (enabled state is path-independent — the consume path never reaches
+  `invokeDefaultOnBackPressed`, and the decline path stops at `MainActivity`'s
+  `moveTaskToBack(false)`). The back-to-home **peek animation never plays on this app**,
+  so a consumed press cannot flash a "leaving" animation. Gesture and button converge on
+  one event. Six risks handed to tickets 02/03/06 and the spec; five device tests
+  carried into [11](issues/11-android16-device-tests.md). Evidence:
+  [research/01-back-interception-mechanism.md](research/01-back-interception-mechanism.md).
+
+- [02 — Where does the ladder live, and how does it survive `toggleView`?](issues/02-where-the-ladder-lives.md)
+  — **One screen-installed hook, `useBackToTopLadder`, called in `LibraryScreen`.**
+  The screen owns all ladder state and the lists receive refs as props — no
+  `useImperativeHandle` anywhere, matching the pattern `onScroll`/`activeGridSections`
+  already establish. One shared `listRef` for all four lists; the hook mirrors **every**
+  input into refs internally, so RISK 1's empty-dep mandate is guaranteed by the module
+  rather than by call-site discipline. It owns the `useDrawerStatus()` guard itself, and
+  owns the collapse sweep (returning `onMomentumScrollEnd`/`onScrollEndDrag`) so charting
+  decision 4's rule is implemented once. ⚠ **Revises ticket 01's RISK 2:** FlashList 2.3.2's
+  ref answers offset and visibility **synchronously**
+  (`getAbsoluteLastScrollOffset`, `computeVisibleIndices`, `scrollToTop`), so the ladder
+  **tracks nothing** — which deletes a real staleness bug (F2). The one thing the ref cannot
+  answer is the `sectionId → index range` map, which `BooksHome` writes into a screen-owned
+  ref. Five findings (F1–F5) and handoffs to 03/04/09/11 in the ticket.
+
+- [03 — What exactly is "at the top", given the spacer header and MVCP?](issues/03-define-at-the-top.md)
+  — **`getAbsoluteLastScrollOffset() > getFirstItemOffset()`, both read from the mounted
+  list's ref at press time.** The spacer ambiguity **does not exist**: the accessor
+  reconstructs the raw `contentOffset.y`, so the resting offset at visual top is **`0` on
+  all four views**, and `scrollToTop()` lands on that same zero. But a literal `> 0` cannot
+  ship — on an **empty list** `applyInitialScrollAdjustment` never runs, so the accessor
+  returns `firstItemOffset` (38–50) **permanently** while visually at the top, which would
+  arm the ladder on every no-results search and stop back from ever backgrounding the app.
+  `getFirstItemOffset()` excludes that (and a mount-window twin) **by construction**, needs
+  no constant, and self-adjusts per view (**38 / 44 / 38 / 50**) where a fixed epsilon would
+  silently under-cover `BooksList`. It is not a fudge factor: it is the offset at which item
+  0's top meets the viewport top, so the predicate reads as "is any list item above the
+  fold". The at-top test for the sweep is its exact complement — one comparison, no gap.
+  **MVCP cannot perturb the resting offset at the top** (anchor is index 0, `diff === 0`),
+  answering the ticket's second bullet structurally. Five findings (F1–F5), incl. the two
+  **inverted doc comments** in `RecyclerViewManager.ts` and MVCP's **100 ms
+  `ignoreScrollEvents` blind window** — which hands ticket 04 a mechanical argument for
+  sampling *after* the list settles. Handoffs to 04/08/09 and DT-8/DT-9 on 11.
+
+- [04 — Collapse before, during, or after the scroll settles — and does Recents survive?](issues/04-collapse-scroll-sequencing.md)
+  — **Collapse strictly AFTER the list settles at the top; never before, never during.
+  Recents is not exempt — it survives by position.** The proposed A/B has no second arm:
+  option 2 freezes FlashList's render stack for **100 ms mid-animation** (mutating while
+  scrolled moves MVCP's anchor → `scrollBy` + `ignoreScrollEvents`, which short-circuits the
+  **whole** scroll handler, so engaged indices and `setRenderId` stall), and it collapses a
+  section **at the fold** — ticket 08's exact configuration. ⚠ **The trap:**
+  `computeVisibleIndices()` is a pure function of the last *observed* offset, so sampling it
+  synchronously after `scrollToOffset` returns the **pre-jump** viewport — option 2 is what
+  the obvious code does by accident. ⚠ **`scrollToOffset({animated:true})` fires
+  `onMomentumScrollEnd` itself** (`smoothScrollTo` → `startFlingAnimator` →
+  `dispatchMomentumEndOnAnimationEnd`, which also fires on *cancel*), so the animated back
+  jump needs **zero** arrival machinery and interruption is free — while the instant variant
+  needs a one-shot flag. That reverses ticket 06's simplicity intuition, and 06 also loses
+  pre-collapse as a smear mitigation. Driver ruling: **"keep what's at the top"**; verified
+  that `flatData[0]` is the Recents header on every non-empty BooksHome (`sortBooksByRecency`
+  orders without filtering). **Invariant for the spec:** the sweep fires only at
+  `offset <= firstItemOffset`, where nothing is above the fold — so it can only ever collapse
+  below-fold sections, making ticket 08's defect unreachable by construction. Seven findings
+  (F1–F7), incl. the resumed branch's viewability plumbing being **redundant, not just
+  superseded**, and its "sweep anywhere" trigger needing to **narrow** to "sweep at the top".
+  Handoffs to 06/08/09/10 and DT-10/11/12 on 11.
+
+- [06 — Animated or instant jump?](issues/06-animated-vs-instant.md)
+  — **ANIMATED, confirmed on device; the instant arm is rejected.** Driver device-tested the
+  combined 05/06 prototype as a **preview build** on `proto/back-ladder-rung-ab` against a real
+  library: animated is the clear winner. Charting decision 8 is now evidence, not preference.
+  The **smear did not decide it**, so the **two-stage jump** fallback and the
+  **distance-dependent rule** are both unneeded and unbuilt. ⚠ **This DELETES machinery rather
+  than adding it:** the back handler becomes `scrollToOffset({offset: 0, animated: true}); return true;`
+  and nothing else (ticket 04 F3 — the animated scroll emits `onMomentumScrollEnd` itself, already
+  the sweep's trigger #1), and the one-shot `pendingSweepRef` is **removed from the design** — it
+  existed only because `animated: false` emits no momentum events. Traced this session:
+  the jump is a platform `ObjectAnimator` (`ReactScrollView.java:100`), so **the OS animator scale
+  governs reduced motion for free** — at scale 0 the jump is 0 ms yet `onAnimationEnd` still fires,
+  so the sweep still runs. The ladder therefore **must not consult `ReducedMotionConfig`**, which is
+  Reanimated's and has no path to the scroll view. Verdict measured on `BooksHome` only;
+  generality handed to [09](issues/09-four-views-sharing.md), two confirmations to
+  [11](issues/11-android16-device-tests.md).
+
+- [05 — Does the BooksHome intermediate rung earn its place on device?](issues/05-intermediate-rung-ab.md)
+  — **Yes. Variant A ships — the 3-rung ladder**, driver-verified on a preview build
+  against a real library: *"the 3-rung is the clear winner."* The "extra press in front
+  of the reset" argument did not survive the device. The ticket's stated technical risk
+  **did not materialise** — no case-3 flash, because the rung is a plain `scrollToOffset`
+  to an **already-measured** header, not the `scrollToIndex` pin that memory rejected
+  (that pin raced MVCP across a *data mutation*; the rung mutates nothing). ⚠ **The one
+  number to get right:** the rung lands on `getLayout(headerIndex).y` — **not**
+  `y + firstItemOffset`, which aligns the header to the *viewport* top and parks it
+  **under the search bar** (found on device). Landing at plain `y` puts it where item 0
+  sits at master-top, and degenerates to master-top exactly at `h = 0`. Also settles
+  three things the map needed: charting decision 3's "topmost" means the **nearest**
+  expanded section containing the viewport top (the *earliest* reading makes the rung a
+  dead press whenever Recents is expanded); the rung predicate is an **offset**
+  comparison, not an index one; and the ladder is **purely re-derived from position**,
+  with no ordering state anywhere. ⚠ **N6 for ticket 09:** React Compiler freezes props,
+  so the list cannot write into a prop ref — section ranges travel up via callback.
+  Prototype: branch `proto/back-ladder-rung-ab`.
+
+- [07 — Reassess the parked flicker with fresh eyes](issues/07-reassess-the-flicker.md)
+  — **Not a defect. Card reload after auto-collapse is small/expected, confirmed on the
+  real candidate mechanism.** Driver tested the combined 05/06 prototype
+  (`proto/back-ladder-rung-ab`) — ticket 04's actual sweep, not just the old parked
+  branch — and judged the reload minor. The old `FastImage.transition.fade` mechanism
+  is still almost certainly the cause, but its severity was overstated in the parked
+  memory, not its root cause. Combined with ticket 04's structural invariant (sweep
+  only ever collapses below-fold sections), this closes the risk-section question:
+  goes in as a known, acceptable cosmetic. Memory topic
+  `collapse-offscreen-sections-flicker` corrected.
+
+- [08 — Blank screen when a 100+ book section collapses at or above the fold](issues/08-blank-screen-large-section.md)
+  — **Unreachable by construction, confirmed.** Driver confirms the blank only ever
+  followed **auto-collapsing an above-fold section** — a different action from merely
+  scrolling past one while it's above the fold. This feature's sweep (ticket 04) never
+  does that: it only ever collapses below-fold sections. Also reconciles ticket 07's
+  "almost flawless" above-fold read — that never exercised an above-section
+  auto-collapse, so it was never positioned to hit this bug. Full characterization
+  (size/`numColumns`/masonry dependence) is undone and out of this map's scope — it's
+  a pre-existing main-branch defect, recorded separately in
+  `flashlist-blank-screen-collapse-above` (memory topic), not fixed here.
+
+## Not yet specified
+
+- **Accessibility / TalkBack.** A back press that moves the viewport without
+  changing screen may need an announcement. Unexamined. ⚠ **Narrowed by ticket 06:**
+  the *reduced-motion* half of this patch is no longer fog — it is decided, and the
+  decision is to do nothing (the OS animator scale governs the jump directly, and the
+  collapse sweep survives a 0 ms duration). What remains here is the **screen-reader
+  announcement** question alone.
+- **Whether the collapse sweep should apply to SeriesHome.** Largely answered by
+  ticket 04: the sweep is installed uniformly for all views and is a **structural
+  no-op** wherever `sectionRangesRef` is empty (`computeRemainingOpen` returns the
+  same `Set` reference, React bails out), so no per-view branching is needed.
+  Ticket 09 formalises this as part of the shared list contract. Revisit only if
+  something re-introduces expansion on SeriesHome.
+
+## Out of scope
+
+- **Any screen other than the library** (charting decision 5). Applying the
+  ladder to `seriesDetail`, the player, settings or any pushed route is a
+  separate effort with a separate destination.
+- **Root-causing the parked collapse flicker as a prerequisite.** Downgraded
+  from blocker to open question by device evidence; ticket 07 reassesses it, but
+  the spec is not gated on a root cause.
+- **Implementing the feature.** This map ends at an approved spec.
+- **Unwinding search / tab / view-toggle state via back** (charting decision 7).
+- **Reviving or retiring `BooksList` as a product decision.** Ticket 09 decides
+  only how the ladder is *shared* across list components under both futures.
