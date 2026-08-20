@@ -150,21 +150,147 @@ Fill in as they are run. `—` = not yet run.
 
 | test | result | device / build | note |
 |---|---|---|---|
-| DT-1 | — | | |
-| DT-2 | — | | |
-| DT-3 ⛔ | — | | |
-| DT-4 ⛔ | — | | |
-| DT-5 | — | | |
-| DT-6 | — | | |
-| DT-7 | — | | |
-| DT-8 | — | | expect 3 of 4 views |
-| DT-9 | — | | |
-| DT-10 | — | | |
+| DT-1 | **PASS** | Pixel 7 Pro / A16 | no peek; system chevron ≠ peek — see F-D |
+| DT-2 | **PASS** | Pixel 7 Pro / A16 | cancelled gesture emits no event at all |
+| DT-3 ⛔ | **PASS** | Pixel 7 Pro / A16 | 5 rounds, 1 process, latch never re-armed |
+| DT-4 ⛔ | **PASS** | Pixel 7 Pro / A16 | drawer consumes upstream; guard never reached |
+| DT-5 | **PASS** | Pixel 7 Pro / A16 | IME consumes upstream; offset untouched |
+| DT-6 | **PASS** (fling half) | Pixel 7 Pro / A16 | toggle half pending a view switch |
+| DT-7 | — | | pending |
+| DT-8 | **PARTIAL** | Pixel 7 Pro / A16 | BooksHome 0 / 38 ✅; other views pending |
+| DT-9 | **REFUTED** | Pixel 7 Pro / A16 | reads **0**, not `firstItemOffset` — see below |
+| DT-10 | **PASS, amended** | Pixel 7 Pro / A16 | once when clean, **twice** when interrupting a fling |
 | DT-11 | — | | Build B |
-| DT-12 | — | | |
+| DT-12 | **PASS** | Pixel 7 Pro / A16 | gate proven load-bearing; see F-A |
 | DT-13 | — | | Build B |
-| DT-14 | — | | restore scale after |
+| DT-14 | **PASS** | Pixel 7 Pro / A16 | sweep still fires at scale 0 |
 | DT-15 | — | | Build B |
+
+**Run 1 rig.** Pixel 7 Pro (`cheetah`), Android **16** / SDK **36**, build
+`CP1A.260405.005`, **gesture navigation**, animator scales all `1.0`. Debug build
++ Metro on `proto/back-ladder-rung-ab` @ `49c54dc`, real library of **355 books**,
+variant **A (3-rung)** + **animated**. Driver drove the device; the agent drove
+`adb` and read the probe stream. Raw log: `dt.log` in the run's scratch dir.
+
+### DT-3 — the latch, in detail
+
+Five rounds alternating **gesture** and **button**, all in **one process**
+(PID `21735` from first press to last, never changed — `moveTaskToBack`, not a
+kill). Ten consume/decline transitions and five back-to-background cycles.
+**Every press produced a `[DT] back` line**: `#17/18`, `#21/22`, `#27/28`,
+`#31/32`, `#37/38`, `#41/42`, `#47/48`, `#51/52`.
+
+The latch's signature (memory `android-back-latch-rn083`) is that back stops
+reaching JS at all, so an unbroken run of `back` lines across interleaved
+consume/decline **is** the test — sharper than the ticket's "back must pop"
+phrasing, because it observes the mechanism rather than a navigation outcome.
+Ticket 01's path-independence argument holds on device.
+
+Gesture and button produced **identical** events, confirming ticket 01's
+"gesture and button converge on one event".
+
+### DT-9 — REFUTED, and what it costs
+
+Ticket 03 F1 predicts an empty list reports `firstItemOffset` (38) **permanently**
+while visually at top, because `modifyChildrenLayout` returns early on
+`dataLength === 0` so `applyInitialScrollAdjustment` never runs.
+
+**Three independent empty states all read `offset: 0`:**
+
+| empty state | reading |
+|---|---|
+| no-results search (`zzzqqqxyz`) from a scrolled list | `{offset: 0, firstItemOffset: 38, atTop: true}` |
+| search cleared (self-heal check) | `{offset: 0, firstItemOffset: 38, atTop: true}` |
+| `Finished (0)` tab — genuinely empty data | `{offset: 0, firstItemOffset: 38, atTop: true}` |
+| `Playing (0)` tab — genuinely empty data | `{offset: 0, firstItemOffset: 38, atTop: true}` |
+
+**What this does and does not change.** It does **not** break the design: the
+predicate is `offset <= firstItemOffset`, and `0 <= 38` is true, so the ladder
+still correctly declines and back still backgrounds the app on an empty list.
+DT-9 anticipated this outcome — "the `getFirstItemOffset()` threshold is still
+correct and still free, but its main justification weakens to the mount-window
+case alone."
+
+**So ticket 03's headline argument needs restating.** The spec must **not** claim
+"a literal `> 0` cannot ship because an empty list reports 38 forever" — that did
+not reproduce. `getFirstItemOffset()` is still the right predicate (free,
+per-view, no constant), but it is now justified by the mount-window case and by
+being structurally exact, not by the empty-list case.
+
+⚠ **Residual.** None of the four states is strictly a *fresh mount* of an
+already-empty list — the component stayed mounted and only its data changed. A
+true cold mount with empty data (empty library at launch, or a `toggleView`
+switch while a no-results search is active) is untested. If the spec wants to
+lean on the empty-list case at all, that is the variant to run.
+
+### DT-10 — PASS, amended: "at least once", not "exactly once"
+
+Clean back press from a settled list, three contiguous sequence numbers:
+
+    #8  back:master {"from":6421.14,"animated":true}
+    #9  momentumEnd {"offset":0,"firstItemOffset":38}
+    #10 sweep       {"offset":0,...}
+
+Momentum-end fired **once**, at **exactly 0**, with no arrival machinery — ticket
+04 F3's JS/native crossing confirmed, and with it ticket 06's "animated needs zero
+arrival machinery".
+
+**But when back interrupts an in-flight fling, it fires twice:**
+
+    #61 momentumEnd {"offset":0} / #62 sweep
+    #63 momentumEnd {"offset":0} / #64 sweep
+
+One event is the interrupted fling's animator being **cancelled** (ticket 04
+already noted `dispatchMomentumEndOnAnimationEnd` fires on cancel), the other is
+the programmatic smooth-scroll completing. The sweep therefore **runs twice**.
+
+At offset 0 with the same visible set the second run is idempotent, so this is
+currently harmless — but the spec should say the sweep fires **at least once** on
+arrival and must be **idempotent**, rather than asserting exactly-once. ⚠ Not yet
+confirmed with sections actually expanded; that is folded into DT-11.
+
+## New findings (no DT asked for these)
+
+- **F-A — an overscroll bounce at the top fires the sweep.** At offset 0, dragging
+  *downwards* (finger down, overscrolling past the top) reports
+  `dragEnd {vy: 0, gated: true}` — because the list cannot scroll past 0, so there
+  is no velocity to report — and the sweep **runs**. A user who is already at the
+  top and idly pulls down will collapse every off-screen expanded section. Whether
+  that is wanted is a **product** call for the spec, not a bug: charting decision 4
+  says the sweep fires on "any user-driven arrival at the top", and a bounce is
+  arguably not an arrival.
+
+- **F-B — DT-12's premise is direction-dependent, and only one reading is the real
+  case.** "Flick downwards" was ambiguous. The *finger*-down reading is F-A above
+  (vy 0, gated, sweeps). The *list*-direction reading is the real one and it
+  **passes**: at `offset: 0` (`#72 rest {atTop: true}`), a fling that scrolls down
+  into the list gave `#73 dragEnd {vy: -4.76, gated: false}` and **no sweep**. At
+  finger-lift the at-top predicate was TRUE, so the at-top guard alone would have
+  collapsed everything as the user flung away — **only the velocity gate prevented
+  it**. The gate is confirmed load-bearing. The spec should state the direction
+  explicitly.
+
+- **F-C — neither the drawer guard nor any IME handling is ever exercised.** With
+  the drawer open, back produced **zero** `[DT]` lines: React Navigation's drawer
+  consumes it before RN's `BackHandler` chain reaches the ladder, so the ladder's
+  own `drawerStatus === 'open'` guard is **never reached**. Same for the IME. Both
+  guards are defence-in-depth, not the mechanism. Keep them (cheap, and they make
+  the module self-contained per ticket 02 decision 5) but do not describe them in
+  the spec as what makes the drawer/IME cases work.
+
+  This also disposes of **DT-4's re-render half structurally**: `useDrawerStatus()`
+  is consumed inside the ladder hook, so opening the drawer *necessarily*
+  re-renders `LibraryScreen` — DT-4a already **was** the re-render case. With the
+  mirror-ref design the handler can only re-register on **focus** change, never on
+  re-render, so RISK 1's "re-registers above the drawer's" cannot fire.
+
+- **F-D — DT-1 has a false-failure mode worth writing down.** The system's circular
+  back **chevron** *does* appear at the left edge during the gesture (SystemUI's
+  edge affordance, drawn on every gesture-nav app). What is absent is the
+  **app-scaling peek** revealing the home screen behind — the held-at-50% capture
+  shows the app full-screen, unscaled, unshifted. A re-run could see the chevron
+  and wrongly record a fail.
+
 
 ## The tests
 
