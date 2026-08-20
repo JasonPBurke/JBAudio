@@ -412,6 +412,97 @@ confirmation *plus* the unchanged offset — not on the log alone.
 `#293 back {"offset":31348}` when the last settled reading was `#291 {25795}` —
 the handler read a live offset 5,553 px beyond the last momentum-end, mid-fling.
 
+## ⛔ F-H — THE SWEEP MOVES THE LIST, AND THE LADDER LOSES ITS TERMINAL RUNG
+
+**This is the one device finding that invalidates part of the design as specified.**
+No DT asked for it; it surfaced because the driver noticed the screen "landed at an
+offset" after a run and refused to accept it.
+
+### The symptom
+
+After a back-jump whose sweep actually collapses something, the list does **not
+rest at the top**. It lands at 0, the sweep fires, and the offset then drifts:
+
+    #350 back:master {"from":29145.14,"animated":true}
+    #351 momentumEnd {"offset":0}                        <- landed correctly
+    #352 sweep {"collapsed":["Brandon Sanderson","Jim Butcher",
+                             "James Islington","Jonathan Stroud","Terry Pratchett"],
+                "openAfter":["Agatha Christie"]}
+    #353 rest  {"offset":213.71,"atTop":false}           <- drifted off the top
+
+Visually: the search bar is gone, a clipped author header sits at the top of the
+screen, and Recents is scrolled past.
+
+### Why it breaks the design
+
+`atTop` is now **false**, so the *next* press does not background the app —
+it consumes the press and jumps to the top all over again:
+
+    #354 back {"offset":213.71}
+    #355 back:master        <- consumed; app stayed in the foreground
+    #356 momentumEnd {"offset":0}
+    #357 sweep {"collapsed":[]}   <- nothing left to collapse, so no drift
+    #358 rest {"offset":0,"atTop":true}   <- only NOW is it at the top
+
+| press | contract | actual |
+|---|---|---|
+| 1 | jump to top + collapse | lands at **213.71**, not 0 |
+| 2 | **background the app** | jumps to top again |
+| 3 | — | backgrounds |
+
+**Three presses to exit instead of two — four under variant A's 3-rung ladder.**
+Charting decision 2's "self-healing by construction" and the ladder's terminal
+rung both fail here. The extra press is invisible to the user as anything but a
+bug: the app "refuses" to close.
+
+### Reproduction and scope
+
+Reproduced **twice**, on separate runs, with playback stopped the second time.
+⚠ The first run coincided with a book being in `Playing` — the driver confirmed
+that book was started during the DT-7 modal test, **not** during this run, and the
+clean repeat rules the confound out.
+
+**Condition, from all four observed sweeps:**
+
+| run | `visible` ∩ `openBefore` | `collapsed` | `openAfter` | resulting offset |
+|---|---|---|---|---|
+| `#173` | disjoint | 4 sections | `[]` | **-59.48** — harmless, still `<= 38` |
+| `#315` | **overlap** | 4 sections | `[Agatha Christie]` | **+943.71** |
+| `#352` | **overlap** | 5 sections | `[Agatha Christie]` | **+213.71** |
+| `#357` | overlap | **none** | `[Agatha Christie]` | **0** — no drift |
+
+Drift requires **both** an actual collapse **and** a visible section staying
+expanded. Magnitude does not track the number collapsed (4 → 943, 5 → 213), so it
+is a re-anchor, not an accumulation.
+
+### Mechanism (hypothesis, not yet proven on device)
+
+This fits `flashlist-2.3.2-mvcp-header-anchor`: with a visible section still open,
+MVCP's anchor sits on an item whose **index** shifts when other sections collapse,
+so MVCP issues a compensating `scrollBy` — moving the viewport it was trying to
+preserve. When nothing visible stays open, the anchor is index 0 and `diff === 0`
+— **exactly the case ticket 03 analysed and correctly declared safe**. Ticket 03's
+reasoning was not wrong; it only ever covered the disjoint case, and nothing on
+the map asked what happens when the sweep keeps a visible section open.
+
+⚠ Note the interaction with ticket 04's driver ruling. "Keep what's at the top" is
+what *creates* the non-empty `openAfter` that this defect depends on. The ruling
+is not wrong, but it is load-bearing for the bug.
+
+### What this does NOT invalidate
+
+The jump, the rung, the collapse selection and the guards are all correct. DT-11
+still passes: the sweep never collapsed a visible section, and every `collapsed`
+list contains only below-fold sections. The defect is entirely in **where the list
+comes to rest afterwards**.
+
+### Hands off to a new decision
+
+This needs a ticket of its own — the fix is a design choice, not a repair:
+re-assert `offset 0` after the sweep (and ticket 04 has warnings about mutating
+while scrolled), suppress MVCP for the sweep's mutation, change what the sweep
+keeps open, or redefine the terminal rung. **Not decided here.**
+
 ## New findings (no DT asked for these)
 
 - **F-A — an overscroll bounce at the top fires the sweep.** At offset 0, dragging
