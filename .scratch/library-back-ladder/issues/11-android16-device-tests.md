@@ -1,7 +1,7 @@
 # 11 — Run the Android 16 device tests the research could not settle
 
 Type: task
-Status: open
+Status: claimed
 Blocked by: 05
 Parent: [map.md](../map.md)
 
