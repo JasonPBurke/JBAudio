@@ -155,9 +155,9 @@ Fill in as they are run. `—` = not yet run.
 | DT-3 ⛔ | **PASS** | Pixel 7 Pro / A16 | 5 rounds, 1 process, latch never re-armed |
 | DT-4 ⛔ | **PASS** | Pixel 7 Pro / A16 | drawer consumes upstream; guard never reached |
 | DT-5 | **PASS** | Pixel 7 Pro / A16 | IME consumes upstream; offset untouched |
-| DT-6 | **PASS** (fling half) | Pixel 7 Pro / A16 | toggle half pending a view switch |
+| DT-6 | **PASS** | Pixel 7 Pro / A16 | both halves; fresh SeriesHome read 0 |
 | DT-7 | — | | pending |
-| DT-8 | **PARTIAL** | Pixel 7 Pro / A16 | BooksHome 0 / 38 ✅; other views pending |
+| DT-8 | **PASS** | Pixel 7 Pro / A16 | 38 / 38 / **44** all exact; BooksList unmeasurable |
 | DT-9 | **REFUTED** | Pixel 7 Pro / A16 | reads **0**, not `firstItemOffset` — see below |
 | DT-10 | **PASS, amended** | Pixel 7 Pro / A16 | once when clean, **twice** when interrupting a fling |
 | DT-11 | — | | Build B |
@@ -248,6 +248,49 @@ At offset 0 with the same visible set the second run is idempotent, so this is
 currently harmless — but the spec should say the sweep fires **at least once** on
 arrival and must be **idempotent**, rather than asserting exactly-once. ⚠ Not yet
 confirmed with sections actually expanded; that is folded into DT-11.
+
+### DT-8 / DT-6b — all three measurable views, all exact
+
+| view | predicted | measured | resting offset |
+|---|---|---|---|
+| BooksHome | 38 | **38** ✅ | 0 |
+| SeriesHome | 38 | **38** ✅ | 0 |
+| BooksGrid | 44 | **44** ✅ | 0 |
+| BooksList | 50 | *unmeasurable — mounted nowhere* | — |
+
+BooksGrid's **44** is the one that carried an argument, and it holds:
+`styles.container`'s `paddingTop: 6` does land on the outer `CompatView` that
+`firstItemOffset` is measured against, while BooksHome's and SeriesHome's
+`paddingTop: 8` sit on wrapper `View`s outside FlashList and correctly do not
+count.
+
+⚠ **This partially rescues ticket 03 from DT-9.** DT-9 removed the *empty-list*
+justification for `getFirstItemOffset()`, but the **per-view variation**
+justification is now confirmed empirically: 38 / 38 / **44**. A fixed epsilon
+tuned on BooksHome would be wrong for BooksGrid by 6 px. The predicate keeps its
+two strongest legs — per-view self-adjustment and the mount window — and loses
+only the leg DT-9 tested.
+
+**DT-6b passes.** The driver switched to SeriesHome without scrolling; the
+freshly-mounted populated view read `{offset: 0, atTop: true}`, so back
+backgrounds the app rather than consuming the press. Ticket 02 decision 4 (the
+ladder tracks no scroll state) stands — no revert to a tracked `scrollYRef`, and
+the reset-on-toggle logic in F2 stays unnecessary.
+
+**The 2-rung ladder works on both non-sectioned views.** SeriesHome
+(`#111/#112`) and BooksGrid (`#116/#117`) each took `back:master` with variant A's
+rung correctly skipped, and each landed at exactly 0.
+
+- **F-E — on this build the sweep gate is not what protects BooksGrid/SeriesHome;
+  the missing prop wiring is.** No `momentumEnd` or `sweep:skip` line ever fired on
+  either view, because the prototype passes them only `externalListRef` and
+  `onScroll` — not `onMomentumScrollEnd`/`onScrollEndDrag`. So the
+  `SECTIONED_VIEWS` gate added for this run was never even reached.
+  ⚠ **This makes ticket 09's F1 more urgent, not less.** Ticket 09's shipping
+  design wires `LadderListProps` **uniformly across all four views**, and at that
+  moment the gate becomes the *only* thing standing between "user arrives at the
+  top of SeriesHome" and "every BooksHome expansion is silently wiped". The hazard
+  is latent today and goes live the instant the uniform contract lands.
 
 ## New findings (no DT asked for these)
 
