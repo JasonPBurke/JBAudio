@@ -1,7 +1,7 @@
 # 11 — Run the Android 16 device tests the research could not settle
 
 Type: task
-Status: claimed
+Status: resolved
 Blocked by: 05
 Parent: [map.md](../map.md)
 
@@ -162,7 +162,7 @@ Fill in as they are run. `—` = not yet run.
 | DT-10 | **PASS, amended** | Pixel 7 Pro / A16 | once when clean, **twice** when interrupting a fling |
 | DT-11 | **PASS** | Pixel 7 Pro / A16 | both halves; driver confirmed visually |
 | DT-12 | **PASS** | Pixel 7 Pro / A16 | gate proven load-bearing; see F-A |
-| DT-13 | — | | Build B |
+| DT-13 | **PASS** | Pixel 7 Pro / A16, **preview build** | 41,226 px jump; driver: "that looked great" |
 | DT-14 | **PASS** | Pixel 7 Pro / A16 | sweep still fires at scale 0 |
 | DT-15 | **PASS** | Pixel 7 Pro / A16 | header lands clear of the search bar |
 
@@ -691,6 +691,52 @@ been tested for a very long section.
 **Status: open quirk, low frequency, not blocking.** Recorded so it is not
 rediscovered from scratch. Folded into [12](12-collapse-sweep-scroll-drift.md),
 which already owns the scroll-position family and may share a root cause.
+
+### DT-13 — PASS on a real preview build, with the smear question answered by frames
+
+Run on a **`--profile preview` release build** (versionCode **111**), real 355-book
+library, **5 sections expanded including Terry Pratchett**, scrolled to
+**41,226 px** — the deepest position reached in the entire effort and the literal
+far end of the largest list. Driver watched live: **"that looked great."**
+
+**Duration is distance-independent, confirmed on the shipping build:**
+
+| jump | distance | `back:master` → `momentumEnd` |
+|---|---|---|
+| baseline | 20,818 px | **319 ms** |
+| DT-13 | **41,226 px** | **288 ms** |
+
+Twice the distance, **faster**. Exactly ticket 06's prediction: the jump is a
+platform `ObjectAnimator` running a device-constant ~250 ms regardless of distance,
+so a longer jump is not a longer smear window. **The two-stage jump fallback ticket
+06 left unbuilt is confirmed unnecessary.**
+
+**Frame analysis** (screen recording, 25 fps sample across the glide):
+
+1. **~240 ms blank interval DURING the glide.** Roughly six consecutive frames show
+   an essentially empty viewport. The jump is 288 ms, so the viewport is largely
+   empty for most of it — FlashList does not render 41,226 px of intermediate
+   content at that speed and draws nothing rather than stale cells. ⚠ **This is not
+   smear in DT-13's sense** — smear means placeholder cells persisting *after*
+   arrival. It is the glide itself, and the driver judged it good live.
+2. **Brief cover fade-in AFTER landing** — the last transitional frames show the
+   top row's covers still dark. This is ticket 07's known FastImage fade, already
+   assessed and accepted.
+3. **Nothing after that.** 24 frames spanning 800 ms post-landing are pixel-identical
+   with fully-loaded covers: **no settle-jitter, no late re-layout.**
+
+**This resolves the driver's "late re-layout" suspicion.** It is not a re-layout.
+It is (1) the blank glide plus (2) the cover fade, both bounded, both complete
+within ~500 ms of the press. Nothing re-lays-out after the list settles.
+
+**Also confirmed on the release build:** `firstItemOffset` is still **38**; the
+sweep collapsed six sections and the list rested at **`offset: 0, atTop: true`** —
+**no drift**, in the `openAfter: []` disjoint case, matching the debug findings.
+
+⚠ **Build note.** `metro.config.js` sets `drop_console: true`, which strips the
+`[DT]` probe from release builds. It was **temporarily disabled** on
+`proto/back-ladder-rung-ab` (commit `6bb4e24`) so this run could be measured rather
+than only watched, then reverted. **That line must never reach `main`.**
 
 ## New findings (no DT asked for these)
 

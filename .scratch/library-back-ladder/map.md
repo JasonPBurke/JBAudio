@@ -245,6 +245,32 @@ the map is built on them.
   **F4** — `firstItemOffset` is 44 (grid) vs 50 (list), which a density sub-toggle would
   swap under one toggle position.
 
+- [11 — Run the Android 16 device tests the research could not settle](issues/11-android16-device-tests.md)
+  — **14 of 15 pass; DT-9 refuted; one new defect found that gates the spec.** Run on a
+  **Pixel 7 Pro / Android 16 / SDK 36, gesture nav**, real 355-book library, debug + preview
+  builds on `proto/back-ladder-rung-ab`. **Both design-invalidating tests clear:** the RN 0.83
+  latch never re-armed across 5 rounds and 10 consume/decline transitions **in one process**
+  (every press reached JS), and the drawer never let a press through. Ticket 01's mechanism,
+  ticket 02's installation site, ticket 03's `38/38/44` table (**exact**), ticket 04's sweep
+  sequencing, ticket 05's rung landing and ticket 06's animated jump are all confirmed on
+  device — including that a **41,226 px jump takes 288 ms vs 319 ms for 20,818 px**, so the
+  two-stage fallback is confirmed unnecessary. ⚠ **DT-9 REFUTED:** four empty states read
+  `offset 0`, not `firstItemOffset`, so ticket 03's headline justification for
+  `getFirstItemOffset()` must be restated — though DT-8's confirmed per-view spread
+  (**38/38/44**) independently rescues the predicate. ⚠ **F-H, the one that matters: the
+  collapse sweep can drift the list off the top** (+943 px, +213 px), after which `atTop` is
+  false and **back stops backgrounding the app** — three presses to exit, four with the rung.
+  Trigger narrowed to **deep + mid-fling together**; **not** variant-specific (identical bytes
+  run on a master jump), variant A **untested rather than immune**. Handed to
+  [12](issues/12-collapse-sweep-scroll-drift.md), which likely **gates the spec**. Also: **F-F**
+  the resting offset can be **negative**, so the at-top test must stay an inequality; **F-G**
+  the at-top guard and velocity gate are **complementary, not redundant**; **F-C** the drawer
+  and IME guards are never reached (both consume upstream); **F-I** the rung was once seen
+  landing a few rows past the header, unreproduced but with a 1,368 px numeric corroboration.
+  Two pieces of ticket text corrected at source so the spec cannot inherit them: the
+  **phantom scrollbar** (no list has one) and **"nothing on screen moves"**, which constrains
+  only the sweep phase, not the jump.
+
 ## Not yet specified
 
 - **Accessibility / TalkBack.** A back press that moves the viewport without
