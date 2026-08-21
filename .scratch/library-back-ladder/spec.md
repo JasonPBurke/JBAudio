@@ -981,9 +981,13 @@ the value live), but the prediction itself is unverified until something mounts 
 - **TalkBack and screen-reader announcements.** *(Driver decision, 2026-08-20.)* A back press
   that moves the viewport without changing screen may warrant an announcement; nothing here was
   ever tested with a screen reader, so specifying an announcement string now would be invention
-  rather than a decision. **⚠ The follow-up is NOT yet filed** — this bullet and R7 are the
-  whole of its record today, and where it should live (its own effort, or a memory topic like the
-  blank-screen defect's) is undecided. Filing it is the last piece of this decision. Note
+  rather than a decision. **Filed 2026-08-20 as the memory topic
+  `talkback-back-ladder-announcement`**, deliberately *not* as a ticket on this closed map:
+  the driver expects it to land inside **a full accessibility feature exploration** rather than
+  as a one-off patch, alongside the open font-scale clipping defects. ⚠ **Do not "fix" it with a
+  quick `announceForAccessibility` call** — whether Android already announces a programmatic
+  scroll has never been observed on a device, so a patch would be guessing at duplication; a
+  TalkBack pass on the shipped ladder comes first. Note
   the *reduced-motion* half of this question **is** decided and is not open: E6, do nothing.
 - **Root-causing the card reload (R1)** or the blank-screen defect (R2). Both are recorded
   separately; neither gates this spec.
