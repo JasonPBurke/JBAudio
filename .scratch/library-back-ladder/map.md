@@ -271,6 +271,31 @@ the map is built on them.
   **phantom scrollbar** (no list has one) and **"nothing on screen moves"**, which constrains
   only the sweep phase, not the jump.
 
+- [12 — The collapse sweep drifts the scroll position off the top](issues/12-collapse-sweep-scroll-drift.md)
+  — **Root cause confirmed on device, fix chosen and A/B-verified: one line —
+  `list.prepareForLayoutAnimationRender()` immediately before the sweep's `setState`.**
+  The drift is MVCP's offset correction firing against a **stale anchor**: the sweep runs on
+  the *native* momentum end, while FlashList re-anchors on its own **100 ms scroll-idle
+  debounce** (`VelocityTracker.ts:59`) that every scroll event during the jump keeps
+  resetting. Proven to the pixel — **`mvcp.diff` equals the resting drift exactly** on all
+  three reproductions (−978.55, −1803.89, −617.20). ⚠ **Ticket 03's "at the top the anchor is
+  index 0, so `diff === 0`" is FALSE at sweep time** — observed anchored to a deep pre-jump
+  section while resting at offset 0; it becomes true ~100 ms later. ⚠ **Ticket 11's
+  `openAfter` correlate was a proxy**: the real precondition is the stale anchor **surviving**
+  the mutation **and content above it changing**, which needs the anchor **deep in
+  already-collapsed territory with expanded sections above it** — 4/6 there, 0/14 in the two
+  configurations ticket 11 could reach, which is why its matrix could not isolate it.
+  ⚠ **A SECOND consequence, new:** a *negative* drift keeps `atTop` true, but the follow-up
+  sweep then runs at a negative offset with an **empty visible set** — and by ticket 09 F1's
+  `open`-iterating `computeRemainingOpen` that is a **collapse-EVERYTHING**, wiping the very
+  sections ticket 04's "keep what's at the top" protects. **Ticket 09's hazard is live, not
+  theoretical.** Fix off: 4/6 drifted; fix on: **0/20**, both variants. Leaves ticket 04,
+  ticket 03's predicate and charting decision 2 intact — no timer, no constant, no state.
+  ⚠ Honest limit: ticket 11's drifts were **positive**, all three here **negative**; same
+  correction, sign asymmetry unexplained, so **F-I is neither confirmed nor refuted**
+  (`oldY === newY` to full precision in every non-drifting correction — no evidence of
+  `getLayout` estimation error). Throwaway probe patch + `12 · seed` chip must die with the branch.
+
 ## Not yet specified
 
 - **Accessibility / TalkBack.** A back press that moves the viewport without
