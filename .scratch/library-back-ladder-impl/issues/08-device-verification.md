@@ -38,6 +38,12 @@ Risks R1, R3, R4, R6; user story 25.
 - [ ] **A deep jump on a preview build against a real library.** The open question is the smear —
       consecutive frames sharing no cells, so recycling buys nothing. It was not judged
       objectionable at real library scale; confirm that still holds on shipping code.
+- [ ] **The overscroll bounce sweeps (F5).** At the top, pull down and release without dragging
+      into the list, then scroll down to confirm the below-fold sections collapsed. This is the one
+      observable that distinguishes "the platform reports velocity `0` for a bounce" from "it
+      reports nothing at all" — an unreported velocity counts as **flinging** by design (spec §F5,
+      amended 2026-08-21), so if it reports nothing the bounce-sweep silently never happens. A
+      failure here is expected-and-harmless, not a defect: record it, do not weaken the gate.
 - [ ] **Animator duration scale set to 0.** The jump is instant **and the sweep still fires.**
 - [ ] **The drift recipe, fix on and fix off.** The reproducing configuration is: Recents
       collapsed, the first several sections expanded, everything after collapsed; fling deep into

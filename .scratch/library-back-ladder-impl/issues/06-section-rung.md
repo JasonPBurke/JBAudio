@@ -41,6 +41,16 @@ Spec: D1–D5, H4, H5, R3; user stories 1, 2, 3, 9, 10, 11.
 
 **Status:** ready-for-agent
 
+- [ ] ⚠ **`end` is INCLUSIVE — the index of the section's LAST ITEM, never the next section's
+      `start`.** This is the trap of this ticket. The exclusive reading is tempting precisely
+      because H4 stores `end` as deliberate redundancy rather than deriving it, and it fails in the
+      quietest possible way: the viewport top resolves to the **previous** section, the rung lands
+      on the wrong header, and every sanity check you would think to write still passes. Two
+      boundary tests in `ladderDecisions.test.ts` are the executable statement of this contract —
+      run them against your producer's output, not just against hand-written fixtures.
+- [ ] **Ranges do not overlap.** The rung uses a first-match containment lookup, so at most one
+      range may contain a given index; overlapping ranges make it pick an arbitrary one. Ordering
+      is not required — non-overlap is (spec §H4, amended 2026-08-21).
 - [ ] The sectioned view publishes its section ranges to the screen from a **layout effect**, before
       paint. The ranges are already computed during render, so this costs nothing.
 - [ ] Back from inside an expanded section lands on that section's header, clear of the search bar.

@@ -62,6 +62,19 @@ Spec: A1–A8, B1–B7, C1–C4, E1–E6, H1, H2, I1, I4, I6, J1–J3; user stor
       decision. It does **not** track a screen-held scroll offset: that would go stale across a
       view toggle (the new list mounts at offset 0 and no scroll event fires), and the first press
       would consume itself scrolling an already-at-top list to the top.
+- [ ] The press-time call is `decideBackPress(list ? buildSnapshot(list) : null)` — the decision
+      function takes `LadderSnapshot | null` (spec §J5, amended 2026-08-21) and the **absence of a
+      snapshot IS the absence of a list**. Do not fabricate a snapshot for the no-list case.
+- [ ] `buildSnapshot` passes `visible` as a **thunk over `computeVisibleIndices()`**, never a
+      pre-computed value. Evaluating it eagerly reintroduces the throw B7 exists to avoid, and no
+      test in the decision suite can catch it — that suite only ever sees the thunk it is handed.
+- [ ] **Decide, in this ticket, whether the hook contains a throw from `computeVisibleIndices()`.**
+      B7's ordering is a strong guard, not a proof (spec §B7, amended 2026-08-21: the "no layout
+      manager" argument needs the *offset* to read 0 as well, and that half is reasoned rather than
+      measured). The pure function deliberately does **not** catch — the IO boundary is here. If
+      you do contain it, containment must **DECLINE the press** so back backgrounds the app as it
+      would with no ladder; it must never fall through to a rung, which is the silent
+      wrong-landing shape H5 and F8 exist to prevent. Record the choice either way.
 - [ ] The offset predicate is evaluated **before** anything touches visibility, so the throwing
       visibility accessor is unreachable.
 - [ ] The jump is `scrollToOffset({ offset, animated: true })`. The ladder does **not** consult

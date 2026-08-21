@@ -50,3 +50,40 @@ Branch: **`feat/library-back-ladder`**, off `main` at `104bd34`.
   FlashList never emits. Also extracted `isAtTop` and `overlapsSpan`, now shared with
   `decideBackPress`: I2's exact-complement claim and `end`'s inclusiveness each live in one place.
   jest 886 → 888.
+
+## Spec amendments — SETTLED 2026-08-21, before ticket 04
+
+The five spec-amendment candidates raised by tickets 02 and 03 were reviewed together and **all
+five adopted**; a sixth was surfaced during the review. `spec.md` on the effort next door is
+amended in place, each edit marked at the decision it touches, and its header carries the log.
+**No code changed** — every amendment describes what tickets 02/03 already built, verified line by
+line against `ladderDecisions.ts`; tsc 0, eslint 0, jest 888 unchanged.
+
+| # | Spec | Kind | Ruling |
+|---|---|---|---|
+| 1 | §B7 | factual correction | The "no layout manager ⇒ `0 > 0`" argument named only the `firstItemOffset` half; the **offset** must read `0` too, and that half is reasoned, not measured. Ordering is a strong guard, not a proof. |
+| 2 | §F8 | factual correction | FlashList's empty sample is `ConsecutiveNumbers.EMPTY = (-1, -2)` — **INVERTED**. The originally-worded `startIndex < 0` half catches the real value only incidentally. Both halves kept. |
+| 3 | §F8 | adopt the safer default | The `while the range list is non-empty` qualifier is **removed**. It can only admit inputs, and every input it admits is the R5 collapse-everything shape. |
+| 4 | §F5 | adopt the safer default | An **unreported** drag velocity counts as flinging, not settled — the errors are asymmetric. Also pins `!(abs(v) < T)` over `>=` for `NaN`. |
+| 5 | §J4→J5 | signature widening | `decideBackPress(s: LadderSnapshot \| null)`. Without it `decline('no-list')` is unreachable. Consequence recorded: drawer-open-and-no-list now reports `'no-list'`, not `'drawer'` — unreachable in practice, both decline. |
+| 6 | §H4 | contract sharpened | **New.** The range producer owes an INCLUSIVE `end` and NON-OVERLAPPING ranges. Ordering is not required; non-overlap is what makes the rung's first-match containment lookup deterministic. |
+
+**Three handoff holes closed at the same time** — in each case the knowledge existed but not in the
+file the implementer opens:
+
+- **Ticket 05** now owns the throw-containment decision explicitly. Ticket 02 declined `try/catch`
+  in the pure function and named ticket 05 as the boundary, but nothing in ticket 05 said so. The
+  constraint is now written down: if the hook contains the throw, containment must **decline the
+  press**, never fall through to a rung.
+- **Ticket 06** now carries the INCLUSIVE-`end` trap. It was flagged in this README and in the spec
+  but was absent from the ticket itself — the one file that ticket's implementer is guaranteed to
+  read.
+- **Ticket 08** now checks the **overscroll bounce actually sweeps**. Amendment 4 makes an
+  unreported velocity a fling, so if the platform reports nothing for a bounce, F5's accepted
+  bounce-sweep silently never happens. This is the only observable that distinguishes the two, and
+  nothing was verifying it. A failure there is expected-and-harmless — record it, do not weaken the
+  gate.
+
+**Ticket 04 was never blocked by any of this.** It implements §H6–H9/I1/I3 — the shared list
+contract — and none of the six touches those. The amendments land on tickets 05 (1, 5), 06 (2, 6)
+and 07 (2, 3, 4).
