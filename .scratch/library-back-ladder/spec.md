@@ -313,7 +313,7 @@ strongly negative. `<=` is the safe side and every negative value falls on it.
 **throws** when the list has no layout manager, while the two offset accessors are plain
 field reads that never throw. The ordering makes the throw unreachable: no layout manager
 implies `firstItemOffset === 0`, which makes the predicate `0 > 0` — false. **Predicate true
-⇒ layout exists.** This is why the snapshot in §J2 exposes visibility lazily.
+⇒ layout exists.** This is why the snapshot in §J4 exposes visibility lazily.
 
 ### C · The ladder — rungs, order, and both ends
 
@@ -504,10 +504,27 @@ yields **no** sections while the range list is non-empty. This is not defensive
 decoration — it closes a live production hazard: the collapse helper iterates the **open** set,
 not the visible set, so an empty visible set is a **collapse-EVERYTHING**, which wipes exactly
 the sections F7 exists to protect. A drifted sweep was observed doing this on device. The
-guard belongs in the sweep's decision function (§J2), where the knowledge is; the collapse
+guard belongs in the sweep's decision function (§J4), where the knowledge is; the collapse
 helper's contract stays unchanged so its existing tests stay meaningful. At the top of a list
 with data the ranges tile the list, so index 0 always belongs to a section — an empty visible
 set at sweep time is **always** a bug signal, never a legitimate state.
+
+⚠ **This answers ticket [12](issues/12-collapse-sweep-scroll-drift.md) §6.3's fork, and it takes
+NEITHER of the two options that ticket offered.** Anyone reading that ticket will find the choice
+presented as the spec's to make, so the ruling is recorded here rather than left implicit:
+
+- *"Gate the sweep on `offset >= 0`"* — **rejected.** It reasons about the wrong quantity. The
+  drift was **negative** in all three of ticket 12's reproductions and **positive** in both of
+  ticket 11's, and that sign asymmetry is unexplained (§Risks R4). A rule keyed to the sign of
+  the offset is a rule keyed to the half of the phenomenon that happened to be reproduced last.
+  It would also exclude a legitimately-negative resting offset at the top (B6).
+- *"Make `computeRemainingOpen` iterate `visible` instead of `open`"* — **rejected, and note
+  that as literally stated it does not work.** Both iteration orders compute the same
+  intersection of `open` and `visible`; with `visible` empty, building the result from `visible`
+  yields an empty set just as surely as filtering `open` does. The iteration order is not what
+  causes the wipe. **What closes the hazard is the bail-out, not the loop** — which is this
+  decision, placed in the sweep rather than in the helper. An implementer who "fixes" the
+  iteration order will believe the hazard is closed and it will not be.
 
 **F9. The sweep is gated by view identity, and that gate is load-bearing** — see H2 and §Risks
 R5.
@@ -764,6 +781,17 @@ Two exports rather than one, deliberately: a **wrong landing** and a **wrong col
 different failures with different owners, and folding them into one return type puts
 assertions about scroll offsets next to assertions about collapse behaviour.
 
+Two shapes were weighed and rejected, both recorded so they are not re-proposed:
+
+- **One reducer over an event union** (`decideLadder(event, snapshot)`) — literally the fewest
+  seams possible, and rejected for the reason directly above: one return type and one suite for
+  two unrelated failure classes.
+- **A thin extraction** — keep the collapse helper as the only pure surface and add a rung-target
+  function beside it, leaving the at-top predicate, the drawer and view gates, the velocity gate
+  and F8's guard inside the hook. Smallest diff, and rejected because those guards are precisely
+  the parts device work proved load-bearing (F4, F8, H2/R5); leaving them in the untestable layer
+  puts the tests where the risk is not.
+
 ---
 
 ## Testing Decisions
@@ -953,7 +981,9 @@ the value live), but the prediction itself is unverified until something mounts 
 - **TalkBack and screen-reader announcements.** *(Driver decision, 2026-08-20.)* A back press
   that moves the viewport without changing screen may warrant an announcement; nothing here was
   ever tested with a screen reader, so specifying an announcement string now would be invention
-  rather than a decision. **Carried as a named follow-up ticket, not as an implicit gap.** Note
+  rather than a decision. **⚠ The follow-up is NOT yet filed** — this bullet and R7 are the
+  whole of its record today, and where it should live (its own effort, or a memory topic like the
+  blank-screen defect's) is undecided. Filing it is the last piece of this decision. Note
   the *reduced-motion* half of this question **is** decided and is not open: E6, do nothing.
 - **Root-causing the card reload (R1)** or the blank-screen defect (R2). Both are recorded
   separately; neither gates this spec.
@@ -1019,4 +1049,4 @@ a future edit undoing it.
 
 Written to `.scratch/library-back-ladder/spec.md`, per the repo's local-markdown tracker
 convention. ⚠ **The map's findings live on `main`**; the prototype branch's copies are stale by
-design and die with the branch. This spec belongs on `main` alongside them.
+design and die with the branch. Committed to `main` on 2026-08-20 (`58b3855`) alongside them.
