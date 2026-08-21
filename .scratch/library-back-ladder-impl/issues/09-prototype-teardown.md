@@ -30,6 +30,12 @@ Spec: Further Notes › "The prototype, and what must die with it"; user story 3
       implementation, each with its explanatory comment intact.
 - [ ] The prototype branch is deleted — **confirm with the driver first**, since its evidence is
       referenced throughout the spec and deletion is not something to do unasked.
+- [ ] **`spike/rn-jest-testing` is accounted for** — unlike the two branches above it is **not**
+      throwaway: it carries the jest `rn` project, its setup file, the testing doc and the eslint
+      override. If tickets 05-07 were implemented against it, it is already merged and there is
+      nothing to do; confirm rather than assume, since those tickets' test suites silently move to
+      the `helpers` lane and fail on the first `react-native` import if the config did not come
+      with them.
 - [ ] The parked collapse branch's fate is decided the same way: its helper and tests have been
       brought across, and its **narrower** trigger semantics were deliberately not resumed
       wholesale, so nothing else on it is owed to this feature.

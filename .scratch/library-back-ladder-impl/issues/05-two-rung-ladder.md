@@ -34,6 +34,18 @@ Spec: A1–A8, B1–B7, C1–C4, E1–E6, H1, H2, I1, I4, I6, J1–J3; user stor
 
 **Blocked by:** 02 (the decision), 04 (the contract).
 
+## ⚠ Testing changed under this ticket — read before starting
+
+Hooks and components are **now testable**. Jest runs two projects: pure TypeScript stays in the
+fast `helpers` lane, and anything importing React Native goes in an `rn` lane
+(`jest-expo/android` + `@testing-library/react-native`) by being named `*.rn.test.tsx`.
+**Read `docs/testing/jest-projects-and-rn-tests.md` first** — it holds five traps that all fail
+quietly.
+
+Landed by `spike/rn-jest-testing` (`544ac8a`); merge that branch before starting if it has not
+already landed. When this ticket was written, none of this existed and its acceptance criteria
+assumed `tsc` plus a manual device check were the only tools available.
+
 **Status:** ready-for-agent
 
 - [ ] Back on the Series view and the grid view scrolls to the top, animated, from any scroll
@@ -92,3 +104,11 @@ Spec: A1–A8, B1–B7, C1–C4, E1–E6, H1, H2, I1, I4, I6, J1–J3; user stor
       type here would give the four lists and the hook two contracts that drift apart silently,
       which is the exact failure §H8 exists to prevent. (Raised by ticket 04's spec-axis review.)
 - [ ] `npm test`, tsc and eslint are green.
+- [ ] **The hook has an `rn`-lane suite** (`useBackToTopLadder.rn.test.tsx`). This is now the
+      cheapest place to catch the wiring bugs the pure decision suite structurally cannot see:
+      `decideBackPress` proves the *judgement*, and only an exercised hook proves the *gather* and
+      *execute* halves around it. At minimum: a press at a scrolled offset calls `scrollToOffset`
+      with the offset the decision returned; a press that declines does **not** call it and lets
+      the press through; and the drawer guard is honoured.
+      ⚠ Hand the hook a **fake listRef** — FlashList has no layout manager under jest and
+      `computeVisibleIndices()` throws, which is §B7's own premise. Do not try to render a real list.

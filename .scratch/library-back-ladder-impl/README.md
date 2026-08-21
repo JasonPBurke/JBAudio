@@ -116,3 +116,33 @@ ticket 05's own file, not only here.
 **Ticket 04 was never blocked by any of this.** It implements §H6–H9/I1/I3 — the shared list
 contract — and none of the six touches those. The amendments land on tickets 05 (1, 5), 06 (2, 6)
 and 07 (2, 3, 4).
+
+## Testing infrastructure — changed mid-effort, 2026-08-21
+
+Tickets 01-04 were written and resolved under a jest that **could not test a component or a hook at
+all**: no preset, node environment, stock `transformIgnorePatterns`, so any test importing
+`react-native` died in the parser. That constraint shaped this effort — spec §J4's extraction of
+`decideBackPress`/`decideSweep` into pure functions is partly a response to it, and ticket 04's
+acceptance criteria lean on `tsc` plus a manual device check because nothing else was available.
+
+`spike/rn-jest-testing` (`544ac8a`) removes the constraint. Jest now runs **two projects**: the
+original fast `helpers` lane (~890 pure tests, ~2 s) and an `rn` lane
+(`jest-expo/android` + `@testing-library/react-native`) that a test opts into by being named
+`*.rn.test.tsx`. See `docs/testing/jest-projects-and-rn-tests.md` — it holds five traps that all
+fail quietly.
+
+**What this changes for the remaining tickets** (each carries a banner and new checkboxes):
+
+- **05** — the hook gets a real suite. `decideBackPress` proves the *judgement*; only an exercised
+  hook proves the *gather* and *execute* halves around it.
+- **06** — the range producer's two contract properties (inclusive `end`, non-overlap) become
+  assertable on real produced output rather than checkable only by reading.
+- **07** — closes a gap this ticket already named: *"that mutation kills 12 tests, but only if the
+  hook is exercised."* It can now be exercised.
+- **08** — explicitly **not** shrunk. FlashList has no layout manager under jest, so nothing about
+  visible ranges, offsets or drift can be pre-checked off-device.
+- **09** — the spike branch is not throwaway and must be accounted for, unlike the prototype branch.
+
+⚠ **§J4's extraction is not made obsolete by this.** Its stated reason — a wrong landing and a wrong
+collapse are different failures with different owners — stands on its own. The pure units test
+judgement fast; the `rn` lane tests wiring. Two layers, not a replacement.

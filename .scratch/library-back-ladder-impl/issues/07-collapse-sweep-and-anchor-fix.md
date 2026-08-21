@@ -44,6 +44,18 @@ Spec: E2–E5, F1–F9, G1–G8, I2, I5; user stories 4, 5, 6, 7, 14, 15, 27, 32
 
 **Blocked by:** 03 (the sweep decision), 06.
 
+## ⚠ Testing changed under this ticket — read before starting
+
+Hooks and components are **now testable**. Jest runs two projects: pure TypeScript stays in the
+fast `helpers` lane, and anything importing React Native goes in an `rn` lane
+(`jest-expo/android` + `@testing-library/react-native`) by being named `*.rn.test.tsx`.
+**Read `docs/testing/jest-projects-and-rn-tests.md` first** — it holds five traps that all fail
+quietly.
+
+Landed by `spike/rn-jest-testing` (`544ac8a`); merge that branch before starting if it has not
+already landed. When this ticket was written, none of this existed and its acceptance criteria
+assumed `tsc` plus a manual device check were the only tools available.
+
 **Status:** ready-for-agent
 
 - [ ] Arriving at the top of the sectioned view collapses every expanded section that is not on
@@ -104,3 +116,14 @@ Spec: E2–E5, F1–F9, G1–G8, I2, I5; user stories 4, 5, 6, 7, 14, 15, 27, 32
 - [ ] The sweep only ever runs at the top, so it can only ever collapse **below-fold** sections.
       Any change that lets it run at another offset re-opens the blank-screen defect.
 - [ ] `npm test`, tsc and eslint are green.
+- [ ] **The sweep wiring has an `rn`-lane suite.** This ticket already names a bug the pure suite
+      cannot catch on its own — *"passing `'drag'` for a momentum event silently disables the sweep
+      ... that mutation kills 12 tests, but only if the hook is exercised."* Exercising the hook is
+      now possible, so **close that gap here**: assert that the momentum handler reaches
+      `decideSweep` with `trigger: 'momentum'`, and the drag handler with `'drag'` **and the event's
+      real `velocityY`**. Both bugs are otherwise invisible until a device session.
+- [ ] **Assert the same-reference pass-through.** When the sweep drops nothing, the set handed to
+      the state setter must be the **same reference** it came in as. A spread or re-wrap anywhere in
+      the wiring discards React's bail-out silently, and the pure suite cannot see the hook's
+      plumbing. ⚠ Do **not** assert render counts to check this — the React Compiler runs in tests
+      and makes those numbers unreliable. Assert reference identity directly.

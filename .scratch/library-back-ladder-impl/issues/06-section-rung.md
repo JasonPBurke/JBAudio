@@ -39,6 +39,18 @@ Spec: D1–D5, H4, H5, R3; user stories 1, 2, 3, 9, 10, 11.
 
 **Blocked by:** 05.
 
+## ⚠ Testing changed under this ticket — read before starting
+
+Hooks and components are **now testable**. Jest runs two projects: pure TypeScript stays in the
+fast `helpers` lane, and anything importing React Native goes in an `rn` lane
+(`jest-expo/android` + `@testing-library/react-native`) by being named `*.rn.test.tsx`.
+**Read `docs/testing/jest-projects-and-rn-tests.md` first** — it holds five traps that all fail
+quietly.
+
+Landed by `spike/rn-jest-testing` (`544ac8a`); merge that branch before starting if it has not
+already landed. When this ticket was written, none of this existed and its acceptance criteria
+assumed `tsc` plus a manual device check were the only tools available.
+
 **Status:** ready-for-agent
 
 - [ ] ⚠ **`end` is INCLUSIVE — the index of the section's LAST ITEM, never the next section's
@@ -77,3 +89,9 @@ Spec: D1–D5, H4, H5, R3; user stories 1, 2, 3, 9, 10, 11.
 - [ ] ⚠ **Watch for a known unreproduced defect:** the rung was once observed landing a few rows
       past the header. If it recurs, the range-publication timing is the first place to look.
 - [ ] `npm test`, tsc and eslint are green.
+- [ ] **The range producer has a test.** Its output is pure data derived from the section array, not
+      from layout, so it does not need the `rn` lane unless the producer lives inside a component —
+      in which case use `*.rn.test.tsx`. Assert the two contract properties directly on real
+      produced output, not on hand-written fixtures: **`end` is INCLUSIVE** (the last item's index,
+      not the next section's `start`) and **ranges do not overlap**. These are the trap items above,
+      and they were previously checkable only by reading.

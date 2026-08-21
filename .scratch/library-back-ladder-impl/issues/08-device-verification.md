@@ -18,6 +18,13 @@ This ticket is marked for a human because it needs a physical device, a preview 
 real library, and judgement calls about how motion *feels* that no automated check can stand in
 for.
 
+⚠ **The new `rn` jest lane does NOT shrink this list.** Hooks and components became testable
+(`docs/testing/jest-projects-and-rn-tests.md`), and tickets 05/06/07 now carry suites for their
+wiring — but every item below needs real layout, a real fling animator, real momentum events or a
+real 355-book library. In particular **FlashList has no layout manager under jest**, so nothing
+here about visible ranges, offsets or drift can be pre-checked off-device. Treat a green suite as
+a reason to *expect* these to pass, never as a substitute for running them.
+
 Spec: Testing Decisions › "What jest will never cover here, and how it is accepted instead";
 Risks R1, R3, R4, R6; user story 25.
 
