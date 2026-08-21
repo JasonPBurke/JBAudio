@@ -39,6 +39,14 @@ const storeHasStartedBook = () =>
 const storeHasBooks = () =>
   Object.keys(useLibraryStore.getState().books).length > 0;
 
+/*
+ * The two settle handlers the list contract requires, inert until ticket 05
+ * replaces them with the ladder hook's. Module scope, per this file's own rule
+ * above: a zero-dependency no-op has nothing to close over, so there is no
+ * reason to rebuild it on the hook path.
+ */
+const NO_OP = () => {};
+
 const LibraryScreen = ({ navigation }: any) => {
   const { colors: themeColors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -96,14 +104,6 @@ const LibraryScreen = ({ navigation }: any) => {
    * from ticket 05. No list keeps a fallback ref of its own.
    */
   const listRef = useRef<LadderList | null>(null);
-
-  /*
-   * Inert for now -- ticket 05 replaces both with the ladder hook's handlers.
-   * They are REQUIRED props rather than optional ones so that the compiler,
-   * not a reviewer, is what notices a list that has not kept up (§H8).
-   */
-  const handleMomentumScrollEnd = useCallback(() => {}, []);
-  const handleScrollEndDrag = useCallback(() => {}, []);
 
   useScanExternalFileSystem();
 
@@ -317,8 +317,8 @@ const LibraryScreen = ({ navigation }: any) => {
               ListHeaderComponent={ListSpacer}
               listRef={listRef}
               selectedTab={selectedTab}
-              onMomentumScrollEnd={handleMomentumScrollEnd}
-              onScrollEndDrag={handleScrollEndDrag}
+              onMomentumScrollEnd={NO_OP}
+              onScrollEndDrag={NO_OP}
             />
           )}
           {toggleView === 1 && (
@@ -329,8 +329,8 @@ const LibraryScreen = ({ navigation }: any) => {
               emptyMessage={seriesEmptyText}
               listRef={listRef}
               selectedTab={selectedTab}
-              onMomentumScrollEnd={handleMomentumScrollEnd}
-              onScrollEndDrag={handleScrollEndDrag}
+              onMomentumScrollEnd={NO_OP}
+              onScrollEndDrag={NO_OP}
             />
           )}
           {toggleView === 2 && (
@@ -343,8 +343,8 @@ const LibraryScreen = ({ navigation }: any) => {
               ListHeaderComponent={ListSpacer}
               listRef={listRef}
               selectedTab={selectedTab}
-              onMomentumScrollEnd={handleMomentumScrollEnd}
-              onScrollEndDrag={handleScrollEndDrag}
+              onMomentumScrollEnd={NO_OP}
+              onScrollEndDrag={NO_OP}
             />
           )}
 

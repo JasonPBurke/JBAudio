@@ -51,6 +51,28 @@ Branch: **`feat/library-back-ladder`**, off `main` at `104bd34`.
   `decideBackPress`: I2's exact-complement claim and `end`'s inclusiveness each live in one place.
   jest 886 → 888.
 
+- **04 — one shared list contract** · `resolved` (`7040429` + review commit) — the prefactor. New
+  module exporting `LadderList` / `LadderListProps`; the library screen owns the ONE ref and the
+  two inert settle handlers; all four lists intersect the contract and every internal fallback ref
+  is deleted; `BooksList` mounts unconditionally, so its empty component is live code. **No
+  user-visible change on the three mountable views.** jest 888, unchanged — this ticket adds no
+  pure code, and **the compiler is the test**: deleting a required prop errors `TS2741` on all
+  four lists, `BooksList` included. Verified by probe, not assumed.
+  ⚠ **`LadderList = FlashListRef<any>` and the `any` is LOAD-BEARING — do not "fix" it.** Both
+  tighter shapes fail `TS2322`: a structural subset interface naming only the methods the ladder
+  calls (a ref is checked through its *mutable* `current`, so a subset cannot be passed as a `ref`)
+  and any narrower item type including `unknown` (`FlashListRef<T>` is invariant in `T`). Four
+  lists, four item types; `any` is the only thing one shared ref can hold.
+  Reviewed (two axes, opus): **Spec axis found nothing** — faithful, no scope creep. Standards axis
+  found 0 documented violations and 5 judgement calls; 3 adopted (the optional member now states
+  why it is optional, four duplicated comments unified, the no-ops moved to module scope), 2
+  declined with reasons in the ticket's Answer. ⚠ The notable decline: **do not fold `onScroll`
+  into the contract** — §H9 forbids it by name and `LadderListProps` *is* the contract §H9 names.
+  It reads as an obvious tidy-up and the spec pre-registers it as forbidden.
+  ⚠ **The manual/device check is NOT done** (the one box left unticked) — no device this session.
+  The two real behaviour changes both land on `BooksList`, which nothing mounts, so they are
+  unreachable by that check anyway; ticket 08 is the device pass.
+
 ## Spec amendments — SETTLED 2026-08-21, before ticket 04
 
 The five spec-amendment candidates raised by tickets 02 and 03 were reviewed together and **all
@@ -83,6 +105,13 @@ file the implementer opens:
   bounce-sweep silently never happens. This is the only observable that distinguishes the two, and
   nothing was verifying it. A failure there is expected-and-harmless — record it, do not weaken the
   gate.
+
+**A seventh amendment landed 2026-08-21, after ticket 04's review:** **§H8**'s module home. It
+read "exported by the ladder hook", written when that hook was assumed to be the only ladder
+module. The contract is needed by the four lists *before* the hook exists, and siting it in the
+hook would drag React Native imports into `ladderDecisions.ts`'s reach. It now has a module of its
+own and the hook imports it. ⚠ **Ticket 05 must import, never re-declare** — the warning is in
+ticket 05's own file, not only here.
 
 **Ticket 04 was never blocked by any of this.** It implements §H6–H9/I1/I3 — the shared list
 contract — and none of the six touches those. The amendments land on tickets 05 (1, 5), 06 (2, 6)

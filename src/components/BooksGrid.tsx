@@ -68,8 +68,8 @@ const BooksGrid = ({
 }: BookGridProps) => {
   const { colors: themeColors } = useTheme();
   const numColumns = useSettingsStore((state) => state.numColumns);
-  // The ref is the LIBRARY SCREEN's, never this component's (§H6) -- no
-  // internal fallback, because a fallback makes a forgotten ref silent.
+  // The list ref belongs to the LIBRARY SCREEN, never to this component (§H6):
+  // no internal fallback, because a fallback makes a forgotten ref silent.
   useResetScrollOnTabChange(listRef, selectedTab);
 
   const { width: screenWidth } = Dimensions.get('window');

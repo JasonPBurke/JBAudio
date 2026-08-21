@@ -57,6 +57,12 @@ export type LadderListProps = {
   selectedTab: CustomTabs;
   onMomentumScrollEnd: () => void;
   onScrollEndDrag: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
-  /** Sectioned views only. */
+  /**
+   * Sectioned views only -- and the one OPTIONAL member here, deliberately,
+   * which is not a contradiction of the paragraph above. Only `booksHome` has
+   * sections (§H2), so requiring this would force the other three views to
+   * accept a callback they could never fire. The two settle handlers stay
+   * required because every view fires those.
+   */
   onSectionRangesChange?: (ranges: SectionRange[]) => void;
 };

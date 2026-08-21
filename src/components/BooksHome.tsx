@@ -67,9 +67,8 @@ const BooksHome = ({
   onScrollEndDrag,
 }: BookListProps) => {
   const { colors: themeColors } = useTheme();
-  // The ref is the LIBRARY SCREEN's, never this component's (§H6). There is
-  // deliberately no internal fallback: an optional ref with a fallback fails
-  // silently, leaving the ladder inert with no error to notice.
+  // The list ref belongs to the LIBRARY SCREEN, never to this component (§H6):
+  // no internal fallback, because a fallback makes a forgotten ref silent.
   useResetScrollOnTabChange(listRef, selectedTab);
   const CONTAINER_PADDING_TOP = 8;
 

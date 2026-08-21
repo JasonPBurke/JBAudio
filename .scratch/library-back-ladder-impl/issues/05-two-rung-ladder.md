@@ -84,4 +84,11 @@ Spec: A1–A8, B1–B7, C1–C4, E1–E6, H1, H2, I1, I4, I6, J1–J3; user stor
 - [ ] **Latch check, on device:** scroll, back, back, reopen the app, push a screen, back must pop.
       Five rounds in one process, alternating gesture and 3-button. The signature of failure is
       that back stops reaching JS at all.
+- [ ] ⚠ **Import `LadderList` / `LadderListProps` from `src/types/ladderList.ts`; do NOT re-declare
+      or re-export them from the hook.** Spec §H8 says the contract is "exported by the ladder
+      hook", written when this hook was the only ladder module that would exist. Ticket 04 needed
+      the contract *before* the hook did, so it lives in its own module — which also keeps
+      `ladderDecisions.ts` free of React Native imports. Reading §H8 literally and re-declaring the
+      type here would give the four lists and the hook two contracts that drift apart silently,
+      which is the exact failure §H8 exists to prevent. (Raised by ticket 04's spec-axis review.)
 - [ ] `npm test`, tsc and eslint are green.

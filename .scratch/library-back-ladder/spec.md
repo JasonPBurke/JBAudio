@@ -14,6 +14,9 @@ two factual corrections (**B7**'s missing premise, **F8**'s sentinel value), two
 safer default the spec was silent on (**F8**'s dropped qualifier, **F5**'s unreported velocity),
 one signature widening (**J4/J5**), and one contract sharpened for the range producer (**H4**).
 Each is marked in place at the decision it touches.
+**Amended again 2026-08-21** — one edit, raised by implementation ticket
+[04](../library-back-ladder-impl/issues/04-shared-list-contract.md)'s review: **H8**'s module
+home. Locational only; the contract itself is unchanged.
 Map (the argument, ticket by ticket): [map.md](map.md)
 Prototype branch: **`proto/back-ladder-rung-ab`** — throwaway, see §Further Notes.
 
@@ -721,8 +724,18 @@ rather than satisfying §B by the accident of a null ref. Its empty component �
 — becomes live as a side effect. Wiring it proves nothing today (nothing mounts it), but it
 makes the diff to revive it **zero**, which is the guarantee this decision exists to give.
 
-**H8. The contract is a NAMED SHARED TYPE, exported by the ladder hook and intersected by all
-four props types:**
+**H8. The contract is a NAMED SHARED TYPE, exported by a MODULE OF ITS OWN — `ladderList` —
+and intersected by all four props types:**
+
+*Amended 2026-08-21 ([impl 04](../library-back-ladder-impl/issues/04-shared-list-contract.md)).*
+This originally read "exported by the ladder hook", written when that hook was assumed to be the
+only ladder module that would exist. It is not: the contract is needed by the four lists in the
+prefactor, **before** the hook exists, and putting it in the hook would also drag React Native
+imports into the reach of `ladderDecisions.ts`, which must stay importable by jest. The type
+therefore has its own module and the hook imports it. **Ticket 05 must import, never re-declare
+or re-export** — two copies of this contract drifting apart is the precise failure H8 exists to
+prevent. `LadderList` keeps its spec name even though it types a ref *handle* rather than a list.
+The contract's fields are unchanged.
 
 ```ts
 export type LadderListProps = {
