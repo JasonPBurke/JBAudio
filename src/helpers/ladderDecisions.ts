@@ -1,3 +1,5 @@
+import { computeRemainingOpen } from './collapseOffscreenSections';
+
 /**
  * The back-to-top ladder's judgement, as pure functions over a snapshot of
  * plain numbers and sets.
@@ -55,6 +57,14 @@ const SECTIONED_VIEWS = new Set<LadderView>(['booksHome']);
  * offset settles a hair past the header's y.
  */
 const SUBPIXEL_EPSILON = 1;
+
+/**
+ * Below this the finger-lift counts as settled rather than flung. Device-
+ * measured: a fling that scrolls DOWN into the list reports -4.76 and is
+ * at-top at finger-lift, so the at-top guard alone would collapse everything
+ * as the user flings away. Only this gate excludes that case (F4).
+ */
+const SETTLED_VELOCITY = 0.01;
 
 export type BackPressDecision =
   | { kind: 'decline'; reason: 'drawer' | 'no-list' | 'at-top' }
@@ -135,4 +145,75 @@ function sectionRungTarget(s: LadderSnapshot): number | null {
   if (s.offset - headerY <= SUBPIXEL_EPSILON) return null;
 
   return headerY;
+}
+
+export type SweepDecision =
+  | { kind: 'none'; reason: 'not-sectioned' | 'not-at-top' | 'flinging' | 'no-visible-sample' }
+  | { kind: 'collapse'; open: Set<string> };
+
+/**
+ * Decide whether an arrival at the top should collapse the off-screen sections,
+ * and which sections survive.
+ */
+export function decideSweep(
+  s: LadderSnapshot,
+  trigger: 'momentum' | 'drag',
+  velocityY?: number,
+): SweepDecision {
+  if (!SECTIONED_VIEWS.has(s.view)) return { kind: 'none', reason: 'not-sectioned' };
+
+  // The EXACT complement of the rung's arm predicate, and the sentence I2 rests
+  // on: at this offset no list item is above the fold, so "not visible" and
+  // "below the fold" are the same set and the sweep cannot touch anything the
+  // user can see. A negative offset (an overscroll bounce) is at the top too.
+  if (s.offset > s.firstItemOffset) return { kind: 'none', reason: 'not-at-top' };
+
+  // Drag-end only: a momentum END is by definition the motion having stopped,
+  // so there is no velocity left to gate on.
+  //
+  // An UNREPORTED velocity is treated as a fling, not as a settle. The two
+  // errors are not symmetric: a missed sweep is invisible and the next arrival
+  // at the top performs it anyway, whereas a wrong sweep destroys the user's
+  // expansions. This is not stated by J4 -- see the ticket's Answer.
+  if (trigger === 'drag' && !(Math.abs(velocityY ?? Infinity) < SETTLED_VELOCITY)) {
+    return { kind: 'none', reason: 'flinging' };
+  }
+
+  // Past every gate, so the list has PROVEN it is at the top and at rest --
+  // which is what makes this sample trustworthy. Sampling any earlier reads the
+  // pre-jump viewport, because computeVisibleIndices() is a pure function of
+  // the last OBSERVED offset (F2).
+  const { startIndex, endIndex } = s.visible();
+
+  // A degenerate sample is a NO-OP, never a collapse. At the top of a list with
+  // data the ranges tile it, so index 0 always belongs to a section: an empty
+  // sample here is always a bug signal, never a legitimate state -- and because
+  // the collapse helper iterates the OPEN set, letting it through would collapse
+  // EVERYTHING, wiping exactly the sections F7 protects.
+  if (startIndex < 0 || endIndex < startIndex) {
+    return { kind: 'none', reason: 'no-visible-sample' };
+  }
+
+  // Overlap, not containment: ANY sliver on screen counts as visible. That is
+  // the semantics the deleted viewability plumbing bought with
+  // `itemVisiblePercentThreshold: 1`, so reading the range off the ref is
+  // behaviour-preserving rather than merely simpler (F6).
+  const visibleIds = new Set<string>();
+  for (const r of s.ranges) {
+    if (r.start <= endIndex && r.end >= startIndex) visibleIds.add(r.sectionId);
+  }
+
+  // The same bail-out, reached the other way: the sample was well-formed but
+  // matched nothing. NOT qualified by `ranges.length > 0` as F8 words it --
+  // unpublished ranges with a persisted `expanded` set is the R5 shape exactly,
+  // and it is the input for which letting it through is most destructive.
+  if (visibleIds.size === 0) return { kind: 'none', reason: 'no-visible-sample' };
+
+  // NO protected section: Recently Added survives by POSITION, because it is
+  // the first item of every non-empty BooksHome and is therefore on screen
+  // whenever the sweep is allowed to run (F7). The helper returns `expanded`
+  // itself when nothing drops, so a no-op sweep hands React the same reference
+  // and it bails out of re-rendering the list -- which is what makes every
+  // accepted bounce-sweep (F5) cheap.
+  return { kind: 'collapse', open: computeRemainingOpen(s.expanded, visibleIds) };
 }

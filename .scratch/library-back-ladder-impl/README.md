@@ -33,3 +33,12 @@ Branch: **`feat/library-back-ladder`**, off `main` at `104bd34`.
   the suite green — so `end`'s inclusiveness is now pinned by two boundary tests. ⚠ **Ticket 06's
   range producer must emit an INCLUSIVE `end`**; an exclusive one lands the rung on the previous
   section's header and passes every obvious sanity check. jest 848 → 868.
+- **03 — `decideSweep`** · `resolved` — the sweep's five gates in `ladderDecisions.ts`, 18 tests,
+  nothing imports it yet. All 11 spec cases plus one the spec did not ask for: the at-top boundary
+  had a test on the DECLINING side only, so `>` → `>=` killed nothing while silently meaning the
+  sweep never fires at the canonical resting offset. **16 mutations run, all killed.** Ticket 12
+  §6.3's "iterate `visible`" was confirmed inert by mutation, not assumed. ⚠ **Three more
+  spec-amendment candidates** (details in the ticket's Answer): the empty-overlap guard is
+  deliberately NOT qualified by `ranges.length > 0` (F8's wording would admit the R5 input); an
+  unreported drag velocity counts as **flinging**, not settled; a degenerate sample includes an
+  **inverted** range, not just `startIndex < 0`. jest 868 → 886.

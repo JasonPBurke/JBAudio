@@ -1,4 +1,4 @@
-import { decideBackPress, type LadderSnapshot } from '../ladderDecisions';
+import { decideBackPress, decideSweep, type LadderSnapshot } from '../ladderDecisions';
 
 /**
  * The default `visible` thunk THROWS. That is B7's ordering rule expressed as a
@@ -254,5 +254,180 @@ describe('decideBackPress — the containment bounds are inclusive', () => {
         snapshot({ ...base, visible: () => ({ startIndex: 200, endIndex: 240 }) }),
       ),
     ).toEqual({ kind: 'scrollTo', offset: 4820, rung: 'section' });
+  });
+});
+
+/**
+ * The sweep's fixture is deliberately HOSTILE by default: `visible` throws and
+ * `expanded`/`ranges` are non-empty and mismatched. Every gate that returns
+ * `none` therefore proves two things at once — the right reason, and that it
+ * declined before touching visibility.
+ */
+function sweepSnapshot(over: Partial<LadderSnapshot> = {}): LadderSnapshot {
+  return {
+    view: 'booksHome',
+    drawerOpen: false,
+    offset: 0,
+    firstItemOffset: 38,
+    expanded: new Set(['author:king', 'author:pratchett']),
+    ranges: [
+      { sectionId: 'recents', start: 0, end: 19 },
+      { sectionId: 'author:king', start: 20, end: 44 },
+      { sectionId: 'author:pratchett', start: 45, end: 80 },
+    ],
+    visible: () => {
+      throw new Error('visible() called before the sweep gates passed');
+    },
+    layoutY: () => undefined,
+    ...over,
+  };
+}
+
+describe('decideSweep — the capability gate (R5)', () => {
+  it('declines on a non-sectioned view even with stale ranges and live expansions', () => {
+    expect(
+      decideSweep(sweepSnapshot({ view: 'seriesHome' }), 'momentum'),
+    ).toEqual({ kind: 'none', reason: 'not-sectioned' });
+  });
+});
+
+describe('decideSweep — the at-top gate (I2)', () => {
+  it('declines when the list is not at the top', () => {
+    expect(decideSweep(sweepSnapshot({ offset: 500, firstItemOffset: 38 }), 'momentum')).toEqual({
+      kind: 'none',
+      reason: 'not-at-top',
+    });
+  });
+
+  it('sweeps AT the boundary: the resting offset at the top is firstItemOffset', () => {
+    expect(
+      decideSweep(
+        sweepSnapshot({
+          offset: 38,
+          firstItemOffset: 38,
+          visible: () => ({ startIndex: 0, endIndex: 12 }),
+        }),
+        'momentum',
+      ).kind,
+    ).toBe('collapse');
+  });
+
+  it('declines one pixel above the fold, the boundary the rung declines at', () => {
+    expect(decideSweep(sweepSnapshot({ offset: 39, firstItemOffset: 38 }), 'momentum')).toEqual({
+      kind: 'none',
+      reason: 'not-at-top',
+    });
+  });
+});
+
+describe('decideSweep — the velocity gate (F4, F5)', () => {
+  const settled = { visible: () => ({ startIndex: 0, endIndex: 12 }) };
+
+  it('declines the device-measured fling away from the top', () => {
+    expect(decideSweep(sweepSnapshot({ offset: 0 }), 'drag', -4.76)).toEqual({
+      kind: 'none',
+      reason: 'flinging',
+    });
+  });
+
+  it('declines a drag whose velocity was not reported at all', () => {
+    expect(decideSweep(sweepSnapshot({ offset: 0 }), 'drag')).toEqual({
+      kind: 'none',
+      reason: 'flinging',
+    });
+  });
+
+  it('sweeps on the overscroll bounce, which reports velocity 0', () => {
+    expect(decideSweep(sweepSnapshot({ offset: -120, ...settled }), 'drag', 0).kind).toBe(
+      'collapse',
+    );
+  });
+
+  it('does not consult velocity on the momentum trigger', () => {
+    expect(decideSweep(sweepSnapshot({ offset: 0, ...settled }), 'momentum', -4.76).kind).toBe(
+      'collapse',
+    );
+  });
+});
+
+describe('decideSweep — the degenerate sample (F8)', () => {
+  it('declines on an empty visible range', () => {
+    expect(
+      decideSweep(sweepSnapshot({ visible: () => ({ startIndex: -1, endIndex: -1 }) }), 'momentum'),
+    ).toEqual({ kind: 'none', reason: 'no-visible-sample' });
+  });
+
+  it('declines on an inverted visible range', () => {
+    expect(
+      decideSweep(sweepSnapshot({ visible: () => ({ startIndex: 12, endIndex: 4 }) }), 'momentum'),
+    ).toEqual({ kind: 'none', reason: 'no-visible-sample' });
+  });
+});
+
+describe('decideSweep — an empty overlap (F8, R5)', () => {
+  it('declines when a valid visible range overlaps no section', () => {
+    expect(
+      decideSweep(
+        sweepSnapshot({ visible: () => ({ startIndex: 900, endIndex: 940 }) }),
+        'momentum',
+      ),
+    ).toEqual({ kind: 'none', reason: 'no-visible-sample' });
+  });
+
+  it('declines when no ranges have been published yet but expansions persist', () => {
+    expect(
+      decideSweep(
+        sweepSnapshot({ ranges: [], visible: () => ({ startIndex: 0, endIndex: 12 }) }),
+        'momentum',
+      ),
+    ).toEqual({ kind: 'none', reason: 'no-visible-sample' });
+  });
+});
+
+describe('decideSweep — the collapse', () => {
+  const atTop = { visible: () => ({ startIndex: 0, endIndex: 12 }) };
+  const allOpen = new Set(['recents', 'author:king', 'author:pratchett']);
+
+  it('keeps only Recently Added, by position rather than by exemption', () => {
+    const result = decideSweep(sweepSnapshot({ ...atTop, expanded: allOpen }), 'momentum');
+    expect(result).toEqual({ kind: 'collapse', open: new Set(['recents']) });
+  });
+
+  it('returns the SAME set reference when every open section is visible', () => {
+    const open = new Set(['recents']);
+    const result = decideSweep(sweepSnapshot({ ...atTop, expanded: open }), 'momentum');
+    expect(result.kind === 'collapse' && result.open).toBe(open);
+  });
+
+  it('returns the SAME set reference when nothing is expanded at all', () => {
+    const open = new Set<string>();
+    const result = decideSweep(sweepSnapshot({ ...atTop, expanded: open }), 'momentum');
+    expect(result.kind === 'collapse' && result.open).toBe(open);
+  });
+
+  it('is idempotent: feeding a sweep result back collapses nothing (E4, I5)', () => {
+    const first = decideSweep(sweepSnapshot({ ...atTop, expanded: allOpen }), 'momentum');
+    if (first.kind !== 'collapse') throw new Error('expected a collapse');
+    const second = decideSweep(sweepSnapshot({ ...atTop, expanded: first.open }), 'momentum');
+    expect(second.kind === 'collapse' && second.open).toBe(first.open);
+  });
+
+  it('counts a section whose end equals startIndex as visible (any sliver)', () => {
+    const result = decideSweep(
+      sweepSnapshot({ expanded: allOpen, visible: () => ({ startIndex: 19, endIndex: 30 }) }),
+      'momentum',
+    );
+    expect(result).toEqual({ kind: 'collapse', open: new Set(['recents', 'author:king']) });
+  });
+
+  it('counts a section whose start equals endIndex as visible (any sliver)', () => {
+    const result = decideSweep(
+      sweepSnapshot({ expanded: allOpen, visible: () => ({ startIndex: 30, endIndex: 45 }) }),
+      'momentum',
+    );
+    expect(result).toEqual({
+      kind: 'collapse',
+      open: new Set(['author:king', 'author:pratchett']),
+    });
   });
 });
