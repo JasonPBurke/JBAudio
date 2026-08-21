@@ -26,7 +26,7 @@ import { LibraryRecencyMode } from '@/helpers/bookRecency';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import type { LadderList } from '@/types/ladderList';
-import type { LadderView } from '@/helpers/ladderDecisions';
+import type { LadderView, SectionRange } from '@/helpers/ladderDecisions';
 import { useBackToTopLadder } from '@/hooks/useBackToTopLadder';
 import * as Sentry from '@sentry/react-native';
 
@@ -48,6 +48,13 @@ const storeHasBooks = () =>
  * there is no reason to rebuild it on the hook path.
  */
 const NO_OP = () => {};
+
+/**
+ * The ranges the ladder reads before the sectioned view has published any --
+ * the Series and grid views, and `booksHome`'s first commit. Module scope so
+ * the ref's initial value is not a fresh array per mount.
+ */
+const NO_RANGES: SectionRange[] = [];
 
 /*
  * §H1 -- the ladder is told a NAMED view, and the mapping from the toggle's
@@ -117,17 +124,42 @@ const LibraryScreen = ({ navigation }: any) => {
   const listRef = useRef<LadderList | null>(null);
 
   /*
+   * §H4/§H5 -- the sectioned view's index ranges, owned here and written by
+   * `BooksHome` from a layout effect, before paint.
+   *
+   * A REF rather than state, deliberately: the trigger for a republication is
+   * the library store emitting MID-SCAN, and holding these in state would
+   * re-render the whole screen on every emission for data no render reads. The
+   * ladder is the only consumer and it reads at press time.
+   *
+   * ⚠ It is never emptied on a view toggle, so on the Series or grid view it
+   * holds indices describing the WRONG list. §H2's identity gate inside the
+   * decision is the only thing that disarms them (§R5); do not add a "clear it
+   * on toggle" here and weaken that gate into a second, weaker guard.
+   */
+  const sectionRangesRef = useRef<SectionRange[]>(NO_RANGES);
+  const handleSectionRangesChange = useCallback((ranges: SectionRange[]) => {
+    sectionRangesRef.current = ranges;
+  }, []);
+
+  /*
    * §J1 -- the back-to-top ladder. The screen installs it; the lists only ever
-   * receive the ref. Back on this screen now scrolls the list to the top from
-   * any depth, and backgrounds the app with a SINGLE further press once the
-   * list is already there.
+   * receive the ref. On the sectioned view back now climbs three rungs -- the
+   * header of the section you are inside, then the top of the list, then the
+   * app backgrounds -- and two on every other view, where the identity gate
+   * closes the first rung off.
    *
    * ⚠ There is deliberately no toast, no haptic and no "press back again to
    * exit". That convention exists for apps where the first press does nothing
    * visible; here the first press is visibly a scroll, and that IS the
    * feedback.
    */
-  useBackToTopLadder({ listRef, view: ladderViewFor(toggleView) });
+  useBackToTopLadder({
+    listRef,
+    view: ladderViewFor(toggleView),
+    sectionRangesRef,
+    expanded: activeGridSections,
+  });
 
   useScanExternalFileSystem();
 
@@ -343,6 +375,7 @@ const LibraryScreen = ({ navigation }: any) => {
               selectedTab={selectedTab}
               onMomentumScrollEnd={NO_OP}
               onScrollEndDrag={NO_OP}
+              onSectionRangesChange={handleSectionRangesChange}
             />
           )}
           {toggleView === 1 && (

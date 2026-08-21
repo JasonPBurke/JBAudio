@@ -4,7 +4,7 @@ import { BackHandler } from 'react-native';
 import * as Sentry from '@sentry/react-native';
 
 import { useBackToTopLadder } from '@/hooks/useBackToTopLadder';
-import type { LadderView } from '@/helpers/ladderDecisions';
+import type { LadderView, SectionRange } from '@/helpers/ladderDecisions';
 import type { LadderList } from '@/types/ladderList';
 
 /**
@@ -87,19 +87,29 @@ function fakeList(offset: number, overrides: Partial<ListFake> = {}): ListFake {
 async function mountLadder({
   view = 'seriesHome' as LadderView,
   list,
+  ranges = [],
+  expanded = new Set<string>(),
 }: {
   view?: LadderView;
   list: ListFake | null;
+  ranges?: SectionRange[];
+  expanded?: Set<string>;
 }) {
   const registered = jest.spyOn(BackHandler, 'addEventListener');
   const listRef: { current: ListFake | null } = { current: list };
+  // A REF, exactly as the screen owns it: the sectioned list publishes into it
+  // from a layout effect WITHOUT re-rendering the screen, so a test that
+  // reassigns `.current` between presses is modelling the real channel.
+  const sectionRangesRef: { current: SectionRange[] } = { current: ranges };
   const rendered = await renderHook(
-    (props: { view: LadderView }) =>
+    (props: { view: LadderView; expanded: Set<string> }) =>
       useBackToTopLadder({
         listRef: listRef as unknown as RefObject<LadderList | null>,
         view: props.view,
+        sectionRangesRef,
+        expanded: props.expanded,
       }),
-    { initialProps: { view } },
+    { initialProps: { view, expanded } },
   );
 
   const press = async () => {
@@ -113,7 +123,7 @@ async function mountLadder({
     return consumed;
   };
 
-  return { ...rendered, registered, press, listRef };
+  return { ...rendered, registered, press, listRef, sectionRangesRef };
 }
 
 beforeEach(() => {
@@ -241,9 +251,9 @@ describe('useBackToTopLadder — registration', () => {
     const { rerender, registered, listRef } = await mountLadder({ list });
 
     mockDrawerStatus = 'open';
-    await rerender({ view: 'booksHome' });
+    await rerender({ view: 'booksHome', expanded: new Set<string>() });
     listRef.current = fakeList(10);
-    await rerender({ view: 'booksGrid' });
+    await rerender({ view: 'booksGrid', expanded: new Set<string>() });
 
     expect(registered).toHaveBeenCalledTimes(1);
   });
@@ -256,7 +266,7 @@ describe('useBackToTopLadder — registration', () => {
     const { rerender, press } = await mountLadder({ list });
 
     mockDrawerStatus = 'open';
-    await rerender({ view: 'seriesHome' });
+    await rerender({ view: 'seriesHome', expanded: new Set<string>() });
 
     expect(await press()).toBe(false);
     expect(list.scrollToOffset).not.toHaveBeenCalled();
@@ -274,10 +284,161 @@ describe('useBackToTopLadder — registration', () => {
           LadderList | null
         >,
         view: 'seriesHome',
+        sectionRangesRef: { current: [] },
+        expanded: new Set<string>(),
       }),
     );
     await unmount();
 
     expect(remove).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * The third rung's WIRING. `decideBackPress` already proves the rung's
+ * judgement over a snapshot it is handed; what only an exercised hook can prove
+ * is that the ranges and the expanded set reach that snapshot at all -- and
+ * from the right channel. Ticket 05 shipped this rung already correct and
+ * STARVED: the snapshot was built with an empty range list at module scope, so
+ * every armed press on `booksHome` fell through to master top.
+ */
+describe('useBackToTopLadder — the section rung', () => {
+  /** One expanded author occupying indices 10..40, its header at y = 2000. */
+  const author: SectionRange = { sectionId: 'author-A', start: 10, end: 40 };
+  const deepInside = () =>
+    fakeList(6000, {
+      computeVisibleIndices: jest.fn(() => ({ startIndex: 30, endIndex: 36 })),
+      getLayout: jest.fn((index: number) => ({
+        x: 0,
+        y: index === 10 ? 2000 : 9999,
+        width: 100,
+        height: 100,
+      })),
+    });
+
+  it('lands on the containing section`s header, at its PLAIN y', async () => {
+    const list = deepInside();
+
+    const { press } = await mountLadder({
+      view: 'booksHome',
+      list,
+      ranges: [author],
+      expanded: new Set(['author-A']),
+    });
+
+    expect(await press()).toBe(true);
+    // ⚠ §D2 -- the landing offset is the header's plain `y`, with NO
+    // `firstItemOffset` term. Adding one aligns the header to the VIEWPORT top,
+    // which is the strip the dropped-down search bar occupies as an absolute
+    // overlay, so the header lands underneath it and the user cannot read the
+    // name of the section they returned to.
+    expect(list.scrollToOffset).toHaveBeenCalledWith({
+      offset: 2000,
+      animated: true,
+    });
+  });
+
+  it('reads the ranges from the REF at press time, not from a render', async () => {
+    // §H5's channel. The sectioned list publishes into the screen's ref from a
+    // layout effect and the screen does NOT re-render, so a hook that mirrored
+    // the ranges into its own state or read them from a render prop would still
+    // hold the empty array it mounted with -- and the rung would silently stay
+    // a two-rung ladder, which is exactly the state ticket 05 shipped.
+    const list = deepInside();
+
+    const { press, sectionRangesRef } = await mountLadder({
+      view: 'booksHome',
+      list,
+      ranges: [],
+      expanded: new Set(['author-A']),
+    });
+    sectionRangesRef.current = [author];
+
+    expect(await press()).toBe(true);
+    expect(list.scrollToOffset).toHaveBeenCalledWith({
+      offset: 2000,
+      animated: true,
+    });
+  });
+
+  it('sees the expanded set change through its mirror ref', async () => {
+    const list = deepInside();
+
+    const { press, rerender } = await mountLadder({
+      view: 'booksHome',
+      list,
+      ranges: [author],
+      expanded: new Set<string>(),
+    });
+    await rerender({ view: 'booksHome', expanded: new Set(['author-A']) });
+
+    expect(await press()).toBe(true);
+    expect(list.scrollToOffset).toHaveBeenCalledWith({
+      offset: 2000,
+      animated: true,
+    });
+  });
+
+  it('goes to master top from inside a COLLAPSED section', async () => {
+    // Story 9. The range still exists -- a collapsed section is a header plus
+    // one horizontal row -- so only the expanded set tells the two apart.
+    const list = deepInside();
+
+    const { press } = await mountLadder({
+      view: 'booksHome',
+      list,
+      ranges: [author],
+      expanded: new Set<string>(),
+    });
+
+    expect(await press()).toBe(true);
+    expect(list.scrollToOffset).toHaveBeenCalledWith({
+      offset: 0,
+      animated: true,
+    });
+  });
+
+  it('IGNORES the ranges on a non-sectioned view (§R5)', async () => {
+    // The ranges ref is never emptied and the expanded set persists across view
+    // toggles, so on the Series view these indices describe the WRONG list. The
+    // identity gate is the only thing that disarms them; without it the rung
+    // would land at an arbitrary offset in a list it knows nothing about.
+    const list = deepInside();
+
+    const { press } = await mountLadder({
+      view: 'seriesHome',
+      list,
+      ranges: [author],
+      expanded: new Set(['author-A']),
+    });
+
+    expect(await press()).toBe(true);
+    expect(list.scrollToOffset).toHaveBeenCalledWith({
+      offset: 0,
+      animated: true,
+    });
+  });
+
+  it('goes to master top on the press AFTER the rung, with no state consulted', async () => {
+    // Story 3 and §I6: the ladder holds nothing between presses. At the header
+    // the rung's own predicate is simply false -- `offset - headerY` is 0 --
+    // so the same code path that fired the rung now falls through to master.
+    const list = fakeList(2000, {
+      computeVisibleIndices: jest.fn(() => ({ startIndex: 10, endIndex: 16 })),
+      getLayout: jest.fn(() => ({ x: 0, y: 2000, width: 100, height: 100 })),
+    });
+
+    const { press } = await mountLadder({
+      view: 'booksHome',
+      list,
+      ranges: [author],
+      expanded: new Set(['author-A']),
+    });
+
+    expect(await press()).toBe(true);
+    expect(list.scrollToOffset).toHaveBeenCalledWith({
+      offset: 0,
+      animated: true,
+    });
   });
 });

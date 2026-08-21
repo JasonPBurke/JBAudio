@@ -174,6 +174,27 @@ function sectionRungTarget(s: LadderSnapshot): number | null {
   if (headerY <= 0) return null;
   if (s.offset - headerY <= SUBPIXEL_EPSILON) return null;
 
+  /*
+   * ⚠ §D2 -- the landing offset is the header's PLAIN `y`, with NO conversion
+   * term. This is the one number here a reasonable implementer gets wrong in
+   * the obvious direction, and the prototype did:
+   *
+   *   at raw offset S, item i's top sits at screen position
+   *     (y_i + firstItemOffset) - S
+   *   we want the header at screen position firstItemOffset  =>  S = y_h
+   *
+   * Landing at `y_h + firstItemOffset` aligns the header to the VIEWPORT top
+   * instead, which is exactly the strip the dropped-down search bar occupies as
+   * an absolute overlay -- so the header lands UNDERNEATH the bar and the user
+   * cannot read the name of the section they returned to. Found on device,
+   * fixed, re-confirmed on a later build. Plain `y_h` puts the header precisely
+   * where item 0 sits at master top: the visual slot the user already knows.
+   *
+   * Rejected alternative: hiding the search bar during auto-scrolls. It only
+   * defers the occlusion -- the bar returns on any upward delta -- and it would
+   * give the ladder a second job, owning chrome visibility, with a new failure
+   * mode.
+   */
   return headerY;
 }
 

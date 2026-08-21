@@ -24,6 +24,8 @@ import {
 import { fontSize, screenPadding } from '@/constants/tokens';
 import { utilsStyles } from '@/styles';
 import { useResetScrollOnTabChange } from '@/hooks/useResetScrollOnTabChange';
+import { useSectionRanges } from '@/hooks/useSectionRanges';
+import type { SectionRange } from '@/helpers/ladderDecisions';
 import type { LadderListProps } from '@/types/ladderList';
 
 export type BookListProps = Partial<FlashListProps<Book>> &
@@ -35,6 +37,16 @@ export type BookListProps = Partial<FlashListProps<Book>> &
     activeGridSections: Set<string>;
     onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
     ListHeaderComponent?: React.ReactElement;
+    /**
+     * ⚠ REQUIRED here, narrowing the ONE optional member of `LadderListProps`
+     * (§H8). Optional in the shared contract because only a SECTIONED view has
+     * ranges to publish; this IS the sectioned view, so a caller that forgets
+     * it must not compile. Without this the omission is silent -- the ladder
+     * simply keeps falling through to master top and `booksHome` quietly stays
+     * a two-rung ladder, which is the state ticket 05 shipped and no test on
+     * the screen can see.
+     */
+    onSectionRangesChange: (ranges: SectionRange[]) => void;
   };
 
 const RECENTS_TITLE: Record<'played' | 'finished' | 'added', string> = {
@@ -65,6 +77,7 @@ const BooksHome = ({
   selectedTab,
   onMomentumScrollEnd,
   onScrollEndDrag,
+  onSectionRangesChange,
 }: BookListProps) => {
   const { colors: themeColors } = useTheme();
   // The list ref belongs to the LIBRARY SCREEN, never to this component (§H6):
@@ -180,6 +193,15 @@ const BooksHome = ({
 
     return items;
   }, [activeGridSections, recentBooks, recencyMode, sortedAuthors]);
+
+  // The ladder's third rung needs to know which index span each section
+  // occupies, and `flatData` is the only place that is knowable -- FlashList's
+  // ref can answer everything else the ladder asks, but not this. Published
+  // from a layout effect, which §H5 makes a contract requirement: a passive
+  // effect would leave a window in which new rows are on screen while the
+  // ranges still describe the previous array, and the rung would land on a
+  // section the user was never in.
+  useSectionRanges(flatData, onSectionRangesChange);
 
   // Toggle the pressed section in/out of the expanded set. Any number of sections
   // may be open at once, and expanding one NEVER collapses another. That is the

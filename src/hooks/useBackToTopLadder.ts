@@ -33,22 +33,11 @@ import type { LadderList } from '@/types/ladderList';
  * addition to it.
  */
 
-/**
- * Section ranges and the expanded-section set, absent until the sectioned
- * rung and the collapse sweep arrive.
- *
- * With no ranges, `decideBackPress` finds no section containing the viewport
- * top and every armed press falls through to master top -- which IS the
- * two-rung ladder, on every view including `booksHome`. Module scope so the
- * snapshot does not allocate a set and an array on each press.
- */
-const NO_RANGES: SectionRange[] = [];
-const NO_EXPANDED = new Set<string>();
-
 /** The mutable inputs the handler reads, mirrored so it never re-registers. */
 type LadderInputs = {
   view: LadderView;
   drawerOpen: boolean;
+  expanded: Set<string>;
 };
 
 export type UseBackToTopLadderParams = {
@@ -56,6 +45,29 @@ export type UseBackToTopLadderParams = {
   listRef: RefObject<LadderList | null>;
   /** A NAMED view (§H1), never the toggle's 0/1/2 ordinal. */
   view: LadderView;
+  /**
+   * The sectioned view's index ranges, owned by the screen and written by the
+   * mounted list from a layout effect (§H4/§H5).
+   *
+   * ⚠ A REF rather than a value, and this is the ONE deliberate exception to
+   * §J2's "callers pass ordinary values". The publication path exists precisely
+   * so it does NOT re-render the screen -- the library store emits mid-scan and
+   * a re-render per emission is what holding ranges in state would cost. A
+   * value would therefore only refresh on some LATER unrelated render, which
+   * may never come, and the mirror would sit stale for exactly as long as the
+   * ranges mattered.
+   *
+   * ⚠ It is never emptied on a view toggle. On another view these indices
+   * describe the WRONG list, and §H2's identity gate inside `decideBackPress`
+   * is the only thing that disarms them (§R5).
+   */
+  sectionRangesRef: RefObject<SectionRange[]>;
+  /**
+   * The expanded-section set. An ordinary value, per §J2: it is screen state,
+   * so every change already re-renders the screen and the mirror below cannot
+   * fall behind it.
+   */
+  expanded: Set<string>;
 };
 
 /**
@@ -68,15 +80,21 @@ export type UseBackToTopLadderParams = {
  * the decision's own suite could catch it, because that suite only ever sees
  * the thunk it is handed.
  */
-function buildSnapshot(list: LadderList, inputs: LadderInputs): LadderSnapshot {
+function buildSnapshot(
+  list: LadderList,
+  inputs: LadderInputs,
+  ranges: SectionRange[],
+): LadderSnapshot {
   return {
     view: inputs.view,
     drawerOpen: inputs.drawerOpen,
     offset: list.getAbsoluteLastScrollOffset(),
     firstItemOffset: list.getFirstItemOffset(),
-    expanded: NO_EXPANDED,
-    ranges: NO_RANGES,
+    expanded: inputs.expanded,
+    ranges,
     visible: () => list.computeVisibleIndices(),
+    // The RAW layout `y`, handed over untouched: §D2's arithmetic lives at the
+    // decision that turns it into a landing offset, not here.
     layoutY: (index) => list.getLayout(index)?.y,
   };
 }
@@ -84,6 +102,8 @@ function buildSnapshot(list: LadderList, inputs: LadderInputs): LadderSnapshot {
 export function useBackToTopLadder({
   listRef,
   view,
+  sectionRangesRef,
+  expanded,
 }: UseBackToTopLadderParams) {
   /*
    * §A7 -- defence in depth, and ONLY that. On device the drawer consumes back
@@ -114,9 +134,9 @@ export function useBackToTopLadder({
    * the handler still reads the old one -- and a back press can land in that
    * window. It costs nothing to close.
    */
-  const inputsRef = useRef<LadderInputs>({ view, drawerOpen });
+  const inputsRef = useRef<LadderInputs>({ view, drawerOpen, expanded });
   useLayoutEffect(() => {
-    inputsRef.current = { view, drawerOpen };
+    inputsRef.current = { view, drawerOpen, expanded };
   });
 
   const onBackPress = useCallback(() => {
@@ -131,7 +151,9 @@ export function useBackToTopLadder({
        */
       const list = listRef.current;
       const decision = decideBackPress(
-        list ? buildSnapshot(list, inputsRef.current) : null,
+        list
+          ? buildSnapshot(list, inputsRef.current, sectionRangesRef.current)
+          : null,
       );
 
       /*
@@ -185,7 +207,7 @@ export function useBackToTopLadder({
       Sentry.captureException(error);
       return false;
     }
-  }, [listRef]);
+  }, [listRef, sectionRangesRef]);
 
   /*
    * §A1 -- `BackHandler` inside React Navigation's `useFocusEffect`. Not
