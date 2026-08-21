@@ -49,6 +49,17 @@ read that ticket's F-H section for the full evidence trail before starting.
 3. **Decide whether the spec ships without it.** The feature is unusable if back
    cannot reliably exit, so this likely gates [10](10-write-the-spec.md).
 
+## Possibly the same family — ticket 11 F-I
+
+The rung was observed once landing **a few cover rows past the header** instead of
+at it, with independent numeric corroboration (the same header computed 1,368 px
+apart across two runs). Neither driver nor agent could reproduce it. It may share a
+root cause with the drift — both are "the list ends up somewhere other than where
+the code asked for" — or it may be a separate softness in
+`getLayout(headerIndex).y` for a header far above the viewport, which would
+undermine ticket 05's "already measured, so exact" assertion. Worth holding both in
+view while isolating.
+
 ## Notes
 
 - ⚠ **The sweep consumes its own setup** — one master jump collapses the sections,

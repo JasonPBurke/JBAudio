@@ -657,6 +657,41 @@ re-assert `offset 0` after the sweep (and ticket 04 has warnings about mutating
 while scrolled), suppress MVCP for the sweep's mutation, change what the sweep
 keeps open, or redefine the terminal rung. **Not decided here.**
 
+### F-I — the rung can land a few rows PAST the header (observed once, not reproduced)
+
+**Driver observation.** With Terry Pratchett (100+ books) expanded, scrolled to the
+bottom of that section, settled, then back: the rung landed **partway through the
+book cards, a few rows below the header** — not a sub-pixel offset, a real scroll
+past a couple of cover rows.
+
+**Not reproduced.** A subsequent attempt by the agent from the same position landed
+**correctly**: `#1040 back:rung {from:33191.43, target:19812.571}` →
+`#1041 momentumEnd {19812.572}`, with the header sitting below the search bar in
+item 0's slot, search bar present. The driver also could not reproduce it.
+
+⚠ **But there is an independent numeric corroboration.** With the *same* Terry +
+Agatha expansion, Pratchett's header was computed as:
+
+    #970  back:rung  target = 18,444.28
+    #1040 back:rung  target = 19,812.57     <- same header, +1,368.29 px
+
+Some of that gap is legitimate — Pratchett was collapsed and re-expanded in
+between, and "(#9) Eric" left the Unplayed set when it started playing. But
+**1,368 px is about two cover rows on this masonry grid**, which is a magnitude
+match for what the driver saw. Two independent signals, one visual and one numeric,
+pointing the same way.
+
+**Why it matters.** Ticket 05's rung rests on the assertion that the header is
+"ABOVE us and therefore already measured, so its layout is exact and a plain
+`scrollToOffset` reaches it". If `getLayout(headerIndex).y` is **estimated rather
+than measured** for a header 100+ items above the viewport, the rung lands
+somewhere plausible but wrong — exactly this symptom. That assumption has never
+been tested for a very long section.
+
+**Status: open quirk, low frequency, not blocking.** Recorded so it is not
+rediscovered from scratch. Folded into [12](12-collapse-sweep-scroll-drift.md),
+which already owns the scroll-position family and may share a root cause.
+
 ## New findings (no DT asked for these)
 
 - **F-A — an overscroll bounce at the top fires the sweep.** At offset 0, dragging
