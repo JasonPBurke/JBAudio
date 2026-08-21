@@ -86,9 +86,16 @@ export function decideBackPress(s: LadderSnapshot | null): BackPressDecision {
   if (s.offset <= s.firstItemOffset) return { kind: 'decline', reason: 'at-top' };
 
   // Past this point the predicate has passed, which is what makes `visible()`
-  // safe to call: it throws when the list has no layout manager, but no layout
-  // manager implies firstItemOffset === 0, which makes the predicate 0 > 0 and
-  // declines above. Predicate true => layout exists.
+  // safe to call: it throws when the list has no layout manager, and such a
+  // list reads BOTH accessors as 0 -- so the predicate is `0 > 0`, false, and
+  // has declined above. Predicate true => layout exists.
+  //
+  // The premise needs the OFFSET to read 0 as well, not just firstItemOffset,
+  // and that half is reasoned rather than measured -- reaching the throw takes
+  // a scrolled list that has lost its layout manager. Deliberately NOT wrapped
+  // in try/catch: swallowing it would turn a loud bug into a silent scroll to
+  // master top, and the boundary with the back handler belongs to the hook,
+  // not to a pure decision.
   const headerY = sectionRungTarget(s);
   if (headerY !== null) return { kind: 'scrollTo', offset: headerY, rung: 'section' };
 

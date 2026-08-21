@@ -207,10 +207,52 @@ describe('decideBackPress — nearest, and re-derivation', () => {
   it('returns master when fed back the snapshot its own section rung produces', () => {
     // The ladder holds no state: feeding the landing offset back in must select
     // the next rung down, so it cannot get out of step with the list.
-    expect(decideBackPress(snapshot({ ...twoOpen, offset: 4820 }))).toEqual({
-      kind: 'scrollTo',
-      offset: 0,
-      rung: 'master',
-    });
+    //
+    // The thunk moves with the offset. After the rung lands, the viewport top IS
+    // the header, so the real post-landing sample reads startIndex === 120 --
+    // keeping the pre-jump 150 here would test a snapshot that never occurs.
+    expect(
+      decideBackPress(
+        snapshot({
+          ...twoOpen,
+          offset: 4820,
+          visible: () => ({ startIndex: 120, endIndex: 140 }),
+        }),
+      ),
+    ).toEqual({ kind: 'scrollTo', offset: 0, rung: 'master' });
+  });
+});
+
+/**
+ * `SectionRange.end` is INCLUSIVE, and both bounds of the containment test are
+ * therefore `<=` / `>=`. Nothing above pins that: the interior samples these
+ * cases surround pass under strict bounds too, so a range producer written to
+ * an exclusive `end` would leave this suite green while landing the rung on the
+ * previous section's header -- a wrong landing that passes every sanity check
+ * an implementer would think to write.
+ */
+describe('decideBackPress — the containment bounds are inclusive', () => {
+  const base = {
+    offset: 6421,
+    firstItemOffset: 38,
+    expanded: new Set(['author-M']),
+    ranges: [{ sectionId: 'author-M', start: 120, end: 200 }],
+    layoutY: (i: number) => (i === 120 ? 4820 : undefined),
+  };
+
+  it('a viewport top ON the header index is inside the section', () => {
+    expect(
+      decideBackPress(
+        snapshot({ ...base, visible: () => ({ startIndex: 120, endIndex: 140 }) }),
+      ),
+    ).toEqual({ kind: 'scrollTo', offset: 4820, rung: 'section' });
+  });
+
+  it('a viewport top ON the last item index is still inside the section', () => {
+    expect(
+      decideBackPress(
+        snapshot({ ...base, visible: () => ({ startIndex: 200, endIndex: 240 }) }),
+      ),
+    ).toEqual({ kind: 'scrollTo', offset: 4820, rung: 'section' });
   });
 });
