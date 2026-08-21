@@ -59,12 +59,48 @@ const SECTIONED_VIEWS = new Set<LadderView>(['booksHome']);
 const SUBPIXEL_EPSILON = 1;
 
 /**
+ * Is the list at rest at visual top? ONE definition, read by both decisions --
+ * the rung declines here and the sweep requires it, so they are exact
+ * complements BY CONSTRUCTION rather than by two comments agreeing.
+ *
+ * That equivalence is load-bearing: it is what makes I2 true, because at this
+ * offset no list item is above the fold, so "not visible" and "below the fold"
+ * are the same set and the sweep cannot touch anything the user can see. Two
+ * separately-maintained inequalities could drift into a band where the rung
+ * declines and the sweep also declines, and back would do nothing at all.
+ *
+ * `firstItemOffset` is exactly the offset at which the first item's top reaches
+ * the viewport top, so this reads literally as "is no list item above the
+ * fold?". It stays an INEQUALITY: the resting offset can legitimately be
+ * negative (an overscroll bounce, or briefly after a sweep), and `<=` is the
+ * side every negative value falls on.
+ */
+function isAtTop(s: LadderSnapshot): boolean {
+  return s.offset <= s.firstItemOffset;
+}
+
+/**
+ * Does `r` overlap the index span `from..to`, with EVERY bound inclusive?
+ *
+ * The one place `end`'s inclusiveness (H4) is encoded, so a range producer that
+ * emits an exclusive `end` breaks visibly here instead of subtly at two call
+ * sites. Any sliver counts: that is the semantics the deleted viewability
+ * plumbing bought with `itemVisiblePercentThreshold: 1` (F6).
+ *
+ * The rung asks CONTAINMENT and the sweep asks OVERLAP (H4) -- containment is
+ * simply this question with a degenerate one-index span.
+ */
+function overlapsSpan(r: SectionRange, from: number, to: number): boolean {
+  return r.start <= to && r.end >= from;
+}
+
+/**
  * Below this the finger-lift counts as settled rather than flung. Device-
  * measured: a fling that scrolls DOWN into the list reports -4.76 and is
  * at-top at finger-lift, so the at-top guard alone would collapse everything
  * as the user flings away. Only this gate excludes that case (F4).
  */
-const SETTLED_VELOCITY = 0.01;
+const SETTLED_VELOCITY_THRESHOLD = 0.01;
 
 export type BackPressDecision =
   | { kind: 'decline'; reason: 'drawer' | 'no-list' | 'at-top' }
@@ -86,14 +122,8 @@ export function decideBackPress(s: LadderSnapshot | null): BackPressDecision {
   // site is what stops it being forgotten.
   if (s.drawerOpen) return { kind: 'decline', reason: 'drawer' };
 
-  // The arm predicate, read live from the list's own ref. `firstItemOffset` is
-  // exactly the offset at which the first item's top reaches the viewport top,
-  // so this reads literally as "is any list item above the fold?".
-  //
-  // It stays an INEQUALITY: the resting offset can legitimately be negative
-  // (overscroll at the top, or briefly after a sweep), and `<=` is the side
-  // every negative value falls on.
-  if (s.offset <= s.firstItemOffset) return { kind: 'decline', reason: 'at-top' };
+  // The arm predicate, read live from the list's own ref.
+  if (isAtTop(s)) return { kind: 'decline', reason: 'at-top' };
 
   // Past this point the predicate has passed, which is what makes `visible()`
   // safe to call: it throws when the list has no layout manager, and such a
@@ -125,7 +155,7 @@ function sectionRungTarget(s: LadderSnapshot): number | null {
   // earliest expanded one in the list. Recently Added is the first item of
   // every non-empty BooksHome, so the earliest reading targets index 0 whenever
   // it is open, which is master top: a guaranteed dead press.
-  const containing = s.ranges.find((r) => r.start <= startIndex && r.end >= startIndex);
+  const containing = s.ranges.find((r) => overlapsSpan(r, startIndex, startIndex));
   if (containing === undefined) return null;
   if (!s.expanded.has(containing.sectionId)) return null;
 
@@ -162,11 +192,9 @@ export function decideSweep(
 ): SweepDecision {
   if (!SECTIONED_VIEWS.has(s.view)) return { kind: 'none', reason: 'not-sectioned' };
 
-  // The EXACT complement of the rung's arm predicate, and the sentence I2 rests
-  // on: at this offset no list item is above the fold, so "not visible" and
-  // "below the fold" are the same set and the sweep cannot touch anything the
-  // user can see. A negative offset (an overscroll bounce) is at the top too.
-  if (s.offset > s.firstItemOffset) return { kind: 'none', reason: 'not-at-top' };
+  // The exact complement of the rung's arm predicate, by sharing it. I2 rests
+  // on this: the sweep can only ever reach below-fold sections.
+  if (!isAtTop(s)) return { kind: 'none', reason: 'not-at-top' };
 
   // Drag-end only: a momentum END is by definition the motion having stopped,
   // so there is no velocity left to gate on.
@@ -174,8 +202,9 @@ export function decideSweep(
   // An UNREPORTED velocity is treated as a fling, not as a settle. The two
   // errors are not symmetric: a missed sweep is invisible and the next arrival
   // at the top performs it anyway, whereas a wrong sweep destroys the user's
-  // expansions. This is not stated by J4 -- see the ticket's Answer.
-  if (trigger === 'drag' && !(Math.abs(velocityY ?? Infinity) < SETTLED_VELOCITY)) {
+  // expansions. J4 types `velocityY` as optional and does not say which way
+  // `undefined` falls; this is the safe side.
+  if (trigger === 'drag' && !(Math.abs(velocityY ?? Infinity) < SETTLED_VELOCITY_THRESHOLD)) {
     return { kind: 'none', reason: 'flinging' };
   }
 
@@ -194,13 +223,10 @@ export function decideSweep(
     return { kind: 'none', reason: 'no-visible-sample' };
   }
 
-  // Overlap, not containment: ANY sliver on screen counts as visible. That is
-  // the semantics the deleted viewability plumbing bought with
-  // `itemVisiblePercentThreshold: 1`, so reading the range off the ref is
-  // behaviour-preserving rather than merely simpler (F6).
+  // Overlap, not containment (H4): any sliver on screen counts as visible.
   const visibleIds = new Set<string>();
   for (const r of s.ranges) {
-    if (r.start <= endIndex && r.end >= startIndex) visibleIds.add(r.sectionId);
+    if (overlapsSpan(r, startIndex, endIndex)) visibleIds.add(r.sectionId);
   }
 
   // The same bail-out, reached the other way: the sample was well-formed but

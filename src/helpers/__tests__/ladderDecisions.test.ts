@@ -1,4 +1,9 @@
-import { decideBackPress, decideSweep, type LadderSnapshot } from '../ladderDecisions';
+import {
+  decideBackPress,
+  decideSweep,
+  type LadderSnapshot,
+  type SweepDecision,
+} from '../ladderDecisions';
 
 /**
  * The default `visible` thunk THROWS. That is B7's ordering rule expressed as a
@@ -264,23 +269,33 @@ describe('decideBackPress — the containment bounds are inclusive', () => {
  * declined before touching visibility.
  */
 function sweepSnapshot(over: Partial<LadderSnapshot> = {}): LadderSnapshot {
-  return {
-    view: 'booksHome',
-    drawerOpen: false,
+  return snapshot({
     offset: 0,
-    firstItemOffset: 38,
     expanded: new Set(['author:king', 'author:pratchett']),
     ranges: [
       { sectionId: 'recents', start: 0, end: 19 },
       { sectionId: 'author:king', start: 20, end: 44 },
       { sectionId: 'author:pratchett', start: 45, end: 80 },
+      { sectionId: 'author:tolkien', start: 81, end: 120 },
     ],
     visible: () => {
-      throw new Error('visible() called before the sweep gates passed');
+      throw new Error('visible() called before the sweep gates passed (F2)');
     },
-    layoutY: () => undefined,
     ...over,
-  };
+  });
+}
+
+/**
+ * Narrow a sweep to its collapsed set. Every test whose claim is about the
+ * CONTENTS or the REFERENCE of that set reads it through here, so the claim
+ * stays on one line and a `none` shows up as a named failure rather than as a
+ * confusing set mismatch.
+ */
+function collapsedSet(result: SweepDecision): Set<string> {
+  if (result.kind !== 'collapse') {
+    throw new Error(`expected a collapse, got none('${result.reason}')`);
+  }
+  return result.open;
 }
 
 describe('decideSweep — the capability gate (R5)', () => {
@@ -337,11 +352,12 @@ describe('decideSweep — the velocity gate (F4, F5)', () => {
     });
   });
 
-  it('sweeps on the overscroll bounce, which reports velocity 0', () => {
-    expect(decideSweep(sweepSnapshot({ offset: -120, ...settled }), 'drag', 0).kind).toBe(
-      'collapse',
-    );
-  });
+  it.each([0, -120])(
+    'sweeps on the overscroll bounce at offset %p, which reports velocity 0',
+    (offset) => {
+      expect(decideSweep(sweepSnapshot({ offset, ...settled }), 'drag', 0).kind).toBe('collapse');
+    },
+  );
 
   it('does not consult velocity on the momentum trigger', () => {
     expect(decideSweep(sweepSnapshot({ offset: 0, ...settled }), 'momentum', -4.76).kind).toBe(
@@ -351,9 +367,19 @@ describe('decideSweep — the velocity gate (F4, F5)', () => {
 });
 
 describe('decideSweep — the degenerate sample (F8)', () => {
-  it('declines on an empty visible range', () => {
+  // endIndex 12, NOT -1. A -1/-1 sample also trips the empty-overlap guard,
+  // which returns the identical reason -- so that fixture cannot tell the two
+  // guards apart and leaves this one unpinned. With endIndex 12 the overlap is
+  // non-empty, so removing this guard yields a collapse and the test bites.
+  it('declines on a negative startIndex, even where sections would overlap', () => {
     expect(
-      decideSweep(sweepSnapshot({ visible: () => ({ startIndex: -1, endIndex: -1 }) }), 'momentum'),
+      decideSweep(sweepSnapshot({ visible: () => ({ startIndex: -1, endIndex: 12 }) }), 'momentum'),
+    ).toEqual({ kind: 'none', reason: 'no-visible-sample' });
+  });
+
+  it("declines on FlashList's own empty sample, which is INVERTED (-1, -2)", () => {
+    expect(
+      decideSweep(sweepSnapshot({ visible: () => ({ startIndex: -1, endIndex: -2 }) }), 'momentum'),
     ).toEqual({ kind: 'none', reason: 'no-visible-sample' });
   });
 
@@ -386,7 +412,7 @@ describe('decideSweep — an empty overlap (F8, R5)', () => {
 
 describe('decideSweep — the collapse', () => {
   const atTop = { visible: () => ({ startIndex: 0, endIndex: 12 }) };
-  const allOpen = new Set(['recents', 'author:king', 'author:pratchett']);
+  const allOpen = new Set(['recents', 'author:king', 'author:pratchett', 'author:tolkien']);
 
   it('keeps only Recently Added, by position rather than by exemption', () => {
     const result = decideSweep(sweepSnapshot({ ...atTop, expanded: allOpen }), 'momentum');
@@ -396,20 +422,19 @@ describe('decideSweep — the collapse', () => {
   it('returns the SAME set reference when every open section is visible', () => {
     const open = new Set(['recents']);
     const result = decideSweep(sweepSnapshot({ ...atTop, expanded: open }), 'momentum');
-    expect(result.kind === 'collapse' && result.open).toBe(open);
+    expect(collapsedSet(result)).toBe(open);
   });
 
   it('returns the SAME set reference when nothing is expanded at all', () => {
     const open = new Set<string>();
     const result = decideSweep(sweepSnapshot({ ...atTop, expanded: open }), 'momentum');
-    expect(result.kind === 'collapse' && result.open).toBe(open);
+    expect(collapsedSet(result)).toBe(open);
   });
 
   it('is idempotent: feeding a sweep result back collapses nothing (E4, I5)', () => {
-    const first = decideSweep(sweepSnapshot({ ...atTop, expanded: allOpen }), 'momentum');
-    if (first.kind !== 'collapse') throw new Error('expected a collapse');
-    const second = decideSweep(sweepSnapshot({ ...atTop, expanded: first.open }), 'momentum');
-    expect(second.kind === 'collapse' && second.open).toBe(first.open);
+    const first = collapsedSet(decideSweep(sweepSnapshot({ ...atTop, expanded: allOpen }), 'momentum'));
+    const second = collapsedSet(decideSweep(sweepSnapshot({ ...atTop, expanded: first }), 'momentum'));
+    expect(second).toBe(first);
   });
 
   it('counts a section whose end equals startIndex as visible (any sliver)', () => {

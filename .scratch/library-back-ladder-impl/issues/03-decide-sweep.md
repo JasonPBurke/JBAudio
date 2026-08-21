@@ -223,3 +223,52 @@ self-contained — ticket 01 set the precedent against pasting `.scratch` paths 
 **Glossary gap, recorded not fixed:** `sweep`, `rung`, `section`, `expanded` appear nowhere in
 `CONTEXT.md`, which `docs/agents/domain.md` says is a signal to note for `/domain-modeling`.
 Pre-existing — ticket 02 coined them.
+
+### Disposition — applied, with one decline
+
+Fixes in the follow-up commit. tsc 0, eslint 0, jest **888** (886 before); the sweep suite is 38 → 40.
+
+**Taken — case 5's fixture, the one real defect.** Split into two tests that each bite alone:
+`{startIndex: -1, endIndex: 12}` pins the `startIndex < 0` half (the overlap is non-empty, so
+without the guard this is a collapse), and `{-1, -2}` pins the inverted half **using FlashList's
+actual empty value**. The re-run matrix confirms it: *"drop the `startIndex<0` half"* and *"drop the
+inverted-range half"* now kill 1 test each, where before **the first killed nothing**.
+
+**Taken — `isAtTop(s)` and `overlapsSpan(r, from, to)`, both shared with `decideBackPress`.** I2's
+"exact complement" is now true by construction rather than by two comments agreeing, and `end`'s
+inclusiveness is encoded in exactly one place — which is the trap the README flags for ticket 06.
+Behaviour-preserving: the suite stayed at 38/38 across the extraction, before any test changed.
+
+**Taken — fixture nits.** The bounce is now `it.each([0, -120])` so F5 is tested *at* the top and
+overscrolled past it; a fourth section (`author:tolkien`) makes case 7's "three author sections"
+literally true. Test file: `sweepSnapshot` delegates to `snapshot` instead of near-cloning it, and
+the clever `expect(result.kind === 'collapse' && result.open)` is gone in favour of a
+`collapsedSet()` narrowing helper.
+
+**Taken in part — `SETTLED_VELOCITY` → `SETTLED_VELOCITY_THRESHOLD`,** matching the repo's
+`RESTART_CHAPTER_THRESHOLD_SECONDS` idiom. **Declined the suggested `_MAX`:** the gate is `<`, so
+`MAX` would assert an inclusivity the code does not have — a worse name than the one being fixed.
+
+**Declined — adding a path to the `// see the ticket's Answer` comment.** Ticket 01 set the
+precedent against pasting `.scratch` paths into docblocks (*"modules are named; locations rot"*).
+Fixed at the root instead: the comment now states the reason itself and points nowhere.
+
+**No action — Data Clumps on `trigger`/`velocityY`.** The reviewer overrode itself correctly; §J4
+pins the signature. Worth revisiting only if §J4 is ever amended.
+
+### One surviving mutation, and why it is not a coverage gap
+
+The extraction made a new mutation expressible — giving the rung the whole viewport
+(`overlapsSpan(r, startIndex, endIndex)`) instead of containment of the top — and it kills **0**
+tests. It is an **equivalent mutant**, not an untested path: `find` returns the first range with
+`end >= startIndex`, and because the ranges tile in order, every earlier range fails that bound
+regardless of the second one. The containing range always satisfies `start <= startIndex <=
+endIndex`, so both forms select it. No test was added, because a test cannot distinguish them —
+**this holds only while the ranges tile in order**, which is ticket 06's contract to keep.
+
+### Still open for the driver
+
+**Five spec-amendment candidates** now (two from ticket 02, three here), none applied — the spec is
+on `main` and amending it from this branch would be merge noise. Deviation 3 is no longer a
+candidate but a **correction**: F8's *"empty range (`startIndex < 0`)"* does not describe what
+FlashList emits.

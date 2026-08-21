@@ -42,3 +42,11 @@ Branch: **`feat/library-back-ladder`**, off `main` at `104bd34`.
   deliberately NOT qualified by `ranges.length > 0` (F8's wording would admit the R5 input); an
   unreported drag velocity counts as **flinging**, not settled; a degenerate sample includes an
   **inverted** range, not just `startIndex < 0`. jest 868 → 886.
+  Reviewed (two axes, opus): no documented-standard violations and nothing implemented wrongly, but
+  the Spec axis found **case 5's test did not bite** — a `{-1,-1}` sample trips the empty-overlap
+  guard too, which returns the identical reason, so F8's `startIndex < 0` half was unpinned and the
+  mutation table hid it. Split into two tests, one of which uses FlashList's **actual** empty value:
+  ⚠ `ConsecutiveNumbers.EMPTY` is `(-1, -2)` — **INVERTED**, so F8's wording describes something
+  FlashList never emits. Also extracted `isAtTop` and `overlapsSpan`, now shared with
+  `decideBackPress`: I2's exact-complement claim and `end`'s inclusiveness each live in one place.
+  jest 886 → 888.
