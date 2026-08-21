@@ -161,3 +161,44 @@ const decision = decideBackPress(list ? buildSnapshot(list) : null);
 `buildSnapshot` must pass `visible` as a **thunk over `computeVisibleIndices()`**, never a
 pre-computed value — evaluating it eagerly reintroduces the throw B7 exists to avoid, and no test in
 this suite can catch that because the suite only ever sees the thunk it is handed.
+
+### Code review (`/code-review medium` on `354413c`)
+
+Verdict: faithful to the spec, no correctness defects — the reviewer traced B1–B7, C1–C4, D2–D4,
+H1–H4 and J4 against the code and confirmed each holds, including that the `headerY <= 0` bound
+really does degenerate an index-0 header into the master branch. Three low findings; two taken, two
+declined (one finding produced both a taken and a declined half). Fixes in `05e65ea`, suite 18 → 20.
+
+**Taken — the containment bounds had no coverage.** `end` is INCLUSIVE (H4), so both bounds are
+`<=`/`>=` — and *nothing pinned that*. Mutating **both** bounds to strict left the suite green at
+18/18, because every existing sample sat in a range's interior. A range producer written to an
+exclusive `end` (`end === next.start` — an easy mistake precisely because H4 stores `end` as
+deliberate redundancy rather than deriving it) would resolve the viewport top to the **previous**
+section, land the rung on the wrong header, and pass every sanity check an implementer would think
+to write. Two boundary cases added; the mutation now kills 2.
+
+⚠ **Ticket 06 owns the range producer — this is the trap it must not fall into.** The two new tests
+are the executable statement of the contract.
+
+**Taken — the re-derivation case tested a snapshot that never occurs.** It fed back case 15's
+landing *offset* while keeping the pre-jump thunk (`startIndex: 150`). After the rung lands the
+viewport top **is** the header, so the real post-landing sample reads `startIndex === 120`. Fixed;
+it still returns master, via the sub-pixel guard exactly as before.
+
+**Taken — the B7 comment overstated its own premise.** It claimed *"no layout manager implies
+`firstItemOffset === 0`, which makes the predicate `0 > 0`"* — but the predicate is
+`offset > firstItemOffset`, so that conclusion also needs the **offset** to read 0. Reworded to name
+the real dependency and mark that half as reasoned rather than measured. **The spec's B7 carries the
+same gap verbatim** — a second amendment candidate alongside the two above.
+
+**Declined — wrapping `visible()` in `try/catch`.** The reviewer confirmed FlashList's
+`computeVisibleIndices()` throws outright with no layout manager, and that such a throw would escape
+into the back handler. Declined anyway: swallowing it converts a loud bug into a **silent scroll to
+master top**, which is the exact silent-wrong-landing shape H5 and F8 exist to prevent. The boundary
+with RN's `BackHandler` belongs to the hook (**ticket 05**), where failing loudly or safely is an IO
+decision — not to a pure function. The residual is recorded in the code comment.
+
+**Declined — `find` → `findLast`.** With a correct inclusive `end` the ranges do not overlap and the
+two are identical; with a broken producer both pick an arbitrary wrong answer, so `findLast` would
+only change *which* wrong section is chosen while masking the producer bug. The boundary tests
+address the same risk at its root instead.
