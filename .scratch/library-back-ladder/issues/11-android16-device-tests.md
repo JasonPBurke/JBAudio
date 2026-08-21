@@ -477,6 +477,60 @@ Drift requires **both** an actual collapse **and** a visible section staying
 expanded. Magnitude does not track the number collapsed (4 → 943, 5 → 213), so it
 is a re-anchor, not an accumulation.
 
+### ⚠ CORRECTION 3 (final) — distance is not sufficient either; the trigger is
+### deep + mid-fling TOGETHER, and variant A could not be made to reach it
+
+Distance-alone was tested and **refuted**: variant A, master jump from **38,417**
+— deeper than either drift — from a settled list, collapsed 3 sections, landed at
+**0**. A further run from **34,571** collapsing the 100+ book Pratchett section
+also landed at **0**.
+
+**Complete matrix, all ten master jumps with a real collapse:**
+
+| run | variant | from | fling state | collapsed | result |
+|---|---|---|---|---|---|
+| `#313` | B | **31,507** | **mid-fling** (`vy -14.16`) | 4 | **+943.71 DRIFT** |
+| `#350` | B | **29,145** | **mid-fling** | 5 | **+213.71 DRIFT** |
+| `#896` | A | **38,417** | settled | 3 | 0 clean |
+| `#999` | A | **34,571** | settled (fling died at list end) | 1 (Pratchett, 100+) | 0 clean |
+| `#630` | A | 16,076 | settled | 3 | 0 clean |
+| `#777` | A | 12,454 | **mid-fling** (`vy -9.52`) | 3 | 0 clean |
+| `#537` | B | 11,222 | mid-fling | 3 | 0 clean |
+| `#461` | B | 10,287 | mid-fling | 2 | 0 clean |
+| `#548` | A | 7,647 | settled | 1 | 0 clean |
+
+**Neither factor is sufficient alone.** Deep+settled is clean (twice). Shallow+
+mid-fling is clean (three times). **Only deep AND mid-fling together has ever
+drifted** — twice, both variant B.
+
+### Why variant A could not be driven into that cell — a geometry finding
+
+In variant A a deep position **inside an expanded section takes the rung**, not
+master (confirmed: `#970 back:rung {from:31582, target:18444}` — an upward fling
+from the tail re-entered Pratchett and the rung fired). So variant A's deep master
+jumps can only begin from **collapsed** territory. With Pratchett expanded near the
+end of the alphabet, the only deep collapsed territory is the **tail**, which is
+the bottom of the list: a downward fling has no runway (`#997 momentumEnd` fired
+instantly at the unchanged offset, the list already at max scroll) and an upward
+fling immediately re-enters Pratchett.
+
+**That is exactly why both drifts were variant B.** With no rung, *any* deep
+position yields a master jump — including from **inside** expanded Pratchett, where
+there are thousands of pixels of runway in both directions. The driver identified
+this independently: "the two large depth jumps came from within the expanded Terry
+Pratchett list."
+
+⚠ **This does NOT clear variant A.** It is a property of *this* expansion pattern,
+not of the variant. Expand a large section **early** with many collapsed authors
+after it and variant A has deep collapsed territory with runway both ways — the
+triggering cell becomes reachable. Combined with the code argument (identical bytes
+on a master jump), the correct status is **untested, not immune**.
+
+### Status at end of ticket 11
+
+**REAL, reproduced twice, trigger narrowed to `deep + mid-fling + master jump`,
+variant A untested for that cell.** Handed to [12](12-collapse-sweep-scroll-drift.md).
+
 ### ⚠ CORRECTION 2 — variant is NOT the cause; JUMP DISTANCE is the correlate
 
 The driver proposed the defect is specific to the 2-rung variant (which does not
