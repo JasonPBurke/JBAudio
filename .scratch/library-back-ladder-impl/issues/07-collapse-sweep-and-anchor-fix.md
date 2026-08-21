@@ -48,8 +48,32 @@ Spec: E2–E5, F1–F9, G1–G8, I2, I5; user stories 4, 5, 6, 7, 14, 15, 27, 32
 
 - [ ] Arriving at the top of the sectioned view collapses every expanded section that is not on
       screen, and leaves on-screen sections open.
+- [ ] ⚠ **This ticket WIRES `decideSweep` UP; it does not re-derive the gates.** Ticket 03 already
+      built all five — view identity, at-top, velocity, the lazy sample, and the degenerate /
+      empty-overlap bail-out — as a pure function with 20 tests and 16 killed mutations. The
+      checklist items below describe behaviour you must *end up with*, not logic to write here.
+      Re-implementing any gate inline puts it back in the untestable layer, which is exactly what
+      spec §J4 rejected. The hook is **gather → decide → execute**.
 - [ ] Three triggers funnel into one function: momentum-scroll-end, and drag-end gated on velocity.
       The back jump needs **no** wiring of its own — it is covered by momentum-end.
+- [ ] ⚠ **Pass the REAL `trigger` for each event.** `trigger` is what selects the velocity gate, so
+      passing `'drag'` for a momentum event silently disables the sweep on any list reporting
+      residual velocity. That mutation kills 12 tests — but only if the hook is actually exercised,
+      so the suite is not a substitute for getting this right at the call site.
+- [ ] ⚠ **`visible` must be a THUNK over `computeVisibleIndices()`, never a pre-computed value.**
+      Same requirement ticket 02 flagged for the rung, and here it is F2 rather than B7 that it
+      protects: an eagerly-sampled viewport is *plausible data*, not an error, so nothing downstream
+      can detect it. Evaluating it eagerly is the "collapse right after issuing the jump" bug — the
+      second entrance named in the trap above.
+- [ ] Pass the drag event's **actual** `velocityY` through. An unreported velocity counts as
+      **flinging** by design (spec §F5, amended 2026-08-21), so dropping the value on the floor
+      does not fail loudly — it silently stops the drag trigger from ever sweeping.
+- [ ] The result's `open` is safe to hand **straight** to the expanded-section setter. It is the
+      **same reference** as the input whenever nothing drops, which is what makes every accepted
+      bounce-sweep free rather than a re-render of a 355-book list. Do not copy, spread or re-wrap
+      it — that discards the React bail-out ticket 01's two same-reference tests exist to pin.
+- [ ] `decideSweep` takes a **non-null** snapshot, unlike `decideBackPress`. There is no "no list"
+      case: a settle event cannot fire without a mounted list.
 - [ ] Mount and the tab-change scroll reset are explicitly **not** triggers. Arriving at the top
       *is* the collapse gesture; a tab change is not that gesture, and a tab change must reset
       scroll without collapsing anything.

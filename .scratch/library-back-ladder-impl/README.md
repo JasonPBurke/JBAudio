@@ -27,7 +27,7 @@ Branch: **`feat/library-back-ladder`**, off `main` at `104bd34`.
   Every guard mutation-checked (see the ticket's Answer for the table). **Two contract decisions
   taken here that §J4 does not state:** the parameter is `LadderSnapshot | null` because
   `decline('no-list')` is otherwise unreachable, and the index-0 header degenerates to master via a
-  *strictly-between* predicate rather than any special case. Both are spec-amendment candidates.
+  *strictly-between* predicate rather than any special case. Both are spec-amendment candidates — **SETTLED, both adopted**; see *Spec amendments* below.
   Also added the missing `npm test` script (`82ca506`) — it never existed.
   Reviewed (`05e65ea`): the containment bounds had **no** coverage — mutating both to strict left
   the suite green — so `end`'s inclusiveness is now pinned by two boundary tests. ⚠ **Ticket 06's
@@ -38,7 +38,7 @@ Branch: **`feat/library-back-ladder`**, off `main` at `104bd34`.
   had a test on the DECLINING side only, so `>` → `>=` killed nothing while silently meaning the
   sweep never fires at the canonical resting offset. **16 mutations run, all killed.** Ticket 12
   §6.3's "iterate `visible`" was confirmed inert by mutation, not assumed. ⚠ **Three more
-  spec-amendment candidates** (details in the ticket's Answer): the empty-overlap guard is
+  spec-amendment candidates** — **SETTLED, all three adopted**; see *Spec amendments* below (details in the ticket's Answer): the empty-overlap guard is
   deliberately NOT qualified by `ranges.length > 0` (F8's wording would admit the R5 input); an
   unreported drag velocity counts as **flinging**, not settled; a degenerate sample includes an
   **inverted** range, not just `startIndex < 0`. jest 868 → 886.

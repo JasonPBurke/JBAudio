@@ -130,7 +130,8 @@ found, and suggests a habit: **every boundary needs a test on both sides of it.*
 ### Three contract decisions §J4 does not state
 
 All three are **spec-amendment candidates**, recorded rather than taken silently — joining the two
-from ticket 02.
+from ticket 02. **SETTLED 2026-08-21: all three adopted**, `spec.md` amended in place on `main`
+(`6f75a97`); see the impl README's *Spec amendments* section for the full table.
 
 **1. The empty-overlap guard is NOT qualified by `ranges.length > 0`.** F8 words it as *"the overlap
 yields no sections **while the range list is non-empty**"*. Implemented unqualified, because the
@@ -172,8 +173,10 @@ two guards deliberately overlap: with `startIndex = -1` the empty-overlap guard 
 
 ## Code review (`/mattpocock-skills:code-review` since `d22248c`, opus, two axes)
 
-⚠ **Findings recorded, NOT yet applied.** Code as committed at `a7b7552` is green (tsc 0, eslint 0,
-jest 886) and the ticket's checkboxes hold; the work below is follow-up.
+⚠ **Findings were recorded before being applied** — they are **APPLIED NOW**, see *Disposition*
+below (jest 888). Code as committed at `a7b7552` was green (tsc 0, eslint 0, jest 886) and the
+ticket's checkboxes held; the work below was the follow-up, and it has since landed. Left in this
+order because the split between finding and fix is the point of the record.
 
 ### Spec axis — one real defect in the SUITE, not in the code
 
@@ -268,7 +271,9 @@ endIndex`, so both forms select it. No test was added, because a test cannot dis
 
 ### Still open for the driver
 
-**Five spec-amendment candidates** now (two from ticket 02, three here), none applied — the spec is
-on `main` and amending it from this branch would be merge noise. Deviation 3 is no longer a
-candidate but a **correction**: F8's *"empty range (`startIndex < 0`)"* does not describe what
-FlashList emits.
+~~**Five spec-amendment candidates** now (two from ticket 02, three here), none applied.~~
+**CLOSED 2026-08-21.** All five were reviewed together and **all five adopted**, plus a sixth
+surfaced during the review (§H4 — the range producer owes an inclusive `end` and non-overlapping
+ranges). `spec.md` is amended in place on `main` (`6f75a97`) and merged back to this branch
+(`37dd124`); no code changed. Deviation 3 was upgraded from candidate to **correction** as this
+section predicted: F8's *"empty range (`startIndex < 0`)"* does not describe what FlashList emits.
