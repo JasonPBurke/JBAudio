@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useMemo, useRef } from 'react';
+import React, { memo, useCallback, useMemo } from 'react';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import {
   Dimensions,
@@ -23,19 +23,19 @@ import {
 } from '@/helpers/bookRecency';
 import { fontSize, screenPadding } from '@/constants/tokens';
 import { utilsStyles } from '@/styles';
-import { CustomTabs } from '@/types/CustomTabs';
 import { useResetScrollOnTabChange } from '@/hooks/useResetScrollOnTabChange';
+import type { LadderListProps } from '@/types/ladderList';
 
-export type BookListProps = Partial<FlashListProps<Book>> & {
-  authors?: Author[];
-  books?: Book[];
-  recencyMode?: LibraryRecencyMode;
-  setActiveGridSections: React.Dispatch<React.SetStateAction<Set<string>>>;
-  activeGridSections: Set<string>;
-  onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
-  ListHeaderComponent?: React.ReactElement;
-  selectedTab: CustomTabs;
-};
+export type BookListProps = Partial<FlashListProps<Book>> &
+  LadderListProps & {
+    authors?: Author[];
+    books?: Book[];
+    recencyMode?: LibraryRecencyMode;
+    setActiveGridSections: React.Dispatch<React.SetStateAction<Set<string>>>;
+    activeGridSections: Set<string>;
+    onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+    ListHeaderComponent?: React.ReactElement;
+  };
 
 const RECENTS_TITLE: Record<'played' | 'finished' | 'added', string> = {
   played: 'Recently Played',
@@ -61,11 +61,15 @@ const BooksHome = ({
   activeGridSections,
   onScroll,
   ListHeaderComponent,
+  listRef,
   selectedTab,
+  onMomentumScrollEnd,
+  onScrollEndDrag,
 }: BookListProps) => {
   const { colors: themeColors } = useTheme();
-  const listRef =
-    useRef<React.ComponentRef<typeof FlashList<FlatListItem>>>(null);
+  // The ref is the LIBRARY SCREEN's, never this component's (§H6). There is
+  // deliberately no internal fallback: an optional ref with a fallback fails
+  // silently, leaving the ladder inert with no error to notice.
   useResetScrollOnTabChange(listRef, selectedTab);
   const CONTAINER_PADDING_TOP = 8;
 
@@ -294,6 +298,8 @@ const BooksHome = ({
         drawDistance={150}
         overrideProps={{ initialDrawBatchSize: 8 }}
         onScroll={onScroll}
+        onMomentumScrollEnd={onMomentumScrollEnd}
+        onScrollEndDrag={onScrollEndDrag}
         scrollEventThrottle={16}
         ListHeaderComponent={ListHeaderComponent}
         ListEmptyComponent={

@@ -17,7 +17,7 @@
  * clipped again, the construct is what to look for first, and the workaround is
  * in this file's history.
  */
-import React, { memo, useCallback, useMemo, useRef } from 'react';
+import React, { memo, useCallback, useMemo } from 'react';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import {
   StyleSheet,
@@ -34,8 +34,8 @@ import { separatorInset } from '@/helpers/seriesRowGeometry';
 import { useTheme } from '@/hooks/useTheme';
 import { useSettingsStore } from '@/store/settingsStore';
 import { utilsStyles } from '@/styles';
-import { CustomTabs } from '@/types/CustomTabs';
 import { useResetScrollOnTabChange } from '@/hooks/useResetScrollOnTabChange';
+import type { LadderListProps } from '@/types/ladderList';
 
 /**
  * Root-level sibling route, not a member of the `series` group — a screen
@@ -43,13 +43,12 @@ import { useResetScrollOnTabChange } from '@/hooks/useResetScrollOnTabChange';
  */
 const DETAIL_ROUTE = '/seriesDetail';
 
-type SeriesHomeProps = {
+type SeriesHomeProps = LadderListProps & {
   series: DerivedSeries[];
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   /** Spacer offsetting content below the parent's overlay search bar. */
   ListHeaderSpacer?: React.ReactElement;
   emptyMessage: string;
-  selectedTab: CustomTabs;
 };
 
 const SeriesHome = ({
@@ -57,7 +56,10 @@ const SeriesHome = ({
   onScroll,
   ListHeaderSpacer,
   emptyMessage,
+  listRef,
   selectedTab,
+  onMomentumScrollEnd,
+  onScrollEndDrag,
 }: SeriesHomeProps) => {
   const { colors: themeColors } = useTheme();
   const router = useRouter();
@@ -66,9 +68,8 @@ const SeriesHome = ({
     (state) => state.seriesBackgroundsEnabled,
   );
 
-  const listRef = useRef<React.ComponentRef<typeof FlashList<DerivedSeries>>>(
-    null,
-  );
+  // The ref is the LIBRARY SCREEN's, never this component's (§H6) -- no
+  // internal fallback, because a fallback makes a forgotten ref silent.
   useResetScrollOnTabChange(listRef, selectedTab);
 
   const handleOpen = useCallback(
@@ -119,6 +120,8 @@ const SeriesHome = ({
         renderItem={renderItem}
         keyExtractor={keyExtractor}
         onScroll={onScroll}
+        onMomentumScrollEnd={onMomentumScrollEnd}
+        onScrollEndDrag={onScrollEndDrag}
         scrollEventThrottle={16}
         ListHeaderComponent={ListHeaderSpacer}
         ItemSeparatorComponent={Divider}

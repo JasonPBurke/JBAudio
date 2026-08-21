@@ -1,5 +1,5 @@
 import { FlashList, FlashListProps } from '@shopify/flash-list';
-import { useCallback, memo, useMemo, useRef } from 'react';
+import { useCallback, memo, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,8 +20,8 @@ import {
   RECENCY_KEY_FOR_MODE,
   sortBooksByRecency,
 } from '@/helpers/bookRecency';
-import { CustomTabs } from '@/types/CustomTabs';
 import { useResetScrollOnTabChange } from '@/hooks/useResetScrollOnTabChange';
+import type { LadderListProps } from '@/types/ladderList';
 
 const styles = StyleSheet.create({
   container: {
@@ -40,17 +40,17 @@ const ItemSeparator = () => <View style={styles.separator} />;
 const StandaloneFooter = <View style={styles.footer} />;
 const keyExtractor = (item: string) => item;
 
-export type BookGridProps = Partial<FlashListProps<string>> & {
-  authors?: Author[];
-  books?: Book[];
-  standAlone?: boolean;
-  flowDirection: 'row' | 'column';
-  preserveOrder?: boolean;
-  recencyMode?: LibraryRecencyMode;
-  onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
-  ListHeaderComponent?: React.ReactElement;
-  selectedTab: CustomTabs;
-};
+export type BookGridProps = Partial<FlashListProps<string>> &
+  LadderListProps & {
+    authors?: Author[];
+    books?: Book[];
+    standAlone?: boolean;
+    flowDirection: 'row' | 'column';
+    preserveOrder?: boolean;
+    recencyMode?: LibraryRecencyMode;
+    onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+    ListHeaderComponent?: React.ReactElement;
+  };
 
 const BooksGrid = ({
   authors,
@@ -61,11 +61,15 @@ const BooksGrid = ({
   recencyMode = null,
   onScroll,
   ListHeaderComponent,
+  listRef,
   selectedTab,
+  onMomentumScrollEnd,
+  onScrollEndDrag,
 }: BookGridProps) => {
   const { colors: themeColors } = useTheme();
   const numColumns = useSettingsStore((state) => state.numColumns);
-  const listRef = useRef<React.ComponentRef<typeof FlashList<string>>>(null);
+  // The ref is the LIBRARY SCREEN's, never this component's (§H6) -- no
+  // internal fallback, because a fallback makes a forgotten ref silent.
   useResetScrollOnTabChange(listRef, selectedTab);
 
   const { width: screenWidth } = Dimensions.get('window');
@@ -155,6 +159,8 @@ const BooksGrid = ({
       overrideProps={{ initialDrawBatchSize: 6 }}
       showsVerticalScrollIndicator={false}
       onScroll={onScroll}
+      onMomentumScrollEnd={onMomentumScrollEnd}
+      onScrollEndDrag={onScrollEndDrag}
       scrollEventThrottle={16}
       ListHeaderComponent={ListHeaderComponent}
       ItemSeparatorComponent={ItemSeparator}

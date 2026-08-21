@@ -29,6 +29,16 @@ export function useResetScrollOnTabChange(
       return;
     }
     const handle = requestAnimationFrame(() => {
+      /*
+       * ⚠ `animated: false` is an INVARIANT, not a preference (back-ladder
+       * spec §I3). An INSTANT programmatic scroll emits no momentum events at
+       * all; an animated one fires `onMomentumScrollEnd` itself. Those settle
+       * events are what trigger the back-to-top ladder's collapse sweep, so
+       * this single word is the only reason a tab change does not collapse
+       * every off-screen section. "Polishing" it to `animated: true` would
+       * start silently collapsing sections on every tab change -- a bug that
+       * would read as haunted, since nothing here mentions collapsing.
+       */
       listRef.current?.scrollToOffset({ offset: 0, animated: false });
     });
     return () => cancelAnimationFrame(handle);

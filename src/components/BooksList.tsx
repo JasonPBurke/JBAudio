@@ -17,21 +17,31 @@ import {
   RECENCY_KEY_FOR_MODE,
   sortBooksByRecency,
 } from '@/helpers/bookRecency';
+import { useResetScrollOnTabChange } from '@/hooks/useResetScrollOnTabChange';
+import type { LadderListProps } from '@/types/ladderList';
 
-export type BookListProps = Partial<FlashListProps<string>> & {
-  authors: Author[];
-  recencyMode?: LibraryRecencyMode;
-  onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
-  ListHeaderComponent?: React.ReactElement;
-};
+export type BookListProps = Partial<FlashListProps<string>> &
+  LadderListProps & {
+    authors: Author[];
+    recencyMode?: LibraryRecencyMode;
+    onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+    ListHeaderComponent?: React.ReactElement;
+  };
 
 const BooksList = ({
   authors,
   recencyMode = null,
   onScroll,
   ListHeaderComponent,
+  listRef,
+  selectedTab,
+  onMomentumScrollEnd,
+  onScrollEndDrag,
 }: BookListProps) => {
   const { colors: themeColors } = useTheme();
+  // The ref is the LIBRARY SCREEN's, never this component's (§H6) -- no
+  // internal fallback, because a fallback makes a forgotten ref silent.
+  useResetScrollOnTabChange(listRef, selectedTab);
   const bookIds = useMemo(() => {
     // BooksList is only used standalone — flatten all authors' books.
     // Started/Finished tabs order most-recent-first; otherwise by title.
@@ -54,43 +64,51 @@ const BooksList = ({
   );
 
   return (
-    //? need to put a loader if allBooks.length === 0
+    /*
+     * §H7 -- the list mounts UNCONDITIONALLY. It used to render only when
+     * `bookIds.length > 0`, which satisfied the ladder's arm predicate by the
+     * accident of a null ref rather than by the same path every other view
+     * takes. Dropping the guard is what makes `ListEmptyComponent` below live
+     * code instead of dead code, and it is why this list can be revived with a
+     * zero-line diff.
+     */
     <View style={{ flex: 1, paddingHorizontal: screenPadding.horizontal }}>
-      {bookIds.length > 0 && (
-        <View style={{ flex: 1 }}>
-          <FlashList
-            data={bookIds}
-            renderItem={renderBookItem}
-            keyExtractor={(item) => item}
-            showsVerticalScrollIndicator={false}
-            showsHorizontalScrollIndicator={false}
-            onScroll={onScroll}
-            scrollEventThrottle={16}
-            ListHeaderComponent={ListHeaderComponent}
-            contentContainerStyle={{ paddingTop: 12, paddingBottom: 82 }}
-            ListFooterComponent={
-              bookIds.length > 0 ? (
-                <ItemDivider themeColors={themeColors} />
-              ) : null
-            }
-            ItemSeparatorComponent={() => (
+      <View style={{ flex: 1 }}>
+        <FlashList
+          ref={listRef}
+          data={bookIds}
+          renderItem={renderBookItem}
+          keyExtractor={(item) => item}
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
+          onScroll={onScroll}
+          onMomentumScrollEnd={onMomentumScrollEnd}
+          onScrollEndDrag={onScrollEndDrag}
+          scrollEventThrottle={16}
+          ListHeaderComponent={ListHeaderComponent}
+          contentContainerStyle={{ paddingTop: 12, paddingBottom: 82 }}
+          ListFooterComponent={
+            bookIds.length > 0 ? (
               <ItemDivider themeColors={themeColors} />
-            )}
-            ListEmptyComponent={
-              <View>
-                <Text
-                  style={[
-                    utilsStyles.emptyComponent,
-                    { color: themeColors.textMuted },
-                  ]}
-                >
-                  No books found
-                </Text>
-              </View>
-            }
-          />
-        </View>
-      )}
+            ) : null
+          }
+          ItemSeparatorComponent={() => (
+            <ItemDivider themeColors={themeColors} />
+          )}
+          ListEmptyComponent={
+            <View>
+              <Text
+                style={[
+                  utilsStyles.emptyComponent,
+                  { color: themeColors.textMuted },
+                ]}
+              >
+                No books found
+              </Text>
+            </View>
+          }
+        />
+      </View>
     </View>
   );
 };

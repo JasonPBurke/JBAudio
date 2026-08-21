@@ -25,6 +25,7 @@ import { BookProgressState } from '@/helpers/handleBookPlay';
 import { LibraryRecencyMode } from '@/helpers/bookRecency';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
+import type { LadderList } from '@/types/ladderList';
 import * as Sentry from '@sentry/react-native';
 
 // Normalize text for search matching (move outside component to avoid recreation)
@@ -78,6 +79,31 @@ const LibraryScreen = ({ navigation }: any) => {
     () => new Set(),
   );
   const router = useRouter();
+
+  /*
+   * §H6/§I1 -- ONE list ref, owned here, threaded into whichever list is
+   * mounted. Exactly one of the three views below is mounted at a time and
+   * they are mutually exclusive, which is what makes a single shared ref
+   * safe: React detaches the outgoing list's ref in the mutation phase and
+   * attaches the incoming one in the layout phase, so `current` goes
+   * old -> null -> new inside one commit with no JS interleaved.
+   *
+   * ⚠ A layout that mounts two lists at once (a tablet split, say) INVALIDATES
+   * this and is not a drop-in change -- it raises a product question (which
+   * pane does back act on?) before it raises a technical one.
+   *
+   * It serves the tab-change scroll reset today and the back-to-top ladder
+   * from ticket 05. No list keeps a fallback ref of its own.
+   */
+  const listRef = useRef<LadderList | null>(null);
+
+  /*
+   * Inert for now -- ticket 05 replaces both with the ladder hook's handlers.
+   * They are REQUIRED props rather than optional ones so that the compiler,
+   * not a reviewer, is what notices a list that has not kept up (§H8).
+   */
+  const handleMomentumScrollEnd = useCallback(() => {}, []);
+  const handleScrollEndDrag = useCallback(() => {}, []);
 
   useScanExternalFileSystem();
 
@@ -289,7 +315,10 @@ const LibraryScreen = ({ navigation }: any) => {
               activeGridSections={activeGridSections}
               onScroll={onScroll}
               ListHeaderComponent={ListSpacer}
+              listRef={listRef}
               selectedTab={selectedTab}
+              onMomentumScrollEnd={handleMomentumScrollEnd}
+              onScrollEndDrag={handleScrollEndDrag}
             />
           )}
           {toggleView === 1 && (
@@ -298,7 +327,10 @@ const LibraryScreen = ({ navigation }: any) => {
               onScroll={onScroll}
               ListHeaderSpacer={ListSpacer}
               emptyMessage={seriesEmptyText}
+              listRef={listRef}
               selectedTab={selectedTab}
+              onMomentumScrollEnd={handleMomentumScrollEnd}
+              onScrollEndDrag={handleScrollEndDrag}
             />
           )}
           {toggleView === 2 && (
@@ -309,7 +341,10 @@ const LibraryScreen = ({ navigation }: any) => {
               flowDirection='column'
               onScroll={onScroll}
               ListHeaderComponent={ListSpacer}
+              listRef={listRef}
               selectedTab={selectedTab}
+              onMomentumScrollEnd={handleMomentumScrollEnd}
+              onScrollEndDrag={handleScrollEndDrag}
             />
           )}
 
