@@ -10,7 +10,11 @@ branch's copy of these docs is stale and dies with the branch.
 (The older `fix/collapse-offscreen-lists-onMomentumScrollEnd` is superseded.)
 Driver: Jason Burke
 
-## Destination
+## Destination — REACHED 2026-08-20
+
+**[`spec.md`](spec.md) is written and labelled `ready-for-agent`.** All 12 tickets are
+resolved. The only thing still outstanding is the driver's read of the document as a
+whole; the spec's header records that, and amendments are edits to that file in place.
 
 A **driver-approved `spec.md`** for a back-press ladder on the library screen:
 a back gesture/button press while scrolled down scrolls the list to the top
@@ -296,14 +300,39 @@ the map is built on them.
   (`oldY === newY` to full precision in every non-drifting correction — no evidence of
   `getLayout` estimation error). Throwaway probe patch + `12 · seed` chip must die with the branch.
 
+- [10 — Draft `spec.md` and drive it to driver approval](issues/10-write-the-spec.md)
+  — **[`spec.md`](spec.md) written, `ready-for-agent`. The map is closed.** 1,022 lines,
+  organised by surface (A interception · B arm predicate · C the ladder · D the rung ·
+  E the jump · F the sweep · G the MVCP fix · H sharing across four views · I invariants ·
+  J modules), plus **§Risks**, **§Testing Decisions** and **§Out of Scope**. Three forks the
+  tickets had left to the spec were put to the driver and decided: **(1)** the test seam is
+  **one pure module, two decisions** — `decideBackPress` / `decideSweep` over a snapshot of
+  plain numbers, with visibility passed as a **thunk** so ticket 03 §6's ordering is asserted
+  inside the tested unit, and the hook reduced to gather → decide → execute; **(2)** ticket 11
+  **F-A is ACCEPTED** — an overscroll bounce at the top does sweep, since the outcome equals a
+  back press's and only below-fold sections can be touched (`onScrollBeginDrag` recorded as a
+  reversible lever); **(3)** **TalkBack is out of scope**, as a named follow-up. ⚠ Ticket 12's
+  §6.3 fork was answered **neither way as stated**: instead a *degenerate visible sample* is a
+  **no-op** (empty visible range, or zero overlap against non-empty ranges) — sign-agnostic,
+  leaves `computeRemainingOpen`'s contract and tests untouched, and is pinned by two named jest
+  cases. ⚠ **Found while writing, not previously recorded: `computeRemainingOpen`'s five jest
+  tests do NOT exist on the prototype branch** — the helper was cherry-picked without them and
+  they still live only on `fix/collapse-offscreen-lists-onMomentumScrollEnd` (`0365b39`), so the
+  spec says *restore them* rather than *they are green*. Test strategy names **17
+  `decideBackPress` cases** and **11 `decideSweep` cases**, including the two regression tests
+  that keep ticket 09 F1's collapse-everything hazard and ticket 05's `y + firstItemOffset`
+  landing bug from coming back.
+
 ## Not yet specified
 
-- **Accessibility / TalkBack.** A back press that moves the viewport without
-  changing screen may need an announcement. Unexamined. ⚠ **Narrowed by ticket 06:**
-  the *reduced-motion* half of this patch is no longer fog — it is decided, and the
-  decision is to do nothing (the OS animator scale governs the jump directly, and the
-  collapse sweep survives a 0 ms duration). What remains here is the **screen-reader
-  announcement** question alone.
+**Nothing. The fog is closed.**
+
+- **Accessibility / TalkBack** — was the last open item. Driver ruling 2026-08-20:
+  **out of scope**, carried into the spec as a **named follow-up ticket** rather than an
+  implicit gap, because nothing on this map was ever run with a screen reader and an
+  invented announcement string would be speculation, not a decision. The *reduced-motion*
+  half was already closed by ticket 06 and is **not** open: the OS animator scale governs
+  the jump directly and the sweep survives a 0 ms duration, so the ladder does nothing.
 
 ## Out of scope
 
