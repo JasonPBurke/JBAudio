@@ -167,3 +167,59 @@ two guards deliberately overlap: with `startIndex = -1` the empty-overlap guard 
   (F5) free rather than a re-render of a 355-book list.
 - `decideSweep` takes a non-null snapshot, unlike `decideBackPress`. There is no "no list" case: a
   settle event cannot fire without a mounted list.
+
+---
+
+## Code review (`/mattpocock-skills:code-review` since `d22248c`, opus, two axes)
+
+⚠ **Findings recorded, NOT yet applied.** Code as committed at `a7b7552` is green (tsc 0, eslint 0,
+jest 886) and the ticket's checkboxes hold; the work below is follow-up.
+
+### Spec axis — one real defect in the SUITE, not in the code
+
+**Case 5's test does not bite.** Mutating `if (startIndex < 0 || endIndex < startIndex)` down to
+`if (endIndex < startIndex)` leaves **all 38 tests passing**: the fixture `{startIndex: -1,
+endIndex: -1}` also trips the empty-overlap guard, which returns the *identical* reason, so the
+assertion cannot tell the two guards apart. **The mutation table above is therefore misleading** —
+its rows *"drop the degenerate-sample guard | 1"* and *"drop its inverted-range half | 1"* are both
+killed by the inverted test alone, and the half F8 literally names is unpinned. Fix:
+`{startIndex: -1, endIndex: 12}`, which without the guard yields a collapse.
+
+**Deviation 3 should be upgraded from "amendment candidate" to "F8's wording is wrong".** Verified
+in `node_modules`: `ConsecutiveNumbers.EMPTY = new ConsecutiveNumbers(-1, -2)`
+(`recyclerview/helpers/ConsecutiveNumbers.js:94`), returned by `LayoutManager.js:90`. **FlashList's
+empty sample IS inverted** — so `endIndex < startIndex` is the half that catches the real thing and
+`startIndex < 0` catches it only incidentally.
+
+Two fixture nits: case 4 says *"velocityY = 0 **at the top**"* but is tested only at `offset: -120`;
+case 7 says *"**three** author sections"* and the fixture has two.
+
+Otherwise clean: signature and reason union match §J4 exactly, guard order matches the dependency
+chain, `visible()` provably never called before gates 1–3, and I2/I5/F5/F7/H2/H3/R5 all honoured.
+**No scope creep, nothing implemented wrongly.** Deviations 1 and 2 were independently re-derived
+and upheld — notably, dropping `ranges.length > 0` provably cannot suppress a legitimate collapse,
+because empty `ranges` ⇒ empty `visibleIds` ⇒ the only thing suppressed is a collapse-everything.
+
+### Standards axis — no documented-standard violations; five judgement calls
+
+1. **Duplicated Code — the at-top predicate, stated twice, inverted.** `decideBackPress`'s
+   `offset <= firstItemOffset` vs `decideSweep`'s `offset > firstItemOffset`. The comment *asserts*
+   "the EXACT complement" and I2 rests on it, but **nothing enforces it**. Extract `isAtTop(s)`.
+   *(Take — this is an invariant currently held by a comment.)*
+2. **Duplicated Code — the overlap arithmetic, twice**, in `sectionRungTarget` and `decideSweep`.
+   One predicate would pin `end`'s inclusiveness — the README's ⚠ for ticket 06 — in one place.
+   *(Take; containment is overlap with a degenerate span.)*
+3. `SETTLED_VELOCITY` reads as a value, not an exclusive bound; neighbours name the role
+   (`RESTART_CHAPTER_THRESHOLD_SECONDS`). *(Take as `..._THRESHOLD`; **decline `_MAX`** — it would
+   assert an inclusivity the `<` does not have.)*
+4. Data Clumps — `trigger` + `velocityY?`; a union would make `('momentum', -4.76)` unrepresentable.
+   **Reviewer overrode itself: §J4 pins the signature.** No action.
+5. Test file — `sweepSnapshot` near-clones `snapshot`, and one describe narrows two different ways.
+   *(Take both.)*
+
+Minor: the `// see the ticket's Answer` comment cites no path. *(Fix by making the comment
+self-contained — ticket 01 set the precedent against pasting `.scratch` paths into docblocks.)*
+
+**Glossary gap, recorded not fixed:** `sweep`, `rung`, `section`, `expanded` appear nowhere in
+`CONTEXT.md`, which `docs/agents/domain.md` says is a signal to note for `/domain-modeling`.
+Pre-existing — ticket 02 coined them.
