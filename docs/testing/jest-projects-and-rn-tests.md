@@ -68,7 +68,13 @@ unconditionally, so components under test are memoized. **Do not write render-co
 The `'use no memo'` directive on `BookDurationRow` is the precedent for when a component genuinely
 must opt out — it is deliberate, not a bug.
 
-**5. FlashList has no layout manager under jest, so `computeVisibleIndices()` THROWS.** This is not
+**5. A hook that calls a navigation hook needs a navigation tree, or a mock.**
+`useFocusEffect`, `useDrawerStatus` and friends read React Navigation context and throw outside a
+navigator. `useBackToTopLadder.rn.test.tsx` mocks both and models focus as mount/unmount, which is
+enough to assert what a focus-scoped handler *does* — but **not** that it is scoped to focus rather
+than to mount. Know which of those your test is actually proving.
+
+**6. FlashList has no layout manager under jest, so `computeVisibleIndices()` THROWS.** This is not
 a preset problem and it will not be fixed by more setup: it is the same fact the back-ladder spec's
 §B7 is built on. **You cannot test list-interaction logic against a real FlashList here.** Hand the
 unit a fake ref instead — which is exactly what `src/helpers/ladderDecisions.ts` is shaped for.
@@ -83,6 +89,12 @@ and it rots silently.
 When a suite hits `undefined is not a function` from a native module, add the smallest stand-in that
 lets the component mount and say which suite forced it. Anything that must model real *behaviour*
 belongs in the test as an injected fake instead.
+
+⚠ **`@sentry/react-native` is mocked here, and the reason is not "it's native".** Importing the
+real module leaves an **open handle**: jest prints *"did not exit one second after the test run"*
+and the process hangs. Locally that is a warning you can ignore; on CI it is a timeout with **no
+failing test to point at**. Five modules under `src/` import Sentry, so any suite that touches one
+of them trips it. A suite that wants to assert on a report reads the mock through `jest.mocked`.
 
 Not yet mocked, because nothing has needed them yet: the `NativeMediaInfo` turbomodule (`specs/`),
 `SafCueReaderModule`, TrackPlayer, FastImage, WatermelonDB. For WatermelonDB, prefer `LokiJSAdapter`

@@ -26,6 +26,8 @@ import { LibraryRecencyMode } from '@/helpers/bookRecency';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import type { LadderList } from '@/types/ladderList';
+import type { LadderView } from '@/helpers/ladderDecisions';
+import { useBackToTopLadder } from '@/hooks/useBackToTopLadder';
 import * as Sentry from '@sentry/react-native';
 
 // Normalize text for search matching (move outside component to avoid recreation)
@@ -40,12 +42,23 @@ const storeHasBooks = () =>
   Object.keys(useLibraryStore.getState().books).length > 0;
 
 /*
- * The two settle handlers the list contract requires, inert until ticket 05
- * replaces them with the ladder hook's. Module scope, per this file's own rule
- * above: a zero-dependency no-op has nothing to close over, so there is no
- * reason to rebuild it on the hook path.
+ * The two settle handlers the list contract requires, inert until the collapse
+ * sweep lands and replaces them with the ladder hook's. Module scope, per this
+ * file's own rule above: a zero-dependency no-op has nothing to close over, so
+ * there is no reason to rebuild it on the hook path.
  */
 const NO_OP = () => {};
+
+/*
+ * §H1 -- the ladder is told a NAMED view, and the mapping from the toggle's
+ * ordinal lives HERE, at the mount site, so the ladder never learns the
+ * ordinal. That ordinal is a UI toggle position, not a view identity: it is
+ * local state persisted nowhere, and both candidate futures for `BooksList`
+ * (replacing the grid, or joining as a fourth option) are exactly the changes
+ * that renumber it.
+ */
+const ladderViewFor = (toggleView: number): LadderView =>
+  toggleView === 1 ? 'seriesHome' : toggleView === 2 ? 'booksGrid' : 'booksHome';
 
 const LibraryScreen = ({ navigation }: any) => {
   const { colors: themeColors } = useTheme();
@@ -104,6 +117,19 @@ const LibraryScreen = ({ navigation }: any) => {
    * from ticket 05. No list keeps a fallback ref of its own.
    */
   const listRef = useRef<LadderList | null>(null);
+
+  /*
+   * §J1 -- the back-to-top ladder. The screen installs it; the lists only ever
+   * receive the ref. Back on this screen now scrolls the list to the top from
+   * any depth, and backgrounds the app with a SINGLE further press once the
+   * list is already there.
+   *
+   * ⚠ There is deliberately no toast, no haptic and no "press back again to
+   * exit". That convention exists for apps where the first press does nothing
+   * visible; here the first press is visibly a scroll, and that IS the
+   * feedback.
+   */
+  useBackToTopLadder({ listRef, view: ladderViewFor(toggleView) });
 
   useScanExternalFileSystem();
 

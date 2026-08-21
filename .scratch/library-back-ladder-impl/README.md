@@ -73,6 +73,28 @@ Branch: **`feat/library-back-ladder`**, off `main` at `104bd34`.
   The two real behaviour changes both land on `BooksList`, which nothing mounts, so they are
   unreachable by that check anyway; ticket 08 is the device pass.
 
+- **05 — the two-rung ladder, live** · `resolved` — `src/hooks/useBackToTopLadder.ts`, installed by
+  the library screen. Back now scrolls the list to the top from any depth on all three mountable
+  views and backgrounds the app with ONE further press at the top. 11-test `rn`-lane suite,
+  **10 mutations run, all killed**. jest 892 → **903**.
+  ⚠ **The ladder is live on `booksHome` too, as a two-rung ladder** — no ranges are published yet,
+  so every armed press falls through to master top. Ticket 06 adds the third rung with no change to
+  the hook's shape.
+  **The throw-containment decision (the one this ticket was told to make): YES, the hook contains
+  it, and containment DECLINES** — an uncaught throw in a `BackHandler` callback is a crash on a
+  back press, and §B7's ordering is a strong guard whose offset half is reasoned, not measured. It
+  reports to Sentry so containment is not concealment.
+  ⚠ **Two tests passed for the wrong reason until mutated**: an inlined `{ current }` ref object
+  re-registers the handler on every render (a real §A6 violation — the harness now models the
+  screen's `useRef`), and the `catch` masked the no-list path until the suite asserted on
+  `captureException` NOT being called. A defensive catch collapses two failures into one
+  observable; the side channel is what separates them.
+  Also: `jest.rn-setup.js` now mocks `@sentry/react-native` — the real module leaves an **open
+  handle** and jest never exits, which on CI is a timeout with no failing test to point at.
+  ⚠ Four boxes stay unticked, all device-only: drawer/keyboard, modal routes (§A8), a cancelled
+  gesture, and **the latch check**. The lane mocks `useFocusEffect`, so it cannot prove the effect
+  is scoped to focus rather than mount. Ticket 08.
+
 ## Spec amendments — SETTLED 2026-08-21, before ticket 04
 
 The five spec-amendment candidates raised by tickets 02 and 03 were reviewed together and **all
@@ -128,7 +150,7 @@ acceptance criteria lean on `tsc` plus a manual device check because nothing els
 `spike/rn-jest-testing` (`544ac8a`) removes the constraint. Jest now runs **two projects**: the
 original fast `helpers` lane (~890 pure tests, ~2 s) and an `rn` lane
 (`jest-expo/android` + `@testing-library/react-native`) that a test opts into by being named
-`*.rn.test.tsx`. See `docs/testing/jest-projects-and-rn-tests.md` — it holds five traps that all
+`*.rn.test.tsx`. See `docs/testing/jest-projects-and-rn-tests.md` — it holds six traps that all
 fail quietly.
 
 **What this changes for the remaining tickets** (each carries a banner and new checkboxes):

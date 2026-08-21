@@ -46,21 +46,21 @@ Landed by `spike/rn-jest-testing` (`544ac8a`); merge that branch before starting
 already landed. When this ticket was written, none of this existed and its acceptance criteria
 assumed `tsc` plus a manual device check were the only tools available.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Back on the Series view and the grid view scrolls to the top, animated, from any scroll
+- [x] Back on the Series view and the grid view scrolls to the top, animated, from any scroll
       depth.
-- [ ] At the top, a **single** back press backgrounds the app. Never two presses for no visible
+- [x] At the top, a **single** back press backgrounds the app. Never two presses for no visible
       reason.
-- [ ] A no-results search, and an empty tab, background the app immediately.
-- [ ] The handler is installed **exactly once per focus**. Every mutable input reaches it through a
+- [x] A no-results search, and an empty tab, background the app immediately.
+- [x] The handler is installed **exactly once per focus**. Every mutable input reaches it through a
       mirror ref, so the effect's dependency array holds only stable ref objects. This is
       load-bearing: `BackHandler` dispatches strict LIFO **by registration time**, so a handler that
       re-registers while the drawer is open would sit above the drawer's own and scroll the list
       instead of closing the drawer.
-- [ ] The hook mirrors every input into a ref **internally**, so callers pass ordinary values and
+- [x] The hook mirrors every input into a ref **internally**, so callers pass ordinary values and
       the module itself guarantees the empty-dependency registration.
-- [ ] The hook carries a drawer guard and declines while the drawer is open — but as
+- [x] The hook carries a drawer guard and declines while the drawer is open — but as
       defence-in-depth only. On device the drawer consumes back upstream in React Navigation and
       this handler is never reached; the same is true of the keyboard. Keep the guard; **do not
       describe it in review or comments as the thing that makes the drawer case work.**
@@ -70,41 +70,41 @@ assumed `tsc` plus a manual device check were the only tools available.
       code is needed for this: modal routes are siblings of the drawer on the root stack, so
       pushing one blurs the library screen and the handler is removed on cleanup.
 - [ ] A cancelled back gesture does nothing — it produces no event at all.
-- [ ] The ladder reads offset **synchronously from the mounted list's ref** at the moment of the
+- [x] The ladder reads offset **synchronously from the mounted list's ref** at the moment of the
       decision. It does **not** track a screen-held scroll offset: that would go stale across a
       view toggle (the new list mounts at offset 0 and no scroll event fires), and the first press
       would consume itself scrolling an already-at-top list to the top.
-- [ ] The press-time call is `decideBackPress(list ? buildSnapshot(list) : null)` — the decision
+- [x] The press-time call is `decideBackPress(list ? buildSnapshot(list) : null)` — the decision
       function takes `LadderSnapshot | null` (spec §J5, amended 2026-08-21) and the **absence of a
       snapshot IS the absence of a list**. Do not fabricate a snapshot for the no-list case.
-- [ ] `buildSnapshot` passes `visible` as a **thunk over `computeVisibleIndices()`**, never a
+- [x] `buildSnapshot` passes `visible` as a **thunk over `computeVisibleIndices()`**, never a
       pre-computed value. Evaluating it eagerly reintroduces the throw B7 exists to avoid, and no
       test in the decision suite can catch it — that suite only ever sees the thunk it is handed.
-- [ ] **Decide, in this ticket, whether the hook contains a throw from `computeVisibleIndices()`.**
+- [x] **Decide, in this ticket, whether the hook contains a throw from `computeVisibleIndices()`.**
       B7's ordering is a strong guard, not a proof (spec §B7, amended 2026-08-21: the "no layout
       manager" argument needs the *offset* to read 0 as well, and that half is reasoned rather than
       measured). The pure function deliberately does **not** catch — the IO boundary is here. If
       you do contain it, containment must **DECLINE the press** so back backgrounds the app as it
       would with no ladder; it must never fall through to a rung, which is the silent
       wrong-landing shape H5 and F8 exist to prevent. Record the choice either way.
-- [ ] The offset predicate is evaluated **before** anything touches visibility, so the throwing
+- [x] The offset predicate is evaluated **before** anything touches visibility, so the throwing
       visibility accessor is unreachable.
-- [ ] The jump is `scrollToOffset({ offset, animated: true })`. The ladder does **not** consult
+- [x] The jump is `scrollToOffset({ offset, animated: true })`. The ladder does **not** consult
       `ReducedMotionConfig` — reduced motion is handled by the OS animator scale, for free.
-- [ ] The back handler for the master rung is two statements: the scroll, then `return true`.
-- [ ] Nothing is added to the per-frame scroll path.
+- [x] The back handler for the master rung is two statements: the scroll, then `return true`.
+- [x] Nothing is added to the per-frame scroll path.
 - [ ] **Latch check, on device:** scroll, back, back, reopen the app, push a screen, back must pop.
       Five rounds in one process, alternating gesture and 3-button. The signature of failure is
       that back stops reaching JS at all.
-- [ ] ⚠ **Import `LadderList` / `LadderListProps` from `src/types/ladderList.ts`; do NOT re-declare
+- [x] ⚠ **Import `LadderList` / `LadderListProps` from `src/types/ladderList.ts`; do NOT re-declare
       or re-export them from the hook.** Spec §H8 says the contract is "exported by the ladder
       hook", written when this hook was the only ladder module that would exist. Ticket 04 needed
       the contract *before* the hook did, so it lives in its own module — which also keeps
       `ladderDecisions.ts` free of React Native imports. Reading §H8 literally and re-declaring the
       type here would give the four lists and the hook two contracts that drift apart silently,
       which is the exact failure §H8 exists to prevent. (Raised by ticket 04's spec-axis review.)
-- [ ] `npm test`, tsc and eslint are green.
-- [ ] **The hook has an `rn`-lane suite** (`useBackToTopLadder.rn.test.tsx`). This is now the
+- [x] `npm test`, tsc and eslint are green.
+- [x] **The hook has an `rn`-lane suite** (`useBackToTopLadder.rn.test.tsx`). This is now the
       cheapest place to catch the wiring bugs the pure decision suite structurally cannot see:
       `decideBackPress` proves the *judgement*, and only an exercised hook proves the *gather* and
       *execute* halves around it. At minimum: a press at a scrolled offset calls `scrollToOffset`
@@ -112,3 +112,124 @@ assumed `tsc` plus a manual device check were the only tools available.
       the press through; and the drawer guard is honoured.
       ⚠ Hand the hook a **fake listRef** — FlashList has no layout manager under jest and
       `computeVisibleIndices()` throws, which is §B7's own premise. Do not try to render a real list.
+
+---
+
+## Answer
+
+The ladder is live. `src/hooks/useBackToTopLadder.ts` is a screen-installed hook of exactly the
+shape §J1 asks for — **gather → decide → execute**, no judgement, no state — and the library
+screen installs it. On all three mountable views a back press taken from any scroll depth scrolls
+the list to the top with an animated scroll and consumes the press; a further press at the top
+declines and Android backgrounds the app, as it always did. `npm test` **903** (892 → 903), tsc 0,
+eslint 0 errors.
+
+**The ladder is live on `booksHome` too, as a TWO-rung ladder.** That is not scope creep and not an
+oversight. `SECTIONED_VIEWS` already contains `booksHome`, but the hook publishes no section ranges
+yet, so `decideBackPress` finds no section containing the viewport top and every armed press falls
+through to master top — which is precisely the two-rung ladder. Ticket 06 supplies the ranges and
+the third rung appears with no change to this hook's shape. Gating `booksHome` out of the ladder
+until 06 would have meant writing a gate whose only purpose is to be deleted.
+
+### The decision this ticket was told to make: **yes, the hook contains the throw**
+
+Containment is a single `try`/`catch` around gather-decide-execute, and it **DECLINES** — `return
+false`, back backgrounds the app exactly as it does with no ladder. It never falls through to a
+rung.
+
+The argument for containing it at all: §B7's ordering keeps `computeVisibleIndices()` unreachable
+only if a list with no layout manager reads `offset` as `0` as well as `firstItemOffset`, and the
+spec's own 2026-08-21 amendment marks that half **reasoned, not measured**. What sits on the other
+side of that gap is not a wrong scroll — an uncaught throw inside a `BackHandler` callback is a
+**crash on a back press**, in the one place in the app where a press is guaranteed to arrive. A
+strong guard is the right reason to expect the catch never to fire; it is not a reason to omit it.
+
+The argument for declining rather than recovering is §B7's own: a swallowed throw that lands on
+master top is the silent wrong-landing shape §H5 and §F8 exist to prevent. Declining is the only
+containment that is indistinguishable from "this feature is not installed".
+
+**One addition the ticket did not ask for, stated so it can be argued with:** the catch calls
+`Sentry.captureException`. Containment must not be the same thing as concealment — the user gets
+the pre-feature behaviour, and telemetry still gets the throw. Five modules under `src/` already
+import Sentry, so this introduces no dependency. It is also the observable that makes the no-list
+test bite (below).
+
+### The `rn`-lane suite, and the two tests that did not bite until probed
+
+`src/hooks/__tests__/useBackToTopLadder.rn.test.tsx`, 11 tests. `decideBackPress` already proves
+the *judgement* in 18 pure tests; this suite proves only the *gather* and *execute* halves around
+it, which is the part that suite structurally cannot see — it only ever receives a snapshot
+someone else built.
+
+**Ten mutations run, ten killed.**
+
+| mutation | tests killed |
+|---|---|
+| containment returns `true` instead of declining | 1 |
+| containment falls through to master top (the silent wrong landing) | 1 |
+| `visible` evaluated EAGERLY instead of passed as a thunk | 1 |
+| drawer guard dropped | 2 |
+| `animated: true` → `false` | 2 |
+| no-list case fabricates a snapshot instead of passing `null` | 1 |
+| mirror ref bypassed — inputs read from the render closure | 1 |
+| handler re-created when inputs change (the §A6 violation) | 1 |
+| cleanup does not remove the handler | 1 |
+
+⚠ **Two of these passed for the wrong reason first time round, and both are worth carrying
+forward.**
+
+1. **The harness built a fresh `{ current }` ref object on every render.** The "does not
+   re-register" test failed — correctly. A ref identity that changes per render *is* an §A6
+   violation, because `useCallback([listRef])` then rebuilds the handler and `BackHandler`
+   dispatches strict LIFO **by registration time**. Production is safe because the screen owns a
+   `useRef`; the harness now models that by creating the ref once and mutating `.current`. **Any
+   future caller that inlines the ref object re-introduces the bug, and this test is what catches
+   it.**
+2. **The `catch` masked the no-list path.** Mutating the call to fabricate a snapshot for a null
+   list made the fabricated read throw, containment caught it, and back declined — the same
+   `false` the correct code returns. The test could not tell the two apart. This is the general
+   hazard of a defensive `catch`: it collapses two different failures into one observable. Killed
+   by asserting on the side channel — `expect(Sentry.captureException).not.toHaveBeenCalled()` —
+   because "no list" is a **normal state the decision handles**, not an error containment mops up.
+
+### One change outside this ticket's files: `jest.rn-setup.js` mocks Sentry
+
+Importing the real `@sentry/react-native` under jest leaves an **open handle**: jest prints *"did
+not exit one second after the test run"* and the process hangs, which on CI is a timeout with no
+failing test to point at. Mocked in the shared setup rather than in this suite, per that file's own
+rule (added because a real test failed without it, and named for the suite that forced it): five
+modules under `src/` import Sentry, so any future suite touching one of them trips the same wire.
+The mock is two members and a suite that wants to assert can still read it through
+`jest.mocked`.
+
+### What the `rn` lane cannot reach, and is therefore still ticket 08's
+
+Both `useFocusEffect` and `useDrawerStatus` need a live navigation tree, so the suite mocks them —
+focus is modelled as mount/unmount. That is enough for everything asserted here (what the handler
+*does*, that it is installed once, that cleanup removes it), but it means **the lane cannot prove
+the effect is scoped to focus rather than to mount**, and therefore cannot prove §A8 (modal routes
+disarming the ladder for free). The four unticked boxes are all of this kind:
+
+- drawer open / keyboard up — the guard is defence-in-depth; the real behaviour is upstream in
+  React Navigation and only a device shows it,
+- modal routes closing on back — §A8's blur-and-cleanup path,
+- a cancelled back gesture producing no event — a platform fact, not a code path,
+- ⚠ **the latch check** — five rounds in one process alternating gesture and 3-button. This is the
+  one that matters, because its failure signature is that back stops reaching JS **at all**, and
+  nothing off-device can see it.
+
+No device this session. Ticket 08 is the device pass.
+
+### ⚠ One unreproduced flake, recorded rather than buried
+
+Two full-suite runs during this session reported **`Tests: 1 failed, 902 passed`** and the failing
+test's name was not captured before the next run went green. **51 consecutive full-suite runs
+since — including 20 `rn`-lane-only runs and 3 with a cleared jest cache — are clean**, so it could
+not be reproduced and could not be attributed.
+
+It is recorded here because "I saw it twice and then it stopped" is exactly the observation that
+gets dropped and then costs a day later. What is known: it is a single test case, not a suite-level
+error; the new suite is timer-free (`act` only), so the more likely candidates are the pre-existing
+`rn` suite's `requestAnimationFrame` round-trip under load, or a date-boundary test in the
+`helpers` lane — **neither of which this ticket touched**. If it resurfaces, capture the run's full
+output before re-running; that is the step that was missed here.

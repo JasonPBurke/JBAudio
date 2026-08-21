@@ -23,3 +23,16 @@
 jest.mock('react-native-reanimated', () =>
   require('react-native-reanimated/mock'),
 );
+
+// `@sentry/react-native`. Importing the real module leaves an open handle, so
+// jest prints "did not exit one second after the test run" and hangs the
+// process -- which on CI is a timeout with no failing test to point at.
+// Mocked here rather than in one suite because ANY module that reports an
+// error trips it, and five modules under `src/` already import Sentry.
+// A suite that wants to assert on a report can still read the mock:
+//   jest.mocked(Sentry.captureException)
+// Forced by: useBackToTopLadder.rn.test.tsx (the ladder's throw containment).
+jest.mock('@sentry/react-native', () => ({
+  captureException: jest.fn(),
+  wrap: (component) => component,
+}));
