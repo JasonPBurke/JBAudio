@@ -7,6 +7,13 @@ Written: 2026-08-20 · resolves [10](issues/10-write-the-spec.md)
 2026-08-20 and answered (test seam shape, the overscroll-bounce sweep, TalkBack scope);
 they are recorded below as decisions. The document as a whole still needs the driver's
 read. Amendments are edits to this file, in place; it is never reissued.
+**Amended 2026-08-21** — six edits, all raised by implementation tickets
+[02](../library-back-ladder-impl/issues/02-decide-back-press.md) and
+[03](../library-back-ladder-impl/issues/03-decide-sweep.md) and none reversing a driver ruling:
+two factual corrections (**B7**'s missing premise, **F8**'s sentinel value), two adoptions of a
+safer default the spec was silent on (**F8**'s dropped qualifier, **F5**'s unreported velocity),
+one signature widening (**J4/J5**), and one contract sharpened for the range producer (**H4**).
+Each is marked in place at the decision it touches.
 Map (the argument, ticket by ticket): [map.md](map.md)
 Prototype branch: **`proto/back-ladder-rung-ab`** — throwaway, see §Further Notes.
 
@@ -311,9 +318,20 @@ strongly negative. `<=` is the safe side and every negative value falls on it.
 
 **B7. Evaluate the offset predicate before touching visibility.** `computeVisibleIndices()`
 **throws** when the list has no layout manager, while the two offset accessors are plain
-field reads that never throw. The ordering makes the throw unreachable: no layout manager
-implies `firstItemOffset === 0`, which makes the predicate `0 > 0` — false. **Predicate true
-⇒ layout exists.** This is why the snapshot in §J4 exposes visibility lazily.
+field reads that never throw. Ordering the predicate first is what keeps that throw out of
+reach: the predicate is `offset > firstItemOffset`, and with no layout manager **both** sides
+read `0`, so it is `0 > 0` — false. **Predicate true ⇒ layout exists.** This is why the
+snapshot in §J4 exposes visibility lazily.
+
+*Amended 2026-08-21 ([impl 02](../library-back-ladder-impl/issues/02-decide-back-press.md)).*
+The original wording named only the `firstItemOffset === 0` half and concluded `0 > 0` from it
+alone; the **offset** must read `0` too, and that half is **reasoned, not measured** — a list
+that has never laid out cannot have been scrolled. Treat the ordering as a strong guard, not a
+proof. **If the hook contains the throw at all, containment must DECLINE the press** — return
+control to the system so back backgrounds the app, exactly as it does with no ladder. It must
+never fall through to a rung: a swallowed throw that lands on master top is the silent
+wrong-landing shape §H5 and §F8 exist to prevent. The pure decision function does not catch;
+the boundary belongs to the hook.
 
 ### C · The ladder — rungs, order, and both ends
 
@@ -480,6 +498,22 @@ the drag's starting offset via a fifth handler on all four lists to distinguish 
 a genuine slow drag up to the top. **Reversible lever, if it annoys on device:** add
 `onScrollBeginDrag` to the contract and require the drag to have begun below the top.
 
+*Amended 2026-08-21 ([impl 03](../library-back-ladder-impl/issues/03-decide-sweep.md)).*
+**An UNREPORTED drag velocity counts as flinging, not as settled.** §J4 types `velocityY`
+optional and said nothing about `undefined`; the two errors are not symmetric — a missed sweep
+is invisible and the next arrival at the top performs it anyway, while a wrong sweep destroys
+the reader's expansions. So the absent value defaults to *fast*, not to *still*. For the same
+reason the gate is written as `!(Math.abs(v) < THRESHOLD)` rather than `Math.abs(v) >=
+THRESHOLD`: those differ on exactly one input, `NaN`, and under `>=` a `NaN` velocity would
+count as **settled** and sweep.
+
+⚠ **This puts F5 on the device list.** F5's accepted bounce-sweep rests on the platform
+reporting `0` for a bounce; if it reports **nothing**, the safe default classifies the bounce
+as a fling and the bounce-sweep silently never happens. F4's `-4.76` is device-measured, so
+velocity *is* reported for drag-end on the rig — but the bounce's own value is inferred, not
+measured. Confirm on device (§ ticket 08); if the bounce never sweeps, this is why, and the
+feature is not otherwise harmed.
+
 **F6. Sampling point: read visibility from the list's ref at the moment the sweep runs**, and
 compare it against the section ranges by index overlap — `range.start <= endIndex && range.end
 >= startIndex`. No `onViewableItemsChanged` and no `viewabilityConfig`. This is a
@@ -499,8 +533,8 @@ ground — each collapses a section at or above the fold, which is the blank-scr
 configuration.
 
 **F8. ⚠ A degenerate visible sample is a NO-OP, never a collapse.** The sweep must do nothing
-when `computeVisibleIndices()` returns an empty range (`startIndex < 0`), or when the overlap
-yields **no** sections while the range list is non-empty. This is not defensive
+when `computeVisibleIndices()` returns a degenerate range — `startIndex < 0` **or**
+`endIndex < startIndex` — or when the overlap yields **no** sections. This is not defensive
 decoration — it closes a live production hazard: the collapse helper iterates the **open** set,
 not the visible set, so an empty visible set is a **collapse-EVERYTHING**, which wipes exactly
 the sections F7 exists to protect. A drifted sweep was observed doing this on device. The
@@ -508,6 +542,23 @@ guard belongs in the sweep's decision function (§J4), where the knowledge is; t
 helper's contract stays unchanged so its existing tests stay meaningful. At the top of a list
 with data the ranges tile the list, so index 0 always belongs to a section — an empty visible
 set at sweep time is **always** a bug signal, never a legitimate state.
+
+*Amended 2026-08-21 ([impl 03](../library-back-ladder-impl/issues/03-decide-sweep.md)), two
+corrections to the wording above — the ruling itself is unchanged.*
+
+- **The empty sample FlashList actually emits is INVERTED, not `startIndex < 0`.** Verified in
+  `node_modules`: `ConsecutiveNumbers.EMPTY = new ConsecutiveNumbers(-1, -2)`, returned by the
+  layout manager. So `endIndex < startIndex` is the half that catches the real thing and
+  `startIndex < 0` catches it only incidentally. Both halves are kept — an inverted range that
+  is *not* the sentinel can still overlap a section under F6's arithmetic and produce a
+  confident, wrong collapse — but an implementation that pins only the originally-worded half
+  is **not** guarded against the value the list really returns.
+- **The `while the range list is non-empty` qualifier is REMOVED.** It could only ever *admit*
+  inputs, never reject them, and every input it admits is the R5 shape exactly: empty `ranges`
+  alongside a persisted non-empty `expanded`, which both H5's before-paint window and a fresh
+  mount produce, and where the collapse helper wipes **everything**. Empty `ranges` implies an
+  empty visible-id set, so the unqualified guard provably cannot suppress a legitimate
+  collapse — the only thing it suppresses is a collapse-everything.
 
 ⚠ **This answers ticket [12](issues/12-collapse-sweep-scroll-drift.md) §6.3's fork, and it takes
 NEITHER of the two options that ticket offered.** Anyone reading that ticket will find the choice
@@ -623,6 +674,23 @@ serve four differently laid-out lists: the sweep asks **overlap**, the rung asks
 that tiling invariant holding forever. Rejected: adding an `expanded` flag — it would duplicate
 the expanded-section state into a second source of truth while the sweep still needs the setter
 anyway.
+
+⚠ **What the range producer owes its consumers, stated so it can be tested rather than assumed**
+*(added 2026-08-21; see [impl 02](../library-back-ladder-impl/issues/02-decide-back-press.md)'s
+review)*:
+
+1. **`end` is INCLUSIVE** — the index of the section's last item, not the next section's `start`.
+   The exclusive reading is an easy mistake *precisely because* `end` is stored as redundancy
+   rather than derived, and it fails in the quietest possible way: the viewport top resolves to
+   the **previous** section, the rung lands on the wrong header, and every sanity check an
+   implementer would think to write still passes.
+2. **Ranges do not overlap.** The rung resolves the viewport top with a *first-match* containment
+   lookup, so at most one range may contain a given index; with overlapping ranges it silently
+   picks an arbitrary one. Ordering is **not** required — non-overlap is what makes the lookup
+   deterministic.
+
+Neither property is enforceable by the type, so both are pinned by boundary tests on the
+consumer side.
 
 **H5. ⚠ Ranges must be published BEFORE PAINT, from a layout effect — this is a contract
 requirement, not an implementation detail.** The ladder reads index information from two
@@ -763,7 +831,7 @@ type LadderSnapshot = {
   layoutY: (index: number) => number | undefined;
 };
 
-decideBackPress(s: LadderSnapshot)
+decideBackPress(s: LadderSnapshot | null)
   -> { kind: 'decline'; reason: 'drawer' | 'no-list' | 'at-top' }
    | { kind: 'scrollTo'; offset: number; rung: 'section' | 'master' };
 
@@ -791,6 +859,23 @@ Two shapes were weighed and rejected, both recorded so they are not re-proposed:
   and F8's guard inside the hook. Smallest diff, and rejected because those guards are precisely
   the parts device work proved load-bearing (F4, F8, H2/R5); leaving them in the untestable layer
   puts the tests where the risk is not.
+
+**J5. `decideBackPress` takes `LadderSnapshot | null`. The absence of a snapshot IS the absence
+of a list.** *(Amended 2026-08-21,
+[impl 02](../library-back-ladder-impl/issues/02-decide-back-press.md).)* `decline('no-list')` is
+otherwise **unreachable**: `offset` and `firstItemOffset` are non-nullable and the `visible` /
+`layoutY` thunks can only be built from a live ref, so constructing a snapshot at all already
+implies a mounted list, and no field is left to express "no list". The two alternatives were
+weighed and rejected — threading `| null` through every arithmetic site inside the function, and
+a `hasList: boolean` flag, which admits the impossible state of `hasList: false` sitting beside a
+real offset and live thunks and forces the hook to fabricate numbers it does not have.
+
+**One behavioural consequence, stated plainly:** a no-list snapshot is now reported as
+`'no-list'` even with the drawer open, where a list-first-then-drawer ordering would have said
+`'drawer'`. Both **decline** — only the diagnostic reason differs, and the combination is
+unreachable in practice, since the library screen stays mounted behind an open drawer.
+
+`decideSweep` keeps its non-null parameter: a settle event cannot fire without a mounted list.
 
 ---
 
