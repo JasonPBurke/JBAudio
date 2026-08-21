@@ -22,3 +22,10 @@ Branch: **`feat/library-back-ladder`**, off `main` at `104bd34`.
   were mutation-tested and shown to be load-bearing: an equivalent `filter()` rewrite passes the
   other three and fails exactly those two, so the suite really does pin React's bail-out. Nothing
   imports the helper yet; ticket 07 wires it up. jest 843 → 848.
+- **02 — shared types + `decideBackPress`** · `resolved` (`354413c`) — pure decision module
+  `src/helpers/ladderDecisions.ts`, all 17 spec cases under 18 tests, nothing imports it yet.
+  Every guard mutation-checked (see the ticket's Answer for the table). **Two contract decisions
+  taken here that §J4 does not state:** the parameter is `LadderSnapshot | null` because
+  `decline('no-list')` is otherwise unreachable, and the index-0 header degenerates to master via a
+  *strictly-between* predicate rather than any special case. Both are spec-amendment candidates.
+  Also added the missing `npm test` script (`82ca506`) — it never existed. jest 848 → 866.
