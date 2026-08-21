@@ -1,0 +1,74 @@
+# 05 — The two-rung ladder, live on the Series and grid views
+
+**What to build:** The first demoable slice of the feature. On the library screen's non-sectioned
+views, a back press scrolls the list to the top with a real animated scroll; a second press
+backgrounds the app exactly as it does today. Search text, selected tab and view toggle are
+untouched — scroll position is the only thing back moves. On every other screen in the app, back
+means exactly what it means today.
+
+There is no toast, no haptic and no "press back again to exit". That convention exists for apps
+where the first press does nothing visible; here the first press is visibly a scroll, and that
+*is* the feedback.
+
+This ticket builds the screen-installed hook as **IO only — gather → decide → execute**. It gathers
+a snapshot from the mounted list's ref at press time, calls the already-tested decision, and
+executes. It adds no judgement of its own and no state between presses: no counter, no timer, no
+"which rung was last" memory. Every press re-derives its answer from the live scroll offset and the
+live layout, which is what makes the ladder self-healing when the user scrolls by hand between
+presses, switches views, or lets the library rescan under them.
+
+The capability set stays closed for now, so the intermediate rung is simply absent:
+
+```ts
+const SECTIONED_VIEWS = new Set<LadderView>(['booksHome']);
+```
+
+Interception is `BackHandler.addEventListener('hardwareBackPress', …)` inside React Navigation's
+`useFocusEffect`. Not expo-router, not native. This is the app's first conditional back handler.
+Returning `true` consumes the press; returning `false` declines it and lets Android background the
+app through the existing activity override. No native patch and no RN/Expo upgrade is required —
+recorded so it is not re-litigated.
+
+Spec: A1–A8, B1–B7, C1–C4, E1–E6, H1, H2, I1, I4, I6, J1–J3; user stories 8, 12, 13, 16–24, 26,
+28–34.
+
+**Blocked by:** 02 (the decision), 04 (the contract).
+
+**Status:** ready-for-agent
+
+- [ ] Back on the Series view and the grid view scrolls to the top, animated, from any scroll
+      depth.
+- [ ] At the top, a **single** back press backgrounds the app. Never two presses for no visible
+      reason.
+- [ ] A no-results search, and an empty tab, background the app immediately.
+- [ ] The handler is installed **exactly once per focus**. Every mutable input reaches it through a
+      mirror ref, so the effect's dependency array holds only stable ref objects. This is
+      load-bearing: `BackHandler` dispatches strict LIFO **by registration time**, so a handler that
+      re-registers while the drawer is open would sit above the drawer's own and scroll the list
+      instead of closing the drawer.
+- [ ] The hook mirrors every input into a ref **internally**, so callers pass ordinary values and
+      the module itself guarantees the empty-dependency registration.
+- [ ] The hook carries a drawer guard and declines while the drawer is open — but as
+      defence-in-depth only. On device the drawer consumes back upstream in React Navigation and
+      this handler is never reached; the same is true of the keyboard. Keep the guard; **do not
+      describe it in review or comments as the thing that makes the drawer case work.**
+- [ ] With the drawer open, back closes the drawer and leaves scroll position exactly where it was.
+      With the keyboard up, back dismisses the keyboard only and the list does not move.
+- [ ] With the player, the title-details sheet or any other modal route open, back closes that. No
+      code is needed for this: modal routes are siblings of the drawer on the root stack, so
+      pushing one blurs the library screen and the handler is removed on cleanup.
+- [ ] A cancelled back gesture does nothing — it produces no event at all.
+- [ ] The ladder reads offset **synchronously from the mounted list's ref** at the moment of the
+      decision. It does **not** track a screen-held scroll offset: that would go stale across a
+      view toggle (the new list mounts at offset 0 and no scroll event fires), and the first press
+      would consume itself scrolling an already-at-top list to the top.
+- [ ] The offset predicate is evaluated **before** anything touches visibility, so the throwing
+      visibility accessor is unreachable.
+- [ ] The jump is `scrollToOffset({ offset, animated: true })`. The ladder does **not** consult
+      `ReducedMotionConfig` — reduced motion is handled by the OS animator scale, for free.
+- [ ] The back handler for the master rung is two statements: the scroll, then `return true`.
+- [ ] Nothing is added to the per-frame scroll path.
+- [ ] **Latch check, on device:** scroll, back, back, reopen the app, push a screen, back must pop.
+      Five rounds in one process, alternating gesture and 3-button. The signature of failure is
+      that back stops reaching JS at all.
+- [ ] `npm test`, tsc and eslint are green.
