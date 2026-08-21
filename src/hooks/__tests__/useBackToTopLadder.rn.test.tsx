@@ -1,10 +1,11 @@
-import { useEffect as mockUseEffect } from 'react';
+import { useEffect as mockUseEffect, type RefObject } from 'react';
 import { act, renderHook } from '@testing-library/react-native';
 import { BackHandler } from 'react-native';
 import * as Sentry from '@sentry/react-native';
 
 import { useBackToTopLadder } from '@/hooks/useBackToTopLadder';
 import type { LadderView } from '@/helpers/ladderDecisions';
+import type { LadderList } from '@/types/ladderList';
 
 /**
  * The ladder hook's `rn`-lane suite.
@@ -42,19 +43,35 @@ jest.mock('@react-navigation/drawer', () => ({
   useDrawerStatus: () => mockDrawerStatus,
 }));
 
-/** The slice of the list surface the ladder actually drives. */
-function fakeList(offset: number, overrides: Record<string, unknown> = {}) {
+/**
+ * The slice of the list surface the ladder actually drives.
+ *
+ * ⚠ Typed as a `Pick` of the real `LadderList` rather than as a free object
+ * literal, so the fake's SIGNATURES stay checked against FlashList's own. That
+ * is what stops the fake drifting into a shape the real list never has --
+ * `getLayout` returning a bare `{ y }` compiles happily on an untyped fake and
+ * would let a test pass against a return value that cannot occur. The section
+ * rung reads exactly that `y`.
+ */
+type ListFake = Pick<
+  LadderList,
+  | 'getAbsoluteLastScrollOffset'
+  | 'getFirstItemOffset'
+  | 'computeVisibleIndices'
+  | 'getLayout'
+  | 'scrollToOffset'
+>;
+
+function fakeList(offset: number, overrides: Partial<ListFake> = {}): ListFake {
   return {
     getAbsoluteLastScrollOffset: jest.fn(() => offset),
     getFirstItemOffset: jest.fn(() => 38),
     computeVisibleIndices: jest.fn(() => ({ startIndex: 0, endIndex: 5 })),
-    getLayout: jest.fn(() => ({ y: 0 })),
+    getLayout: jest.fn(() => ({ x: 0, y: 0, width: 100, height: 100 })),
     scrollToOffset: jest.fn(),
     ...overrides,
   };
 }
-
-type ListFake = ReturnType<typeof fakeList>;
 
 /**
  * Render the hook and hand back the handler it registered, so a test can press
@@ -75,10 +92,13 @@ async function mountLadder({
   list: ListFake | null;
 }) {
   const registered = jest.spyOn(BackHandler, 'addEventListener');
-  const listRef = { current: list };
+  const listRef: { current: ListFake | null } = { current: list };
   const rendered = await renderHook(
     (props: { view: LadderView }) =>
-      useBackToTopLadder({ listRef: listRef as never, view: props.view }),
+      useBackToTopLadder({
+        listRef: listRef as unknown as RefObject<LadderList | null>,
+        view: props.view,
+      }),
     { initialProps: { view } },
   );
 
@@ -246,11 +266,13 @@ describe('useBackToTopLadder — registration', () => {
     const remove = jest.fn();
     jest
       .spyOn(BackHandler, 'addEventListener')
-      .mockReturnValue({ remove } as never);
+      .mockReturnValue({ remove });
 
     const { unmount } = await renderHook(() =>
       useBackToTopLadder({
-        listRef: { current: fakeList(4000) } as never,
+        listRef: { current: fakeList(4000) } as unknown as RefObject<
+          LadderList | null
+        >,
         view: 'seriesHome',
       }),
     );

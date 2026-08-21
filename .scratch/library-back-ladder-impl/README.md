@@ -94,6 +94,21 @@ Branch: **`feat/library-back-ladder`**, off `main` at `104bd34`.
   ⚠ Four boxes stay unticked, all device-only: drawer/keyboard, modal routes (§A8), a cancelled
   gesture, and **the latch check**. The lane mocks `useFocusEffect`, so it cannot prove the effect
   is scoped to focus rather than mount. Ticket 08.
+  Reviewed (two axes, opus): **Spec axis faithful** — nothing missing, no 06/07 leakage. Of its
+  three "looks wrong" findings, 1 adopted (the input mirror is a `useLayoutEffect` now, closing a
+  frame-wide stale window), 1 accepted as an observation, and **1 declined on a checked premise**:
+  the `try` may span the scroll, because FlashList's `scrollToOffset` dispatches `scrollTo` as its
+  LAST statement, so a call that throws has not scrolled — the alternative turns any throw there
+  into a crash on a back press. Standards axis: 2 hard violations (a speculative `Sentry.wrap` mock
+  member; ticket 05's own "five traps" banner missed by its own rename — the `c6b76ed` defect class
+  again), both fixed; 3 judgement calls, 2 adopted, 1 declined.
+  ⚠ **The typed-fake finding bit immediately**: `listRef as never` meant the fake was unchecked, and
+  typing it `Pick<LadderList, …>` rejected its own `getLayout` stub — the real signature returns
+  `RVLayout` (`x`/`y`/`width`/`height`), not the bare `{ y }` it was returning. **Ticket 06 reads
+  exactly that `y`.**
+  Declined and recorded as a candidate: `toggleView` is now the subject of a FOURTH ordinal cascade;
+  holding `LadderView` in state and deriving the ordinal for `Header` would collapse all four. Real,
+  but a refactor with its own risk in a ticket whose device check is still outstanding.
 
 ## Spec amendments — SETTLED 2026-08-21, before ticket 04
 

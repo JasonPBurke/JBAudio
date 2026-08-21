@@ -1,4 +1,9 @@
-import { useCallback, useEffect, useRef, type RefObject } from 'react';
+import {
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  type RefObject,
+} from 'react';
 import { BackHandler } from 'react-native';
 import { useDrawerStatus } from '@react-navigation/drawer';
 import { useFocusEffect } from '@react-navigation/native';
@@ -103,9 +108,14 @@ export function useBackToTopLadder({
    * One effect with no dependency array, rather than one per input: it runs
    * after every commit, so the mirror cannot fall out of step with a new input
    * someone adds later and forgets to list.
+   *
+   * A LAYOUT effect, not a passive one. A passive effect runs after paint,
+   * leaving a frame-wide window in which the screen shows the new view while
+   * the handler still reads the old one -- and a back press can land in that
+   * window. It costs nothing to close.
    */
   const inputsRef = useRef<LadderInputs>({ view, drawerOpen });
-  useEffect(() => {
+  useLayoutEffect(() => {
     inputsRef.current = { view, drawerOpen };
   });
 
@@ -162,6 +172,15 @@ export function useBackToTopLadder({
        * Reported rather than swallowed, so containment does not make a real bug
        * invisible -- the user gets the old behaviour, telemetry still gets the
        * throw.
+       *
+       * The `try` deliberately spans the SCROLL as well, and that is safe for a
+       * checked reason rather than an assumed one: FlashList's
+       * `scrollToOffset` does pure arithmetic and then dispatches
+       * `scrollTo` as its LAST statement, so a call that throws has not
+       * scrolled. Declining after it is therefore still exactly the
+       * pre-feature behaviour. The alternative -- leaving the scroll outside
+       * the guard -- turns any throw there into a crash on a back press, which
+       * is the failure this whole block exists to avoid.
        */
       Sentry.captureException(error);
       return false;

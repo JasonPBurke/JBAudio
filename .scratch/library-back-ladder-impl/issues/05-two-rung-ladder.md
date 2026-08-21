@@ -39,7 +39,7 @@ Spec: A1–A8, B1–B7, C1–C4, E1–E6, H1, H2, I1, I4, I6, J1–J3; user stor
 Hooks and components are **now testable**. Jest runs two projects: pure TypeScript stays in the
 fast `helpers` lane, and anything importing React Native goes in an `rn` lane
 (`jest-expo/android` + `@testing-library/react-native`) by being named `*.rn.test.tsx`.
-**Read `docs/testing/jest-projects-and-rn-tests.md` first** — it holds five traps that all fail
+**Read `docs/testing/jest-projects-and-rn-tests.md` first** — it holds six traps that all fail
 quietly.
 
 Landed by `spike/rn-jest-testing` (`544ac8a`); merge that branch before starting if it has not
@@ -233,3 +233,28 @@ error; the new suite is timer-free (`act` only), so the more likely candidates a
 `rn` suite's `requestAnimationFrame` round-trip under load, or a date-boundary test in the
 `helpers` lane — **neither of which this ticket touched**. If it resurfaces, capture the run's full
 output before re-running; that is the step that was missed here.
+
+### Review — two axes (mattpocock code-review, opus), fixed point `058c9b5`
+
+**Spec axis: faithful.** Nothing the ticket owed is missing; no ticket 06 or 07 behaviour leaked
+in (`NO_RANGES`/`NO_EXPANDED` are inert constants, not a range producer or a sweep); the two
+undertakings the ticket did not ask for — the Sentry report and the shared Sentry mock — were both
+examined and accepted. Three findings under "implemented but looks wrong":
+
+| # | Finding | Disposition |
+|---|---|---|
+| 1 | The `try` spans **execute**, not just gather → decide. A `scrollToOffset` that throws *after the list has begun moving* would both scroll and background — not §B7's "exactly as it does with no ladder". | **Declined, on a checked premise.** The finding's scenario cannot occur in this list: FlashList's `scrollToOffset` (`useRecyclerViewController.js:208-231`) does pure arithmetic and then dispatches `scrollTo` as its **last** statement, with nothing after it. A call that throws has therefore **not scrolled**, so declining afterwards *is* the pre-feature behaviour. The proposed alternative — leaving the scroll outside the guard — converts any throw there into a **crash on a back press**, which is the failure the block exists to prevent. The reason is now in the code comment, so the next reader gets the evidence rather than the assumption. |
+| 2 | Enabling `booksHome` now means every armed press there **reaches** §B7's throwing accessor (`sectionRungTarget` calls `s.visible()` before it consults `ranges`), for no rung, until 06 lands. | **Accepted as an observation; no change.** It is behaviourally correct, and it is precisely the case containment was built for — the accessor is *exercised*, not merely guarded, which is a better state to be in than the reverse. Recorded so it is not mistaken for a regression when 06 changes it. |
+| 3 | The input mirror is written in a **passive** `useEffect`, so between commit and paint the handler reads a stale `view`/`drawerOpen`. | **Adopted.** Now a `useLayoutEffect`. The window is about a frame wide and a back press can land in it; closing it costs nothing. |
+
+**Standards axis: 2 hard violations, 3 judgement calls.**
+
+| # | Finding | Disposition |
+|---|---|---|
+| 1 | `jest.rn-setup.js` mocked `Sentry.wrap` as well as `captureException`, but **no suite forced `wrap`** — that file's own rule is "added because a real test failed without it, never speculatively". | **Adopted.** `wrap` removed, and its absence is now stated in the comment so the next person does not add it back "for completeness". |
+| 2 | Ticket 05's **own banner** still said "five traps" while the same commit renumbered `06`, `07`, the README and `CLAUDE.md` to six. | **Adopted.** Fixed. ⚠ Same defect class the preceding commit (`c6b76ed`) existed to close — a global rename that skips the file being edited. |
+| 3 | *Repeated Switches / Primitive Obsession:* `ladderViewFor` is the **fourth** cascade on the `toggleView` ordinal. `LadderView` is the type that concept wanted; holding it in `useState` and deriving the ordinal for `Header` would collapse all four. | **Declined for this ticket, recorded as a candidate.** The reviewer notes it is not a violation, since §H1 blesses the mount-site seam. Converting the screen's `toggleView` state would touch `Header` and three render branches for no behaviour change — a refactor with its own risk, in a ticket whose device check is still outstanding. Worth doing; not here. |
+| 4 | *Duplicated Code:* the screen's `§H1` comment restated `LadderView`'s docblock almost verbatim, and the two had **already drifted** in wording. | **Adopted.** The screen now points at the docblock instead of restating it. |
+| 5 | The test's `listRef as never` meant the fake was never checked against `LadderList` at all. | **Adopted, and it bit immediately.** The fake is now typed `Pick<LadderList, …>`, which rejected its own `getLayout` stub: the real signature returns `RVLayout` (`x`/`y`/`width`/`height`), not the bare `{ y }` the fake was handing back. ⚠ **Ticket 06 reads exactly that `y`** — a test written against a return value FlashList cannot produce is the kind of green that costs a day. |
+
+Re-verified after the review edits: **all 8 mutations still killed**, jest 903, tsc 0, eslint 0.

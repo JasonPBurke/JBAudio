@@ -52,10 +52,8 @@ const NO_OP = () => {};
 /*
  * §H1 -- the ladder is told a NAMED view, and the mapping from the toggle's
  * ordinal lives HERE, at the mount site, so the ladder never learns the
- * ordinal. That ordinal is a UI toggle position, not a view identity: it is
- * local state persisted nowhere, and both candidate futures for `BooksList`
- * (replacing the grid, or joining as a fourth option) are exactly the changes
- * that renumber it.
+ * ordinal. `LadderView`'s own docblock in `ladderDecisions.ts` carries the
+ * reason; do not restate it here, where it would drift.
  */
 const ladderViewFor = (toggleView: number): LadderView =>
   toggleView === 1 ? 'seriesHome' : toggleView === 2 ? 'booksGrid' : 'booksHome';
