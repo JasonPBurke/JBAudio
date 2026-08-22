@@ -43,7 +43,7 @@ export type LadderSnapshot = {
   offset: number;
   firstItemOffset: number;
   expanded: Set<string>;
-  ranges: SectionRange[];
+  ranges: readonly SectionRange[];
   /** LAZY — must not be called before the offset predicate passes (B7). */
   visible: () => { startIndex: number; endIndex: number };
   layoutY: (index: number) => number | undefined;

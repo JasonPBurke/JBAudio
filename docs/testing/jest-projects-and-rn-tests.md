@@ -54,6 +54,18 @@ const flushFrame = () =>
 Under the RN preset `requestAnimationFrame` is `setTimeout(fn, 0)`, so a real zero-delay await
 drives it. Verified by probe, not assumed.
 
+⚠ **The corollary bit once, so read it before writing a "the frame was cancelled" test.** Because
+that timer is `0 ms`, a deferred frame is **already due** the instant it is scheduled and will fire
+inside whichever `await` comes next — including the `await rerender(...)` that scheduled it. A test
+that needs the frame *still pending* (asserting an unmount cancelled it) is therefore racing the
+event loop, and it lost about one full-suite run in ten: only ever in company with other suites,
+because worker contention is what let the timer win, and never in the `rn` lane alone (0/40).
+The fix is **not** fake timers — that is what this trap forbids. Swap `requestAnimationFrame` /
+`cancelAnimationFrame` for a manual queue in that one file via `beforeEach`/`afterEach`, leave
+timers real, and assert on the queue's contents. See `useResetScrollOnTabChange.rn.test.tsx`:
+that turns "no call happened" (which a race can satisfy for the wrong reason) into "one frame in,
+zero frames out", which nothing but real cancellation can satisfy.
+
 **2. `renderHook`, `rerender` and `unmount` are all ASYNC in RNTL 14.** A missing `await` does not
 throw — the assertion just runs before the render it meant to observe.
 
@@ -91,6 +103,16 @@ library list in this app is therefore behind a **cascade**, not behind one confi
 while trying to add a single assertion to `BooksHome`; the attempt was backed out rather than widen
 the shared lane's transform for one test. Know that cost before promising a component test that
 renders a list — and prefer a hook-level seam, which is what the back ladder does throughout.
+
+**8. A COLOCATED `*.rn.test.tsx` used to run in neither project, and the run still said green.**
+The `rn` lane originally matched `**/__tests__/**/*.rn.test.[jt]s?(x)` — suffix *and* directory —
+while `helpers` ignores the suffix **anywhere** in the path. So `src/hooks/useFoo.rn.test.tsx`, the
+colocated convention, was rejected by one project and ignored by the other: never collected, never
+run, no error. Widened to `**/*.rn.test.[jt]s?(x)` on 2026-08-22; jest's default
+`testPathIgnorePatterns` still excludes `node_modules`. **Do not re-narrow it to a directory.** If
+you are ever unsure a file is being collected, `npx jest --listTests` answers it in a second — and
+that is the only cheap check, because a suite that never runs looks exactly like a suite that
+passed.
 
 ## `jest.rn-setup.js`
 

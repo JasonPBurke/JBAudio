@@ -39,8 +39,8 @@ const BooksList = ({
   onScrollEndDrag,
 }: BookListProps) => {
   const { colors: themeColors } = useTheme();
-  // The list ref belongs to the LIBRARY SCREEN, never to this component (§H6):
-  // no internal fallback, because a fallback makes a forgotten ref silent.
+  // §H6 -- the list ref belongs to the LIBRARY SCREEN and this component keeps
+  // no fallback. `LadderListProps` says why.
   useResetScrollOnTabChange(listRef, selectedTab);
   const bookIds = useMemo(() => {
     // BooksList is only used standalone — flatten all authors' books.

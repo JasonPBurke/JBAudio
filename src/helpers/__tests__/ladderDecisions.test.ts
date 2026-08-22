@@ -4,6 +4,7 @@ import {
   type LadderSnapshot,
   type SweepDecision,
 } from '../ladderDecisions';
+import { ladderViewFor } from '../ladderView';
 
 /**
  * The default `visible` thunk THROWS. That is B7's ordering rule expressed as a
@@ -302,6 +303,19 @@ describe('decideSweep — the capability gate (R5)', () => {
   it('declines on a non-sectioned view even with stale ranges and live expansions', () => {
     expect(
       decideSweep(sweepSnapshot({ view: 'seriesHome' }), 'momentum'),
+    ).toEqual({ kind: 'none', reason: 'not-sectioned' });
+  });
+
+  /*
+   * The gate joined to the mount site's ordinal mapping. `ladderView.test.ts`
+   * pins the mapping alone; this pins the CONSEQUENCE, which is the thing that
+   * matters: a fourth view added to the toggle and not mapped here cannot reach
+   * the sweep at all. Those stale ranges and live expansions in the fixture are
+   * exactly what it would otherwise destroy.
+   */
+  it('declines for a view an UNMAPPED toggle ordinal resolves to', () => {
+    expect(
+      decideSweep(sweepSnapshot({ view: ladderViewFor(3) }), 'momentum'),
     ).toEqual({ kind: 'none', reason: 'not-sectioned' });
   });
 });

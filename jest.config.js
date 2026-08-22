@@ -56,7 +56,14 @@ module.exports = {
       // Android only, and the universal preset runs every suite once per
       // platform.
       preset: 'jest-expo/android',
-      testMatch: [`**/__tests__/**/*.rn.test.[jt]s?(x)`],
+      // Matched ANYWHERE, not only under `__tests__/`. The suffix is the opt-in
+      // (see the header), so requiring the directory as well made a colocated
+      // `src/hooks/useFoo.rn.test.tsx` land in NEITHER project: this glob
+      // rejected it and `helpers` ignores the suffix wherever it appears. It
+      // never ran and the run still reported green -- trap 8 in
+      // `docs/testing/jest-projects-and-rn-tests.md`. Do not re-narrow it.
+      // `node_modules` is still excluded by jest's default ignore patterns.
+      testMatch: [`**/*.rn.test.[jt]s?(x)`],
       // The preset supplies its own mapper (Expo module resolution); spreading
       // ours after it adds the `@/` aliases without dropping that.
       moduleNameMapper: {

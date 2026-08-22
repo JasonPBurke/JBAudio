@@ -68,8 +68,8 @@ const SeriesHome = ({
     (state) => state.seriesBackgroundsEnabled,
   );
 
-  // The list ref belongs to the LIBRARY SCREEN, never to this component (§H6):
-  // no internal fallback, because a fallback makes a forgotten ref silent.
+  // §H6 -- the list ref belongs to the LIBRARY SCREEN and this component keeps
+  // no fallback. `LadderListProps` says why.
   useResetScrollOnTabChange(listRef, selectedTab);
 
   const handleOpen = useCallback(

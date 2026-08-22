@@ -1,9 +1,21 @@
 import { useEffect, useRef, type RefObject } from 'react';
 import { CustomTabs } from '@/types/CustomTabs';
+import type { LadderList } from '@/types/ladderList';
 
-type ScrollableRef = RefObject<{
-  scrollToOffset: (params: { offset: number; animated: boolean }) => void;
-} | null>;
+/**
+ * The one method this hook drives, taken from the shared list surface rather
+ * than re-declared here. `Pick` keeps the hook honest about how little it
+ * needs while still failing if that method's signature moves.
+ *
+ * ⚠ This works because the ref is an ordinary PARAMETER: property covariance
+ * lets the screen's `RefObject<LadderList | null>` be passed where a structural
+ * subset is expected. It would NOT work as React's `ref` PROP on a
+ * `<FlashList<Item>>` -- `FlashListRef<T>` is invariant in `T` and a narrowed
+ * shape is rejected with TS2322, which is the reason `LadderList` itself is
+ * parameterised with `any` (see its docblock). The two situations look alike
+ * and are not.
+ */
+type ScrollableRef = RefObject<Pick<LadderList, 'scrollToOffset'> | null>;
 
 /**
  * Land the list at the top when the tab changes, so the new tab's content

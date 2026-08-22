@@ -18,7 +18,7 @@ Jest runs **two projects**. Pure TypeScript lives in the `helpers` lane (node, n
 anything importing React Native must be named `*.rn.test.tsx` to land in the `rn` lane
 (`jest-expo/android` + `@testing-library/react-native`). **Read
 `docs/testing/jest-projects-and-rn-tests.md` before writing a component or hook test** — it holds
-seven traps that all fail quietly, including that `jest.useFakeTimers()` breaks RNTL 14's async
+eight traps that all fail quietly, including that `jest.useFakeTimers()` breaks RNTL 14's async
 render and that FlashList's `computeVisibleIndices()` throws under jest.
 
 ### Domain docs

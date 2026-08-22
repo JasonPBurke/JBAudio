@@ -423,10 +423,11 @@ describe('useBackToTopLadder — the section rung', () => {
   });
 
   it('IGNORES the ranges on a non-sectioned view (§R5)', async () => {
-    // The ranges ref is never emptied and the expanded set persists across view
-    // toggles, so on the Series view these indices describe the WRONG list. The
-    // identity gate is the only thing that disarms them; without it the rung
-    // would land at an arbitrary offset in a list it knows nothing about.
+    // The §R5 shape, stated once on `useBackToTopLadder`'s `sectionRangesRef`
+    // parameter: on the Series view these indices describe the WRONG list.
+    // What THIS case pins is the rung's half of the consequence -- without the
+    // identity gate back would land at an arbitrary offset in a list it knows
+    // nothing about.
     const list = deepInside();
 
     const { press } = await mountLadder({
@@ -613,15 +614,12 @@ describe('useBackToTopLadder — the collapse sweep', () => {
   });
 
   it('does not arm the anchor suppression when nothing drops', async () => {
-    // The other half of the fix, and the half that leaks if it is missed:
-    // FlashList clears that flag in `onCommitEffect`, so it is cleared by a
-    // COMMIT and not by time. A same-reference set is React's bail-out, so no
-    // commit follows and an unconditional call would leave the flag armed for
-    // some later, unrelated commit -- suppressing THAT commit's MVCP
-    // correction, which is §G3's drift arriving from a sweep that did nothing.
-    //
-    // Safe to skip for a checkable reason: nothing dropped means the data is
-    // unchanged, so MVCP's `diff` is 0 and there is no correction to suppress.
+    // The other half of the fix, and the half that leaks if it is missed. The
+    // argument is written out once, at the `prepareForLayoutAnimationRender()`
+    // call in `useBackToTopLadder`: the flag is cleared by a COMMIT, a
+    // same-reference set produces no commit, so an unconditional call leaks it
+    // onto whatever commits next. This is the case that fails if someone
+    // "simplifies" the guard away.
     const list = atTop();
 
     const { result, setExpanded } = await mountLadder({
@@ -689,16 +687,14 @@ describe('useBackToTopLadder — the collapse sweep', () => {
 
     expect(setExpanded).not.toHaveBeenCalled();
     // §I2 rests on the sweep never running at another offset, so the anchor
-    // suppression must not fire here either. The flag it sets is cleared by a
-    // COMMIT, so arming it without one leaves it to swallow the MVCP
-    // correction of whatever commits next.
+    // suppression must not fire here either -- same leak, reached from the
+    // gate rather than from the no-drop case.
     expect(list.prepareForLayoutAnimationRender).not.toHaveBeenCalled();
   });
 
   it('never collapses anything on a non-sectioned view (§F9/§R5)', async () => {
-    // The ranges ref is never emptied and the expanded set persists across view
-    // toggles, so on the Series view these indices describe the WRONG list.
-    // Without the identity gate, arriving at the top of Series would wipe the
+    // The §R5 shape again (see `sectionRangesRef`), now on the sweep's side:
+    // without the identity gate, arriving at the top of Series would wipe the
     // reader's BooksHome expansions.
     const list = atTop();
 

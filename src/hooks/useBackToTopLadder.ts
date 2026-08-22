@@ -72,7 +72,7 @@ export type UseBackToTopLadderParams = {
    * describe the WRONG list, and §H2's identity gate inside `decideBackPress`
    * is the only thing that disarms them (§R5).
    */
-  sectionRangesRef: RefObject<SectionRange[]>;
+  sectionRangesRef: RefObject<readonly SectionRange[]>;
   /**
    * The expanded-section set. An ordinary value, per §J2: it is screen state,
    * so every change already re-renders the screen and the mirror below cannot
@@ -109,7 +109,7 @@ function buildSnapshot(
    * long as it mattered. The separate parameter is what makes that visible at
    * every call site, and a test fails if the mirror is used instead.
    */
-  ranges: SectionRange[],
+  ranges: readonly SectionRange[],
 ): LadderSnapshot {
   return {
     view: inputs.view,

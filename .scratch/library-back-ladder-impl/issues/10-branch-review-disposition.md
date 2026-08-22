@@ -1,6 +1,6 @@
 # 10 — Whole-branch review: disposition and fixes
 
-Status: `ready-for-agent`
+Status: `needs-info` — the A batch (F-1…F-5) is APPLIED; F-6 and F-8…F-11 need the driver.
 Type: `task`
 Blocked by: none — but **land this before 08**, see *Why before 08* below.
 
@@ -372,11 +372,11 @@ counter-arguments"*. Recorded here so the next reviewer does not spend the round
 
 ## Acceptance criteria
 
-- [ ] **F-1** fixed with a manual frame queue, not fake timers; **full suite `--randomize` × 30, 0 failures.**
-- [ ] **F-2** `ladderViewFor` inverted; a test pins that an unmapped ordinal is not a sectioned view.
-- [ ] **F-3** `rn` `testMatch` widened **and** the trap added to `docs/testing/jest-projects-and-rn-tests.md` as the eighth.
-- [ ] **F-4** three comment sites corrected; the anchor-guard rationale written where the dead one was.
-- [ ] **F-5** `Pick<LadderList,'scrollToOffset'>` adopted (probe says `tsc` 0), `NO_RANGES` readonly, eslint block narrowed, duplicated prose reduced to one canonical site each.
+- [x] **F-1** fixed with a manual frame queue, not fake timers; **full suite `--randomize` × 30, 0 failures.**
+- [x] **F-2** `ladderViewFor` inverted; a test pins that an unmapped ordinal is not a sectioned view.
+- [x] **F-3** `rn` `testMatch` widened **and** the trap added to `docs/testing/jest-projects-and-rn-tests.md` as the eighth.
+- [x] **F-4** three comment sites corrected; the anchor-guard rationale written where the dead one was.
+- [x] **F-5** `Pick<LadderList,'scrollToOffset'>` adopted (probe says `tsc` 0), `NO_RANGES` readonly, eslint block narrowed, duplicated prose reduced to one canonical site each.
 - [ ] **F-6** ruled on: adopted as its own ticket with ticket 07's 12 mutations re-run, or declined in writing.
 - [ ] **F-7** added to ticket 08's observation list.
 - [ ] **F-8 / F-9** put to the driver together with the pending sign-off.
@@ -391,3 +391,136 @@ Reviewers: mattpocock two-axis (Standards + Spec, opus, parallel) plus the built
 correctness pass (opus) run as a separate background agent. Nothing in this ticket was applied — the
 working tree was clean at review end, and the one `Pick<…>` probe was reverted after `tsc` confirmed
 it compiles.
+
+---
+
+## Answer — the A batch, applied 2026-08-22
+
+**Stopped deliberately before F-6**, at the driver's instruction. F-1…F-5 are in; F-6, F-7 and
+F-8…F-11 are untouched and still need the decisions the ticket asks for.
+
+**Gates after the batch:** `npx tsc --noEmit` **0 errors** · `npx eslint .` **0 errors, 38 warnings**
+(the same 38 — none in this feature's files) · `npx jest --watchman=false` **938/938**, 73 suites.
+The count moved by exactly the three cases this batch adds and the suite count by the one file it
+adds; nothing else changed.
+
+### F-1 — the flake, closed
+
+`useResetScrollOnTabChange.rn.test.tsx` now installs a **manual frame queue** per test
+(`installFrameQueue()`), swapping `globalThis.requestAnimationFrame` / `cancelAnimationFrame` only —
+timers stay real, so trap 2 is respected.
+
+The assertion changed shape, and that is the point. It was *"no call happened"*, which a race can
+satisfy for the wrong reason; it is now **one frame in, zero frames out**:
+
+```ts
+await rerender({ tab: CustomTabs.Started });
+await settle();
+expect(frames.pending()).toBe(1);   // the frame exists -- the old test never checked this
+await unmount();
+expect(frames.pending()).toBe(0);   // cancelled DIRECTLY, not merely absent
+await frames.drain();
+expect(scrollToOffset).not.toHaveBeenCalled();
+```
+
+**Mutation-checked**, not merely green: deleting `return () => cancelAnimationFrame(handle)` from the
+hook fails the suite at `expect(frames.pending()).toBe(0)` — i.e. at the line that names the defect,
+rather than downstream.
+
+**Verified the way the bug was found**, as the ticket requires: full suite, `--randomize`, **30 runs,
+0 failures**, 938/938 every run.
+
+⚠ The first attempt at that verification *reported* 0/30 falsely — the loop grepped `^Tests:` out of
+a stream jest writes to stderr with ANSI escapes, so it matched nothing and the failure test was
+vacuously false. Re-run driving off jest's **exit code**. Worth recording: a verification loop that
+can only report success is worse than no loop.
+
+Trap 1 in `docs/testing/jest-projects-and-rn-tests.md` gained the corollary (a 0 ms rAF is *already
+due*, so a "still pending" assertion races the event loop, and the fix is a manual queue rather than
+fake timers).
+
+### F-2 — the fall-through, inverted
+
+`ladderViewFor` now names `booksHome` explicitly and lets anything unmapped degrade to `booksGrid`.
+
+It **moved to `src/helpers/ladderView.ts`**, which is the one judgement call in this batch and is
+worth a driver glance. The reason is that the ticket demands a test and there was no way to write
+one: the function lived in the screen, the `helpers` lane cannot import React Native, and importing
+the screen into the `rn` lane is the FlashList transform cascade this effort has already backed out
+of once. §H1's substance is intact — the ordinal still never crosses into the ladder, and the new
+module is imported by the library screen alone. What changed is that "at the mount site" is now
+satisfied by *one module the mount site owns* rather than by *a `const` in the same file*.
+
+Two tests, in the two places the two claims belong:
+
+- `ladderView.test.ts` — the mapping, and that `3, 4, 99, -1, NaN` are **not** `booksHome`.
+- `ladderDecisions.test.ts` — the consequence: `decideSweep(sweepSnapshot({ view: ladderViewFor(3) }))`
+  returns `none('not-sectioned')`. Under the old cascade this case does not merely assert the wrong
+  name, it **throws** on the hostile fixture's `visible()`, because it would have passed the
+  capability gate.
+
+**Both fail under the old mapping** (checked by reverting it: 2 failed, 899 passed).
+
+### F-3 — the test that ran in neither project
+
+**Reproduced first**: a colocated `src/hooks/probeColocated.rn.test.tsx` was absent from
+`npx jest --listTests` entirely, and the run still reported green. `testMatch` widened to
+`**/*.rn.test.[jt]s?(x)`; the probe is then collected. Probe deleted.
+
+Added as **trap 8** in `docs/testing/jest-projects-and-rn-tests.md`, and `CLAUDE.md`'s "seven traps"
+is now "eight". The trap entry carries `npx jest --listTests` as the cheap oracle, because a suite
+that never ran is indistinguishable from one that passed.
+
+### F-4 — the three comment sites
+
+1. `collapseOffscreenSections.ts` — the dead "React bail-out" rationale replaced by the live one:
+   same-reference identity is what makes *"did anything actually drop?"* answerable, and that is what
+   gates the MVCP anchor fix. The re-render saving is written as the **cheaper half**, second.
+   `collapseOffscreenSections.test.ts` gained a header saying its two `toBe(open)` cases pin the
+   anchor guard and are not tautologies about `Set`.
+2. The `(see the sibling spec)` cross-reference **dropped**, not repointed — there is no such
+   document; the six `.scratch/` feature dirs were re-checked. Replaced with what ticket 01 already
+   settled: §F7 rules Recents survives by POSITION, this feature always passes `primary = null`, and
+   the parameter is a frozen contract rather than an open question. No path pasted into a docblock,
+   per the spec's "modules are named; locations rot" rule.
+3. `index.tsx` — *"the back-to-top ladder from ticket 05"* → *"Two consumers, both installed below"*.
+   Describes the thing, carries no ticket number into shipped source.
+
+### F-5 — the smaller Standards items
+
+- **`ScrollableRef` adopted** as `RefObject<Pick<LadderList, 'scrollToOffset'> | null>`; `tsc` 0, as
+  the probe predicted. Its docblock now records **why ticket 04's rule does not apply here**: a
+  narrowed shape is rejected as React's `ref` PROP (`FlashListRef<T>` is invariant in `T`, TS2322)
+  but accepted as an ordinary PARAMETER by property covariance. The two look alike and are not — that
+  is exactly why the finding "looked like it should fail".
+- **`NO_RANGES` is `readonly`**, and the type propagated: `sectionRangesRef`,
+  `UseBackToTopLadderParams.sectionRangesRef`, `buildSnapshot`'s third parameter and
+  `LadderSnapshot.ranges` are all `readonly SectionRange[]` now. Four sites, `tsc` 0, no test changes
+  — the decision only ever iterates them. The publisher side (`onSectionRangesChange`) stays mutable:
+  it produces a fresh array.
+- **eslint block narrowed**, re-measured rather than taken on trust: deleting it entirely produces
+  `'jest' is not defined` in `jest.rn-setup.js` and **nothing else**. It is now
+  `files: ['jest.rn-setup.js']` with `globals: { jest: 'readonly' }`; `jest.config.js` and the
+  `require`/`module` globals were inert and are gone. The comment records the measurement so the next
+  widening has to re-take it. `eslint .` still 0 errors / 38 warnings.
+- **Duplicated prose reduced to one canonical site each:**
+  | Argument | Canonical site | Now pointers |
+  | --- | --- | --- |
+  | §R5 stale ranges / identity gate | `useBackToTopLadder.ts`'s `sectionRangesRef` param | `index.tsx` (keeps its site-specific *"do not add a clear-on-toggle here"*), 2 test cases |
+  | MVCP flag cleared by a COMMIT | the `prepareForLayoutAnimationRender()` call site | `collapseOffscreenSections.ts`, its test header, 2 test cases |
+  | list ref belongs to the screen | `LadderListProps.listRef` in `ladderList.ts` | all four lists, one line each |
+
+  ⚠ The two §R5 test comments were **not** collapsed to identical pointers: each keeps its own
+  consequence clause (the rung would land at an arbitrary offset; the sweep would wipe the reader's
+  expansions). Those are different claims about different code and reducing them to one would lose
+  information rather than duplication.
+
+### What is left, and what it is waiting on
+
+| Finding | Waiting on |
+| --- | --- |
+| **F-6** `setExpanded` value-vs-updater | Driver: adopt as its own ticket (with ticket 07's 12 mutations re-run) or decline in writing. Untouched. |
+| **F-7** the 38 px at-top band | Nothing coded, as recommended — but it is **not yet written into ticket 08's observation list**. |
+| **F-8 / F-9** the eighth amendment + sign-off | Driver. `spec.md:903` and `:996` still assert the jsdom/no-RNTL constraint. |
+| **F-10** the publish-gap guard | Driver: README to two guards, or `--max-warnings=0` (which needs the 38 warnings triaged first). |
+| **F-11** the `node_modules` MVCP probe | Driver, **before any device build**. Still present and still not shipped (`patches/` clean). |

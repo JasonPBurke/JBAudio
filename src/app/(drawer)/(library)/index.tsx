@@ -26,7 +26,8 @@ import { LibraryRecencyMode } from '@/helpers/bookRecency';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import type { LadderList } from '@/types/ladderList';
-import type { LadderView, SectionRange } from '@/helpers/ladderDecisions';
+import type { SectionRange } from '@/helpers/ladderDecisions';
+import { ladderViewFor } from '@/helpers/ladderView';
 import { useBackToTopLadder } from '@/hooks/useBackToTopLadder';
 import * as Sentry from '@sentry/react-native';
 
@@ -44,18 +45,11 @@ const storeHasBooks = () =>
 /**
  * The ranges the ladder reads before the sectioned view has published any --
  * the Series and grid views, and `booksHome`'s first commit. Module scope so
- * the ref's initial value is not a fresh array per mount.
+ * the ref's initial value is not a fresh array per mount, and `readonly`
+ * because a shared module-level array handed to every mount must not be
+ * writable through any of them.
  */
-const NO_RANGES: SectionRange[] = [];
-
-/*
- * §H1 -- the ladder is told a NAMED view, and the mapping from the toggle's
- * ordinal lives HERE, at the mount site, so the ladder never learns the
- * ordinal. `LadderView`'s own docblock in `ladderDecisions.ts` carries the
- * reason; do not restate it here, where it would drift.
- */
-const ladderViewFor = (toggleView: number): LadderView =>
-  toggleView === 1 ? 'seriesHome' : toggleView === 2 ? 'booksGrid' : 'booksHome';
+const NO_RANGES: readonly SectionRange[] = [];
 
 const LibraryScreen = ({ navigation }: any) => {
   const { colors: themeColors } = useTheme();
@@ -110,8 +104,8 @@ const LibraryScreen = ({ navigation }: any) => {
    * this and is not a drop-in change -- it raises a product question (which
    * pane does back act on?) before it raises a technical one.
    *
-   * It serves the tab-change scroll reset today and the back-to-top ladder
-   * from ticket 05. No list keeps a fallback ref of its own.
+   * Two consumers, both installed below: the tab-change scroll reset, and the
+   * back-to-top ladder. No list keeps a fallback ref of its own.
    */
   const listRef = useRef<LadderList | null>(null);
 
@@ -124,12 +118,13 @@ const LibraryScreen = ({ navigation }: any) => {
    * re-render the whole screen on every emission for data no render reads. The
    * ladder is the only consumer and it reads at press time.
    *
-   * ⚠ It is never emptied on a view toggle, so on the Series or grid view it
-   * holds indices describing the WRONG list. §H2's identity gate inside the
-   * decision is the only thing that disarms them (§R5); do not add a "clear it
-   * on toggle" here and weaken that gate into a second, weaker guard.
+   * ⚠ Do not add a "clear it on toggle" here. It is never emptied, on purpose,
+   * and the reason is §R5 -- written out once on `useBackToTopLadder`'s
+   * `sectionRangesRef` parameter, which is the contract this ref satisfies.
+   * Clearing it here would be a second, weaker copy of the identity gate that
+   * already handles the case.
    */
-  const sectionRangesRef = useRef<SectionRange[]>(NO_RANGES);
+  const sectionRangesRef = useRef<readonly SectionRange[]>(NO_RANGES);
   const handleSectionRangesChange = useCallback((ranges: SectionRange[]) => {
     sectionRangesRef.current = ranges;
   }, []);

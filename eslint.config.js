@@ -10,12 +10,18 @@ module.exports = defineConfig([
     ignores: ['dist/*'],
   },
   {
-    // Jest's own config and setup files are CommonJS run by the test runner,
-    // not app code: they legitimately use `require` and the jest globals, and
-    // the TypeScript rules the app config assumes are not loaded for them.
-    files: ['jest.config.js', 'jest.rn-setup.js'],
+    // `jest.rn-setup.js` is CommonJS run by the test runner, not app code, and
+    // its `jest.mock(...)` calls need the one global the app config does not
+    // define.
+    //
+    // Deliberately NARROW, and measured rather than assumed: deleting this
+    // block entirely produces `'jest' is not defined` in this file and nothing
+    // else. `require` and `module` are already globals here, and
+    // `jest.config.js` needs no entry at all -- both were in this block and
+    // both were inert. Re-measure before widening it again.
+    files: ['jest.rn-setup.js'],
     languageOptions: {
-      globals: { jest: 'readonly', require: 'readonly', module: 'writable' },
+      globals: { jest: 'readonly' },
     },
   },
 ]);
