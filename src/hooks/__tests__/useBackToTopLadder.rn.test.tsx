@@ -226,14 +226,26 @@ describe('useBackToTopLadder — gathering the snapshot', () => {
     });
   });
 
-  it('never reaches the throwing visibility accessor on a back press, at any offset', async () => {
-    // `computeVisibleIndices()` throws with no layout manager. It used to be
-    // kept out of reach by §B7's ordering -- a strong guard, but a reasoned one.
-    // Since the rung moved to offset space (`containingSection`) the back press
-    // does not call it AT ALL, so the hazard is closed at source rather than
-    // ordered around. Both offsets: at-top, which declines, and deep, which
-    // takes the rung.
-    for (const offset of [0, 4000]) {
+  /*
+   * `computeVisibleIndices()` throws with no layout manager. It used to be kept
+   * out of reach by §B7's ordering -- a strong guard, but a reasoned one. Since
+   * the rung moved to offset space (`containingSection`) the back press does not
+   * call it AT ALL, so the hazard is closed at source rather than ordered around.
+   * Both offsets: at-top, which declines, and deep, which takes the rung.
+   *
+   * ⚠ `it.each` rather than a loop inside ONE test, and that is not style. A
+   * loop mounts a second ladder without unmounting the first, so two handlers
+   * are registered at once -- the BackHandler LIFO hazard this suite exists to
+   * police -- and `press()` resolves through `registered.mock.calls.at(-1)`, so
+   * a registration that failed to land would press the FIRST ladder's handler
+   * against the second's fresh spy. This assertion is NEGATIVE, so that mix-up
+   * passes for the wrong reason. Unmounting by hand inside the loop is NOT the
+   * fix: it leaves React unable to commit effects for the rest of the file and
+   * takes 24 later tests down with it (measured). One mount per test is.
+   */
+  it.each([0, 4000])(
+    'never reaches the throwing visibility accessor on a back press (offset %p)',
+    async (offset) => {
       const list = fakeList(offset);
 
       const { press } = await mountLadder({
@@ -245,8 +257,8 @@ describe('useBackToTopLadder — gathering the snapshot', () => {
 
       await press();
       expect(list.computeVisibleIndices).not.toHaveBeenCalled();
-    }
-  });
+    },
+  );
 
   it('contains a throw from a layout accessor by DECLINING, never by landing on a rung', async () => {
     // ⚠ The ruling this pins is unchanged; only its subject moved. `getLayout`

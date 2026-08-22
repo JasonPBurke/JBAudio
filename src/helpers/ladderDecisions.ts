@@ -66,8 +66,24 @@ export type LadderSnapshot = {
 const SECTIONED_VIEWS = new Set<LadderView>(['booksHome']);
 
 /**
- * Sub-pixel guard. An index-based test alone re-fires the rung when the landing
- * offset settles a hair past the header's y.
+ * The tolerance, in dp, between a scroll offset and a layout `y`.
+ *
+ * ⚠ It does TWO jobs, and they are not the same job. `containingSection` uses
+ * it to decide which header the offset is AT, and `sectionRungTarget` uses it
+ * to decide the rung has nothing left to do. Both exist because `scrollTo` can
+ * only rest on an integer PHYSICAL PIXEL while a layout `y` is fractional, so
+ * the two numbers that D2's arithmetic says are equal never quite are. 1 dp
+ * clears that quantization on any density (worst case 0.5 dp at density 1,
+ * 0.14 dp at this device's 3.5), and both directions are pinned by tests --
+ * narrower and the climb of D-2 returns, wider and a genuine rung 2 px below a
+ * header is swallowed.
+ *
+ * ⚠ The second job is NOT what C1 asks for. C1 rung 2 requires the header be
+ * "meaningfully above the fold", and 1 dp makes a 5 px hop qualify: back is
+ * consumed for a move the reader cannot see. That is a real deviation, it is
+ * recorded against ticket 08, and splitting the two roles is the fix -- but the
+ * threshold for "meaningfully" is a spec decision and spec.md is signed off, so
+ * it waits for the driver rather than being invented here.
  */
 const SUBPIXEL_EPSILON = 1;
 

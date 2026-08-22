@@ -29,6 +29,25 @@ function snapshot(over: Partial<LadderSnapshot> = {}): LadderSnapshot {
   };
 }
 
+/**
+ * The device repro shared by both rung defects (D-1 and D-2): three
+ * CONSECUTIVE expanded sections above a deep viewport. Both bugs climbed this
+ * exact shape one section per press, by different mechanisms, so they are
+ * pinned against one fixture rather than two copies that could drift apart.
+ */
+const consecutiveSections = {
+  firstItemOffset: 38,
+  expanded: new Set(['agatha', 'weir', 'aaronovitch']),
+  ranges: [
+    { sectionId: 'recents', start: 0, end: 19 },
+    { sectionId: 'agatha', start: 20, end: 40 },
+    { sectionId: 'weir', start: 41, end: 70 },
+    { sectionId: 'aaronovitch', start: 71, end: 120 },
+  ],
+  layoutY: (i: number) =>
+    i === 0 ? 0 : i === 20 ? 500 : i === 41 ? 1500 : i === 71 ? 4820 : undefined,
+};
+
 describe('decideBackPress — declines', () => {
   it('declines when the drawer is open, even scrolled deep', () => {
     expect(decideBackPress(snapshot({ drawerOpen: true }))).toEqual({
@@ -260,19 +279,6 @@ describe('decideBackPress — nearest, and re-derivation', () => {
  * the rung is self-terminating by construction rather than by a guard.
  */
 describe('decideBackPress — the containing section is resolved in offset space', () => {
-  /** The device repro: three consecutive expanded sections above a deep viewport. */
-  const consecutive = {
-    firstItemOffset: 38,
-    expanded: new Set(['agatha', 'weir', 'aaronovitch']),
-    ranges: [
-      { sectionId: 'recents', start: 0, end: 19 },
-      { sectionId: 'agatha', start: 20, end: 40 },
-      { sectionId: 'weir', start: 41, end: 70 },
-      { sectionId: 'aaronovitch', start: 71, end: 120 },
-    ],
-    layoutY: (i: number) =>
-      i === 0 ? 0 : i === 20 ? 500 : i === 41 ? 1500 : i === 71 ? 4820 : undefined,
-  };
 
   /** What the real device sample reads once the rung has landed on 4820. */
   const laggedSample = { visible: () => ({ startIndex: 70, endIndex: 90 }) };
@@ -282,7 +288,7 @@ describe('decideBackPress — the containing section is resolved in offset space
     // Andy Weir is open, so the index-space lookup targeted its header and back
     // became an N-rung ladder up the list.
     expect(
-      decideBackPress(snapshot({ ...consecutive, ...laggedSample, offset: 4820 })),
+      decideBackPress(snapshot({ ...consecutiveSections, ...laggedSample, offset: 4820 })),
     ).toEqual({ kind: 'scrollTo', offset: 0, rung: 'master' });
   });
 
@@ -290,7 +296,7 @@ describe('decideBackPress — the containing section is resolved in offset space
     // 30 px past the header: inside Aaronovitch, while the sample is still 8 px
     // short of it. Offset space answers with the section the reader can see.
     expect(
-      decideBackPress(snapshot({ ...consecutive, ...laggedSample, offset: 4850 })),
+      decideBackPress(snapshot({ ...consecutiveSections, ...laggedSample, offset: 4850 })),
     ).toEqual({ kind: 'scrollTo', offset: 4820, rung: 'section' });
   });
 
@@ -299,7 +305,7 @@ describe('decideBackPress — the containing section is resolved in offset space
     // structural claim, and the fixture's throwing `visible` is what enforces
     // it: reintroduce a sample read here and every case in this block fails
     // loudly rather than drifting back into the skew.
-    expect(decideBackPress(snapshot({ ...consecutive, offset: 6421 }))).toEqual({
+    expect(decideBackPress(snapshot({ ...consecutiveSections, offset: 6421 }))).toEqual({
       kind: 'scrollTo',
       offset: 4820,
       rung: 'section',
@@ -307,7 +313,7 @@ describe('decideBackPress — the containing section is resolved in offset space
   });
 
   it('picks the NEAREST header at or above the offset, not the earliest', () => {
-    expect(decideBackPress(snapshot({ ...consecutive, offset: 1600 }))).toEqual({
+    expect(decideBackPress(snapshot({ ...consecutiveSections, offset: 1600 }))).toEqual({
       kind: 'scrollTo',
       offset: 1500,
       rung: 'section',
@@ -320,7 +326,7 @@ describe('decideBackPress — the containing section is resolved in offset space
     expect(
       decideBackPress(
         snapshot({
-          ...consecutive,
+          ...consecutiveSections,
           offset: 1600,
           expanded: new Set(['agatha', 'aaronovitch']),
         }),
@@ -334,7 +340,7 @@ describe('decideBackPress — the containing section is resolved in offset space
     expect(
       decideBackPress(
         snapshot({
-          ...consecutive,
+          ...consecutiveSections,
           offset: 6421,
           layoutY: (i) => (i === 0 ? 0 : i === 20 ? 500 : i === 41 ? 1500 : undefined),
         }),
@@ -346,7 +352,7 @@ describe('decideBackPress — the containing section is resolved in offset space
     expect(
       decideBackPress(
         snapshot({
-          ...consecutive,
+          ...consecutiveSections,
           offset: 400,
           layoutY: (i) => (i === 20 ? 500 : i === 41 ? 1500 : i === 71 ? 4820 : undefined),
         }),
@@ -368,18 +374,6 @@ describe('decideBackPress — the landing is quantized to the pixel grid (D-2)',
    * pixel row it occupies at master top, which is how this survived a device
    * pass that measured exactly that (ticket 08, m1..m4).
    */
-  const consecutive = {
-    firstItemOffset: 38,
-    expanded: new Set(['agatha', 'weir', 'aaronovitch']),
-    ranges: [
-      { sectionId: 'recents', start: 0, end: 19 },
-      { sectionId: 'agatha', start: 20, end: 40 },
-      { sectionId: 'weir', start: 41, end: 70 },
-      { sectionId: 'aaronovitch', start: 71, end: 120 },
-    ],
-    layoutY: (i: number) =>
-      i === 0 ? 0 : i === 20 ? 500 : i === 41 ? 1500 : i === 71 ? 4820 : undefined,
-  };
 
   it('declines to master when the landing snapped a fraction of a pixel SHORT', () => {
     // THE DEVICE DEFECT. A strict `y <= offset` drops the header the press just
@@ -387,7 +381,7 @@ describe('decideBackPress — the landing is quantized to the pixel grid (D-2)',
     // the section below it and back climbs one open section per press -- the
     // D-1 symptom exactly, reached by a completely different mechanism.
     expect(
-      decideBackPress(snapshot({ ...consecutive, offset: 4820 - 0.29 })),
+      decideBackPress(snapshot({ ...consecutiveSections, offset: 4820 - 0.29 })),
     ).toEqual({ kind: 'scrollTo', offset: 0, rung: 'master' });
   });
 
@@ -395,7 +389,7 @@ describe('decideBackPress — the landing is quantized to the pixel grid (D-2)',
     // The grid can snap either way and the fractional part is a property of the
     // header, not of the press, so both signs must terminate the ladder.
     for (const offset of [4819, 4819.01, 4819.5, 4820, 4820.99]) {
-      expect(decideBackPress(snapshot({ ...consecutive, offset }))).toEqual({
+      expect(decideBackPress(snapshot({ ...consecutiveSections, offset }))).toEqual({
         kind: 'scrollTo',
         offset: 0,
         rung: 'master',
@@ -407,7 +401,7 @@ describe('decideBackPress — the landing is quantized to the pixel grid (D-2)',
     // 2 px above Andy Weir's header is not a landing on it -- it is a reader
     // inside Agatha Christie, and the rung they are owed is Agatha's. This is
     // the bound that stops the fix for D-2 from becoming a fall-through.
-    expect(decideBackPress(snapshot({ ...consecutive, offset: 1498 }))).toEqual({
+    expect(decideBackPress(snapshot({ ...consecutiveSections, offset: 1498 }))).toEqual({
       kind: 'scrollTo',
       offset: 500,
       rung: 'section',
