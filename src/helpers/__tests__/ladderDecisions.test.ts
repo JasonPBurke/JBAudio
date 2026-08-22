@@ -146,12 +146,20 @@ describe('decideBackPress — master top', () => {
     });
   });
 
-  it('falls through when no range contains the viewport top', () => {
+  /*
+   * The two cases below USED to select master top, back when the rung resolved
+   * its section from `visible().startIndex`. They now assert the opposite, and
+   * that inversion is the point: a sample pointing outside every range, and
+   * FlashList's own inverted empty sentinel, are both incapable of moving the
+   * rung. Kept rather than deleted because each was a real hazard for the rung
+   * before offset space made it structurally unreachable.
+   */
+  it('ignores a visible sample that overlaps no range at all', () => {
     expect(
       decideBackPress(
         snapshot({ ...sectioned, visible: () => ({ startIndex: 900, endIndex: 950 }) }),
       ),
-    ).toEqual({ kind: 'scrollTo', offset: 0, rung: 'master' });
+    ).toEqual({ kind: 'scrollTo', offset: 4820, rung: 'section' });
   });
 
   it('falls through when the header has no resolved layout', () => {
@@ -162,12 +170,12 @@ describe('decideBackPress — master top', () => {
     });
   });
 
-  it('falls through on a degenerate visible range', () => {
+  it("ignores FlashList's degenerate empty sample (F8)", () => {
     expect(
       decideBackPress(
         snapshot({ ...sectioned, visible: () => ({ startIndex: -1, endIndex: -1 }) }),
       ),
-    ).toEqual({ kind: 'scrollTo', offset: 0, rung: 'master' });
+    ).toEqual({ kind: 'scrollTo', offset: 4820, rung: 'section' });
   });
 
   it('degenerates to master when the containing header is index 0', () => {
@@ -231,38 +239,133 @@ describe('decideBackPress — nearest, and re-derivation', () => {
 });
 
 /**
- * `SectionRange.end` is INCLUSIVE, and both bounds of the containment test are
- * therefore `<=` / `>=`. Nothing above pins that: the interior samples these
- * cases surround pass under strict bounds too, so a range producer written to
- * an exclusive `end` would leave this suite green while landing the rung on the
- * previous section's header -- a wrong landing that passes every sanity check
- * an implementer would think to write.
+ * THE 38 PX SAMPLE SKEW -- a device-found defect (2026-08-22, Pixel 7 Pro
+ * preview build, real 355-book library).
+ *
+ * `computeVisibleIndices()` samples from `offset - firstItemOffset`
+ * (`RecyclerViewManager.ts:117` hands the tracker the SUBTRACTED value and
+ * `EngagedIndicesTracker` uses it as `viewportStart`), while D2 lands the rung
+ * at the header's PLAIN `y`. So the instant a rung lands, the sample window
+ * opens 38 px ABOVE that header -- inside the PREVIOUS section's last item --
+ * and any-sliver bounds (`findVisibleIndex.ts`) report that item's index.
+ *
+ * With the previous section COLLAPSED the lookup died on the expanded check and
+ * the press fell through to master top, which is why this survived 943 tests and
+ * three reviewers. With CONSECUTIVE sections expanded it climbed one section per
+ * press instead: on device, back went Aaronovitch -> Andy Weir -> Agatha
+ * Christie -> master top, terminating only at the first collapsed predecessor.
+ *
+ * The fix resolves the containing section in OFFSET space -- the same number the
+ * landing is expressed in -- so the question and the answer cannot disagree, and
+ * the rung is self-terminating by construction rather than by a guard.
  */
-describe('decideBackPress — the containment bounds are inclusive', () => {
-  const base = {
-    offset: 6421,
+describe('decideBackPress — the containing section is resolved in offset space', () => {
+  /** The device repro: three consecutive expanded sections above a deep viewport. */
+  const consecutive = {
     firstItemOffset: 38,
-    expanded: new Set(['author-M']),
-    ranges: [{ sectionId: 'author-M', start: 120, end: 200 }],
-    layoutY: (i: number) => (i === 120 ? 4820 : undefined),
+    expanded: new Set(['agatha', 'weir', 'aaronovitch']),
+    ranges: [
+      { sectionId: 'recents', start: 0, end: 19 },
+      { sectionId: 'agatha', start: 20, end: 40 },
+      { sectionId: 'weir', start: 41, end: 70 },
+      { sectionId: 'aaronovitch', start: 71, end: 120 },
+    ],
+    layoutY: (i: number) =>
+      i === 0 ? 0 : i === 20 ? 500 : i === 41 ? 1500 : i === 71 ? 4820 : undefined,
   };
 
-  it('a viewport top ON the header index is inside the section', () => {
+  /** What the real device sample reads once the rung has landed on 4820. */
+  const laggedSample = { visible: () => ({ startIndex: 70, endIndex: 90 }) };
+
+  it('returns master at the landing instead of climbing to the previous open section', () => {
+    // THE REGRESSION. The sample says index 70 -- Andy Weir's last item -- and
+    // Andy Weir is open, so the index-space lookup targeted its header and back
+    // became an N-rung ladder up the list.
     expect(
-      decideBackPress(
-        snapshot({ ...base, visible: () => ({ startIndex: 120, endIndex: 140 }) }),
-      ),
+      decideBackPress(snapshot({ ...consecutive, ...laggedSample, offset: 4820 })),
+    ).toEqual({ kind: 'scrollTo', offset: 0, rung: 'master' });
+  });
+
+  it('lands on the section it is INSIDE when the sample has lagged into the previous one', () => {
+    // 30 px past the header: inside Aaronovitch, while the sample is still 8 px
+    // short of it. Offset space answers with the section the reader can see.
+    expect(
+      decideBackPress(snapshot({ ...consecutive, ...laggedSample, offset: 4850 })),
     ).toEqual({ kind: 'scrollTo', offset: 4820, rung: 'section' });
   });
 
-  it('a viewport top ON the last item index is still inside the section', () => {
+  it('never consults the visibility sample at all — the default thunk throws', () => {
+    // The rung's whole input is now `ranges` + `layoutY` + `offset`. This is the
+    // structural claim, and the fixture's throwing `visible` is what enforces
+    // it: reintroduce a sample read here and every case in this block fails
+    // loudly rather than drifting back into the skew.
+    expect(decideBackPress(snapshot({ ...consecutive, offset: 6421 }))).toEqual({
+      kind: 'scrollTo',
+      offset: 4820,
+      rung: 'section',
+    });
+  });
+
+  it('picks the NEAREST header at or above the offset, not the earliest', () => {
+    expect(decideBackPress(snapshot({ ...consecutive, offset: 1600 }))).toEqual({
+      kind: 'scrollTo',
+      offset: 1500,
+      rung: 'section',
+    });
+  });
+
+  it('applies the expanded check to the section the offset resolves to', () => {
+    // Andy Weir is the section containing 1600 and it is shut, so the press
+    // falls through -- it does NOT walk on to the next open section above.
     expect(
       decideBackPress(
-        snapshot({ ...base, visible: () => ({ startIndex: 200, endIndex: 240 }) }),
+        snapshot({
+          ...consecutive,
+          offset: 1600,
+          expanded: new Set(['agatha', 'aaronovitch']),
+        }),
       ),
-    ).toEqual({ kind: 'scrollTo', offset: 4820, rung: 'section' });
+    ).toEqual({ kind: 'scrollTo', offset: 0, rung: 'master' });
+  });
+
+  it('skips a section whose header has no resolved layout', () => {
+    // An unresolved `y` cannot be compared, so that section is passed over and
+    // the nearest RESOLVED header above wins -- it does not abandon the rung.
+    expect(
+      decideBackPress(
+        snapshot({
+          ...consecutive,
+          offset: 6421,
+          layoutY: (i) => (i === 0 ? 0 : i === 20 ? 500 : i === 41 ? 1500 : undefined),
+        }),
+      ),
+    ).toEqual({ kind: 'scrollTo', offset: 1500, rung: 'section' });
+  });
+
+  it('falls through when every section header lies below the offset', () => {
+    expect(
+      decideBackPress(
+        snapshot({
+          ...consecutive,
+          offset: 400,
+          layoutY: (i) => (i === 20 ? 500 : i === 41 ? 1500 : i === 71 ? 4820 : undefined),
+        }),
+      ),
+    ).toEqual({ kind: 'scrollTo', offset: 0, rung: 'master' });
   });
 });
+
+/**
+ * ⚠ `overlapsSpan`'s INCLUSIVE bounds were pinned here, by two rung cases, until
+ * the rung stopped resolving its section from an index sample (2026-08-22). They
+ * are NOT unpinned: both sides now live in the sweep, as
+ * "counts a section whose end equals startIndex" and "whose start equals
+ * endIndex". Mutation-verified after the move -- `r.start <= to && r.end >= from`
+ * to either strict comparison fails one of those two.
+ *
+ * Recorded rather than silently dropped because this exact coverage was found
+ * MISSING once before, by review, while the whole suite read green.
+ */
 
 /**
  * The sweep's fixture is deliberately HOSTILE by default: `visible` throws and

@@ -106,3 +106,91 @@ scrolls down and finds their sections shut.
       there has app-wide blast radius.
 - [ ] Results recorded in this file under a `## Comments` heading, pass or fail, with the device
       and build profile named.
+
+---
+
+## Comments
+
+### Session 1 — 2026-08-22, partial run; ABORTED EARLY BY A DEFECT
+
+**Rig:** Pixel 7 Pro (`29131FDH3009SZ`), Android 16 / SDK 36, gesture navigation
+(`navigation_mode=2`), animator/transition/window scales all `1.0`, real 355-book library.
+Matches the original evidence rig exactly.
+
+**Binary:** preview build, `versionCode=111`, installed 2026-08-22 02:33, built from branch head
+`cb01b82` (01:38). **Probe present** in `node_modules/@shopify/flash-list`, per F-11's KEEP ruling.
+
+⚠ **This binary is now STALE.** The defect below changes `src/helpers/ladderDecisions.ts`, so every
+remaining checklist item must be re-run against a NEW preview build. Under F-11's ruling the whole
+run must be against ONE binary, so the two items observed below are recorded as **provisional** and
+re-run rather than banked.
+
+#### D-1 — DEFECT, FOUND AND FIXED: back climbs one section per press
+
+**Reported by the driver, then reproduced under `adb` and root-caused.** With several
+**consecutive** sections expanded, the second back press landed on the next open section header
+*above* instead of going to master top.
+
+Observed chain (Agatha Christie, Andy Weir, Ben Aaronovitch all expanded; viewport mid-Aaronovitch):
+
+| Press | Landed on | Expected |
+|---|---|---|
+| 1 | Ben Aaronovitch header | ✅ correct rung |
+| 2 | **Andy Weir header** | ❌ master top |
+| 3 | **Agatha Christie header** | ❌ master top |
+| 4 | master top | ✅ |
+
+**Root cause — a 38 px coordinate mismatch between the rung's question and its answer.**
+`computeVisibleIndices()` samples from `offset - firstItemOffset`: `RecyclerViewManager.ts:117`
+hands `EngagedIndicesTracker` the SUBTRACTED value, which it uses as `viewportStart`. §D2 lands the
+rung at the header's PLAIN `y`. Those differ by exactly the list-header spacer — 38 px on BooksHome.
+So the instant a rung lands, the sample window opens 38 px above that header, inside the PREVIOUS
+section's last item, and `findVisibleIndex`'s any-sliver bounds (`position + size > threshold`)
+report that item's index.
+
+**Why it hid for the whole build-out.** When the previous section is COLLAPSED, `expanded.has()`
+fails and the press falls through to master top — correct behaviour by accident. Only consecutive
+expansions keep the lookup alive. It terminates at the first collapsed predecessor (press 4 above),
+which is the observation that discriminates this mechanism from a generic wrong-target bug.
+
+**Why no test could catch it.** Every unit test supplies the `visible()` thunk itself, so the suite
+encoded the same assumption the implementation made. Only FlashList's source or a device can settle
+a coordinate space. 943 tests and three reviewers passed over it.
+
+**Fix (driver ruling: "one coordinate").** `containingSection()` in `ladderDecisions.ts` now
+resolves the containing section in OFFSET space — the nearest section header at or above
+`s.offset`, the same number the landing is expressed in. Consequences:
+
+- The rung is **self-terminating by construction**: after a landing `offset === headerY`, the same
+  section resolves, and the existing sub-pixel guard declines to master top. No new state, so
+  §C3/§I6 hold.
+- **`computeVisibleIndices()` leaves the back-press path entirely.** Ticket 05's throw-containment
+  hazard is closed at source rather than ordered around by §B7. The hook's `try/catch` is KEPT
+  (an uncaught throw in a `BackHandler` callback is a crash on back) and its test re-pointed at
+  `getLayout`, the accessor the rung now calls. The ruling is unchanged; only its subject moved.
+- Order-independent (§H4 promises no ordering), and a section whose header has no resolved layout is
+  skipped rather than fatal.
+
+jest 943 → **948**; tsc 0, eslint 0. **9 mutations run, 8 killed**; the survivor (`>` → `>=` on the
+maximum) is *provably equivalent* — ties need two headers at one `y`, whose only real source is
+FlashList synthesising `y: 0` for a missing layout, and both variants then decline via `headerY <= 0`.
+Recorded in the code so it is a known quantity, not a gap.
+
+⚠ **SPEC AMENDMENT CANDIDATE (for the driver — not applied).** **§D4 is wrong as written**:
+*"Find the range containing `computeVisibleIndices().startIndex`"* does not implement **§D3**
+(*"the section that CONTAINS the viewport top"*), because that index is sampled 38 px above the
+viewport top the landing targets. §D3 is correct and unchanged; §D4's mechanism needs replacing with
+the offset-space rule. §B7 and §J4's `visible` contract also narrow to the sweep alone.
+
+#### Provisional observations from build 111 (re-run against the new build)
+
+- [x] **The rung landing against the search bar — PASS (provisional).** Press 1 landed the
+      Aaronovitch header clearly BELOW the dropped-down search bar, fully readable. §D2's plain-`y`
+      landing is doing its job.
+- **Recorded for the F-7 / search-bar discussion:** the back jump is a large UPWARD scroll, and
+      `useScrollDirection.ts:38-48` re-shows the bar on any upward delta > 5 px. Confirmed
+      visually — the bar is absent while scrolled deep and present immediately after the press.
+      This is why "hide the search bar instead" is not a viable alternative to the D-1 fix: the
+      jump itself re-shows the bar, so the ladder would have to own chrome visibility.
+- The collapse sweep behaved correctly at the end of the chain: arriving at master top left the
+      visible Agatha Christie section open and collapsed the off-screen ones.

@@ -226,28 +226,48 @@ describe('useBackToTopLadder — gathering the snapshot', () => {
     });
   });
 
-  it('passes `visible` lazily — an at-top press never reaches the throwing accessor', async () => {
-    // §B7: `computeVisibleIndices()` throws with no layout manager, and the
-    // offset predicate is what keeps it out of reach. A snapshot that evaluated
-    // it eagerly would throw here, and no test in the decision's own suite
-    // could catch that -- it only ever sees the thunk it is handed.
-    const list = fakeList(0);
+  it('never reaches the throwing visibility accessor on a back press, at any offset', async () => {
+    // `computeVisibleIndices()` throws with no layout manager. It used to be
+    // kept out of reach by §B7's ordering -- a strong guard, but a reasoned one.
+    // Since the rung moved to offset space (`containingSection`) the back press
+    // does not call it AT ALL, so the hazard is closed at source rather than
+    // ordered around. Both offsets: at-top, which declines, and deep, which
+    // takes the rung.
+    for (const offset of [0, 4000]) {
+      const list = fakeList(offset);
 
-    const { press } = await mountLadder({ view: 'booksHome', list });
+      const { press } = await mountLadder({
+        view: 'booksHome',
+        list,
+        ranges: [{ sectionId: 'author-M', start: 10, end: 40 }],
+        expanded: new Set(['author-M']),
+      });
 
-    expect(await press()).toBe(false);
-    expect(list.computeVisibleIndices).not.toHaveBeenCalled();
+      await press();
+      expect(list.computeVisibleIndices).not.toHaveBeenCalled();
+    }
   });
 
-  it('contains a throw from the visibility accessor by DECLINING, never by landing on a rung', async () => {
+  it('contains a throw from a layout accessor by DECLINING, never by landing on a rung', async () => {
+    // ⚠ The ruling this pins is unchanged; only its subject moved. `getLayout`
+    // is the accessor the rung now calls, so it is what stands in for "anything
+    // on this path throws". Containment must still DECLINE: an uncaught throw
+    // inside a `BackHandler` callback is a crash on a back press, and falling
+    // through to master top instead would be the silent wrong-landing shape
+    // §H5 and §F8 exist to prevent.
     const boom = new Error('no layout manager');
     const list = fakeList(4000, {
-      computeVisibleIndices: jest.fn(() => {
+      getLayout: jest.fn(() => {
         throw boom;
       }),
     });
 
-    const { press } = await mountLadder({ view: 'booksHome', list });
+    const { press } = await mountLadder({
+      view: 'booksHome',
+      list,
+      ranges: [{ sectionId: 'author-M', start: 10, end: 40 }],
+      expanded: new Set(['author-M']),
+    });
 
     // Back means exactly what it meant before this feature existed.
     expect(await press()).toBe(false);

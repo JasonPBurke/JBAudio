@@ -93,11 +93,12 @@ export type UseBackToTopLadderParams = {
  * Read the list's live state into the shape the decision takes.
  *
  * ⚠ `visible` is a THUNK and must stay one. `computeVisibleIndices()` throws
- * when the list has no layout manager, and the decision's contract is that it
- * is not called until the offset predicate has passed (§B7). Evaluating it
- * eagerly here would reintroduce that throw on every press -- and no test in
- * the decision's own suite could catch it, because that suite only ever sees
- * the thunk it is handed.
+ * when the list has no layout manager, and only the SWEEP calls it -- after
+ * gates that prove the list has scrolled. Evaluating it eagerly here would
+ * reintroduce that throw on every BACK PRESS, which no longer samples
+ * visibility at all, and no test in the decision's own suite could catch it
+ * because that suite only ever sees the thunk it is handed. The hook suite
+ * asserts the accessor is untouched by a press for exactly this reason.
  */
 function buildSnapshot(
   list: LadderList,
@@ -212,12 +213,20 @@ export function useBackToTopLadder({
       /*
        * ⚠ Containment DECLINES the press. It must never fall through to a rung.
        *
-       * The known candidate is `computeVisibleIndices()`, which throws when the
-       * list has no layout manager. §B7 orders the offset predicate first so
-       * that throw is unreachable -- but that argument needs the OFFSET to read
-       * 0 as well as `firstItemOffset`, and that half is reasoned rather than
-       * measured. A strong guard, not a proof, and an uncaught throw inside a
-       * `BackHandler` callback is a crash on a back press.
+       * ⚠ It no longer has a NAMED candidate, and that is not a reason to
+       * delete it. The candidate used to be `computeVisibleIndices()`, kept out
+       * of reach by §B7's ordering -- a strong guard but a reasoned one, since
+       * that argument needs the OFFSET to read 0 as well as `firstItemOffset`.
+       * The rung now resolves its section in offset space
+       * (`containingSection`) and does not sample visibility at all, so that
+       * throw is unreachable by construction rather than by ordering.
+       *
+       * What remains is every other accessor this path touches -- the two
+       * offset reads and `getLayout` -- none of which throws in FlashList 2.3.2
+       * as read. That is a survey of today's `node_modules`, not a property of
+       * the API, and an uncaught throw inside a `BackHandler` callback is a
+       * crash on a back press. The guard is one `try`; the failure it prevents
+       * is the app dying on a gesture the user cannot avoid making.
        *
        * Declining hands control back to the system, so back backgrounds the app
        * exactly as it did before this feature existed. Swallowing the throw and

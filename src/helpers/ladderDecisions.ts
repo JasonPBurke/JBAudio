@@ -44,7 +44,14 @@ export type LadderSnapshot = {
   firstItemOffset: number;
   expanded: Set<string>;
   ranges: readonly SectionRange[];
-  /** LAZY — must not be called before the offset predicate passes (B7). */
+  /**
+   * LAZY, and THE SWEEP'S ALONE -- the back press never calls it.
+   *
+   * It throws when the list has no layout manager, so the sweep's own gates
+   * (F2) are what keep it out of reach. The rung reads `ranges`/`layoutY`
+   * instead, because an index sample answers in a coordinate 38 px away from
+   * the one the landing uses (`containingSection`).
+   */
   visible: () => { startIndex: number; endIndex: number };
   layoutY: (index: number) => number | undefined;
 };
@@ -88,13 +95,16 @@ function isAtTop(s: LadderSnapshot): boolean {
 /**
  * Does `r` overlap the index span `from..to`, with EVERY bound inclusive?
  *
- * The one place `end`'s inclusiveness (H4) is encoded, so a range producer that
- * emits an exclusive `end` breaks visibly here instead of subtly at two call
- * sites. Any sliver counts: that is the semantics the deleted viewability
- * plumbing bought with `itemVisiblePercentThreshold: 1` (F6).
+ * The one place `end`'s inclusiveness (H4) is encoded. Any sliver counts: that
+ * is the semantics the deleted viewability plumbing bought with
+ * `itemVisiblePercentThreshold: 1` (F6).
  *
- * The rung asks CONTAINMENT and the sweep asks OVERLAP (H4) -- containment is
- * simply this question with a degenerate one-index span.
+ * ⚠ THE SWEEP'S ALONE. The rung used to ask containment through this with a
+ * degenerate one-index span, and that shared use is exactly what carried the
+ * 38 px sample skew into the rung -- see `containingSection`. Both bounds are
+ * pinned from either side by the sweep's two any-sliver cases; if a future
+ * change leaves this with no caller, delete it rather than finding a second
+ * one.
  */
 function overlapsSpan(r: SectionRange, from: number, to: number): boolean {
   return r.start <= to && r.end >= from;
@@ -131,21 +141,94 @@ export function decideBackPress(s: LadderSnapshot | null): BackPressDecision {
   // The arm predicate, read live from the list's own ref.
   if (isAtTop(s)) return { kind: 'decline', reason: 'at-top' };
 
-  // Past this point the predicate has passed, which is what makes `visible()`
-  // safe to call: it throws when the list has no layout manager, and such a
-  // list reads BOTH accessors as 0 -- so the predicate is `0 > 0`, false, and
-  // has declined above. Predicate true => layout exists.
-  //
-  // The premise needs the OFFSET to read 0 as well, not just firstItemOffset,
-  // and that half is reasoned rather than measured -- reaching the throw takes
-  // a scrolled list that has lost its layout manager. Deliberately NOT wrapped
-  // in try/catch: swallowing it would turn a loud bug into a silent scroll to
-  // master top, and the boundary with the back handler belongs to the hook,
-  // not to a pure decision.
+  // The rung reads `ranges`, `layoutY` and `offset` and NOTHING else. In
+  // particular it does not sample visibility: `visible()` belongs to the sweep
+  // alone, for the reason argued on `containingSection` below.
   const headerY = sectionRungTarget(s);
   if (headerY !== null) return { kind: 'scrollTo', offset: headerY, rung: 'section' };
 
   return { kind: 'scrollTo', offset: 0, rung: 'master' };
+}
+
+/**
+ * The section the reader is inside, resolved in OFFSET space: the nearest
+ * section header at or above the current scroll offset.
+ *
+ * ⚠ MEASURED IN THE SAME COORDINATE THE LANDING IS EXPRESSED IN, and that is
+ * the whole point rather than an implementation detail. The obvious way to ask
+ * this question is to take `visible().startIndex` and find the range containing
+ * it -- and that was the original implementation, and it was WRONG on device.
+ *
+ * `computeVisibleIndices()` samples from `offset - firstItemOffset`
+ * (`RecyclerViewManager.ts:117` hands the tracker the SUBTRACTED value, which
+ * `EngagedIndicesTracker` then uses as `viewportStart`), while D2 lands the rung
+ * at the header's PLAIN `y`. Those differ by exactly the list header spacer --
+ * 38 px on BooksHome. So the instant a rung landed, the sample window opened
+ * 38 px above that header, inside the PREVIOUS section's last item, and
+ * any-sliver bounds reported that item's index.
+ *
+ * When the previous section was collapsed the expanded check swallowed it and
+ * the press fell through to master top, which is why it looked correct for a
+ * year of reading and passed 943 tests and three reviewers. With CONSECUTIVE
+ * sections expanded, back climbed ONE SECTION PER PRESS: reproduced on a Pixel 7
+ * Pro preview build against the real library as Aaronovitch -> Andy Weir ->
+ * Agatha Christie -> master top, terminating only at the first collapsed
+ * predecessor.
+ *
+ * Resolving in offset space also makes the rung SELF-TERMINATING rather than
+ * guarded: after a landing `offset === headerY`, so the very same section
+ * resolves again and the sub-pixel guard below declines to master top on its
+ * own. There is no separate "have I already landed here?" state, which is what
+ * C3/I6's no-state-between-presses rule requires.
+ *
+ * ⚠ Independent of range ORDER, deliberately. H4 promises ranges are inclusive
+ * and non-overlapping but says nothing about ordering, so this takes the
+ * maximum rather than the first or last match. A section whose header has no
+ * resolved layout is skipped rather than fatal: an unresolved `y` cannot be
+ * compared, and abandoning the rung on one would lose it for the whole list.
+ *
+ * Cost is one `layoutY` read per section -- an array index inside FlashList's
+ * layout manager -- on a BACK PRESS, never in the per-frame path (H9).
+ */
+function containingSection(
+  s: LadderSnapshot,
+): { sectionId: string; headerY: number } | null {
+  let sectionId: string | null = null;
+  let headerY = -Infinity;
+
+  for (const r of s.ranges) {
+    const y = s.layoutY(r.start);
+    if (y === undefined) continue;
+    // The NEAREST header at or above, not the earliest open one. Recently Added
+    // is the first item of every non-empty BooksHome, so an earliest reading
+    // targets index 0 whenever it is open -- which is master top, i.e. a
+    // guaranteed dead press.
+    if (y <= s.offset && y > headerY) {
+      headerY = y;
+      sectionId = r.sectionId;
+    }
+  }
+
+  /*
+   * ⚠ `>` vs `>=` on that second comparison is PROVABLY EQUIVALENT here, which
+   * is why no test pins it -- recorded so the surviving mutation is a known
+   * quantity rather than a gap someone re-derives later.
+   *
+   * They can only differ on a TIE, i.e. two section headers reporting the same
+   * `y`, which in a vertical list means a zero-height section. The one real
+   * source of that is FlashList synthesising `{x: 0, y: 0, ...}` for an index
+   * whose layout is missing (`LayoutManager.getLayout`), and every tie it
+   * produces is at `y === 0` -- where `>` keeps the first and `>=` keeps the
+   * last, both leave `headerY === 0`, and the `headerY <= 0` guard below
+   * declines either way. Same decision, both directions.
+   *
+   * That synthesis is also why an unresolved header fails SAFE rather than
+   * loudly: it reads as `y === 0`, loses the maximum to any real measured
+   * header above the offset, and if every header is unresolved it yields
+   * `headerY === 0` and the press falls through to master top.
+   */
+
+  return sectionId === null ? null : { sectionId, headerY };
 }
 
 /**
@@ -155,18 +238,11 @@ export function decideBackPress(s: LadderSnapshot | null): BackPressDecision {
 function sectionRungTarget(s: LadderSnapshot): number | null {
   if (!SECTIONED_VIEWS.has(s.view)) return null;
 
-  const { startIndex } = s.visible();
-
-  // The section CONTAINING the viewport top -- the nearest one, not the
-  // earliest expanded one in the list. Recently Added is the first item of
-  // every non-empty BooksHome, so the earliest reading targets index 0 whenever
-  // it is open, which is master top: a guaranteed dead press.
-  const containing = s.ranges.find((r) => overlapsSpan(r, startIndex, startIndex));
-  if (containing === undefined) return null;
+  const containing = containingSection(s);
+  if (containing === null) return null;
   if (!s.expanded.has(containing.sectionId)) return null;
 
-  const headerY = s.layoutY(containing.start);
-  if (headerY === undefined) return null;
+  const { headerY } = containing;
 
   // An intermediate rung is by definition a stop STRICTLY BETWEEN master top
   // and where you already are. Both halves fall out of that one idea:
