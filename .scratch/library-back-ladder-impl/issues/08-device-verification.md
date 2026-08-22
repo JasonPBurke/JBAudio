@@ -194,3 +194,57 @@ the offset-space rule. §B7 and §J4's `visible` contract also narrow to the swe
       jump itself re-shows the bar, so the ladder would have to own chrome visibility.
 - The collapse sweep behaved correctly at the end of the chain: arriving at master top left the
       visible Agatha Christie section open and collapsed the off-screen ones.
+
+### Session 2 — 2026-08-22, the D-1 fix re-tested; a SECOND defect found and fixed
+
+**Rig:** unchanged (Pixel 7 Pro `29131FDH3009SZ`, Android 16 / SDK 36, gesture nav, scales 1.0).
+
+**Binary:** fresh preview build, `versionCode=111`, **clean install** 16:40:24
+(`firstInstallTime == lastUpdateTime`, so app data was wiped and the 355-book library rescanned —
+3464 files, 154 s, per logcat). **Fix presence VERIFIED IN THE BINARY, not assumed**: the APK was
+pulled off the device at 16:43 and `assets/index.android.bundle` (Hermes bytecode, which retains
+function names) contains `containingSection` — a symbol that exists only in `e17ad99`.
+
+⚠ Also established: **`console.log` reaches logcat in a preview build** (our own `[series]`/`[scan]`
+output is there under tag `ReactNativeJS`). That is an instrumentation channel for the rest of this
+ticket, and it means F-11's probe output is observable.
+
+#### D-2 — DEFECT, FOUND AND FIXED: the landing is quantized to the pixel grid
+
+**The D-1 fix did not resolve the reported bug.** The chain reproduced *identically* on the new
+binary: Aaronovitch → **Andy Weir** → **Agatha Christie** → master top.
+
+**Root cause — a sub-pixel shortfall meeting a strict inequality.** `scrollTo` can only come to rest
+on an integer PHYSICAL PIXEL, while a FlashList layout `y` is a sum of measured dp heights and is
+freely fractional. A landing aimed at `y_h` therefore rests at `y_h` **snapped to the pixel grid** —
+up to half a pixel either side, 0.14 dp at this device's density 3.5, and never worse than 0.5 dp on
+any density. Snapped SHORT, `containingSection`'s strict `y <= s.offset` drops the header the press
+just landed on out of its own candidate set; the maximum falls through to the section below; back
+climbs one open section per press. The `SUBPIXEL_EPSILON` guard was written for exactly this case
+and could never fire, because the filter upstream of it had already discarded its subject.
+
+**Why the device pass could not see it, and why the screen was no help.** The shortfall is smaller
+than one pixel by construction. Measured on device (screenshots `m1`..`m4`): the header text's top
+edge sits at y=702 px after landing on Aaronovitch, Weir and Agatha Christie, and at y=703 px for
+`Recently Added` at master top — i.e. **every rung landing puts its header on the same pixel row it
+occupies at master top**, exactly as §D2 promises. That measurement is what *proves* the mechanism:
+it eliminates every large-magnitude explanation (a shifted layout `y`, a stale offset tracker, a
+wrong coordinate space), and containment can only fail when `y > offset`, so the shortfall must lie
+in the sub-pixel gap the measurement cannot resolve.
+
+**Fix.** The containment test carries the same tolerance as the guard it feeds:
+`y <= s.offset + SUBPIXEL_EPSILON`. Self-termination is restored for either sign of the snap, and
+`SUBPIXEL_EPSILON` (1 dp) clears the worst-case quantization error on any density with margin.
+
+jest 948 → **951**; tsc 0, eslint 0. **5 mutations run on the changed comparison, 4 killed** —
+including M5 (*widen the band to 2*), so the tolerance is now bracketed from BOTH sides rather than
+being a free parameter: too narrow and the climb returns, too wide and a genuine rung 2 px below a
+header is swallowed. The survivor (`>` → `>=` on the maximum) is the same one adjudicated in D-1 and
+is *provably equivalent* for the same reason, unaffected by the tolerance.
+
+⚠ **NOT YET DEVICE-VERIFIED.** This is a JS change and the device holds a release build, so it needs
+one more preview build. Under F-11's one-binary rule every checklist item below is still unrun.
+
+⚠ **The §D4 spec amendment candidate from D-1 stands, and D-2 EXTENDS it**: the offset-space rule
+that replaces §D4's mechanism must be stated with the tolerance, not as an equality, or it specifies
+the bug fixed here.

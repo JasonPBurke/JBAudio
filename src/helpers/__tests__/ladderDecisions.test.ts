@@ -355,6 +355,67 @@ describe('decideBackPress — the containing section is resolved in offset space
   });
 });
 
+describe('decideBackPress — the landing is quantized to the pixel grid (D-2)', () => {
+  /**
+   * The SAME device repro as the block above, at the offset the device actually
+   * reports rather than the exact one arithmetic predicts.
+   *
+   * `scrollTo` can only come to rest on an integer PHYSICAL PIXEL, while a
+   * layout `y` is a sum of measured dp heights and is freely fractional. So a
+   * landing aimed at 4820 rests at 4820 snapped to the grid -- 4819.71 on a
+   * density-3.5 device -- and the shortfall is smaller than one pixel BY
+   * CONSTRUCTION. It is invisible on screen: the header renders on the same
+   * pixel row it occupies at master top, which is how this survived a device
+   * pass that measured exactly that (ticket 08, m1..m4).
+   */
+  const consecutive = {
+    firstItemOffset: 38,
+    expanded: new Set(['agatha', 'weir', 'aaronovitch']),
+    ranges: [
+      { sectionId: 'recents', start: 0, end: 19 },
+      { sectionId: 'agatha', start: 20, end: 40 },
+      { sectionId: 'weir', start: 41, end: 70 },
+      { sectionId: 'aaronovitch', start: 71, end: 120 },
+    ],
+    layoutY: (i: number) =>
+      i === 0 ? 0 : i === 20 ? 500 : i === 41 ? 1500 : i === 71 ? 4820 : undefined,
+  };
+
+  it('declines to master when the landing snapped a fraction of a pixel SHORT', () => {
+    // THE DEVICE DEFECT. A strict `y <= offset` drops the header the press just
+    // landed on out of its own candidate set, so the maximum falls through to
+    // the section below it and back climbs one open section per press -- the
+    // D-1 symptom exactly, reached by a completely different mechanism.
+    expect(
+      decideBackPress(snapshot({ ...consecutive, offset: 4820 - 0.29 })),
+    ).toEqual({ kind: 'scrollTo', offset: 0, rung: 'master' });
+  });
+
+  it('declines to master anywhere inside the sub-pixel band, either side of the header', () => {
+    // The grid can snap either way and the fractional part is a property of the
+    // header, not of the press, so both signs must terminate the ladder.
+    for (const offset of [4819, 4819.01, 4819.5, 4820, 4820.99]) {
+      expect(decideBackPress(snapshot({ ...consecutive, offset }))).toEqual({
+        kind: 'scrollTo',
+        offset: 0,
+        rung: 'master',
+      });
+    }
+  });
+
+  it('does NOT let the tolerance swallow a genuine rung sitting just below a header', () => {
+    // 2 px above Andy Weir's header is not a landing on it -- it is a reader
+    // inside Agatha Christie, and the rung they are owed is Agatha's. This is
+    // the bound that stops the fix for D-2 from becoming a fall-through.
+    expect(decideBackPress(snapshot({ ...consecutive, offset: 1498 }))).toEqual({
+      kind: 'scrollTo',
+      offset: 500,
+      rung: 'section',
+    });
+  });
+});
+
+
 /**
  * ⚠ `overlapsSpan`'s INCLUSIVE bounds were pinned here, by two rung cases, until
  * the rung stopped resolving its section from an index sample (2026-08-22). They

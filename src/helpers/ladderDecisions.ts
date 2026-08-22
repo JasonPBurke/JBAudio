@@ -176,10 +176,27 @@ export function decideBackPress(s: LadderSnapshot | null): BackPressDecision {
  * predecessor.
  *
  * Resolving in offset space also makes the rung SELF-TERMINATING rather than
- * guarded: after a landing `offset === headerY`, so the very same section
- * resolves again and the sub-pixel guard below declines to master top on its
- * own. There is no separate "have I already landed here?" state, which is what
- * C3/I6's no-state-between-presses rule requires.
+ * guarded: after a landing the very same section resolves again and the
+ * sub-pixel guard below declines to master top on its own. There is no separate
+ * "have I already landed here?" state, which is what C3/I6's
+ * no-state-between-presses rule requires.
+ *
+ * ⚠ That self-termination needs the SUBPIXEL_EPSILON below, and reading it as
+ * `offset === headerY` is what broke it a second time (D-2, ticket 08).
+ * `scrollTo` can only come to rest on an integer PHYSICAL PIXEL, while a layout
+ * `y` is a sum of measured dp heights and is freely fractional -- so a landing
+ * aimed at `y_h` rests at `y_h` SNAPPED TO THE GRID, up to half a pixel either
+ * side (0.14 dp at density 3.5). Snapped short, a strict `y <= offset` drops the
+ * header the press just landed on out of its OWN candidate set, the maximum
+ * falls through to the section below, and back climbs one open section per
+ * press -- the very symptom this function was written to fix, reached by a
+ * different mechanism and hidden behind a shortfall too small to see: on device
+ * the landed header renders on the SAME PIXEL ROW it occupies at master top
+ * (measured, m1..m4).
+ *
+ * So the containment test carries the same tolerance as the guard it feeds. A
+ * filter that discards its own subject can never be rescued by a check
+ * downstream of it, which is exactly what the first version tried to do.
  *
  * ⚠ Independent of range ORDER, deliberately. H4 promises ranges are inclusive
  * and non-overlapping but says nothing about ordering, so this takes the
@@ -203,7 +220,7 @@ function containingSection(
     // is the first item of every non-empty BooksHome, so an earliest reading
     // targets index 0 whenever it is open -- which is master top, i.e. a
     // guaranteed dead press.
-    if (y <= s.offset && y > headerY) {
+    if (y <= s.offset + SUBPIXEL_EPSILON && y > headerY) {
       headerY = y;
       sectionId = r.sectionId;
     }
