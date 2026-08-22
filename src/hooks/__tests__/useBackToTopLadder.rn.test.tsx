@@ -469,6 +469,25 @@ describe('useBackToTopLadder — the section rung', () => {
 });
 
 /**
+ * Apply the updater the sweep handed `setExpanded` to a caller-supplied `prev`,
+ * and return what React would store.
+ *
+ * ⚠ The sweep writes an UPDATER, never a value (F-6), so every assertion about
+ * WHAT it collapsed has to go through here. That is not ceremony: the argument
+ * this indirection exists to make is that the answer depends on `prev` -- the
+ * set React actually holds -- and not on the render-time mirror the hook read
+ * its snapshot from. A test that could assert the set directly would be
+ * asserting the bug.
+ */
+function sweptFrom(setExpanded: jest.Mock, prev: Set<string>, call = 0): Set<string> {
+  const arg = setExpanded.mock.calls[call]?.[0] as unknown;
+  if (typeof arg !== 'function') {
+    throw new Error(`expected an updater at call ${call}, got ${String(arg)}`);
+  }
+  return (arg as (p: Set<string>) => Set<string>)(prev);
+}
+
+/**
  * The collapse sweep's WIRING -- ticket 07. `decideSweep` has 18 tests and
  * proves every gate over a snapshot it is handed; what only an exercised hook
  * can prove is that the right TRIGGER, the real VELOCITY and the SAME set
@@ -503,7 +522,9 @@ describe('useBackToTopLadder — the collapse sweep', () => {
     });
 
     expect(setExpanded).toHaveBeenCalledTimes(1);
-    expect(setExpanded.mock.calls[0][0]).toEqual(new Set(['recentlyAdded']));
+    expect(sweptFrom(setExpanded, new Set(['recentlyAdded', 'author-A', 'author-B']))).toEqual(
+      new Set(['recentlyAdded']),
+    );
   });
 
   it('reaches the decision as a MOMENTUM trigger, not as a drag', async () => {
@@ -544,7 +565,9 @@ describe('useBackToTopLadder — the collapse sweep', () => {
     });
 
     expect(setExpanded).toHaveBeenCalledTimes(1);
-    expect(setExpanded.mock.calls[0][0]).toEqual(new Set(['recentlyAdded']));
+    expect(sweptFrom(setExpanded, new Set(['recentlyAdded', 'author-A']))).toEqual(
+      new Set(['recentlyAdded']),
+    );
   });
 
   it('does NOT sweep on a fling that leaves the top', async () => {
@@ -610,7 +633,7 @@ describe('useBackToTopLadder — the collapse sweep', () => {
       result.current.onMomentumScrollEnd();
     });
 
-    expect(setExpanded.mock.calls[0][0]).toBe(expanded);
+    expect(sweptFrom(setExpanded, expanded)).toBe(expanded);
   });
 
   it('does not arm the anchor suppression when nothing drops', async () => {
@@ -727,7 +750,7 @@ describe('useBackToTopLadder — the collapse sweep', () => {
     await act(async () => {
       result.current.onMomentumScrollEnd();
     });
-    const afterFirst = setExpanded.mock.calls[0][0] as Set<string>;
+    const afterFirst = sweptFrom(setExpanded, new Set(['recentlyAdded', 'author-A', 'author-B']));
     // The screen re-renders with the swept set; the hook's mirror follows it.
     await rerender({ view: 'booksHome', expanded: afterFirst });
     await act(async () => {
@@ -735,7 +758,64 @@ describe('useBackToTopLadder — the collapse sweep', () => {
     });
 
     expect(setExpanded).toHaveBeenCalledTimes(2);
-    expect(setExpanded.mock.calls[1][0]).toBe(afterFirst);
+    expect(sweptFrom(setExpanded, afterFirst, 1)).toBe(afterFirst);
+  });
+
+  it('re-derives from the set React HOLDS, not the mirror — a queued open survives', async () => {
+    // F-6, consequence 1. The mirror is the last COMMITTED state, so a tap that
+    // has queued an expansion but not yet committed is invisible to it. An
+    // absolute write of the decision's `open` discards that tap: the section
+    // opens and shuts again in the same frame, with no error anywhere.
+    //
+    // Here the viewport covers Recents AND author-A, so the tap's section is
+    // on screen and nothing may drop -- which the updater can only know by
+    // reading `prev`.
+    const list = atTop({
+      computeVisibleIndices: jest.fn(() => ({ startIndex: 0, endIndex: 30 })),
+    });
+    const queuedOpen = new Set(['recentlyAdded', 'author-A']);
+
+    const { result, setExpanded } = await mountLadder({
+      view: 'booksHome',
+      list,
+      ranges: ALL_RANGES,
+      expanded: new Set(['recentlyAdded']),
+    });
+    await act(async () => {
+      result.current.onMomentumScrollEnd();
+    });
+
+    // Same REFERENCE, not merely equal: the queued set survives untouched, so
+    // React bails out and the tap's own render is the only one that happens.
+    expect(sweptFrom(setExpanded, queuedOpen)).toBe(queuedOpen);
+  });
+
+  it('is idempotent WITHIN one batch — the second sweep of an arrival is a no-op', async () => {
+    // F-6, consequence 2, and the half §E4 actually words: the sweep fires AT
+    // LEAST ONCE per arrival and must be idempotent. Two settle events in ONE
+    // React batch never see a re-render between them, so both read the same
+    // stale mirror -- and two absolute writes both build a FRESH set, which
+    // React cannot bail out of. The second one costs a full re-render of a
+    // 355-book list for zero change.
+    //
+    // Chained through the updaters, exactly as React would apply them.
+    const list = atTop();
+
+    const { result, setExpanded } = await mountLadder({
+      view: 'booksHome',
+      list,
+      ranges: ALL_RANGES,
+      expanded: new Set(['recentlyAdded', 'author-A', 'author-B']),
+    });
+    await act(async () => {
+      result.current.onMomentumScrollEnd();
+      result.current.onMomentumScrollEnd();
+    });
+
+    expect(setExpanded).toHaveBeenCalledTimes(2);
+    const first = sweptFrom(setExpanded, new Set(['recentlyAdded', 'author-A', 'author-B']));
+    expect(first).toEqual(new Set(['recentlyAdded']));
+    expect(sweptFrom(setExpanded, first, 1)).toBe(first);
   });
 
   it('does not sweep on mount, or on a re-render', async () => {

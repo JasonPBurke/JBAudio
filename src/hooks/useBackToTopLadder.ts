@@ -12,6 +12,7 @@ import { useDrawerStatus } from '@react-navigation/drawer';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Sentry from '@sentry/react-native';
 
+import { computeRemainingOpen } from '@/helpers/collapseOffscreenSections';
 import {
   decideBackPress,
   decideSweep,
@@ -81,8 +82,9 @@ export type UseBackToTopLadderParams = {
   expanded: Set<string>;
   /**
    * The expanded-section setter, called by the collapse sweep and by nothing
-   * else. The sweep hands it `decideSweep`'s `open` set DIRECTLY -- see the
-   * sweep below for why it must not be copied on the way through.
+   * else. The sweep calls it with an UPDATER rather than a value, and both
+   * halves of that -- staleness and the same-reference bail-out -- are argued
+   * at the call site below.
    */
   setExpanded: Dispatch<SetStateAction<Set<string>>>;
 };
@@ -310,19 +312,49 @@ export function useBackToTopLadder({
        * means the data is unchanged, so MVCP's `diff` is 0 and there is no
        * correction to suppress even if React does render. No timer, no
        * constant, no state.
+       *
+       * ⚠ ARMED FROM THE COMMITTED ANSWER while the write below re-derives
+       * from `prev`, and that asymmetry is the only shape available: a state
+       * updater must be pure and React may re-run it, so a call with a side
+       * effect cannot live inside one. For the set the snapshot was built from
+       * the two paths cannot disagree -- a decision test re-collapses the
+       * mirror through `visibleIds` and gets `open` back. They can diverge only
+       * inside the same commit-to-settle window the updater exists for, and
+       * only when the queued update is itself a COLLAPSE, which leaves the flag
+       * armed with no commit to spend it on. That is this same leak reached
+       * through a strictly narrower door than an absolute write left open.
        */
       if (decision.open !== inputs.expanded) {
         list.prepareForLayoutAnimationRender();
       }
 
       /*
-       * ⚠ Handed over as-is. `decideSweep` returns the SAME reference it was
-       * given whenever nothing drops, which is what makes an accepted
-       * bounce-sweep (§F5) free: React bails out of the re-render entirely.
-       * A spread, a copy or a `new Set(...)` anywhere on this line discards
-       * that bail-out silently and costs a full re-render of a 355-book list.
+       * ⚠ AN UPDATER, NOT A VALUE, and the two are not interchangeable here.
+       *
+       * `decision.open` was computed from `inputsRef.current.expanded` -- the
+       * last COMMITTED state. Between that commit and this settle event a
+       * section tap can have QUEUED an expansion that React has not applied
+       * yet (`BooksHome`'s `handleSectionPress`, itself an updater). Writing
+       * an absolute value here discards it: the section opens and shuts in the
+       * same frame, silently, with the tap's own section on screen and no gate
+       * anywhere that could have refused. Re-running the rule against `prev`
+       * is what makes the write stale-proof.
+       *
+       * It is also what makes the sweep idempotent as §E4 requires. Two settle
+       * events in one React batch (a back press interrupting a fling emits
+       * exactly that -- §E4/§I5) both read the same stale mirror, so two
+       * absolute writes would each build a FRESH set and React could not bail
+       * out of the second. Chained updaters collapse the second to a no-op.
+       *
+       * ⚠ The SAME-REFERENCE return is still the load-bearing property, just
+       * reached one step later: `computeRemainingOpen` hands back `prev`
+       * itself when nothing drops, React compares with `Object.is` and skips
+       * re-rendering a 355-book list. A spread or a `new Set(...)` inside this
+       * updater discards that exactly as it would have on a direct write.
+       *
+       * Cost: one extra pass over the open set -- a few dozen ids -- per sweep.
        */
-      inputs.setExpanded(decision.open);
+      inputs.setExpanded((prev) => computeRemainingOpen(prev, decision.visibleIds));
     },
     [listRef, sectionRangesRef],
   );

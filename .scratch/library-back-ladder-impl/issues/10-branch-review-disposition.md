@@ -1,6 +1,6 @@
 # 10 — Whole-branch review: disposition and fixes
 
-Status: `needs-info` — the A batch (F-1…F-5) is APPLIED; F-6 and F-8…F-11 need the driver.
+Status: `needs-info` — the A batch (F-1…F-5) and **F-6** are APPLIED; F-8…F-11 need the driver.
 Type: `task`
 Blocked by: none — but **land this before 08**, see *Why before 08* below.
 
@@ -244,6 +244,9 @@ anchor-fix guard is what they pin.
 
 **Recommendation:** adopt, but as its own ticket with its own mutation pass. Not folded into the
 mechanical batch above.
+
+✅ **ADOPTED and APPLIED 2026-08-22**, as its own pass with its own mutations. See
+*F-6 — the updater, applied* below.
 
 #### F-7 · The at-top gate is a 38 px band, not a point 🟡
 
@@ -519,8 +522,105 @@ that never ran is indistinguishable from one that passed.
 
 | Finding | Waiting on |
 | --- | --- |
-| **F-6** `setExpanded` value-vs-updater | Driver: adopt as its own ticket (with ticket 07's 12 mutations re-run) or decline in writing. Untouched. |
+| ~~**F-6** `setExpanded` value-vs-updater~~ | **DONE** — adopted and applied 2026-08-22; ticket 07's mutations re-run plus four new ones, all killed. |
 | **F-7** the 38 px at-top band | Nothing coded, as recommended — but it is **not yet written into ticket 08's observation list**. |
 | **F-8 / F-9** the eighth amendment + sign-off | Driver. `spec.md:903` and `:996` still assert the jsdom/no-RNTL constraint. |
 | **F-10** the publish-gap guard | Driver: README to two guards, or `--max-warnings=0` (which needs the 38 warnings triaged first). |
 | **F-11** the `node_modules` MVCP probe | Driver, **before any device build**. Still present and still not shipped (`patches/` clean). |
+
+---
+
+## Answer — F-6, the updater, applied 2026-08-22
+
+Adopted as recommended: its own pass, its own mutations, nothing else touched.
+
+**Gates:** `npx tsc --noEmit` **0 errors** · `npx eslint .` **0 errors, 38 warnings** (the same 38,
+none in this feature's files) · `npx jest --watchman=false` **943/943**, 73 suites — the count moved
+by exactly the five cases this pass adds and by nothing else.
+
+### The shape it took
+
+The sketch in F-6 is what was built, with one addition the sketch left implicit: `visibleIds` is now
+a **declared part of the collapse decision**, not a value the hook re-derives.
+
+```ts
+// decideSweep — the collapse branch
+return { kind: 'collapse', open: computeRemainingOpen(s.expanded, visibleIds), visibleIds };
+
+// useBackToTopLadder — the sweep
+if (decision.open !== inputs.expanded) list.prepareForLayoutAnimationRender();
+inputs.setExpanded((prev) => computeRemainingOpen(prev, decision.visibleIds));
+```
+
+**The §J4 seam is widened, not moved.** The RULE — visible or protected survives, everything else
+drops — still lives in `computeRemainingOpen` and nowhere else; what crosses the seam now is the
+INPUT that rule takes. `SweepDecision.collapse` carries both fields with a docblock on each saying
+which question it answers, because they are answers about **different sets**: `open` is computed
+against the snapshot's committed `expanded` and is only ever compared by identity; `visibleIds` is
+the raw viewport answer and is what gets written through.
+
+⚠ **`visibleIds` must not be filtered by `expanded`.** That is the obvious "reuse what we already
+computed" tidy-up and it silently restores the exact bug: a section a queued tap has just opened is
+not in the committed mirror, so filtering by it would collapse that section the instant it opened.
+Two decision tests exist for that mutation alone and it kills eight.
+
+### What the arm decision still reads, and why that is not an oversight
+
+`prepareForLayoutAnimationRender()` is armed from `decision.open` — the committed-state answer —
+while the write re-derives from `prev`. This is the only shape available: **a state updater must be
+pure and React may re-run it**, so a call with a side effect cannot live inside one.
+
+The two paths cannot disagree for the set the snapshot was built from — pinned by a new decision
+test that re-collapses the mirror through `visibleIds` and gets `open` back. They can only diverge
+inside the same commit-to-settle window this whole fix is about, and only when the queued update is
+itself a *collapse*, which leaves the flag armed with no commit to spend it on. That is ticket 07's
+pre-existing leak reached through a **strictly narrower** door than the absolute write left open,
+and it is written into the code at the arm site rather than left for the next reader to rediscover.
+
+### The consequences, re-checked against what was built
+
+- **Clobbering (correctness pass).** Closed. The reviewer called it *latent* because they could not
+  construct a high-probability ordering; the pinning test does not need one — it asserts the updater
+  applied to a `prev` containing a queued expansion returns **that same reference**, i.e. the tap
+  survives untouched and React bails out of re-rendering.
+- **Lost idempotence (spec axis, §E4).** Closed, and now testable in the shape §E4 actually words:
+  two settle events *in one React batch*. Chained through the updaters, the second returns the
+  first's result by identity. Two absolute writes could not — each built a fresh `Set` from the same
+  stale mirror, and that redundant full re-render of a 355-book list was the real cost.
+- **The flag-leak framing.** Unchanged from the ticket's tracing: it does not leak. Not re-argued.
+
+### Mutations — 14 run, 14 killed
+
+Ticket 07's ten are re-run verbatim (m01–m10) and four are new to F-6.
+
+| mutation | tests killed |
+|---|---|
+| `sweep('momentum')` → `sweep('drag')` | 8 |
+| `velocityY` dropped at the drag call site | 1 |
+| `velocityY` defaulted to `?? 0` | 1 |
+| `velocityY` hardcoded to `0` | 2 |
+| anchor fix deleted | 1 |
+| anchor fix moved AFTER the state update | 1 |
+| anchor fix armed on a declined sweep | 1 |
+| anchor guard removed (armed unconditionally) | 1 |
+| anchor guard inverted | 2 |
+| updater's result re-wrapped in `new Set(...)` | 4 |
+| **F-6 reverted — absolute write of `decision.open`** | **6** |
+| **F-6 half-reverted — updater ignores `prev`, reads the mirror** | **2** |
+| **`visibleIds` filtered by `expanded` in `decideSweep`** | **8** |
+| **`visibleIds` reported as an alias of `open`** | **3** |
+
+Ticket 07's counts moved only upward (the trigger mutation from 5 to 8), which is the expected
+direction: the new tests exercise the same wiring. The re-wrap mutation went 2 → 4 — the
+same-reference property is now pinned on both sides of the updater.
+
+⚠ **The `new Set(...)` mutation is the one to keep an eye on in future edits.** It reads as
+defensive copying and costs a full re-render of a 355-book list on every accepted bounce-sweep
+(§F5); the four tests that kill it are the only thing standing between that and shipping.
+
+### Every test assertion about the swept set now goes through one helper
+
+`sweptFrom(setExpanded, prev, call)` in the hook suite applies the recorded updater to a
+caller-supplied `prev` and throws a named error if the argument is not a function. That indirection
+is the argument: **a test that could assert the written set directly would be asserting the bug**,
+because the answer is supposed to depend on `prev` rather than on what the hook read at render time.

@@ -4,6 +4,7 @@ import {
   type LadderSnapshot,
   type SweepDecision,
 } from '../ladderDecisions';
+import { computeRemainingOpen } from '../collapseOffscreenSections';
 import { ladderViewFor } from '../ladderView';
 
 /**
@@ -299,6 +300,14 @@ function collapsedSet(result: SweepDecision): Set<string> {
   return result.open;
 }
 
+/** The same narrowing for the sweep's viewport answer (F-6). */
+function visibleIdsOf(result: SweepDecision): Set<string> {
+  if (result.kind !== 'collapse') {
+    throw new Error(`expected a collapse, got none('${result.reason}')`);
+  }
+  return result.visibleIds;
+}
+
 describe('decideSweep — the capability gate (R5)', () => {
   it('declines on a non-sectioned view even with stale ranges and live expansions', () => {
     expect(
@@ -430,7 +439,11 @@ describe('decideSweep — the collapse', () => {
 
   it('keeps only Recently Added, by position rather than by exemption', () => {
     const result = decideSweep(sweepSnapshot({ ...atTop, expanded: allOpen }), 'momentum');
-    expect(result).toEqual({ kind: 'collapse', open: new Set(['recents']) });
+    expect(result).toEqual({
+      kind: 'collapse',
+      open: new Set(['recents']),
+      visibleIds: new Set(['recents']),
+    });
   });
 
   it('returns the SAME set reference when every open section is visible', () => {
@@ -456,7 +469,11 @@ describe('decideSweep — the collapse', () => {
       sweepSnapshot({ expanded: allOpen, visible: () => ({ startIndex: 19, endIndex: 30 }) }),
       'momentum',
     );
-    expect(result).toEqual({ kind: 'collapse', open: new Set(['recents', 'author:king']) });
+    expect(result).toEqual({
+      kind: 'collapse',
+      open: new Set(['recents', 'author:king']),
+      visibleIds: new Set(['recents', 'author:king']),
+    });
   });
 
   it('counts a section whose start equals endIndex as visible (any sliver)', () => {
@@ -467,6 +484,45 @@ describe('decideSweep — the collapse', () => {
     expect(result).toEqual({
       kind: 'collapse',
       open: new Set(['author:king', 'author:pratchett']),
+      visibleIds: new Set(['author:king', 'author:pratchett']),
     });
+  });
+
+  /*
+   * `visibleIds` is reported ALONGSIDE `open` so the hook can re-derive the
+   * collapse inside React's state updater, against the set React actually
+   * holds rather than against the render-time mirror the snapshot was built
+   * from (F-6). The two tests below are what stop it degenerating back into a
+   * second view of `open`.
+   */
+  it('reports the visible ids even when NOTHING is expanded', () => {
+    const result = decideSweep(sweepSnapshot({ ...atTop, expanded: new Set() }), 'momentum');
+    // `open` is empty here and must stay empty; `visibleIds` is the VIEWPORT's
+    // answer and is independent of it. Deriving `visibleIds` from `expanded`
+    // -- the obvious "reuse what we already filtered" tidy-up -- would return
+    // an empty set here, and the updater would then collapse every section a
+    // queued tap had just opened.
+    expect(collapsedSet(result)).toEqual(new Set());
+    expect(visibleIdsOf(result)).toEqual(new Set(['recents']));
+  });
+
+  it('reports visible ids that are not in the expanded set at all', () => {
+    const result = decideSweep(
+      sweepSnapshot({ expanded: new Set(['author:tolkien']), visible: () => ({ startIndex: 19, endIndex: 30 }) }),
+      'momentum',
+    );
+    // Tolkien is open and off-screen, so it drops. The claim is the other half:
+    // the two on-screen sections are reported even though neither is open, which
+    // is precisely what a queued tap on one of them needs.
+    expect(collapsedSet(result)).toEqual(new Set());
+    expect(visibleIdsOf(result)).toEqual(new Set(['recents', 'author:king']));
+  });
+
+  it('agrees with `open`: re-collapsing the mirror through `visibleIds` reproduces it', () => {
+    // The seam's consistency condition, and the reason the hook may arm the
+    // anchor fix from `open` while writing through `visibleIds`: for the very
+    // set the snapshot was built from, the two paths cannot disagree.
+    const result = decideSweep(sweepSnapshot({ ...atTop, expanded: allOpen }), 'momentum');
+    expect(computeRemainingOpen(allOpen, visibleIdsOf(result))).toEqual(collapsedSet(result));
   });
 });

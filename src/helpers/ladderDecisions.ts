@@ -206,7 +206,31 @@ function sectionRungTarget(s: LadderSnapshot): number | null {
 
 export type SweepDecision =
   | { kind: 'none'; reason: 'not-sectioned' | 'not-at-top' | 'flinging' | 'no-visible-sample' }
-  | { kind: 'collapse'; open: Set<string> };
+  | {
+      kind: 'collapse';
+      /**
+       * The surviving set, computed against the `expanded` in the snapshot --
+       * i.e. against the last COMMITTED state. It answers "did anything drop?"
+       * by identity and nothing else; it is NOT what gets written.
+       */
+      open: Set<string>;
+      /**
+       * The raw viewport answer: every section id with a sliver on screen,
+       * whether or not it is expanded.
+       *
+       * ⚠ Reported SEPARATELY so the caller can re-run `computeRemainingOpen`
+       * inside React's state updater, against the set React actually holds
+       * rather than the render-time mirror this snapshot was built from. The
+       * whole point is that it does NOT depend on `s.expanded`: a section a
+       * queued tap has just opened is not in the mirror, and filtering this by
+       * `expanded` would collapse it the instant it opened.
+       *
+       * This is a §J4 widening, not a leak of the decision into the caller: the
+       * RULE (visible or protected survives) still lives in
+       * `computeRemainingOpen`, and this hands over the input that rule takes.
+       */
+      visibleIds: Set<string>;
+    };
 
 /**
  * Decide whether an arrival at the top should collapse the off-screen sections,
@@ -268,5 +292,5 @@ export function decideSweep(
   // itself when nothing drops, so a no-op sweep hands React the same reference
   // and it bails out of re-rendering the list -- which is what makes every
   // accepted bounce-sweep (F5) cheap.
-  return { kind: 'collapse', open: computeRemainingOpen(s.expanded, visibleIds) };
+  return { kind: 'collapse', open: computeRemainingOpen(s.expanded, visibleIds), visibleIds };
 }
