@@ -1,6 +1,6 @@
 # 10 — Whole-branch review: disposition and fixes
 
-Status: `needs-info` — the A batch (F-1…F-5) and **F-6** are APPLIED; F-8…F-11 need the driver.
+Status: `resolved` — all of F-1…F-11 closed 2026-08-22.
 Type: `task`
 Blocked by: none — but **land this before 08**, see *Why before 08* below.
 
@@ -380,12 +380,12 @@ counter-arguments"*. Recorded here so the next reviewer does not spend the round
 - [x] **F-3** `rn` `testMatch` widened **and** the trap added to `docs/testing/jest-projects-and-rn-tests.md` as the eighth.
 - [x] **F-4** three comment sites corrected; the anchor-guard rationale written where the dead one was.
 - [x] **F-5** `Pick<LadderList,'scrollToOffset'>` adopted (probe says `tsc` 0), `NO_RANGES` readonly, eslint block narrowed, duplicated prose reduced to one canonical site each.
-- [ ] **F-6** ruled on: adopted as its own ticket with ticket 07's 12 mutations re-run, or declined in writing.
-- [ ] **F-7** added to ticket 08's observation list.
-- [ ] **F-8 / F-9** put to the driver together with the pending sign-off.
-- [ ] **F-10** README corrected to two guards, or `--max-warnings=0` adopted.
-- [ ] **F-11** driver has decided keep-or-remove, and the decision is recorded in ticket 08 *before* the §E5 measurement.
-- [ ] `tsc` 0, `eslint` 0 errors, full suite green, and the test count moves only by the cases this ticket adds.
+- [x] **F-6** ruled on: adopted as its own ticket with ticket 07's 12 mutations re-run, or declined in writing.
+- [x] **F-7** added to ticket 08's observation list.
+- [x] **F-8 / F-9** put to the driver together with the pending sign-off.
+- [x] **F-10** README corrected to two guards, or `--max-warnings=0` adopted.
+- [x] **F-11** driver has decided keep-or-remove, and the decision is recorded in ticket 08 *before* the §E5 measurement.
+- [x] `tsc` 0, `eslint` 0 errors, full suite green, and the test count moves only by the cases this ticket adds.
 
 ## Comments
 
@@ -520,13 +520,15 @@ that never ran is indistinguishable from one that passed.
 
 ### What is left, and what it is waiting on
 
-| Finding | Waiting on |
+Nothing — see the Answer sections below. All five items closed 2026-08-22.
+
+| Finding | Disposition |
 | --- | --- |
 | ~~**F-6** `setExpanded` value-vs-updater~~ | **DONE** — adopted and applied 2026-08-22; ticket 07's mutations re-run plus four new ones, all killed. |
-| **F-7** the 38 px at-top band | Nothing coded, as recommended — but it is **not yet written into ticket 08's observation list**. |
-| **F-8 / F-9** the eighth amendment + sign-off | Driver. `spec.md:903` and `:996` still assert the jsdom/no-RNTL constraint. |
-| **F-10** the publish-gap guard | Driver: README to two guards, or `--max-warnings=0` (which needs the 38 warnings triaged first). |
-| **F-11** the `node_modules` MVCP probe | Driver, **before any device build**. Still present and still not shipped (`patches/` clean). |
+| ~~**F-7** the 38 px at-top band~~ | **DONE** — turned out to already be written into ticket 08's observation list (added in this same review commit, `d5fb8b1`); this table's earlier claim otherwise was stale bookkeeping, corrected 2026-08-22. |
+| ~~**F-8 / F-9** the eighth amendment + sign-off~~ | **DONE** — driver adopted F-8 and signed off, 2026-08-22. |
+| ~~**F-10** the publish-gap guard~~ | **DONE** — driver chose the README correction (not `--max-warnings=0`), applied 2026-08-22. |
+| ~~**F-11** the `node_modules` MVCP probe~~ | **DONE** — driver chose KEEP, recorded in ticket 08, 2026-08-22. |
 
 ---
 
@@ -624,3 +626,48 @@ defensive copying and costs a full re-render of a 355-book list on every accepte
 caller-supplied `prev` and throws a named error if the argument is not a function. That indirection
 is the argument: **a test that could assert the written set directly would be asserting the bug**,
 because the answer is supposed to depend on `prev` rather than on what the hook read at render time.
+
+---
+
+## Answer — F-7, F-8/F-9, F-10, F-11, closed 2026-08-22
+
+No code changed for any of these four — none was a mechanical fix, and F-7 explicitly asked for
+none. This is a documentation and driver-decision pass.
+
+### F-7 — the 38 px at-top band
+
+**Already done**, discovered rather than performed: the "One new observation to make (F-7)"
+section and its **Slow-drag-down probe** checklist item were written into
+[ticket 08](08-device-verification.md) in the same commit that wrote this ticket (`d5fb8b1`), so
+the recommendation ("do not code anything yet, add it to ticket 08's observation list") was
+satisfied before this ticket's own acceptance criteria were checked off. The *What is left* table
+above and the unchecked box both understated that — corrected now, not re-done.
+
+### F-8 / F-9 — the eighth spec amendment and sign-off
+
+**Driver adopted both**, put together as the ticket asked. `spec.md` §Testing Decisions corrected
+at two sites (the "jsdom with no React Native preset" claim and its restatement) to say what was
+actually true then (node) and what is true now (a second `rn` lane exists). Each correction carries
+an inline amendment marker, following this spec's established in-place-edit convention, and the
+document header now records the eighth amendment. §J4's extraction rationale — a wrong landing and
+a wrong collapse are different failures with different owners — was left untouched, as F-8 said it
+should be: the environment claim was wrong, not the reason for the seam.
+
+The header's **`Approval: PENDING driver sign-off`** line is now **`SIGNED OFF by the driver,
+2026-08-22`**.
+
+### F-10 — the publish-gap guard
+
+**Driver chose the cheap fix.** `README.md:132` now says "two things, not three" and drops the
+eslint leg, with an inline note explaining why it never bore load (`eslint .` exits 0 against 38
+standing warnings, so a new one is invisible without `--max-warnings=0`). `--max-warnings=0` was
+explicitly declined — it would first need those 38 warnings triaged, a separate job outside this
+ticket's scope.
+
+### F-11 — the `node_modules` MVCP probe
+
+**Driver chose KEEP.** Recorded directly in [ticket 08](08-device-verification.md), immediately
+after the existing "read before making the build" note, rather than here — that is where ticket
+08's device pass will actually look before running §G1–G4. The recorded decision requires every
+measurement in that ticket to be taken against the current (probe-present) `node_modules`, so the
+run stays against one binary rather than mixing pre- and post-`npm ci` states.

@@ -3,10 +3,10 @@
 Status: `ready-for-agent`
 Effort: `library-back-ladder`
 Written: 2026-08-20 · resolves [10](issues/10-write-the-spec.md)
-**Approval: PENDING driver sign-off.** Three open forks were put to the driver on
+**Approval: SIGNED OFF by the driver, 2026-08-22.** Three open forks were put to the driver on
 2026-08-20 and answered (test seam shape, the overscroll-bounce sweep, TalkBack scope);
-they are recorded below as decisions. The document as a whole still needs the driver's
-read. Amendments are edits to this file, in place; it is never reissued.
+they are recorded below as decisions. Amendments are edits to this file, in place; it is never
+reissued.
 **Amended 2026-08-21** — six edits, all raised by implementation tickets
 [02](../library-back-ladder-impl/issues/02-decide-back-press.md) and
 [03](../library-back-ladder-impl/issues/03-decide-sweep.md) and none reversing a driver ruling:
@@ -17,6 +17,12 @@ Each is marked in place at the decision it touches.
 **Amended again 2026-08-21** — one edit, raised by implementation ticket
 [04](../library-back-ladder-impl/issues/04-shared-list-contract.md)'s review: **H8**'s module
 home. Locational only; the contract itself is unchanged.
+**Amended 2026-08-22 (eighth amendment)** — two factual corrections, both raised by
+[impl 10](../library-back-ladder-impl/issues/10-branch-review-disposition.md)'s whole-branch
+review (F-8): the Testing Decisions section wrongly claimed the jest environment was jsdom with
+no React Native preset — it was node — and that claim is now stale twice over, since the
+`rn` jest lane merged onto this branch afterward. Both sites corrected in place; §J4's extraction
+rationale is unchanged.
 Map (the argument, ticket by ticket): [map.md](map.md)
 Prototype branch: **`proto/back-ladder-rung-ab`** — throwaway, see §Further Notes.
 
@@ -900,11 +906,19 @@ unreachable in practice, since the library screen stays mounted behind an open d
 numbers and sets. Assert the returned value. Do not assert that an accessor was called, that a
 particular scroll ran, or that an intermediate structure has a shape.
 
-This is not stylistic. The jest environment here is **jsdom with no React Native preset**, and
-`@testing-library/react-native` is not installed — anything that imports React Native, a
-native module or a screen **cannot be tested at all** today. That constraint is why §J4 exists
-in the shape it does: the ladder's judgement is extracted precisely so it can be tested without
-a device, and the IO left behind is deliberately too thin to hold a decision.
+This is not stylistic. The jest environment here was **node, with no React Native preset**, and
+`@testing-library/react-native` was not installed — anything that imported React Native, a
+native module or a screen **could not be tested at all** at the time this was written. That
+constraint is why §J4 exists in the shape it does: the ladder's judgement is extracted precisely
+so it can be tested without a device, and the IO left behind is deliberately too thin to hold a
+decision. *(Amended 2026-08-22 — corrected from a false "jsdom" claim; see
+[impl 10](../library-back-ladder-impl/issues/10-branch-review-disposition.md).)* A second `rn`
+jest lane (`jest-expo/android` + RNTL) was later added
+([spike/rn-jest-testing](../library-back-ladder-impl/README.md), merged onto this branch), so
+hooks, components and screens are testable today — see
+`docs/testing/jest-projects-and-rn-tests.md`. §J4's extraction is not made obsolete by that: the
+reason it exists — a wrong landing and a wrong collapse are different failures with different
+owners — stands independently of what jest can reach.
 
 The repo's dominant pattern is exactly this — a pure helper plus a jest suite, as with the
 relative-seek, chapter-skip and collapse helpers — and this feature follows it rather than
@@ -993,8 +1007,9 @@ defaults to protecting nothing — which is the mode this feature uses (F7).
 
 Everything that requires a real layout: the actual `firstItemOffset` values, whether an
 animated programmatic scroll really emits momentum-end, MVCP's correction, the animator scale,
-and every user-visible motion outcome. jsdom has no native renderer, so a layout measurement
-returns nothing meaningful.
+and every user-visible motion outcome. Neither jest lane has a native renderer, so a layout
+measurement returns nothing meaningful. *(Amended 2026-08-22 — corrected from a false "jsdom"
+claim, same as §903; see [impl 10](../library-back-ladder-impl/issues/10-branch-review-disposition.md).)*
 
 These are accepted by **device checks, and the implementation effort must re-run them on the
 real build** — they were passed on a throwaway prototype, not on shipping code:

@@ -129,8 +129,11 @@ Branch: **`feat/library-back-ladder`**, off `main` at `104bd34`.
   ⚠ **One gap, open on purpose: nothing proves `BooksHome` CALLS the publisher.** Deleting that line
   leaves all 923 tests green. A render test was attempted and backed out —
   `@shopify/flash-list` is outside `jest-expo`'s transform allowlist, and allowing it just moved the
-  parser error to `pressto` and onward. Guarded instead by the required prop, an eslint warning, and
-  ticket 08.
+  parser error to `pressto` and onward. Guarded instead by two things, not three: the required prop,
+  and ticket 08. *(Corrected 2026-08-22 — [impl 10](issues/10-branch-review-disposition.md) F-10:
+  the eslint warning was never a real guard. `npx eslint .` exits 0 with 38 standing warnings, so a
+  new unused-import warning from deleting the publisher call would land in that noise and fail
+  nothing, absent `--max-warnings=0`.)*
   Reviewed (two axes, opus, vs `b7c09cf`): **Spec axis found 0 wrong implementations and 0 scope
   creep** — it re-derived every warned failure mode independently, including that the before-paint
   probe *"can only hold if phase, not registration order, decides"*. Standards axis: 2 hard

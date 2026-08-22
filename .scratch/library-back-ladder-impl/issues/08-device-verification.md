@@ -51,6 +51,13 @@ discovering mid-run that two measurements came from different binaries. To resto
 file without a full `npm ci`: `npm pack @shopify/flash-list@<version>` into a temp dir and copy the
 single file back.
 
+**Driver decision, 2026-08-22: KEEP.** The probe stays in `node_modules` for this device pass — it
+is the intended tool for the §G1–G4 drift A/B below, and `patches/` is clean so nothing ships to
+testers regardless. **Every measurement in this ticket must therefore be taken WITH the probe
+present** (i.e. against the current local `node_modules`, not a post-`npm ci` tree), so the whole
+run is against one binary. Note the probe's `console.log` noise in any timing-sensitive
+measurement's writeup, since it runs on every MVCP correction attempt.
+
 **2. One new observation to make (F-7): does a slow drag DOWN into the list sweep?** The sweep's
 at-top gate is `offset <= firstItemOffset` — a **38 px band, not a point**. In principle a
 deliberate slow drag *down into* the list that stops inside that band and releases at ~0 velocity
