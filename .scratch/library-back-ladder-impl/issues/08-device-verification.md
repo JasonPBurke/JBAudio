@@ -248,3 +248,100 @@ one more preview build. Under F-11's one-binary rule every checklist item below 
 ⚠ **The §D4 spec amendment candidate from D-1 stands, and D-2 EXTENDS it**: the offset-space rule
 that replaces §D4's mechanism must be stated with the tolerance, not as an equality, or it specifies
 the bug fixed here.
+
+### Session 3 — 2026-08-22, the full checklist against ONE binary
+
+**Rig:** unchanged. **Binary:** preview build installed 17:08 (update, data preserved), built from
+`3f9392b`, **probe present** in `node_modules/@shopify/flash-list` per F-11's KEEP ruling. Every
+result below was taken against this one binary. Animator scales verified `1/1/1` at start and
+restored to `1/1/1` at the end.
+
+#### The D-1 / D-2 fix — VERIFIED ON DEVICE ✅
+
+From mid-Aaronovitch with three consecutive sections expanded: press 1 → **Ben Aaronovitch header**,
+press 2 → **master top** (`Recently Added`), press 3 → **app backgrounded**. Two rungs then the
+ladder ends, no climbing. The reported defect is gone.
+
+#### Checklist results
+
+- [x] **The latch test — PASS.** Five rounds in one process, alternating 3-button (`keyevent`) and
+      gesture (edge swipe): scroll → back → back → back (backgrounds) → reopen → push a book screen
+      → back pops to the library. All five rounds reached JS on every press; back never went dead.
+      Verified visually per round, not just by focus, since a dead press also leaves the app
+      foreground.
+- [x] **The collapse sweep — PASS.** Arriving at master top left the VISIBLE section (Agatha
+      Christie) expanded and collapsed the off-screen ones (Andy Weir, Ben Aaronovitch). Confirmed by
+      scrolling down afterwards, as the ticket requires — the sweep itself is silent.
+- [x] **Animator duration scale 0 — PASS, both halves.** The jump is instant (the frame captured
+      250 ms after the press already shows the landing, identical to the settled frame) **and the
+      sweep still fires** (a below-fold expanded section was collapsed on arrival).
+- [x] **The rung landing against the search bar — PASS.** The landed header sits below the
+      dropped-down bar and is fully readable. Now also measured: see D-2's m1..m4, the landed header
+      occupies the SAME pixel row as the first item at master top.
+- [x] **Drawer, keyboard, modal routes — PASS.** Drawer open + back → drawer closes, list scroll
+      position byte-identical. Search focused + back → keyboard dismisses, list unchanged. Modal book
+      screen + back → pops to library (5×, in the latch rounds). Back did that and only that.
+- [x] **The overscroll bounce sweeps (F5) — CONFIRMED, it DOES sweep.** With a below-fold expanded
+      section, a pull-down-and-release at the top collapsed it. Controlled: the same setup without
+      the bounce left it expanded. So the platform does report the bounce and §F5's gate is not
+      silently dead. Not a failure.
+- [x] **A deep jump on a preview build against the real library — MEASURED, needs a driver
+      judgement.** Screen-recorded at 120 Hz and analysed frame by frame: the list viewport goes
+      **fully blank for ~160 ms** (t=1.752→1.911, flat luminance 26.3 vs 62–63 settled), then fills
+      over ~90 ms, fully settled ~320 ms after the press; cover art resolves last. So it is not a
+      "smear" of mismatched cells — it is a brief EMPTY viewport. Frames and per-frame luminance are
+      in the session scratchpad. Whether 160 ms of blank is objectionable is a judgement call and is
+      left to the driver; it is not a correctness failure.
+- [x] **Rung overshoot — NOT REPRODUCED.** ~25 back presses across this session, never once landed
+      past the header.
+- [x] **Card reload after a collapse — observed, matches the known accepted behaviour.** Cover art
+      fades in after a jump (the first `Recently Added` cover is blank for ~2 frames). Cosmetic, not
+      fixed, per the ticket's standing instruction.
+
+#### D-3 — F-7 IS REAL AND REACHABLE (not "unreachable by a human hand")
+
+**The ticket asked for a ruling rather than an omission. The ruling has to be made on the basis that
+the sweep DOES fire.**
+
+Reproduction, with a control:
+
+1. At rest at master top, expand a VISIBLE section (Andy Weir) — verified expanded.
+2. Expand the section ABOVE it (Agatha Christie), which pushes Andy Weir's header below the fold
+   while it stays expanded. This is the reachable precondition, and it needs no scrolling at all.
+3. Drag down into the list ~50 px, **decelerating and holding still before lifting** so the release
+   velocity is genuinely ~0 (`input motionevent` DOWN/MOVE.../pause/UP — a plain `input swipe`
+   lifts while still moving and is classified as a fling, which is why a first attempt showed
+   nothing).
+4. Scroll down: **Andy Weir is collapsed.**
+
+**Control (same setup, no gesture): Andy Weir stays expanded.** So the collapse is caused by the
+gesture, not by the setup or by the scroll used to inspect it.
+
+⚠ This is exactly F-7's predicted failure: the drag begins AT the top, so §F5's recorded lever
+(*"require the drag to have begun below the top"*) does not cover it. §I2 is not violated — nothing
+visible changes — so the loss is **silent** until the reader scrolls down and finds their sections
+shut, at the very moment they started browsing downward.
+
+**Sketch of a lever, for the driver — NOT implemented:** the bounce (§F5, which we want to keep
+sweeping) moves the list UP off the top and returns; this failure moves the list DOWN INTO the list.
+Gating the drag-trigger sweep on the drag not having moved *into* the list separates the two cases,
+where a start-position test cannot.
+
+**Severity is the driver's call.** The precondition needs two adjacent expansions near the top, which
+is plausible but not the commonest path; the loss is silent; and the data is recoverable by one tap.
+
+#### Not observable on this binary — three items deferred with reasons
+
+- [ ] **Momentum-end counts (once clean / twice interrupting a fling).** There is no counter in the
+      build and no log on this path, so the *count* cannot be observed — only its effect, and the
+      sweep is idempotent by design precisely so the count does not matter. Needs a one-line
+      instrumented build. ⚠ Now cheap: **`console.log` reaches logcat in a preview build** (tag
+      `ReactNativeJS`), established this session.
+- [ ] **Per-view first-item offsets, read not assumed (expect ~38 / 38 / 44).** Same reason —
+      `getFirstItemOffset()` is not printed anywhere. D-2's technique (compare the first item's pixel
+      row at master top across views) could measure it from screenshots if instrumentation is
+      unwanted.
+- [ ] **The drift recipe, fix OFF.** The fix-ON half shows no drift, but the fix-OFF half requires a
+      SECOND binary with the MVCP anchor fix removed, which contradicts F-11's one-binary rule for
+      this session. Defer to a dedicated A/B session; the prototype's numbers (fix off 4/6 drifted,
+      fix on 0/20) already stand.
