@@ -327,11 +327,10 @@ describe('useBackToTopLadder — the section rung', () => {
     });
 
     expect(await press()).toBe(true);
-    // ⚠ §D2 -- the landing offset is the header's plain `y`, with NO
-    // `firstItemOffset` term. Adding one aligns the header to the VIEWPORT top,
-    // which is the strip the dropped-down search bar occupies as an absolute
-    // overlay, so the header lands underneath it and the user cannot read the
-    // name of the section they returned to.
+    // ⚠ §D2 -- the header's PLAIN `y`, with no `firstItemOffset` term; the
+    // argument lives at `sectionRungTarget`. This assertion discriminates only
+    // because the fake's `getFirstItemOffset` returns 38: adding the term would
+    // read 2038 here.
     expect(list.scrollToOffset).toHaveBeenCalledWith({
       offset: 2000,
       animated: true,

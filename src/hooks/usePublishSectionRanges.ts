@@ -14,7 +14,7 @@ import {
  * freezes props, so `propRef.current = x` is rejected even inside an effect.
  * The direction of travel is still list -> screen.
  */
-export function useSectionRanges(
+export function usePublishSectionRanges(
   items: readonly SectionedItem[],
   onSectionRangesChange?: (ranges: SectionRange[]) => void,
 ): void {

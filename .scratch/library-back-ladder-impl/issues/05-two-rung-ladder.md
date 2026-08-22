@@ -39,7 +39,7 @@ Spec: A1–A8, B1–B7, C1–C4, E1–E6, H1, H2, I1, I4, I6, J1–J3; user stor
 Hooks and components are **now testable**. Jest runs two projects: pure TypeScript stays in the
 fast `helpers` lane, and anything importing React Native goes in an `rn` lane
 (`jest-expo/android` + `@testing-library/react-native`) by being named `*.rn.test.tsx`.
-**Read `docs/testing/jest-projects-and-rn-tests.md` first** — it holds six traps that all fail
+**Read `docs/testing/jest-projects-and-rn-tests.md` first** — it holds seven traps that all fail
 quietly.
 
 Landed by `spike/rn-jest-testing` (`544ac8a`); merge that branch before starting if it has not

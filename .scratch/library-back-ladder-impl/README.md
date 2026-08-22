@@ -110,6 +110,48 @@ Branch: **`feat/library-back-ladder`**, off `main` at `104bd34`.
   holding `LadderView` in state and deriving the ordinal for `Header` would collapse all four. Real,
   but a refactor with its own risk in a ticket whose device check is still outstanding.
 
+- **06 — the third rung, fed by ranges published before paint** · `resolved` (`f9e9c13`) —
+  `computeSectionRanges` (pure, `helpers` lane), `useSectionRanges` (layout-effect publication,
+  `rn` lane), `BooksHome` publishing, the screen owning a `sectionRangesRef`, and the hook taking
+  `expanded`. **`booksHome` is a THREE-rung ladder now.** jest 903 → **923**. 6 mutations run, 5
+  killed, 1 provably equivalent.
+  ⚠ **Ticket 05's rung was already correct and STARVED** — the snapshot was built with an empty
+  range list at module scope. This ticket connects supply lines; it does not build judgement.
+  **Three decisions the spec does not state**, all in the ticket's Answer: runs are derived from
+  **`sectionId` changing**, never from matching the `'sectionHeader'` type string (a rename there
+  would emit zero ranges with no error); the ranges reach the hook as a **REF**, the one deliberate
+  exception to §J2, because the publication path exists so it does NOT re-render the screen and a
+  mirrored value would refresh only on some later render that may never come; and
+  `onSectionRangesChange` is **narrowed to REQUIRED** on `BooksHome` (probe: omitting it is
+  `TS2741`).
+  ⚠ **§H5 is executable now, not a comment** — mutating the layout effect to a passive one fails a
+  probe that records the publication against React's own layout-then-passive ordering.
+  ⚠ **One gap, open on purpose: nothing proves `BooksHome` CALLS the publisher.** Deleting that line
+  leaves all 923 tests green. A render test was attempted and backed out —
+  `@shopify/flash-list` is outside `jest-expo`'s transform allowlist, and allowing it just moved the
+  parser error to `pressto` and onward. Guarded instead by the required prop, an eslint warning, and
+  ticket 08.
+  Reviewed (two axes, opus, vs `b7c09cf`): **Spec axis found 0 wrong implementations and 0 scope
+  creep** — it re-derived every warned failure mode independently, including that the before-paint
+  probe *"can only hold if phase, not registration order, decides"*. Standards axis: 2 hard
+  violations, 4 judgement calls; **6 of 7 findings adopted, 1 declined**.
+  ⚠ **The axes DISAGREED on §J2** — Standards read the ranges-as-a-ref as an unrecorded deviation,
+  Spec read it as sanctioned by §J1's own signature. Spec is right on substance (the spec contains
+  both sentences; the specific one governs), Standards is right that the tension must not live only
+  in code comments. Resolved procedurally: **two spec-amendment candidates** raised for the driver
+  (§J2 vs §J1, and §J1's parameter names) rather than amending `spec.md` unilaterally.
+  ⚠ **The notable adoption:** narrowing `onSectionRangesChange` to required by **re-stating its
+  signature** was the exact drift §H8 forbids — the intent survived review, the mechanism did not.
+  It is `Omit<…> & Required<Pick<…>>` now, re-probed as `TS2741`.
+  ⚠ **The notable decline — expect it to be re-proposed:** do NOT fold `ranges` into `LadderInputs`
+  to tidy `buildSnapshot`'s three arguments. `LadderInputs` is the RENDER-TIME mirror and the ranges
+  are the one input that must not be captured at render time; the reason is now in the code.
+  Also renamed `useSectionRanges` → **`usePublishSectionRanges`**, and ticket 07 now carries a
+  handoff note fixing the hook's parameter names before they diverge.
+  ⚠ **`npm test` crashes on this machine when watchman runs at low priority** (Node fatal, no test
+  output). Use `npx jest --watchman=false`. It is NOT the flake above — that one produced a real
+  `1 failed, 922 passed`.
+
 ## Spec amendments — SETTLED 2026-08-21, before ticket 04
 
 The five spec-amendment candidates raised by tickets 02 and 03 were reviewed together and **all
@@ -165,7 +207,7 @@ acceptance criteria lean on `tsc` plus a manual device check because nothing els
 `spike/rn-jest-testing` (`544ac8a`) removes the constraint. Jest now runs **two projects**: the
 original fast `helpers` lane (~890 pure tests, ~2 s) and an `rn` lane
 (`jest-expo/android` + `@testing-library/react-native`) that a test opts into by being named
-`*.rn.test.tsx`. See `docs/testing/jest-projects-and-rn-tests.md` — it holds six traps that all
+`*.rn.test.tsx`. See `docs/testing/jest-projects-and-rn-tests.md` — it holds seven traps that all
 fail quietly.
 
 **What this changes for the remaining tickets** (each carries a banner and new checkboxes):

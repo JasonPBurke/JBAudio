@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { render } from '@testing-library/react-native';
 
-import { useSectionRanges } from '@/hooks/useSectionRanges';
+import { usePublishSectionRanges } from '@/hooks/usePublishSectionRanges';
 import type { SectionRange } from '@/helpers/ladderDecisions';
+import { book, header, row } from '@/helpers/__tests__/support/sectionedItems';
 
 /**
  * The section ranges' PUBLICATION, which is the half `computeSectionRanges`'s
@@ -10,22 +11,12 @@ import type { SectionRange } from '@/helpers/ladderDecisions';
  * one, and knows nothing about when the answer reaches the screen.
  *
  * ⚠ Spec §H5 makes the timing a CONTRACT REQUIREMENT rather than an
- * implementation detail. The ladder reads index information from two
- * independent clocks -- FlashList's own, updated inside its commit, and these
- * published ranges. A passive effect publishes AFTER PAINT, leaving a window in
- * which new rows are on screen while the ranges still describe the previous
- * array, and the failure is silent: a stale range resolves to the CORRECT
- * section id with a STALE `start`, so the rung lands on a section the user was
- * never in and every obvious sanity check passes.
+ * implementation detail, and the hook's own docblock carries the reasoning. The
+ * short version, because it is what this suite exists to defend: publishing
+ * after paint lands the rung on a section the user was never in, and every
+ * obvious sanity check still passes.
  */
 
-const header = (sectionId: string) => ({ type: 'sectionHeader', sectionId });
-const row = (sectionId: string) => ({ type: 'horizontalRow', sectionId });
-const book = (sectionId: string, bookId: string) => ({
-  type: 'book',
-  sectionId,
-  bookId,
-});
 
 /**
  * The probe's own `useEffect` is declared BEFORE the hook runs, and that
@@ -51,11 +42,11 @@ function Probe({
   useEffect(() => {
     phases.push('paint');
   });
-  useSectionRanges(items, publish);
+  usePublishSectionRanges(items, publish);
   return null;
 }
 
-describe('useSectionRanges', () => {
+describe('usePublishSectionRanges', () => {
   it('publishes the produced ranges', async () => {
     const onRanges = jest.fn();
 

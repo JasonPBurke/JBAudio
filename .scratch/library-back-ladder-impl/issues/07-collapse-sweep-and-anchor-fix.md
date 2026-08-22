@@ -49,12 +49,27 @@ Spec: E2–E5, F1–F9, G1–G8, I2, I5; user stories 4, 5, 6, 7, 14, 15, 27, 32
 Hooks and components are **now testable**. Jest runs two projects: pure TypeScript stays in the
 fast `helpers` lane, and anything importing React Native goes in an `rn` lane
 (`jest-expo/android` + `@testing-library/react-native`) by being named `*.rn.test.tsx`.
-**Read `docs/testing/jest-projects-and-rn-tests.md` first** — it holds six traps that all fail
+**Read `docs/testing/jest-projects-and-rn-tests.md` first** — it holds seven traps that all fail
 quietly.
 
 Landed by `spike/rn-jest-testing` (`544ac8a`); merge that branch before starting if it has not
 already landed. When this ticket was written, none of this existed and its acceptance criteria
 assumed `tsc` plus a manual device check were the only tools available.
+
+## ⚠ Handoff from ticket 06 — the hook's parameter names
+
+§J1 writes the hook's signature as `{ listRef, view, sectionRangesRef, activeGridSections,
+setActiveGridSections }`. Ticket 06 named that parameter **`expanded`**, not `activeGridSections`,
+and you should keep it — then add the setter as **`setExpanded`**, not `setActiveGridSections`.
+
+The reason is §H1's own pattern, one level along: the screen maps its state to the ladder's
+vocabulary **at the mount site** (`ladderViewFor` does exactly this for the view), so the ladder
+never learns a name that belongs to one view's UI. `activeGridSections` is the books view's word
+for it; `expanded` is what the decision's snapshot field is called, and the hook exists to fill that
+snapshot. Passing `expanded` beside `setActiveGridSections` would be the worst of both.
+
+Raised as a spec-amendment candidate (§J1's parameter names) — see ticket 06's Answer. Recorded
+here because this file is the one its implementer is guaranteed to read.
 
 **Status:** ready-for-agent
 

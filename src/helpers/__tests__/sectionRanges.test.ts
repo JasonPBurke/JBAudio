@@ -1,17 +1,7 @@
 import { decideBackPress } from '../ladderDecisions';
 import { computeSectionRanges } from '../sectionRanges';
+import { book, header, row } from './support/sectionedItems';
 
-/**
- * Items shaped like `BooksHome`'s `flatData`: a section is a HEADER followed by
- * either one horizontal row or N book cells, and sections are contiguous.
- */
-const header = (sectionId: string) => ({ type: 'sectionHeader', sectionId });
-const row = (sectionId: string) => ({ type: 'horizontalRow', sectionId });
-const book = (sectionId: string, bookId: string) => ({
-  type: 'book',
-  sectionId,
-  bookId,
-});
 
 describe('computeSectionRanges — `end` is INCLUSIVE', () => {
   it('ends a section on its LAST ITEM, never on the next section`s header', () => {

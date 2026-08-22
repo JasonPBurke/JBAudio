@@ -24,12 +24,21 @@ import {
 import { fontSize, screenPadding } from '@/constants/tokens';
 import { utilsStyles } from '@/styles';
 import { useResetScrollOnTabChange } from '@/hooks/useResetScrollOnTabChange';
-import { useSectionRanges } from '@/hooks/useSectionRanges';
-import type { SectionRange } from '@/helpers/ladderDecisions';
+import { usePublishSectionRanges } from '@/hooks/usePublishSectionRanges';
 import type { LadderListProps } from '@/types/ladderList';
 
+/**
+ * ⚠ `onSectionRangesChange` is narrowed to REQUIRED here rather than re-stated.
+ * It is the ONE optional member of `LadderListProps` (§H8) -- optional because
+ * only a SECTIONED view has ranges to publish; this IS the sectioned view, so a
+ * caller that forgets it must not compile. Writing the signature out a second
+ * time to achieve that would be the very drift §H8 forbids: two copies of one
+ * contract member, free to diverge. `Required<Pick<...>>` narrows the imported
+ * one instead, so the signature still lives in exactly one file.
+ */
 export type BookListProps = Partial<FlashListProps<Book>> &
-  LadderListProps & {
+  Omit<LadderListProps, 'onSectionRangesChange'> &
+  Required<Pick<LadderListProps, 'onSectionRangesChange'>> & {
     authors?: Author[];
     books?: Book[];
     recencyMode?: LibraryRecencyMode;
@@ -37,16 +46,6 @@ export type BookListProps = Partial<FlashListProps<Book>> &
     activeGridSections: Set<string>;
     onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
     ListHeaderComponent?: React.ReactElement;
-    /**
-     * ⚠ REQUIRED here, narrowing the ONE optional member of `LadderListProps`
-     * (§H8). Optional in the shared contract because only a SECTIONED view has
-     * ranges to publish; this IS the sectioned view, so a caller that forgets
-     * it must not compile. Without this the omission is silent -- the ladder
-     * simply keeps falling through to master top and `booksHome` quietly stays
-     * a two-rung ladder, which is the state ticket 05 shipped and no test on
-     * the screen can see.
-     */
-    onSectionRangesChange: (ranges: SectionRange[]) => void;
   };
 
 const RECENTS_TITLE: Record<'played' | 'finished' | 'added', string> = {
@@ -194,14 +193,11 @@ const BooksHome = ({
     return items;
   }, [activeGridSections, recentBooks, recencyMode, sortedAuthors]);
 
-  // The ladder's third rung needs to know which index span each section
-  // occupies, and `flatData` is the only place that is knowable -- FlashList's
-  // ref can answer everything else the ladder asks, but not this. Published
-  // from a layout effect, which §H5 makes a contract requirement: a passive
-  // effect would leave a window in which new rows are on screen while the
-  // ranges still describe the previous array, and the rung would land on a
-  // section the user was never in.
-  useSectionRanges(flatData, onSectionRangesChange);
+  // The ladder's third rung needs each section's index span, and `flatData` is
+  // the only place that is knowable -- FlashList's ref answers everything else
+  // the ladder asks, but not this. The hook publishes BEFORE PAINT and its
+  // docblock carries §H5's reasoning; do not restate it here.
+  usePublishSectionRanges(flatData, onSectionRangesChange);
 
   // Toggle the pressed section in/out of the expanded set. Any number of sections
   // may be open at once, and expanding one NEVER collapses another. That is the

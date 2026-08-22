@@ -79,6 +79,19 @@ a preset problem and it will not be fixed by more setup: it is the same fact the
 §B7 is built on. **You cannot test list-interaction logic against a real FlashList here.** Hand the
 unit a fake ref instead — which is exactly what `src/helpers/ladderDecisions.ts` is shaped for.
 
+**7. A component that imports `@shopify/flash-list` cannot be rendered here at all.** The
+`jest-expo` preset's `transformIgnorePatterns` allowlist covers `react-native*`, `expo*`,
+`@react-navigation*`, `@sentry/react-native` and `native-base` — and nothing else. FlashList ships
+untranspiled, so the suite dies with *"Jest encountered an unexpected token"* pointing at the
+`import` line rather than at the config that caused it.
+
+Adding `@shopify` to the allowlist works, and then the SAME error reappears from the next
+untranspiled package the component pulls in (`pressto`, by way of `BookGridItem`), and so on. Every
+library list in this app is therefore behind a **cascade**, not behind one config entry. Measured
+while trying to add a single assertion to `BooksHome`; the attempt was backed out rather than widen
+the shared lane's transform for one test. Know that cost before promising a component test that
+renders a list — and prefer a hook-level seam, which is what the back ladder does throughout.
+
 ## `jest.rn-setup.js`
 
 Kept deliberately small, and it should stay that way. Every mock in it is a native module with no JS

@@ -83,6 +83,15 @@ export type UseBackToTopLadderParams = {
 function buildSnapshot(
   list: LadderList,
   inputs: LadderInputs,
+  /*
+   * ⚠ A THIRD ARGUMENT rather than a field of `LadderInputs`, deliberately, and
+   * a review has already proposed folding it in as an obvious tidy-up. It must
+   * not be: `LadderInputs` is the RENDER-TIME mirror, and the ranges are the one
+   * input that must NOT be captured at render time -- they are published without
+   * re-rendering the screen, so a mirrored copy would be stale for exactly as
+   * long as it mattered. The separate parameter is what makes that visible at
+   * every call site, and a test fails if the mirror is used instead.
+   */
   ranges: SectionRange[],
 ): LadderSnapshot {
   return {
