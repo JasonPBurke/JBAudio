@@ -152,6 +152,42 @@ Branch: **`feat/library-back-ladder`**, off `main` at `104bd34`.
   output). Use `npx jest --watchman=false`. It is NOT the flake above — that one produced a real
   `1 failed, 922 passed`.
 
+- **07 — the collapse sweep, and the MVCP anchor fix** · `resolved` (`0e02400` + review commit) —
+  the reset gesture is LIVE. Arriving at the top of `booksHome` collapses every expanded section
+  that is not on screen; whatever fills the viewport is left exactly as it is. The hook returns the
+  two settle handlers, the screen threads them into **all three** lists (a per-view `undefined`
+  would be a second, weaker copy of the identity gate), and `decideSweep` is wired, not re-derived.
+  jest 923 → **935**. **12 mutations run, all killed.**
+  **Three decisions the spec does not state**, all in the ticket's Answer: no `try/catch` on the
+  sweep — unlike the back press, the TRIGGER ITSELF proves the list has a layout manager; the
+  anchor fix is armed only when a mutation is actually coming; and `velocityY` is passed through
+  with **no `?? 0`**, which would reverse §F5's amendment from the one place `decideSweep` cannot
+  see it.
+  ⚠ **THE ANCHOR FIX LEAKS IF ARMED UNCONDITIONALLY, and the spec's §G2 quietly assumes it cannot.**
+  `prepareForLayoutAnimationRender()` sets a flag cleared in `onCommitEffect` — by a **COMMIT**, not
+  by time. On every no-drop sweep (an accepted bounce, or the ordinary arrival with only Recents
+  open — the common case) the set comes back same-reference, React bails out, no commit happens, and
+  the flag stays armed to swallow the MVCP correction of some later, unrelated commit. It is now
+  guarded by `decision.open !== inputs.expanded`, safe because nothing dropped means the data is
+  unchanged and `diff` is 0. **Both review axes found this independently.**
+  ⚠ **Correction to this effort's own notes: in FlashList 2.3.2 that flag guards ONLY the offset
+  correction — it does NOT disable recycling.** The prototype's stated cost was wrong; the fix was
+  not.
+  Reviewed (two axes, opus, vs `5fa5b7a`): **Spec axis 0 missing, 0 partial, 0 scope creep**, one
+  wrong implementation (the leak). Standards axis: 0 violations of the seven testing traps, 1
+  comment-accuracy violation (the same finding from the other side), 3 judgement calls — 2 adopted,
+  1 declined.
+  ⚠ **The declined one will be re-proposed: `setExpanded` IS mirrored into `LadderInputs` like every
+  other input.** A `useState` setter is referentially stable, so the mirror looks like it buys
+  nothing — but §J2's mirror is one effect with no dependency array so that a later input cannot be
+  forgotten, and an inline-wrapper setter at some future call site would otherwise re-register the
+  handler and break §A6's LIFO ordering.
+  Also fixed two stale comments this feature owns: `ladderList.ts` said ticket 05 *"will"* consume
+  its types, and `ladderDecisions.ts` said *"jest in this repo is jsdom"* — wrong twice over, it was
+  **node**, and the `rn` lane exists now.
+  ⚠ Two boxes stay unticked, both device-only (animator scale 0, and the overscroll bounce) —
+  ticket 08.
+
 ## Spec amendments — SETTLED 2026-08-21, before ticket 04
 
 The five spec-amendment candidates raised by tickets 02 and 03 were reviewed together and **all

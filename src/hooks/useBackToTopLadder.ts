@@ -296,10 +296,24 @@ export function useBackToTopLadder({
        * at-top true but makes the NEXT sweep run at a negative offset with an
        * empty visible set, which is §F8's collapse-everything.
        *
-       * This suppresses the correction for THIS COMMIT ONLY -- FlashList clears
-       * the flag itself in `onCommitEffect`. No timer, no constant, no state.
+       * ⚠ ARMED ONLY WHEN A MUTATION IS ACTUALLY COMING, and that condition is
+       * not tidiness -- it is what stops the fix leaking. The flag FlashList
+       * sets here is cleared in `onCommitEffect`, i.e. by a COMMIT rather than
+       * by time. When nothing drops, `decideSweep` returns the SAME set
+       * reference, React bails out, no commit follows, and an unconditional
+       * call would leave the flag armed until some LATER, unrelated commit --
+       * swallowing that commit's correction instead of this one's. The
+       * no-drop arrival is the common case, not a corner: a bounce at the top
+       * with only Recents open reaches here every time.
+       *
+       * Skipping it there is safe for a checkable reason: nothing dropped
+       * means the data is unchanged, so MVCP's `diff` is 0 and there is no
+       * correction to suppress even if React does render. No timer, no
+       * constant, no state.
        */
-      list.prepareForLayoutAnimationRender();
+      if (decision.open !== inputs.expanded) {
+        list.prepareForLayoutAnimationRender();
+      }
 
       /*
        * ⚠ Handed over as-is. `decideSweep` returns the SAME reference it was
@@ -320,10 +334,11 @@ export function useBackToTopLadder({
    * dispatches momentum-end on CANCEL too, at a non-top offset, where the
    * at-top gate makes it a no-op.
    *
-   * ⚠ The trigger passed here is what selects the velocity gate. `'drag'` in
-   * this call silently disables the sweep on any list reporting residual
-   * velocity, and a momentum end reports none at all -- so under §F5's
-   * amendment the absent value counts as FLINGING and the sweep would never run.
+   * ⚠ The trigger passed here is what selects the velocity gate, and `'drag'`
+   * in this call would silently disable the sweep on every momentum arrival --
+   * a momentum end reports no velocity, and `decideSweep` classifies an absent
+   * one as flinging. The ruling lives there; this is only the call site that
+   * must not misreport which event it is.
    */
   const onMomentumScrollEnd = useCallback(() => {
     sweep('momentum');

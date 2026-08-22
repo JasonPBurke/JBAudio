@@ -5,11 +5,17 @@ import { computeRemainingOpen } from './collapseOffscreenSections';
  * plain numbers and sets.
  *
  * The ladder's IO lives in the screen-installed hook, which is gather -> decide
- * -> execute. Everything that constitutes a *decision* lives here instead,
- * because jest in this repo is jsdom with no React Native preset: anything that
- * imports React Native, a native module or a screen cannot be tested at all.
- * Extracting the judgement is what lets every rung-selection rule be verified
- * off-device on every commit.
+ * -> execute. Everything that constitutes a *decision* lives here instead, so
+ * that a WRONG LANDING and a WRONG COLLAPSE -- different failures with
+ * different owners -- are each verifiable off-device, in plain numbers and
+ * sets, on every commit (§J4).
+ *
+ * ⚠ The extraction's original second reason has EXPIRED and the reason above
+ * has not: when this module was written, jest here ran on node with no React
+ * Native preset, so a hook or a component could not be tested at all. The `rn`
+ * lane removed that constraint (`docs/testing/jest-projects-and-rn-tests.md`)
+ * and the hook now has a suite of its own. Two layers, not a replacement --
+ * these units test the judgement, that suite tests the wiring.
  */
 
 /**

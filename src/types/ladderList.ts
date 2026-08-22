@@ -14,10 +14,11 @@ import type { CustomTabs } from '@/types/CustomTabs';
  * which nothing currently mounts. That is what stops the contract quietly
  * drifting away from the one list no manual test can reach.
  *
- * The ladder hook itself (§J1) arrives with ticket 05 and will consume these
- * types; they live in their own module rather than inside that hook so the
- * hook can be added without moving anything, and so `ladderDecisions.ts` --
- * the pure, jest-testable decision unit -- stays free of React Native imports.
+ * The ladder hook itself (§J1) consumes these types. They live in their own
+ * module rather than inside that hook because the four lists need the contract
+ * before the hook is reached, and because siting it in the hook would drag
+ * React Native imports into `ladderDecisions.ts`'s reach -- and that module is
+ * the pure, jest-testable decision unit (§H8, amended for exactly this).
  */
 
 /**

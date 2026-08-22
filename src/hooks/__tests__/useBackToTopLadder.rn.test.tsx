@@ -65,16 +65,14 @@ type ListFake = Pick<
 >;
 
 /**
- * A drag-end event carrying the vertical velocity the platform reported.
- *
- * ⚠ Typed as the real handler's parameter rather than as a loose literal, for
- * the same reason `ListFake` is a `Pick`: `velocity` is OPTIONAL on
- * `NativeScrollEvent`, and a loose fake would hide the fact that the hook has
- * to cope with its absence.
+ * A drag-end event carrying the vertical velocity the platform reported -- or
+ * NO velocity at all, which is a state the real event admits (`velocity` is
+ * optional on `NativeScrollEvent`) and which §F5's amendment rules on.
  */
-const dragEndAt = (velocityY: number) =>
+const dragEndAt = (velocityY?: number) =>
   ({
-    nativeEvent: { velocity: { x: 0, y: velocityY } },
+    nativeEvent:
+      velocityY === undefined ? {} : { velocity: { x: 0, y: velocityY } },
   }) as NativeSyntheticEvent<NativeScrollEvent>;
 
 function fakeList(offset: number, overrides: Partial<ListFake> = {}): ListFake {
@@ -584,9 +582,7 @@ describe('useBackToTopLadder — the collapse sweep', () => {
       expanded: new Set(['recentlyAdded', 'author-A']),
     });
     await act(async () => {
-      result.current.onScrollEndDrag({
-        nativeEvent: {},
-      } as NativeSyntheticEvent<NativeScrollEvent>);
+      result.current.onScrollEndDrag(dragEndAt());
     });
 
     expect(setExpanded).not.toHaveBeenCalled();
@@ -614,6 +610,34 @@ describe('useBackToTopLadder — the collapse sweep', () => {
     });
 
     expect(setExpanded.mock.calls[0][0]).toBe(expanded);
+  });
+
+  it('does not arm the anchor suppression when nothing drops', async () => {
+    // The other half of the fix, and the half that leaks if it is missed:
+    // FlashList clears that flag in `onCommitEffect`, so it is cleared by a
+    // COMMIT and not by time. A same-reference set is React's bail-out, so no
+    // commit follows and an unconditional call would leave the flag armed for
+    // some later, unrelated commit -- suppressing THAT commit's MVCP
+    // correction, which is §G3's drift arriving from a sweep that did nothing.
+    //
+    // Safe to skip for a checkable reason: nothing dropped means the data is
+    // unchanged, so MVCP's `diff` is 0 and there is no correction to suppress.
+    const list = atTop();
+
+    const { result, setExpanded } = await mountLadder({
+      view: 'booksHome',
+      list,
+      ranges: ALL_RANGES,
+      expanded: new Set(['recentlyAdded']),
+    });
+    await act(async () => {
+      result.current.onMomentumScrollEnd();
+    });
+
+    expect(list.prepareForLayoutAnimationRender).not.toHaveBeenCalled();
+    // ⚠ Load-bearing pairing: the sweep still RAN and still handed the set
+    // over. Without this line the test also passes if the sweep declined.
+    expect(setExpanded).toHaveBeenCalledTimes(1);
   });
 
   it('suppresses the MVCP anchor correction BEFORE it mutates the data', async () => {
@@ -665,8 +689,9 @@ describe('useBackToTopLadder — the collapse sweep', () => {
 
     expect(setExpanded).not.toHaveBeenCalled();
     // §I2 rests on the sweep never running at another offset, so the anchor
-    // suppression must not fire here either -- it would disable recycling for
-    // an unrelated commit.
+    // suppression must not fire here either. The flag it sets is cleared by a
+    // COMMIT, so arming it without one leaves it to swallow the MVCP
+    // correction of whatever commits next.
     expect(list.prepareForLayoutAnimationRender).not.toHaveBeenCalled();
   });
 
