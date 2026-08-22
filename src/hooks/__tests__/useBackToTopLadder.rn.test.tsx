@@ -1,6 +1,7 @@
 import { useEffect as mockUseEffect, type RefObject } from 'react';
 import { act, renderHook } from '@testing-library/react-native';
 import { BackHandler } from 'react-native';
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import * as Sentry from '@sentry/react-native';
 
 import { useBackToTopLadder } from '@/hooks/useBackToTopLadder';
@@ -60,7 +61,21 @@ type ListFake = Pick<
   | 'computeVisibleIndices'
   | 'getLayout'
   | 'scrollToOffset'
+  | 'prepareForLayoutAnimationRender'
 >;
+
+/**
+ * A drag-end event carrying the vertical velocity the platform reported.
+ *
+ * ⚠ Typed as the real handler's parameter rather than as a loose literal, for
+ * the same reason `ListFake` is a `Pick`: `velocity` is OPTIONAL on
+ * `NativeScrollEvent`, and a loose fake would hide the fact that the hook has
+ * to cope with its absence.
+ */
+const dragEndAt = (velocityY: number) =>
+  ({
+    nativeEvent: { velocity: { x: 0, y: velocityY } },
+  }) as NativeSyntheticEvent<NativeScrollEvent>;
 
 function fakeList(offset: number, overrides: Partial<ListFake> = {}): ListFake {
   return {
@@ -69,6 +84,7 @@ function fakeList(offset: number, overrides: Partial<ListFake> = {}): ListFake {
     computeVisibleIndices: jest.fn(() => ({ startIndex: 0, endIndex: 5 })),
     getLayout: jest.fn(() => ({ x: 0, y: 0, width: 100, height: 100 })),
     scrollToOffset: jest.fn(),
+    prepareForLayoutAnimationRender: jest.fn(),
     ...overrides,
   };
 }
@@ -89,11 +105,13 @@ async function mountLadder({
   list,
   ranges = [],
   expanded = new Set<string>(),
+  setExpanded = jest.fn(),
 }: {
   view?: LadderView;
   list: ListFake | null;
   ranges?: SectionRange[];
   expanded?: Set<string>;
+  setExpanded?: jest.Mock;
 }) {
   const registered = jest.spyOn(BackHandler, 'addEventListener');
   const listRef: { current: ListFake | null } = { current: list };
@@ -108,6 +126,7 @@ async function mountLadder({
         view: props.view,
         sectionRangesRef,
         expanded: props.expanded,
+        setExpanded,
       }),
     { initialProps: { view, expanded } },
   );
@@ -123,7 +142,14 @@ async function mountLadder({
     return consumed;
   };
 
-  return { ...rendered, registered, press, listRef, sectionRangesRef };
+  return {
+    ...rendered,
+    registered,
+    press,
+    listRef,
+    sectionRangesRef,
+    setExpanded,
+  };
 }
 
 beforeEach(() => {
@@ -286,6 +312,7 @@ describe('useBackToTopLadder — registration', () => {
         view: 'seriesHome',
         sectionRangesRef: { current: [] },
         expanded: new Set<string>(),
+        setExpanded: jest.fn(),
       }),
     );
     await unmount();
@@ -439,5 +466,274 @@ describe('useBackToTopLadder — the section rung', () => {
       offset: 0,
       animated: true,
     });
+  });
+});
+
+/**
+ * The collapse sweep's WIRING -- ticket 07. `decideSweep` has 18 tests and
+ * proves every gate over a snapshot it is handed; what only an exercised hook
+ * can prove is that the right TRIGGER, the real VELOCITY and the SAME set
+ * reference reach it, and that the anchor fix runs before the state update.
+ * Each of those is invisible to the pure suite by construction.
+ */
+describe('useBackToTopLadder — the collapse sweep', () => {
+  /** A `booksHome` resting at the top: Recents on screen, two authors below. */
+  const RECENTS: SectionRange = { sectionId: 'recentlyAdded', start: 0, end: 25 };
+  const AUTHOR_A: SectionRange = { sectionId: 'author-A', start: 26, end: 40 };
+  const AUTHOR_B: SectionRange = { sectionId: 'author-B', start: 41, end: 60 };
+  const ALL_RANGES = [RECENTS, AUTHOR_A, AUTHOR_B];
+
+  /** Offset 0 against `firstItemOffset` 38, so the at-top gate passes. */
+  const atTop = (overrides: Partial<ListFake> = {}) =>
+    fakeList(0, {
+      computeVisibleIndices: jest.fn(() => ({ startIndex: 0, endIndex: 5 })),
+      ...overrides,
+    });
+
+  it('collapses the off-screen sections on arrival, and leaves the on-screen one open', async () => {
+    const list = atTop();
+
+    const { result, setExpanded } = await mountLadder({
+      view: 'booksHome',
+      list,
+      ranges: ALL_RANGES,
+      expanded: new Set(['recentlyAdded', 'author-A', 'author-B']),
+    });
+    await act(async () => {
+      result.current.onMomentumScrollEnd();
+    });
+
+    expect(setExpanded).toHaveBeenCalledTimes(1);
+    expect(setExpanded.mock.calls[0][0]).toEqual(new Set(['recentlyAdded']));
+  });
+
+  it('reaches the decision as a MOMENTUM trigger, not as a drag', async () => {
+    // The whole assertion is that this sweeps AT ALL. A momentum end reports no
+    // velocity, and §F5's amendment counts an unreported velocity as FLINGING
+    // -- so a handler that passed `'drag'` here would gate every momentum
+    // arrival away and the feature would be silently dead. Same-shaped inputs
+    // as the test above; the trigger is the only thing under test.
+    const list = atTop();
+
+    const { result, setExpanded } = await mountLadder({
+      view: 'booksHome',
+      list,
+      ranges: ALL_RANGES,
+      expanded: new Set(['recentlyAdded', 'author-A']),
+    });
+    await act(async () => {
+      result.current.onMomentumScrollEnd();
+    });
+
+    expect(setExpanded).toHaveBeenCalledTimes(1);
+  });
+
+  it('sweeps on a drag that ENDS at rest, passing the event`s real velocity', async () => {
+    // A settled finger-lift at the top is a legitimate arrival (§F3). This is
+    // the test that bites if the handler drops `velocityY` on the floor: the
+    // absent value defaults to flinging, so the sweep would never run.
+    const list = atTop();
+
+    const { result, setExpanded } = await mountLadder({
+      view: 'booksHome',
+      list,
+      ranges: ALL_RANGES,
+      expanded: new Set(['recentlyAdded', 'author-A']),
+    });
+    await act(async () => {
+      result.current.onScrollEndDrag(dragEndAt(0));
+    });
+
+    expect(setExpanded).toHaveBeenCalledTimes(1);
+    expect(setExpanded.mock.calls[0][0]).toEqual(new Set(['recentlyAdded']));
+  });
+
+  it('does NOT sweep on a fling that leaves the top', async () => {
+    // §F4, device-measured: a fling DOWN into the list is still at-top at
+    // finger-lift, so the at-top gate does not exclude it -- only the velocity
+    // gate does, and only if the real value reaches it. A handler that passed a
+    // constant `0` would collapse the reader's sections as they fling away.
+    const list = atTop();
+
+    const { result, setExpanded } = await mountLadder({
+      view: 'booksHome',
+      list,
+      ranges: ALL_RANGES,
+      expanded: new Set(['recentlyAdded', 'author-A']),
+    });
+    await act(async () => {
+      result.current.onScrollEndDrag(dragEndAt(-4.76));
+    });
+
+    expect(setExpanded).not.toHaveBeenCalled();
+  });
+
+  it('does NOT sweep on a drag end that reports no velocity at all', async () => {
+    // §F5, amended: an UNREPORTED velocity counts as flinging, not as settled,
+    // because the two errors are not symmetric -- a missed sweep is invisible
+    // and the next arrival performs it anyway, while a wrong sweep destroys the
+    // reader's expansions. The decision owns that ruling; this pins the wiring
+    // half of it, since a `?? 0` on the way in would reverse it from the one
+    // place the decision cannot see.
+    const list = atTop();
+
+    const { result, setExpanded } = await mountLadder({
+      view: 'booksHome',
+      list,
+      ranges: ALL_RANGES,
+      expanded: new Set(['recentlyAdded', 'author-A']),
+    });
+    await act(async () => {
+      result.current.onScrollEndDrag({
+        nativeEvent: {},
+      } as NativeSyntheticEvent<NativeScrollEvent>);
+    });
+
+    expect(setExpanded).not.toHaveBeenCalled();
+  });
+
+  it('hands the setter the SAME set reference when nothing drops', async () => {
+    // §F5 -- the accepted bounce-sweep is free only because of this. React
+    // bails out of the re-render when the next state is the same reference, so
+    // a spread or a `new Set(...)` anywhere in the wiring turns every bounce at
+    // the top into a full re-render of a 355-book list.
+    //
+    // ⚠ Asserted as reference identity, NOT as a render count: the React
+    // Compiler runs in these tests and makes render counts unreliable.
+    const list = atTop();
+    const expanded = new Set(['recentlyAdded']);
+
+    const { result, setExpanded } = await mountLadder({
+      view: 'booksHome',
+      list,
+      ranges: ALL_RANGES,
+      expanded,
+    });
+    await act(async () => {
+      result.current.onMomentumScrollEnd();
+    });
+
+    expect(setExpanded.mock.calls[0][0]).toBe(expanded);
+  });
+
+  it('suppresses the MVCP anchor correction BEFORE it mutates the data', async () => {
+    // §G1/§G2. The order is the whole fix: `prepareForLayoutAnimationRender()`
+    // sets a flag FlashList checks at the `scrollBy` guard and clears on the
+    // next commit, so calling it after the state update protects the wrong
+    // commit -- and the list drifts back off the top.
+    const order: string[] = [];
+    const list = atTop({
+      prepareForLayoutAnimationRender: jest.fn(() => {
+        order.push('prepare');
+      }),
+    });
+    const setExpanded = jest.fn(() => {
+      order.push('setExpanded');
+    });
+
+    const { result } = await mountLadder({
+      view: 'booksHome',
+      list,
+      ranges: ALL_RANGES,
+      expanded: new Set(['recentlyAdded', 'author-A']),
+      setExpanded,
+    });
+    await act(async () => {
+      result.current.onMomentumScrollEnd();
+    });
+
+    expect(order).toEqual(['prepare', 'setExpanded']);
+  });
+
+  it('does nothing when a momentum end arrives away from the top', async () => {
+    // §E3 -- touching the screen mid-jump cancels the fling, and the animator
+    // dispatches momentum-end on cancel too. At a non-top offset the at-top
+    // gate makes it a no-op, which is what makes interruption need no design.
+    const list = fakeList(4000, {
+      computeVisibleIndices: jest.fn(() => ({ startIndex: 30, endIndex: 36 })),
+    });
+
+    const { result, setExpanded } = await mountLadder({
+      view: 'booksHome',
+      list,
+      ranges: ALL_RANGES,
+      expanded: new Set(['recentlyAdded', 'author-A']),
+    });
+    await act(async () => {
+      result.current.onMomentumScrollEnd();
+    });
+
+    expect(setExpanded).not.toHaveBeenCalled();
+    // §I2 rests on the sweep never running at another offset, so the anchor
+    // suppression must not fire here either -- it would disable recycling for
+    // an unrelated commit.
+    expect(list.prepareForLayoutAnimationRender).not.toHaveBeenCalled();
+  });
+
+  it('never collapses anything on a non-sectioned view (§F9/§R5)', async () => {
+    // The ranges ref is never emptied and the expanded set persists across view
+    // toggles, so on the Series view these indices describe the WRONG list.
+    // Without the identity gate, arriving at the top of Series would wipe the
+    // reader's BooksHome expansions.
+    const list = atTop();
+
+    const { result, setExpanded } = await mountLadder({
+      view: 'seriesHome',
+      list,
+      ranges: ALL_RANGES,
+      expanded: new Set(['recentlyAdded', 'author-A']),
+    });
+    await act(async () => {
+      result.current.onMomentumScrollEnd();
+    });
+
+    expect(setExpanded).not.toHaveBeenCalled();
+  });
+
+  it('is idempotent — a second momentum end for the same arrival collapses nothing', async () => {
+    // §E4/§I5. When back interrupts an in-flight fling, momentum-end fires
+    // TWICE (the cancelled fling's animator and the programmatic scroll's), so
+    // the sweep runs twice and must be harmless the second time -- which is
+    // exactly the same-reference return again.
+    const list = atTop();
+
+    const { result, setExpanded, rerender } = await mountLadder({
+      view: 'booksHome',
+      list,
+      ranges: ALL_RANGES,
+      expanded: new Set(['recentlyAdded', 'author-A', 'author-B']),
+    });
+    await act(async () => {
+      result.current.onMomentumScrollEnd();
+    });
+    const afterFirst = setExpanded.mock.calls[0][0] as Set<string>;
+    // The screen re-renders with the swept set; the hook's mirror follows it.
+    await rerender({ view: 'booksHome', expanded: afterFirst });
+    await act(async () => {
+      result.current.onMomentumScrollEnd();
+    });
+
+    expect(setExpanded).toHaveBeenCalledTimes(2);
+    expect(setExpanded.mock.calls[1][0]).toBe(afterFirst);
+  });
+
+  it('does not sweep on mount, or on a re-render', async () => {
+    // §F3 -- arriving at the top IS the collapse gesture. Mount is not that
+    // gesture, and neither is a tab change: the tab-change reset scrolls
+    // `animated: false`, which emits no momentum event at all (§I3).
+    const list = atTop();
+
+    const { setExpanded, rerender } = await mountLadder({
+      view: 'booksHome',
+      list,
+      ranges: ALL_RANGES,
+      expanded: new Set(['recentlyAdded', 'author-A']),
+    });
+    await rerender({
+      view: 'booksHome',
+      expanded: new Set(['recentlyAdded', 'author-A']),
+    });
+
+    expect(setExpanded).not.toHaveBeenCalled();
   });
 });

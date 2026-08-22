@@ -41,14 +41,6 @@ const storeHasStartedBook = () =>
 const storeHasBooks = () =>
   Object.keys(useLibraryStore.getState().books).length > 0;
 
-/*
- * The two settle handlers the list contract requires, inert until the collapse
- * sweep lands and replaces them with the ladder hook's. Module scope, per this
- * file's own rule above: a zero-dependency no-op has nothing to close over, so
- * there is no reason to rebuild it on the hook path.
- */
-const NO_OP = () => {};
-
 /**
  * The ranges the ladder reads before the sectioned view has published any --
  * the Series and grid views, and `booksHome`'s first commit. Module scope so
@@ -153,12 +145,20 @@ const LibraryScreen = ({ navigation }: any) => {
    * exit". That convention exists for apps where the first press does nothing
    * visible; here the first press is visibly a scroll, and that IS the
    * feedback.
+   *
+   * It also returns the two settle handlers every list receives (§J1). They
+   * carry the collapse sweep: arriving at the top of the sectioned view
+   * collapses every expanded section that is not on screen. The handlers go to
+   * ALL THREE lists rather than only the sectioned one -- the view-identity
+   * gate inside the decision is what makes them inert elsewhere (§F9/§H2), and
+   * a per-view `undefined` here would be a second, weaker copy of that gate.
    */
-  useBackToTopLadder({
+  const { onMomentumScrollEnd, onScrollEndDrag } = useBackToTopLadder({
     listRef,
     view: ladderViewFor(toggleView),
     sectionRangesRef,
     expanded: activeGridSections,
+    setExpanded: setActiveGridSections,
   });
 
   useScanExternalFileSystem();
@@ -373,8 +373,8 @@ const LibraryScreen = ({ navigation }: any) => {
               ListHeaderComponent={ListSpacer}
               listRef={listRef}
               selectedTab={selectedTab}
-              onMomentumScrollEnd={NO_OP}
-              onScrollEndDrag={NO_OP}
+              onMomentumScrollEnd={onMomentumScrollEnd}
+              onScrollEndDrag={onScrollEndDrag}
               onSectionRangesChange={handleSectionRangesChange}
             />
           )}
@@ -386,8 +386,8 @@ const LibraryScreen = ({ navigation }: any) => {
               emptyMessage={seriesEmptyText}
               listRef={listRef}
               selectedTab={selectedTab}
-              onMomentumScrollEnd={NO_OP}
-              onScrollEndDrag={NO_OP}
+              onMomentumScrollEnd={onMomentumScrollEnd}
+              onScrollEndDrag={onScrollEndDrag}
             />
           )}
           {toggleView === 2 && (
@@ -400,8 +400,8 @@ const LibraryScreen = ({ navigation }: any) => {
               ListHeaderComponent={ListSpacer}
               listRef={listRef}
               selectedTab={selectedTab}
-              onMomentumScrollEnd={NO_OP}
-              onScrollEndDrag={NO_OP}
+              onMomentumScrollEnd={onMomentumScrollEnd}
+              onScrollEndDrag={onScrollEndDrag}
             />
           )}
 

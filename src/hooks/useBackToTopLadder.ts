@@ -2,15 +2,19 @@ import {
   useCallback,
   useLayoutEffect,
   useRef,
+  type Dispatch,
   type RefObject,
+  type SetStateAction,
 } from 'react';
 import { BackHandler } from 'react-native';
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { useDrawerStatus } from '@react-navigation/drawer';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Sentry from '@sentry/react-native';
 
 import {
   decideBackPress,
+  decideSweep,
   type LadderSnapshot,
   type LadderView,
   type SectionRange,
@@ -21,8 +25,14 @@ import type { LadderList } from '@/types/ladderList';
  * The back-to-top ladder, installed by the library screen (spec §J1).
  *
  * IO only -- gather, decide, execute. It reads a snapshot from the mounted
- * list's ref at press time, hands it to the already-tested `decideBackPress`,
- * and carries out whatever comes back. It adds no judgement of its own.
+ * list's ref at the moment of the event, hands it to the already-tested
+ * decision, and carries out whatever comes back. It adds no judgement of its
+ * own.
+ *
+ * Two events reach it, and they share the gather step exactly: a BACK PRESS,
+ * which it answers with a scroll or by declining, and a SETTLE -- the two
+ * handlers it returns for the screen to thread into every list -- which it
+ * answers with the collapse sweep.
  *
  * ⚠ It also holds NO STATE between presses (§C3/§I6): no counter, no timer, no
  * "which rung was last" memory. Every press re-derives its answer from the live
@@ -38,6 +48,7 @@ type LadderInputs = {
   view: LadderView;
   drawerOpen: boolean;
   expanded: Set<string>;
+  setExpanded: Dispatch<SetStateAction<Set<string>>>;
 };
 
 export type UseBackToTopLadderParams = {
@@ -68,6 +79,12 @@ export type UseBackToTopLadderParams = {
    * fall behind it.
    */
   expanded: Set<string>;
+  /**
+   * The expanded-section setter, called by the collapse sweep and by nothing
+   * else. The sweep hands it `decideSweep`'s `open` set DIRECTLY -- see the
+   * sweep below for why it must not be copied on the way through.
+   */
+  setExpanded: Dispatch<SetStateAction<Set<string>>>;
 };
 
 /**
@@ -113,6 +130,7 @@ export function useBackToTopLadder({
   view,
   sectionRangesRef,
   expanded,
+  setExpanded,
 }: UseBackToTopLadderParams) {
   /*
    * §A7 -- defence in depth, and ONLY that. On device the drawer consumes back
@@ -143,9 +161,14 @@ export function useBackToTopLadder({
    * the handler still reads the old one -- and a back press can land in that
    * window. It costs nothing to close.
    */
-  const inputsRef = useRef<LadderInputs>({ view, drawerOpen, expanded });
+  const inputsRef = useRef<LadderInputs>({
+    view,
+    drawerOpen,
+    expanded,
+    setExpanded,
+  });
   useLayoutEffect(() => {
-    inputsRef.current = { view, drawerOpen, expanded };
+    inputsRef.current = { view, drawerOpen, expanded, setExpanded };
   });
 
   const onBackPress = useCallback(() => {
@@ -218,6 +241,113 @@ export function useBackToTopLadder({
     }
   }, [listRef, sectionRangesRef]);
 
+  /**
+   * The collapse sweep -- §F1/§F3. Gather, decide, execute, exactly as the back
+   * press does, and the ONLY reason this is a second function rather than a
+   * second branch of one is that a wrong landing and a wrong collapse are
+   * different failures (§J4).
+   *
+   * ⚠ It runs ONLY on an event that PROVES the list has settled at the top.
+   * Never before the jump, never after issuing it. Both of those are the same
+   * bug (§F2): `computeVisibleIndices()` is a pure function of the last
+   * OBSERVED scroll offset, so sampling it right after a scroll is issued
+   * returns the PRE-JUMP viewport -- plausible data, not an error, so nothing
+   * downstream can detect it. That is also why `visible` stays a thunk built by
+   * `buildSnapshot` and is never pre-computed here.
+   *
+   * ⚠ No try/catch, and that is not an oversight -- it is the asymmetry with
+   * the back handler above. There, containment exists because a press can land
+   * at any moment and §B7's protection of the throwing accessor is reasoned
+   * rather than measured. Here the TRIGGER ITSELF is the proof: a momentum or
+   * drag end cannot fire on a list that never scrolled, and a list that
+   * scrolled has a layout manager. A `catch` would also have nothing safe to
+   * do -- declining a press restores the pre-feature behaviour, while
+   * swallowing a failed sweep just loses the gesture silently.
+   */
+  const sweep = useCallback(
+    (trigger: 'momentum' | 'drag', velocityY?: number) => {
+      const list = listRef.current;
+      if (list === null) return;
+
+      const inputs = inputsRef.current;
+      const decision = decideSweep(
+        buildSnapshot(list, inputs, sectionRangesRef.current),
+        trigger,
+        velocityY,
+      );
+      if (decision.kind !== 'collapse') return;
+
+      /*
+       * ⚠ §G1/§G2 -- THE MVCP ANCHOR FIX. This looks like a no-op and is not;
+       * it is exactly the kind of line a future cleanup deletes.
+       *
+       * The sweep fires on the NATIVE momentum end, while FlashList re-anchors
+       * MVCP on its own 100 ms scroll-idle debounce that every scroll event
+       * during the jump keeps resetting. So at this instant the anchor is still
+       * a PRE-JUMP item deep in the list. Mutate the data now and MVCP re-finds
+       * it, sees the content above it has shrunk, and issues `scrollBy(diff)`
+       * -- moving the list back OFF the top. Proven to the pixel on device: the
+       * correction's `diff` equalled the resting drift exactly in all three
+       * reproductions (-978.55, -1803.89, -617.20 px). A/B: fix off, 4 of 6
+       * jumps drifted; fix on, 0 of 20.
+       *
+       * Both signs of that drift are bad. A positive one leaves the list not
+       * at-top, so back stops backgrounding the app; a negative one keeps
+       * at-top true but makes the NEXT sweep run at a negative offset with an
+       * empty visible set, which is §F8's collapse-everything.
+       *
+       * This suppresses the correction for THIS COMMIT ONLY -- FlashList clears
+       * the flag itself in `onCommitEffect`. No timer, no constant, no state.
+       */
+      list.prepareForLayoutAnimationRender();
+
+      /*
+       * ⚠ Handed over as-is. `decideSweep` returns the SAME reference it was
+       * given whenever nothing drops, which is what makes an accepted
+       * bounce-sweep (§F5) free: React bails out of the re-render entirely.
+       * A spread, a copy or a `new Set(...)` anywhere on this line discards
+       * that bail-out silently and costs a full re-render of a 355-book list.
+       */
+      inputs.setExpanded(decision.open);
+    },
+    [listRef, sectionRangesRef],
+  );
+
+  /*
+   * §F3 -- trigger 1, and the back jump's own arrival event (§E2): an animated
+   * programmatic scroll emits this by itself, so the jump needs no arrival
+   * machinery. Interruption needs none either (§E3) -- the fling animator
+   * dispatches momentum-end on CANCEL too, at a non-top offset, where the
+   * at-top gate makes it a no-op.
+   *
+   * ⚠ The trigger passed here is what selects the velocity gate. `'drag'` in
+   * this call silently disables the sweep on any list reporting residual
+   * velocity, and a momentum end reports none at all -- so under §F5's
+   * amendment the absent value counts as FLINGING and the sweep would never run.
+   */
+  const onMomentumScrollEnd = useCallback(() => {
+    sweep('momentum');
+  }, [sweep]);
+
+  /*
+   * §F3 -- trigger 2, gated on velocity. The gate itself lives in `decideSweep`
+   * and this handler's ONE job is to hand it the number the platform actually
+   * reported.
+   *
+   * ⚠ `velocity` is optional on the event and the value is passed through
+   * UNTOUCHED -- no `?? 0` default. §F5's amendment makes an unreported
+   * velocity count as FLINGING, and defaulting it to 0 here would quietly
+   * reverse that ruling from the one place the decision cannot see. Dropping
+   * the value entirely fails the other way: every settled drag would read as a
+   * fling and the trigger would never sweep.
+   */
+  const onScrollEndDrag = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      sweep('drag', e.nativeEvent.velocity?.y);
+    },
+    [sweep],
+  );
+
   /*
    * §A1 -- `BackHandler` inside React Navigation's `useFocusEffect`. Not
    * expo-router (it exposes no facility for this) and not native.
@@ -235,4 +365,12 @@ export function useBackToTopLadder({
       return () => subscription.remove();
     }, [onBackPress]),
   );
+
+  /*
+   * §J1 -- the two settle handlers the screen threads into whichever list is
+   * mounted. They are the ladder's ONLY per-view wiring: §H9 keeps `onScroll`
+   * out of the contract, so the screen's own scroll handler stays uncomposed
+   * and the ladder never sits in the per-frame path.
+   */
+  return { onMomentumScrollEnd, onScrollEndDrag };
 }
