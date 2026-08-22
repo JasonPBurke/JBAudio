@@ -176,7 +176,10 @@ the offset arithmetic is unit-pinned, that it reads correctly under the real sea
 the **§R3 watch**: the rung landing a few rows past the header. H5's layout effect closes the most
 plausible route to it, which is why that box stays unticked rather than being claimed as fixed.
 
-**One flake observed, not chased:** a full run mid-session reported `1 failed, 922 passed` and two
+**One flake observed, not chased** — ✅ **CLOSED 2026-08-21**, ticket
+[10](10-branch-review-disposition.md) F-1: `useResetScrollOnTabChange.rn.test.tsx:82` racing
+`setTimeout(0)` against `await rerender()`. Same bug as ticket 05's sighting; a test defect, not a
+hook defect. The note below stands as written — being a *second* sighting is what made it findable: a full run mid-session reported `1 failed, 922 passed` and two
 immediate re-runs of the same mutated tree were fully green. The failing suite was not captured. It
 did not recur; noting it so a future flake is a second sighting rather than a first.
 

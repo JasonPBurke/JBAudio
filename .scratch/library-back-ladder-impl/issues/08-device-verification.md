@@ -32,6 +32,41 @@ Risks R1, R3, R4, R6; user story 25.
 
 **Status:** ready-for-human
 
+---
+
+## ⚠ Read before making the build — from ticket [10](10-branch-review-disposition.md)
+
+**1. Leftover `[DT]` instrumentation in `node_modules` will contaminate the §E5 smear measurement
+(F-11).** `node_modules/@shopify/flash-list/dist/recyclerview/hooks/useRecyclerViewController.js`
+still carries the prototype's MVCP probe at lines ~121–128 and ~175–180 — a `console.log` +
+`JSON.stringify` **on every MVCP correction attempt**. `patches/` is clean (seven patches, none for
+FlashList), so **nothing ships to testers**. But `npm run android` and EAS preview builds bundle
+from the local `node_modules`, so a build made on this machine right now carries it and a build made
+after `npm ci` does not.
+
+⚠ **Decide keep-or-remove BEFORE the deep-jump run, and record which state each measurement was
+taken in.** The probe is genuinely the right tool for the drift A/B two boxes below — that is what
+it was written for — so this is not automatically "delete it". What is not acceptable is
+discovering mid-run that two measurements came from different binaries. To restore the pristine
+file without a full `npm ci`: `npm pack @shopify/flash-list@<version>` into a temp dir and copy the
+single file back.
+
+**2. One new observation to make (F-7): does a slow drag DOWN into the list sweep?** The sweep's
+at-top gate is `offset <= firstItemOffset` — a **38 px band, not a point**. In principle a
+deliberate slow drag *down into* the list that stops inside that band and releases at ~0 velocity
+passes both the at-top gate and the velocity gate, and sweeps — collapsing every below-fold
+expansion at the moment the reader starts browsing downward.
+
+This is **not** the bounce §F5 ruled on (that drag goes the other way, off the top), and §F5's
+recorded lever — *"require the drag to have begun below the top"* — does not cover it, because this
+drag begins at the top. §I2 is not violated, so the failure is **invisible** until the reader
+scrolls down and finds their sections shut.
+
+- [ ] **Slow-drag-down probe.** From rest at the top with several below-fold sections expanded, drag
+      down ~20–30 px very slowly and release without flicking. Then scroll down and check whether
+      those sections are still open. **A ruling of "unreachable by a human hand, accepted" is a fine
+      outcome** — but make it a ruling, not an omission.
+
 - [ ] **The latch test.** Scroll, back, back, reopen, push a screen, back must pop — five rounds in
       one process, alternating gesture and 3-button. Every press reaches JS. The signature of
       failure is back going dead entirely.

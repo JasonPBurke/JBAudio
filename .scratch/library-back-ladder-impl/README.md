@@ -151,6 +151,11 @@ Branch: **`feat/library-back-ladder`**, off `main` at `104bd34`.
   ⚠ **`npm test` crashes on this machine when watchman runs at low priority** (Node fatal, no test
   output). Use `npx jest --watchman=false`. It is NOT the flake above — that one produced a real
   `1 failed, 922 passed`.
+  ✅ **The flake is CLOSED** — see ticket
+  [10](issues/10-branch-review-disposition.md) F-1. It was
+  `useResetScrollOnTabChange.rn.test.tsx`, racing `setTimeout(0)` against `await rerender()`; the
+  hook is correct and the test is not. Both this sighting and ticket 05's are the same bug, and
+  **ticket 05's guess named it** ("the `rn` suite's `requestAnimationFrame` round-trip under load").
 
 - **07 — the collapse sweep, and the MVCP anchor fix** · `resolved` (`0e02400` + review commit) —
   the reset gesture is LIVE. Arriving at the top of `booksHome` collapses every expanded section
@@ -187,6 +192,28 @@ Branch: **`feat/library-back-ladder`**, off `main` at `104bd34`.
   **node**, and the `rn` lane exists now.
   ⚠ Two boxes stay unticked, both device-only (animator scale 0, and the overscroll bounce) —
   ticket 08.
+
+- **10 — whole-branch review disposition** · `ready-for-agent` — the first review of the feature as
+  an assembled whole rather than ticket by ticket, run before entering 08. **Three independent
+  reviewers**: the two-axis pair (Standards + Spec, opus) plus the built-in `/code-review`
+  correctness pass (opus) as a separate background agent. **11 findings; nothing applied** — the
+  tree was clean at review end. Gates at review time: tsc 0, eslint 0 errors, jest **935/935**.
+  ⚠ **THE FLAKE IS CLOSED.** Tickets 05 and 06 each recorded an unattributable
+  `1 failed, N passed`; they are the same bug —
+  `useResetScrollOnTabChange.rn.test.tsx:82` races `setTimeout(0)` against `await rerender()`.
+  **0 failures in 25 default-order runs, ~10% under `--randomize`, 0/40 on the `rn` lane in
+  isolation** — the isolation split is the proof, because it removes the worker contention that
+  lets the timer win. Test defect, not a hook defect.
+  ⚠ **All three reviewers landed independently on `useBackToTopLadder.ts:325`** (the sweep's
+  absolute `setExpanded`) from three different directions. That convergence is the review's
+  strongest signal — F-6, and it changes the §J4 seam, so it is a decision, not a tidy-up.
+  ⚠ **Read F-11 before ANY device build.** Leftover `[DT]` MVCP instrumentation is still live in
+  `node_modules/@shopify/flash-list` — `patches/` is clean so nothing ships, but builds from this
+  machine carry it and builds after `npm ci` do not. That is ticket 08's §E5 measurement taken
+  against two different binaries. **Deliberately not removed** — it is the right tool for 08's
+  §G1–G4 A/B, so keep-or-remove is the driver's call.
+  ⚠ **An eighth spec-amendment candidate** (F-8) and the spec's still-`PENDING` sign-off (F-9) go
+  to the driver together; see below.
 
 ## Spec amendments — SETTLED 2026-08-21, before ticket 04
 
@@ -227,6 +254,20 @@ module. The contract is needed by the four lists *before* the hook exists, and s
 hook would drag React Native imports into `ladderDecisions.ts`'s reach. It now has a module of its
 own and the hook imports it. ⚠ **Ticket 05 must import, never re-declare** — the warning is in
 ticket 05's own file, not only here.
+
+**⚠ An EIGHTH candidate is OPEN, raised 2026-08-21 by the whole-branch review — not yet settled.**
+`spec.md:903` still says *"the jest environment here is **jsdom with no React Native preset**, and
+`@testing-library/react-native` is not installed — anything that imports React Native … **cannot be
+tested at all** today. That constraint is why §J4 exists in the shape it does"*, repeated at
+`spec.md:996`. **Both halves are false**: the lane was **node**, never jsdom, and the constraint is
+gone — `spike/rn-jest-testing` (`544ac8a`) added the `rn` lane and three suites on this branch import
+React Native and run. This is **the same defect class ticket 07 fixed in `ladderDecisions.ts`**, left
+standing in the one document §J4's rationale rests on. It also resolves the Spec axis's scope-creep
+finding: the `rn` lane is not creep, it is an **unrecorded amendment**. ⚠ §J4's extraction is NOT
+made obsolete — its stated reason stands on its own; the amendment corrects the *environment claim*,
+not the *seam*. Details and the wording nit on §D2's `headerY <= 0` are in ticket
+[10](issues/10-branch-review-disposition.md) F-8. **The driver adopts it, not the implementer** —
+and `spec.md` still carries `Approval: PENDING driver sign-off` (F-9), so put both in one pass.
 
 **Ticket 04 was never blocked by any of this.** It implements §H6–H9/I1/I3 — the shared list
 contract — and none of the six touches those. The amendments land on tickets 05 (1, 5), 06 (2, 6)

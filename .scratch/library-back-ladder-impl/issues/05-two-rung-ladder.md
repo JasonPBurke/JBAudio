@@ -220,7 +220,14 @@ disarming the ladder for free). The four unticked boxes are all of this kind:
 
 No device this session. Ticket 08 is the device pass.
 
-### ⚠ One unreproduced flake, recorded rather than buried
+### ⚠ One unreproduced flake, recorded rather than buried — ✅ NOW CLOSED
+
+> **Resolved 2026-08-21** by the whole-branch review, ticket
+> [10](10-branch-review-disposition.md) F-1. It was
+> `useResetScrollOnTabChange.rn.test.tsx:82`, racing `setTimeout(0)` against `await rerender()`
+> under worker contention — **the guess written below named it correctly.** Ticket 06's sighting is
+> the same bug. The hook is correct; the test is not. Recording the sighting is what let two
+> data points become one closed question — keep doing it.
 
 Two full-suite runs during this session reported **`Tests: 1 failed, 902 passed`** and the failing
 test's name was not captured before the next run went green. **51 consecutive full-suite runs
