@@ -104,7 +104,7 @@ scrolls down and finds their sections shut.
 - [x] **The drift recipe, fix on and fix off.** The reproducing configuration is: Recents
       collapsed, the first several sections expanded, everything after collapsed; fling deep into
       the collapsed region, then press back mid-fling. Expect drift with the fix removed and none
-      with it in. **RUN — Session 5, 6 paired runs, both arms, ONE binary. Result: NO drift in
+      with it in. **RUN — Session 5, 10 paired runs (5 on / 5 off), ONE binary. Result: NO drift in
       either arm**, i.e. the prototype's drift did NOT reproduce on shipping code. See Session 5
       before drawing any conclusion about removing §G1 — the reading is that the fix is insurance
       against an ordering shipped code no longer has, NOT that it is dead weight.
@@ -629,7 +629,7 @@ remains unmeasured because it still mounts nowhere — now an observation, not a
 #### Item 3 — the drift A/B, both arms, ONE binary: **RUN — no drift in either arm**
 
 The fix-OFF arm is reachable inside one binary by choosing the arm at runtime and alternating it, so
-consecutive runs differ *only* in the arm. Six runs, same device, same session, same library:
+consecutive runs differ *only* in the arm. Ten runs, same device, same session, same library:
 
 | run | arm | press offset | dropped | drift @600ms | rest |
 |---|---|---|---|---|---|
@@ -638,7 +638,14 @@ consecutive runs differ *only* in the arm. Six runs, same device, same session, 
 | 3 | on | 16,031.1 | 4 | **0.0** | at top |
 | 4 | **off** | 49,947.7 | 5 | **0.0** | at top |
 | 5 | on | 96,842.3 | 6 | **0.0** | at top |
-| 6 | **off** | **106,245.1** | **7** | **0.0** | at top |
+| 6 | **off** | 106,245.1 | 7 | **0.0** | at top |
+| 7 | on | 17,010.3 | 2 | **0.0** | at top |
+| 8 | **off** | 106,252.3 | 7 | **0.0** | at top |
+| 9 | on | 19,046.3 | 1 | **0.0** | at top |
+| 10 | **off** | **107,766.9** | **7** | **0.0** | at top |
+
+**Ten runs: five fix-ON, five fix-OFF, zero drift in every one.** Runs 6, 8 and 10 are the three
+strongest fix-OFF cases — all above 106k depth with 7 sections dropped and the fix withheld.
 
 Runs 5 and 6 used the driver's own recipe — the giant **Terry Pratchett** section (100+ books) plus
 several other long sections expanded, large covers on, pressing back deep inside Pratchett near the
@@ -656,16 +663,20 @@ collapsed under a different ordering, which is where its drift came from. **This
 KEEPING §G1, not removing it:** the fix is cheap insurance against an ordering that shipped code
 does not currently have, and nothing here shows the fix misbehaving.
 
-⚠ **Honest limit on the strength of this result.** The prototype's rate was **fix-off 4/6**, not
-6/6. Against a true 2/3 rate, observing 0 drifts in 3 fix-off runs has probability
-(1/3)³ ≈ **3.7%** — suggestive, not conclusive. **Two or three more fix-OFF runs at Pratchett depth
-would firm this up**, and are cheap now that the rig and the scripted harness exist. Also note the
-outcome measure is a single read 600 ms after the sweep: a drift that appeared and self-corrected
-inside 600 ms would be missed, though the two settle lines at `offset=0.0` (+303ms, +427ms) make a
-transient unlikely on run 6.
+**Strength of the result.** The prototype's rate was **fix-off 4/6**, not 6/6, so a single clean
+run would have proved little. Against that same 2/3 rate, observing **0 drifts in 5 fix-off runs**
+has probability (1/3)⁵ ≈ **0.4%**. The prototype's drift rate therefore does not carry over to
+shipped code; whatever produced it is not present on this path.
+
+⚠ **Remaining limits, stated plainly.** The outcome measure is a single read 600 ms after the
+sweep, so a drift that appeared and fully self-corrected inside 600 ms would be missed — though on
+every run the two settle lines *also* read `offset=0.0` (≈ +280 ms and +420 ms), giving three
+independent reads per run and making a transient unlikely. One device, one list geometry, one
+ordering. And there is **no `[DT]` corroboration in this binary**, so this is the ladder's own
+outcome measure only, with no view of what MVCP attempted internally.
 
 ⚠ **Do not read "no drift with the fix off" as "the fix is unnecessary."** No conclusion about
-removing the anchor fix should be drawn from six runs against one ordering on one device.
+removing the anchor fix should be drawn from ten runs against one ordering on one device.
 
 #### Method notes worth reusing
 
@@ -678,8 +689,15 @@ removing the anchor fix should be drawn from six runs against one ordering on on
   the screen.
 - **`uiautomator dump` makes section headers scriptable.** They expose `content-desc` (the section
   title), are `clickable="true"`, and measure ~138px tall, so setup can be automated. ⚠ `selected`
-  does **not** track `isActive` — detect expansion geometrically (does the *next* header move down?),
-  which is what `ensure_expand()` does.
+  does **not** track `isActive`, so there is no direct read of whether a section is open.
+  ⚠ **Detecting expansion geometrically ("did the next header move down?") is NOT reliable at large
+  cover size** — one expanded section can push the following header clean off-screen, so the check
+  compares against a *different* header and concludes it closed the section, then "reopens" it by
+  tapping it shut. That produced a silent `dropped=0` run that failed to burn an A/B arm. Tap-and-move-on
+  is more robust than tap-and-verify here.
+- **A section only counts as dropped if it is genuinely off-screen at the top.** Expanding the
+  first two sections drops nothing, because §I2 correctly refuses to collapse what the reader can
+  see. To burn an arm cheaply, scroll below the fold *first*, then expand.
 - ⚠ **Never restart the app mid-A/B.** `anchorRun` is module state; a JS reload resets the arm to
   `on` and silently destroys the alternation. Setup must be done in-process.
 - **Sequence numbers turn a missing log line into a visible gap.** `settleSeq`/`pressSeq` increment
