@@ -196,6 +196,35 @@ Branch: **`feat/library-back-ladder`**, off `main` at `104bd34`.
   ⚠ Two boxes stay unticked, both device-only (animator scale 0, and the overscroll bounce) —
   ticket 08.
 
+- **08 — device verification** · `resolved` (`e17ad99`, `3f9392b`, `9f463ac`, `c407c6d`, `9a4e2f5`,
+  `c86f9b4`, `a5a2a2e`) — written to buy confidence, not code; it bought code. **Two real defects in
+  the intermediate rung**, both invisible to 943 tests and three reviewers, both found only on a real
+  device against the real library: **D-1**, the 38 px sample skew (`computeVisibleIndices()` samples
+  38 px above the coordinate §D2 lands in, so consecutive expansions made back climb one section per
+  press) and **D-2**, the pixel-grid snap (a landing is quantized to a physical pixel, a layout `y`
+  is not, so a strict `y <= offset` dropped the just-landed header from its own candidate set).
+  ⚠ **D-1's fix did not fix the reported bug** — the symptom was byte-identical and the mechanism
+  entirely different, so "the symptom is unchanged" is NOT evidence a fix missed. jest 943 → **952**.
+  ⚠ **The lesson that outlives the feature: never compare a scroll offset to a layout coordinate
+  with a bare `===`/`<=`.** One is pixel-quantized by the platform, the other is not.
+  Device-verified on ONE binary per F-11: two rungs then background with no climb, the latch over
+  five rounds alternating gesture and 3-button, the sweep, **animator scale 0 keeping both the
+  instant jump and the sweep**, the search-bar landing, drawer/keyboard/modals, and the **F5 bounce
+  DOES sweep** (controlled), closing §F5's open device question.
+  **Three questions ruled by the driver, all ACCEPTED with a recorded reopen condition**, and the
+  spec amended twice rather than left to drift (**ninth** and **tenth**): **D-3/F-7 is REAL**, not
+  unreachable — a settled slow drag at the top sweeps silently, and its lever is NOT §F5's recorded
+  start-offset test; **S-3**, a 5 px rung hop consumes a press (⚠ the ruling rests on the tolerance
+  staying sub-pixel — **split the constant before widening it**); and the deep jump **blanks the
+  viewport ~160 ms**, which is not the smear §E5 assumed (⚠ §E5's parked two-stage jump would not
+  address it). The ninth amendment was **widened after review**: §D4, §H4, §J1 and test cases 11/13
+  all still described the design D-1 removed, and read as coherent together — a re-derivation would
+  have rebuilt D-1 with nothing to stop it. §D3 was correct throughout.
+  ⚠ **Three items deliberately NOT run**, each needing a capability that would have broken F-11's
+  one-binary rule: momentum-end counts, per-view `firstItemOffset`, and the drift A/B's fix-OFF half.
+  All three are now cheap — **`console.log` reaches logcat in a PREVIEW build**, so instrumentation
+  needs no debug build; the drift A/B needs its own second binary.
+
 - **10 — whole-branch review disposition** · `ready-for-agent` — the first review of the feature as
   an assembled whole rather than ticket by ticket, run before entering 08. **Three independent
   reviewers**: the two-axis pair (Standards + Spec, opus) plus the built-in `/code-review`

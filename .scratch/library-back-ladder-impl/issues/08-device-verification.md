@@ -30,7 +30,7 @@ Risks R1, R3, R4, R6; user story 25.
 
 **Blocked by:** 07.
 
-**Status:** ready-for-human
+**Status:** resolved
 
 ---
 
@@ -355,3 +355,88 @@ amendment) together with the lever to use if that day comes.
       SECOND binary with the MVCP anchor fix removed, which contradicts F-11's one-binary rule for
       this session. Defer to a dedicated A/B session; the prototype's numbers (fix off 4/6 drifted,
       fix on 0/20) already stand.
+
+
+---
+
+## Answer
+
+**Resolved.** `e17ad99`, `3f9392b`, `9f463ac`, `c407c6d`, `9a4e2f5`, `c86f9b4`, `a5a2a2e`.
+jest 943 → **952**, tsc 0, eslint 0.
+
+The ticket was written to buy *confidence, not code*. It bought code: **two real defects in the
+intermediate rung**, both found only because the checks were run on a real device against a real
+library, and both invisible to 943 tests and three reviewers.
+
+- **D-1, the 38 px sample skew** — `computeVisibleIndices()` samples 38 px above the coordinate §D2
+  lands in, so with CONSECUTIVE sections expanded back climbed one open section per press. Fixed by
+  resolving the containing section in offset space.
+- **D-2, the pixel-grid snap** — a scroll landing is quantized to an integer physical pixel while a
+  layout `y` is not, so a strict `y <= offset` dropped the just-landed header from its own candidate
+  set and the climb resumed. **The D-1 fix alone did not fix the reported bug**; the symptom was
+  byte-identical and the mechanism completely different. Fixed by giving the containment test the
+  same tolerance as the guard it feeds.
+
+⚠ **The generalisable lesson, worth more than either fix: never compare a scroll offset to a layout
+coordinate with a bare `===`/`<=`.** One is pixel-quantized by the platform, the other is not. Any
+"land there, then ask where I am" design needs a tolerance on BOTH the filter and the guard.
+
+**Verified on device** (one binary, `3f9392b`, probe present per F-11): the ladder is two rungs then
+background with no climb; the latch survives five rounds alternating gesture and 3-button; the sweep
+keeps the visible section and collapses the off-screen ones; **animator scale 0 keeps BOTH the
+instant jump and the sweep**; the search-bar landing is clear; drawer, keyboard and modal back do
+that and only that; no rung overshoot in ~25 presses. The **F5 overscroll bounce DOES sweep**,
+confirmed against a control, closing §F5's open device question.
+
+**Three questions went to the driver and all three were ruled ACCEPTED, revisit on evidence** — each
+recorded in `spec.md` with what that evidence would be, so the revisit can actually happen:
+
+- **D-3 / F-7 is REAL, not "unreachable by a human hand"** (§F5, tenth amendment). A settled slow
+  drag down into the list collapses below-fold sections silently, and the precondition needs no
+  scrolling: expand a visible section at the top, then expand the one above it. Established with a
+  control. ⚠ The lever if it ever must be fixed is NOT §F5's recorded start-offset test — that drag
+  begins at the top; gate on the drag not having moved *into* the list.
+- **S-3, the sub-fold rung hop** (§D4, ninth amendment) — `offset 1505` with a header at `1500`
+  fires the rung and consumes the press for an invisible move. ⚠ The ruling rests on the tolerance
+  staying sub-pixel: **split the constant before ever widening it.**
+- **The deep jump blanks the viewport for ~160 ms** (§E5, tenth amendment) — measured frame by
+  frame, not described. It is not the *smear* §E5 assumed; for about half the jump there are no
+  cells at all. ⚠ §E5's parked two-stage jump would not address it — an instant first leg lands in
+  the same unrendered region.
+
+**The spec was amended twice** (ninth and tenth) rather than left to drift. The ninth was widened
+after review found the original candidate under-scoped: §D4's mechanism, §H4's containment clause,
+§J1's press-time read list and Testing Decisions cases **11 and 13** all described the design D-1
+removed, and together they read as coherent — so a re-derivation would have rebuilt D-1 with nothing
+to stop it. **§D3 was correct throughout**; the fault was always D4's mechanism for reaching it.
+
+### Three items deliberately NOT run, and why
+
+Not omissions — each needs a capability this session could not have without breaking F-11's
+one-binary rule:
+
+- **Momentum-end counts** (once clean, twice interrupting a fling). No counter and no log on that
+  path, so only the effect is observable, and the sweep is idempotent by design precisely so the
+  count cannot matter.
+- **Per-view first-item offsets, read not assumed.** `getFirstItemOffset()` is printed nowhere.
+- **The drift A/B, fix OFF.** Needs a SECOND binary with the MVCP anchor fix removed, which
+  contradicts F-11 for this session. The prototype's numbers (fix off 4/6 drifted, fix on 0/20)
+  stand unchallenged.
+
+⚠ **All three are now cheap**, because this session established that **`console.log` reaches logcat
+in a PREVIEW build** (tag `ReactNativeJS`) — instrumentation does not need a debug build. One
+instrumented build clears the first two; the third needs its own A/B session.
+
+### Method notes worth reusing
+
+- ⚠ **Verify the binary before debugging the code.** Hermes bytecode RETAINS FUNCTION NAMES, so
+  `adb pull` the APK and `grep assets/index.android.bundle` for a symbol that exists only in the new
+  commit. That settled "is my fix even running?" in one step, with no version bump. It is what
+  turned "the fix didn't work" into "the fix is running and there is a second bug".
+- ⚠ **`adb shell input swipe` CANNOT test a settled release.** It lifts the finger while still
+  moving, so RN reports a non-zero velocity and the gesture reads as a FLING. The first F-7 probe
+  showed "no sweep" for exactly this reason and was wrong. Use `input motionevent DOWN / MOVE… /
+  sleep / UP` to hold still before lifting.
+- ⚠ **A screenshot can prove a sub-pixel bug by elimination.** Measuring the landed header's pixel
+  row (702/702/702 vs 703 at master top) showed every landing is exact, which eliminated every
+  large-magnitude explanation and left only the gap too small to see — no instrumentation needed.
