@@ -176,7 +176,13 @@ maximum) is *provably equivalent* — ties need two headers at one `y`, whose on
 FlashList synthesising `y: 0` for a missing layout, and both variants then decline via `headerY <= 0`.
 Recorded in the code so it is a known quantity, not a gap.
 
-⚠ **SPEC AMENDMENT CANDIDATE (for the driver — not applied).** **§D4 is wrong as written**:
+⚠ **SPEC AMENDMENT — RAISED HERE, APPLIED 2026-08-23 as `spec.md`'s NINTH AMENDMENT.** It was
+under-scoped as first written (below) and was widened before being applied: besides §D4 it also
+covers **§H4**'s "the rung asks containment" clause, **§J1**'s press-time read list, and Testing
+Decisions cases **11** and **13**, which specified the very behaviour D-1 removed. C1's
+"meaningfully above the fold" (S-3) is recorded in §D4 as OPEN, not settled. Original wording:
+
+⚠ **(as first raised — for the driver, not applied).** **§D4 is wrong as written**:
 *"Find the range containing `computeVisibleIndices().startIndex`"* does not implement **§D3**
 (*"the section that CONTAINS the viewport top"*), because that index is sampled 38 px above the
 viewport top the landing targets. §D3 is correct and unchanged; §D4's mechanism needs replacing with
@@ -245,7 +251,7 @@ is *provably equivalent* for the same reason, unaffected by the tolerance.
 ⚠ **NOT YET DEVICE-VERIFIED.** This is a JS change and the device holds a release build, so it needs
 one more preview build. Under F-11's one-binary rule every checklist item below is still unrun.
 
-⚠ **The §D4 spec amendment candidate from D-1 stands, and D-2 EXTENDS it**: the offset-space rule
+⚠ **APPLIED 2026-08-23 in the ninth amendment.** As raised: the §D4 candidate from D-1 stands, and D-2 EXTENDS it: the offset-space rule
 that replaces §D4's mechanism must be stated with the tolerance, not as an equality, or it specifies
 the bug fixed here.
 

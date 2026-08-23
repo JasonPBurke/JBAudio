@@ -23,6 +23,15 @@ review (F-8): the Testing Decisions section wrongly claimed the jest environment
 no React Native preset — it was node — and that claim is now stale twice over, since the
 `rn` jest lane merged onto this branch afterward. Both sites corrected in place; §J4's extraction
 rationale is unchanged.
+**Amended 2026-08-23 (ninth amendment)** — five edits, all raised by implementation ticket
+[08](../library-back-ladder-impl/issues/08-device-verification.md)'s device pass, which found
+**two defects in the intermediate rung** (D-1, the 38 px sample skew; D-2, the pixel-grid snap).
+The rung no longer identifies its section by index, so every passage describing that mechanism is
+superseded: **D4** (the mechanism itself), **H4**'s "the rung asks containment" clause, **J1**'s
+press-time read list, and Testing Decisions cases **11** and **13**, which specified the very
+behaviour D-1 had to remove. **D3 is unchanged and was correct throughout** — the fault was D4's
+mechanism for reaching it, never the intent. One question is left OPEN for the driver rather than
+settled here: see D4's amendment on C1's *"meaningfully above the fold"*.
 Map (the argument, ticket by ticket): [map.md](map.md)
 Prototype branch: **`proto/back-ladder-rung-ab`** — throwaway, see §Further Notes.
 
@@ -413,6 +422,54 @@ guaranteed dead press.
 fire only if `offset - y > 1px`. The sub-pixel guard exists because an index-based test
 re-fires the rung when the landing offset settles a hair past the header's `y`.
 
+*Amended 2026-08-23 ([impl 08](../library-back-ladder-impl/issues/08-device-verification.md)).*
+**The mechanism above is WRONG and is superseded. D3's intent is unchanged.** Two device defects
+came out of it, with byte-identical symptoms and different causes:
+
+- **D-1, the 38 px sample skew.** `computeVisibleIndices()` samples from
+  `offset - firstItemOffset` — `RecyclerViewManager.ts:117` hands `EngagedIndicesTracker` the
+  SUBTRACTED value as its `viewportStart` — while D2 lands the rung at the header's PLAIN `y`.
+  The index and the landing therefore live in coordinate spaces exactly one list-header spacer
+  apart, 38 px on `BooksHome`. So the instant a rung landed, the sample window opened 38 px
+  ABOVE that header, inside the PREVIOUS section's last item, and any-sliver bounds reported
+  that item's index. With CONSECUTIVE sections expanded, back climbed one open section per
+  press. When the previous section was collapsed the expanded check swallowed it and the press
+  fell through to master top — correct by accident, and the reason this survived a year of
+  single-expansion reading, 943 tests and three reviewers.
+- **D-2, the pixel-grid snap.** `scrollTo` can only come to rest on an integer PHYSICAL PIXEL,
+  while a layout `y` is a sum of measured dp heights and is freely fractional. A landing aimed
+  at `y_h` rests at `y_h` SNAPPED TO THE GRID — ≤0.14 dp at density 3.5, ≤0.5 dp at any density.
+  Snapped short, a strict `y <= offset` drops the header the press just landed on out of its OWN
+  candidate set. **The two numbers D2's arithmetic says are equal are never quite equal.**
+
+**The rung resolves its section in OFFSET SPACE — the same coordinate the landing is expressed
+in.** Take the section header with the GREATEST `layoutY(range.start)` satisfying
+`y <= offset + T`; require it to be expanded; fire only if `offset - y > T`. A header whose
+layout does not resolve is skipped rather than fatal, since an unresolved `y` cannot be compared
+and abandoning the rung on one would lose it for the whole list. `T` is a tolerance in dp; `1`
+clears the pixel-grid snap on any density with margin.
+
+Three consequences, each load-bearing:
+
+- **The rung is SELF-TERMINATING by construction.** After a landing the same section resolves
+  again and the fire condition declines to master top. No "have I already landed here?" state is
+  introduced, so C3/I6 hold unchanged.
+- **`computeVisibleIndices()` leaves the back-press path entirely.** B7's ordering rule and J4's
+  lazy `visible` now protect the SWEEP alone; the rung's throw hazard is closed at source rather
+  than ordered around. The hook's `try/catch` is KEPT — an uncaught throw inside a `BackHandler`
+  callback is a crash on a back press — with `getLayout` as its live subject.
+- **The lookup is ORDER-INDEPENDENT** — a maximum, not a first match — so it no longer depends
+  on H4's non-overlap guarantee. See H4's amendment.
+
+⚠ **OPEN, for the driver — `T` is doing TWO jobs and C1 only asked for one.** It gates both
+*"which header is the offset AT"* (where it must be ≥ the grid snap, or D-2 returns) and *"is
+this header worth scrolling to"* (C1 rung 2's *"meaningfully above the fold"*). At `T = 1` a
+header 5 px above the offset fires the rung: back is consumed for a hop the reader cannot see,
+and only the NEXT press reaches master top. Verified against the shipped decision — `offset
+1505`, header `y 1500` → `scrollTo(1500, 'section')`. **Splitting the two into separate
+constants is the fix; what "meaningfully" should be is a UX decision this amendment does not
+presume to make.**
+
 **D5. The rung is a plain `scrollToOffset`, never `scrollToIndex`.** The header is above the
 viewport and therefore already measured, so its layout is exact. The memory topic that
 rejects pinning by index describes a *pin racing MVCP across a data mutation*; the rung
@@ -684,6 +741,13 @@ that tiling invariant holding forever. Rejected: adding an `expanded` flag — i
 the expanded-section state into a second source of truth while the sweep still needs the setter
 anyway.
 
+*Amended 2026-08-23 ([impl 08](../library-back-ladder-impl/issues/08-device-verification.md)).*
+"the rung asks **containment**" is superseded by D4's amendment. The rung now takes the MAXIMUM
+header `y` at or below the offset, which is order-independent and needs no containment lookup.
+**The contract itself is unchanged** and both fields are still required — but non-overlap is no
+longer what makes the RUNG's lookup deterministic; a maximum needs no such guarantee. It remains
+load-bearing for the SWEEP's overlap test, which is unaffected.
+
 ⚠ **What the range producer owes its consumers, stated so it can be tested rather than assumed**
 *(added 2026-08-21; see [impl 02](../library-back-ladder-impl/issues/02-decide-back-press.md)'s
 review)*:
@@ -823,6 +887,12 @@ acts:                 scrollToOffset({ offset, animated: true })
                       prepareForLayoutAnimationRender() + setActiveGridSections(...)
 ```
 
+*Amended 2026-08-23 ([impl 08](../library-back-ladder-impl/issues/08-device-verification.md)).*
+The diagram's press-time read list is superseded in one entry: **`computeVisibleIndices()` is NOT
+read on a back press.** Per D4's amendment the press reads `getAbsoluteLastScrollOffset()`,
+`getFirstItemOffset()` (for the at-top predicate) and `getLayout(i)`. `computeVisibleIndices()`
+is the SWEEP's alone. The `acts:` line is unchanged.
+
 **J2. The hook mirrors EVERY input into a ref internally.** Callers pass ordinary values; the
 module itself guarantees A6's empty-dependency registration, rather than leaving it to
 call-site discipline a later edit can quietly break.
@@ -958,11 +1028,28 @@ defaults to protecting nothing — which is the mode this feature uses (F7).
 9. Sectioned view, viewport top inside a **collapsed** section → `master`.
 10. Sectioned view, viewport top inside an **expanded** section whose header is at or within
     1px of the fold → `master` (D4's sub-pixel guard).
-11. No range contains `startIndex` → `master`.
+11. Visible sample overlapping **no range at all**, offset inside an expanded section →
+    `section`. *(Ninth amendment — inverted. This case previously read "No range contains
+    `startIndex` → `master`", which specified D-1.)*
 12. `layoutY` returns undefined for the header → `master`.
-13. Degenerate visible range (`startIndex < 0`) → `master`.
+13. **Degenerate** visible range (`startIndex < 0`), offset inside an expanded section →
+    `section`. *(Ninth amendment — inverted, same reason. F8's degenerate-sample rule is the
+    SWEEP's alone.)*
 14. Viewport top inside an expanded section whose header is index 0 (`y === 0`) → `master`,
     by degeneration rather than by special case (D2's self-consistency check).
+
+*Amended 2026-08-23 ([impl 08](../library-back-ladder-impl/issues/08-device-verification.md)).*
+Cases **11** and **13** are INVERTED above: both asserted `master` on the strength of a
+visibility sample the rung no longer reads, so as written they specified D-1. Their value is not
+lost — restated as `section`, they now pin the structural claim that **the sample cannot
+influence the rung at all**, which is stronger than what they asserted before. Case **10** is
+unaffected and still correct. **One case is ADDED to this group** (unnumbered, to avoid
+renumbering the rung cases below):
+
+- **The pixel-grid snap (D-2).** Viewport top a FRACTION of a pixel BELOW an expanded section's
+  header, with a further expanded section below it → `master`, **never** a climb to that lower
+  section. This is the case a strict `y <= offset` gets wrong, and it is not reachable from a
+  hand-written offset: it arises because the landing is quantized and the layout `y` is not.
 
 **The section rung**
 
