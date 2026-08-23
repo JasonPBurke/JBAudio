@@ -30,7 +30,12 @@ Risks R1, R3, R4, R6; user story 25.
 
 **Blocked by:** 07.
 
-**Status:** resolved
+**Status:** ready-for-human
+
+⚠ **REOPENED 2026-08-23** at the driver's request, for the THREE DEFERRED ITEMS ONLY (momentum-end
+counts, per-view first-item offsets, the drift A/B's fix-OFF arm). Everything else in this ticket
+stands as resolved — see the `## Answer` section, which is unchanged. The rig those three items
+needed now exists; see Session 4.
 
 ---
 
@@ -110,6 +115,100 @@ scrolls down and finds their sections shut.
 ---
 
 ## Comments
+
+### Session 4 — 2026-08-23, the three deferred items get a rig (no device run yet)
+
+**What was missing, and what closes it.** All three items were deferred for the same two reasons:
+nothing on those paths prints anything, and the drift A/B's fix-OFF arm appeared to need a SECOND
+binary, which F-11 forbids. Session 3 established that **`console.log` reaches logcat in a preview
+build** (tag `ReactNativeJS`), which kills the first reason. The second dissolves once the anchor
+fix's arm is chosen **at runtime** rather than by which binary you built: alternating it turns the
+A/B into a paired experiment inside ONE binary — same device, same library, same session, nothing
+but the arm differing between consecutive runs. That is strictly better evidence than two builds,
+not a workaround for not having them.
+
+**Built:** `src/helpers/ladderInstrumentation.ts` (15 tests) plus five bracketed call sites in
+`src/hooks/useBackToTopLadder.ts` (5 tests in its `rn` suite). jest 952 → **972**, tsc 0, eslint 0.
+
+⚠ **It is ON in any non-`test` build and OFF under jest** (`process.env.NODE_ENV !== 'test'`). The
+jest default is not hygiene: in `alternate` mode the module deliberately WITHHOLDS the anchor fix on
+every other sweep, so a module live under jest would make the hook suite's
+`prepareForLayoutAnimationRender` assertions pass or fail by parity. The suite instead configures it
+explicitly, which is the only way the "does the lever actually move?" test means anything.
+
+⚠ **Ticket 09 must delete it.** It is now the teardown item with real user impact: shipped as-is, a
+production build would withhold the MVCP anchor fix on every other sweep, which is the drift §G1
+exists to prevent. Added to ticket 09's checklist.
+
+#### Verifying the binary carries it, before trusting a single line
+
+Session 2's method, unchanged — Hermes bytecode retains function names:
+
+```
+adb shell pm path com.jasonburke.sonicbooks   # then adb pull the base.apk
+unzip -p base.apk assets/index.android.bundle | grep -c armAnchorFix   # non-zero == present
+```
+
+Then `adb logcat -c && adb logcat -s ReactNativeJS | grep LADDER`.
+
+#### The log grammar
+
+```
+[LADDER] press#1 view=booksHome offset=4312.0 first=38.0 -> scrollTo/section@1500.4
+[LADDER] settle#1 momentum since=press#1/+118ms/n=1 view=booksHome offset=4180.0 first=38.0 vel=- -> none/not-at-top
+[LADDER] settle#2 momentum since=press#1/+402ms/n=2 view=booksHome offset=0.0 first=38.0 vel=- -> collapse/dropped=3
+[LADDER] anchorFix run#1 arm=on
+[LADDER] drift run#1 arm=on offset=0.0 after=600ms
+[LADDER] first view=booksHome value=38.0 attempt=1
+```
+
+- `n=` is the count of settles since the last back press — **the momentum-end count itself**.
+- Every settle is logged, INCLUDING the declined ones. An interrupted fling's first momentum end
+  lands away from the top and declines, and that decline IS the second event; logging only the
+  sweeps would answer a different question and answer it wrongly.
+- `vel=` carries four decimals because the gate it feeds is `0.01`. At one decimal every settled
+  lift and every slow fling print as `-0.0`, which is exactly the distinction §F4 and D-3 turn on.
+- `anchorFix run#N` appears only on a sweep that actually DROPS something — i.e. only where the fix
+  is armed at all — so the A/B run counter advances once per real trial, not once per bounce.
+
+#### Item 1 — momentum-end counts
+
+1. Scroll deep, press back once cleanly, let it settle. Expect ONE settle line, `n=1`, at
+   `offset=0.0`, `-> collapse/...` or `-> none/...`.
+2. Fling deep and press back MID-FLING. Expect TWO settle lines against the same `press#`: `n=1`
+   away from the top (`-> none/not-at-top`) and `n=2` at the top.
+
+Both harmless either way — the sweep is idempotent by design — but the claim is now a reading.
+
+#### Item 2 — per-view first-item offsets
+
+Toggle Books → Series → Grid. Each view emits ONE `first view=… value=…` line shortly after it
+mounts; no back press needed in any view. Expect roughly 38 / 38 / 44. `booksList` still mounts
+nowhere, so its line will not appear — that is the same "never measured" state, now visible rather
+than assumed. `attempt=N/UNRESOLVED` means the list never reported a non-zero offset within ~8 s,
+which is itself a finding.
+
+#### Item 3 — the drift A/B, both arms, ONE binary
+
+Recipe as written above: Recents collapsed, the first several sections expanded, everything after
+collapsed; fling deep into the collapsed region; press back mid-fling. Each qualifying arrival takes
+the next arm — `run#1 arm=on`, `run#2 arm=off`, `run#3 arm=on`, … — so run the recipe **six to eight
+times** and read the pairs off.
+
+- `arm=on` runs should show `drift … offset=0.0` and rest at the top.
+- `arm=off` runs are the ones expected to drift: a non-zero `drift … offset=…`, the list visibly
+  back down the page, and the prototype's `[DT]` probe printing an MVCP correction whose `diff`
+  should match the resting drift (that is how the prototype pinned it: -978.55, -1803.89, -617.20).
+
+⚠ **The fix-off arm is a real defect while the build is installed** — every other deep back jump
+will drift. That is the experiment, not a bug in the rig.
+
+⚠ **The probe's `console.log` runs on every MVCP correction attempt** (F-11 KEEP). Note that in any
+timing-sensitive writeup, exactly as sessions 1–3 did.
+
+**To pin one arm instead of alternating** (e.g. to gather several fix-off runs in a row), the mode
+lives in one place: `BUILD_DEFAULTS.anchorFix` in `ladderInstrumentation.ts` — `'alternate'` (the
+default), `'on'`, or `'off'`. Changing it means a new binary, so prefer alternation.
 
 ### Session 1 — 2026-08-22, partial run; ABORTED EARLY BY A DEFECT
 

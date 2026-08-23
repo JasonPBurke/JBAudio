@@ -39,4 +39,11 @@ Spec: Further Notes › "The prototype, and what must die with it"; user story 3
 - [ ] The parked collapse branch's fate is decided the same way: its helper and tests have been
       brought across, and its **narrower** trigger semantics were deliberately not resumed
       wholesale, so nothing else on it is owed to this feature.
+- [ ] **Ticket 08's device-pass instrumentation is gone** — `src/helpers/ladderInstrumentation.ts`,
+      its suite, the five bracketed call sites in `src/hooks/useBackToTopLadder.ts` (restore the bare
+      `list.prepareForLayoutAnimationRender()`), and the `ticket 08 instrumentation` describe in the
+      hook's `rn` suite. ⚠ **This is now the teardown item with real user impact**, in the FlashList
+      patch's old role: the module is ON in any non-`test` build, and in its default `alternate` mode
+      it deliberately WITHHOLDS the MVCP anchor fix on every other sweep. Shipped, that is exactly
+      the drift §G1 exists to prevent — reaching users on every other deep back jump.
 - [ ] `npm test`, tsc and eslint are green on `main`.

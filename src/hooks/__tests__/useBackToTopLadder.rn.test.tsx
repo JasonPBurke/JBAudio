@@ -5,6 +5,7 @@ import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import * as Sentry from '@sentry/react-native';
 
 import { useBackToTopLadder } from '@/hooks/useBackToTopLadder';
+import { __configureLadderInstrumentation } from '@/helpers/ladderInstrumentation';
 import type { LadderView, SectionRange } from '@/helpers/ladderDecisions';
 import type { LadderList } from '@/types/ladderList';
 
@@ -868,5 +869,184 @@ describe('useBackToTopLadder — the collapse sweep', () => {
     });
 
     expect(setExpanded).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Ticket 08's device-pass instrumentation, AS WIRED -- not as a module.
+ *
+ * `ladderInstrumentation.test.ts` proves the module's own behaviour over plain
+ * strings. What only an exercised hook can prove is the part that matters on
+ * device: that the A/B LEVER ACTUALLY MOVES. An arm that is read but not obeyed
+ * would produce a beautifully labelled log in which both arms ran the fix, and
+ * the drift A/B would silently measure nothing -- which is precisely the
+ * question ticket 08 deferred.
+ *
+ * ⚠ Every test here CONFIGURES the module explicitly, because it is disabled
+ * under jest by default. The first one pins that default: it is what keeps the
+ * whole suite above from depending on parity.
+ */
+describe('useBackToTopLadder — ticket 08 instrumentation', () => {
+  const RANGES: SectionRange[] = [
+    { sectionId: 'recentlyAdded', start: 0, end: 25 },
+    { sectionId: 'author-A', start: 26, end: 40 },
+  ];
+
+  const atTop = (overrides: Partial<ListFake> = {}) =>
+    fakeList(0, {
+      computeVisibleIndices: jest.fn(() => ({ startIndex: 0, endIndex: 5 })),
+      ...overrides,
+    });
+
+  /** Runs scheduled work inline, so no timer -- real or fake -- is involved. */
+  const inlineSchedule = (fn: () => void) => fn();
+
+  afterEach(() => {
+    __configureLadderInstrumentation();
+  });
+
+  it('leaves the anchor fix armed and logs nothing on a shipping build', async () => {
+    const lines: string[] = [];
+    __configureLadderInstrumentation({ sink: (line) => lines.push(line) });
+    const list = atTop();
+
+    const { result, setExpanded } = await mountLadder({
+      view: 'booksHome',
+      list,
+      ranges: RANGES,
+      expanded: new Set(['recentlyAdded', 'author-A']),
+    });
+    await act(async () => {
+      result.current.onMomentumScrollEnd();
+    });
+
+    expect(list.prepareForLayoutAnimationRender).toHaveBeenCalledTimes(1);
+    expect(setExpanded).toHaveBeenCalledTimes(1);
+    expect(lines).toEqual([]);
+  });
+
+  it('WITHHOLDS the anchor fix on the fix-off arm, while the sweep still runs', async () => {
+    // The fix-OFF half of the drift A/B, inside one binary. If this passes only
+    // because the sweep declined, the `setExpanded` assertion catches it -- the
+    // two together are what make this the fix-off arm rather than a no-op.
+    const lines: string[] = [];
+    __configureLadderInstrumentation({
+      enabled: true,
+      anchorFix: 'off',
+      sink: (line) => lines.push(line),
+      schedule: inlineSchedule,
+    });
+    const list = atTop();
+
+    const { result, setExpanded } = await mountLadder({
+      view: 'booksHome',
+      list,
+      ranges: RANGES,
+      expanded: new Set(['recentlyAdded', 'author-A']),
+    });
+    await act(async () => {
+      result.current.onMomentumScrollEnd();
+    });
+
+    expect(list.prepareForLayoutAnimationRender).not.toHaveBeenCalled();
+    expect(setExpanded).toHaveBeenCalledTimes(1);
+    expect(lines).toContain('[LADDER] anchorFix run#1 arm=off');
+  });
+
+  it('reports the resting offset after a sweep, against the arm it ran under', async () => {
+    const lines: string[] = [];
+    __configureLadderInstrumentation({
+      enabled: true,
+      anchorFix: 'on',
+      sink: (line) => lines.push(line),
+      schedule: inlineSchedule,
+    });
+    // The drift the fix exists to suppress: MVCP drags the list back down, so
+    // the offset read after the sweep is no longer the one it swept at.
+    let offset = 0;
+    const list = atTop({
+      getAbsoluteLastScrollOffset: jest.fn(() => offset),
+      prepareForLayoutAnimationRender: jest.fn(() => {
+        offset = -617.2;
+      }),
+    });
+
+    const { result } = await mountLadder({
+      view: 'booksHome',
+      list,
+      ranges: RANGES,
+      expanded: new Set(['recentlyAdded', 'author-A']),
+    });
+    await act(async () => {
+      result.current.onMomentumScrollEnd();
+    });
+
+    expect(lines).toContain('[LADDER] drift run#1 arm=on offset=-617.2 after=600ms');
+  });
+
+  it('numbers the settles that follow a back press, which is the momentum-end count', async () => {
+    // The wiring the count depends on: the press must be logged from the
+    // handler Android calls, and BOTH momentum ends must be logged -- including
+    // the mid-fling one that lands away from the top and sweeps nothing.
+    const lines: string[] = [];
+    __configureLadderInstrumentation({
+      enabled: true,
+      sink: (line) => lines.push(line),
+      schedule: inlineSchedule,
+      // A stopped clock: the elapsed-ms field is asserted verbatim, and a real
+      // one makes that assertion a race against test execution speed.
+      now: () => 1000,
+    });
+    let offset = 4000;
+    const list = atTop({ getAbsoluteLastScrollOffset: jest.fn(() => offset) });
+
+    const { result, press } = await mountLadder({
+      view: 'booksHome',
+      list,
+      ranges: RANGES,
+      expanded: new Set(['recentlyAdded', 'author-A']),
+    });
+
+    // ⚠ AWAITED: `press()` opens its own `act` scope, so calling it bare
+    // overlaps that scope with the next one -- React warns, and every LATER
+    // `renderHook` in the file then mounts nothing at all (`result.current`
+    // stays null). The failure surfaces two tests away from its cause.
+    await press();
+    await act(async () => {
+      result.current.onMomentumScrollEnd();
+    });
+    offset = 0;
+    await act(async () => {
+      result.current.onMomentumScrollEnd();
+    });
+
+    // The mount's own first-item probe also writes a line, so the ladder's
+    // event lines are selected rather than indexed -- an assertion that broke
+    // on an unrelated line would be measuring the harness, not the wiring.
+    const events = lines.filter((line) => !line.includes(' first view='));
+    expect(events[0]).toContain('press#1 view=booksHome offset=4000.0');
+    expect(events[1]).toContain('settle#1 momentum since=press#1/+0ms/n=1');
+    expect(events[1]).toContain('-> none/not-at-top');
+    expect(events[2]).toContain('settle#2 momentum since=press#1/+0ms/n=2');
+    expect(events[2]).toContain('-> collapse/dropped=1');
+  });
+
+  it('reads each view first-item offset once the list has one', async () => {
+    // The `booksList`/`seriesHome` half of the checklist item: the number is
+    // reported per VIEW, with no back press in that view required.
+    const lines: string[] = [];
+    __configureLadderInstrumentation({
+      enabled: true,
+      sink: (line) => lines.push(line),
+      schedule: inlineSchedule,
+    });
+
+    await mountLadder({
+      view: 'seriesHome',
+      list: fakeList(0, { getFirstItemOffset: jest.fn(() => 44) }),
+      ranges: RANGES,
+    });
+
+    expect(lines).toContain('[LADDER] first view=seriesHome value=44.0 attempt=1');
   });
 });
