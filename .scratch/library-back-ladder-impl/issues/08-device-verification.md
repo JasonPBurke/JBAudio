@@ -550,19 +550,32 @@ instrumented build clears the first two; the third needs its own A/B session.
 ### Session 5 — 2026-08-23, the three deferred items RUN on device
 
 **Device:** Pixel 7 Pro (cheetah), Android 16 / SDK 36, gesture navigation, 1440×3120 @ 560dpi,
-real 356-book library, large covers on. **Build:** EAS `preview` profile, **versionCode 111**,
-installed 01:01, `:app:assembleRelease`. Rig confirmed in the shipped bundle before any measurement
+real 356-book library, large covers on. **Build:** EAS `preview` profile built **locally**
+(`eas build --local`), **versionCode 111**, installed 01:01, `:app:assembleRelease`. Rig confirmed in the shipped bundle before any measurement
 (`armAnchorFix`, `sampleDriftAfterSweep`, `probeFirstItemOffset`, `logLadderPress`,
 `logLadderSettle`, `ladderInstrumentationEnabled` — all present; log prefixes `[LADDER]`,
 `anchorFix run#`, `drift run#`, `first view=` all present).
 
 ⚠ **F-11 CORRECTION — the `[DT]` MVCP probe was NOT in this binary, and a rebuild would not have
 put it there.** `grep -c '[DT]'` on the extracted Hermes bundle returned **0**, while the probe is
-still present in local `node_modules` at the documented lines. Cause: `package.json` runs
-`"postinstall": "patch-package"` and the preview profile is a **cloud** `:app:assembleRelease`, so
-the build server reinstalls dependencies and reapplies only the seven shipping patches — a raw
-`node_modules` edit cannot survive that. The probe itself is not dev-gated (a bare `try` +
-`console.log`), so this is purely an install-path artifact, not release stripping.
+still present in local `node_modules` at the documented lines. The probe is not dev-gated (a bare
+`try` + `console.log`), so this is an install-path artifact, not release stripping.
+
+**Cause — and note this was a LOCAL preview build, so "the cloud did it" is NOT the explanation.**
+`node_modules/` is gitignored (`.gitignore:4`), and an **EAS build archives the project excluding
+gitignored paths, then reinstalls dependencies from the lockfile in its own staging directory** and
+runs `"postinstall": "patch-package"`, which reapplies only the seven shipping patches. That happens
+with `eas build --local` exactly as it does in the cloud. **A raw `node_modules` edit therefore
+survives NO EAS build of either kind.**
+
+The evidence is self-contained: an edit present ONLY in local `node_modules` and absent from
+`patches/` is missing from the shipped bundle, which proves the build never read the local
+`node_modules`.
+
+⚠ **This also corrects the premise in ticket 10's F-11 note**, which said "`npm run android` and EAS
+preview builds bundle from the local `node_modules`". Only the first half is true. **`npm run
+android` (`expo run:android` → Gradle in place) does use local `node_modules`; an EAS build does
+not, local or cloud.** A local EAS build is not an in-place build.
 
 **The generalised lesson, which the KEEP ruling could not have known:** *a diagnostic that must
 survive a build belongs in `patches/` with a teardown ticket; one that must never ship belongs in
@@ -680,10 +693,11 @@ removing the anchor fix should be drawn from ten runs against one ordering on on
 
 #### Method notes worth reusing
 
-- ⚠ **Check the artifact, not the working tree, for anything installed by hand.** `patches/` +
-  `postinstall` means a cloud build reverts every un-patched `node_modules` edit. One
+- ⚠ **Check the artifact, not the working tree, for anything installed by hand.** `node_modules/`
+  is gitignored, so **any EAS build — `--local` included — reinstalls dependencies and reapplies only
+  `patches/`**, reverting every un-patched `node_modules` edit. One
   `unzip -p base.apk assets/index.android.bundle | grep -c <symbol>` settles it before any
-  measurement is trusted.
+  measurement is trusted. ⚠ "I built it locally" is NOT evidence the edit survived.
 - ⚠ **A hand-delivered input can be its own confound.** The gesture back cancels the very fling the
   test is about. When measuring anything that races a gesture, deliver the input without touching
   the screen.
