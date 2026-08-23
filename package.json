@@ -10,7 +10,8 @@
     "web": "expo start --web",
     "lint": "eslint .",
     "test": "jest",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "generate:lucide-shim": "node ./scripts/generateLucideShim.js"
   },
   "dependencies": {
     "@bam.tech/react-native-image-resizer": "^3.0.11",

@@ -24,4 +24,14 @@ module.exports = defineConfig([
       globals: { jest: 'readonly' },
     },
   },
+  {
+    // `scripts/` holds build-time Node CLIs, not app code. Measured the same way
+    // as the block above: deleting this entry produces `'__dirname' is not
+    // defined` and nothing else -- `require`, `module` and `console` are already
+    // globals here. Re-measure before widening it.
+    files: ['scripts/**'],
+    languageOptions: {
+      globals: { __dirname: 'readonly' },
+    },
+  },
 ]);
