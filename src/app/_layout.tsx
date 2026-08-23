@@ -38,10 +38,21 @@ Sentry.init({
   // Enable Logs
   enableLogs: true,
 
-  // Configure Session Replay
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1,
-  integrations: [Sentry.mobileReplayIntegration()],
+  // Session Replay is deliberately OFF. Both modes drive the same native
+  // ScreenshotRecorder: `replaysOnErrorSampleRate` uses BufferCaptureStrategy,
+  // which records continuously and only *uploads* on a crash. So there is no
+  // setting that keeps replay's value without paying its foreground CPU cost --
+  // it is on or off, not tunable. It went unused for a year of closed testing,
+  // and source map upload (see eas.json) now covers crash diagnosis far more
+  // cheaply.
+  //
+  // Worth re-enabling DELIBERATELY, for one build, when chasing a visual bug a
+  // stack trace cannot explain (FlashList blank-on-collapse, the blank viewport
+  // on deep jump): masking hides content but preserves geometry, so a replay
+  // still shows the blank. To do that, restore:
+  //   replaysSessionSampleRate: 0.1,
+  //   replaysOnErrorSampleRate: 1,
+  //   integrations: [Sentry.mobileReplayIntegration()],
 
   // uncomment the line below to enable Spotlight (https://spotlightjs.com)
   // spotlight: __DEV__,
