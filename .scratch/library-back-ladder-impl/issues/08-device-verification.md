@@ -82,11 +82,13 @@ scrolls down and finds their sections shut.
 - [ ] **The latch test.** Scroll, back, back, reopen, push a screen, back must pop — five rounds in
       one process, alternating gesture and 3-button. Every press reaches JS. The signature of
       failure is back going dead entirely.
-- [ ] **Momentum-end counts.** Once on a clean back press; twice on a press that interrupts a
-      fling. Both harmless, because the sweep is idempotent.
-- [ ] **Per-view first-item offsets, read not assumed.** Expect roughly 38 / 38 / 44 on the three
+- [x] **Momentum-end counts.** Once on a clean back press; twice on a press that interrupts a
+      fling. Both harmless, because the sweep is idempotent. **PASS — Session 5.** ⚠ Only
+      reproducible with a touch-free back (`input keyevent 4`); a gesture back cancels the fling.
+- [x] **Per-view first-item offsets, read not assumed.** Expect roughly 38 / 38 / 44 on the three
       mountable views. The fourth list's predicted value has never been measured by any device —
-      measure it if it now mounts.
+      measure it if it now mounts. **PASS — Session 5: 38.0 / 38.0 / 44.0, all on attempt 1.**
+      `booksList` never mounted (0 lines), so it remains unmeasured by design, not by omission.
 - [ ] **The rung landing against the search bar.** The header must be readable, not tucked under
       the overlay.
 - [ ] **A deep jump on a preview build against a real library.** The open question is the smear —
@@ -99,10 +101,13 @@ scrolls down and finds their sections shut.
       amended 2026-08-21), so if it reports nothing the bounce-sweep silently never happens. A
       failure here is expected-and-harmless, not a defect: record it, do not weaken the gate.
 - [ ] **Animator duration scale set to 0.** The jump is instant **and the sweep still fires.**
-- [ ] **The drift recipe, fix on and fix off.** The reproducing configuration is: Recents
+- [x] **The drift recipe, fix on and fix off.** The reproducing configuration is: Recents
       collapsed, the first several sections expanded, everything after collapsed; fling deep into
       the collapsed region, then press back mid-fling. Expect drift with the fix removed and none
-      with it in.
+      with it in. **RUN — Session 5, 6 paired runs, both arms, ONE binary. Result: NO drift in
+      either arm**, i.e. the prototype's drift did NOT reproduce on shipping code. See Session 5
+      before drawing any conclusion about removing §G1 — the reading is that the fix is insurance
+      against an ordering shipped code no longer has, NOT that it is dead weight.
 - [ ] **Drawer open, keyboard up, and each modal route.** Back does that thing and only that thing.
 - [ ] Watch for the once-observed, never-reproduced rung overshoot (landing a few rows past the
       header). If it appears, the range-publication timing is the first suspect.
@@ -441,16 +446,16 @@ amendment) together with the lever to use if that day comes.
 
 #### Not observable on this binary — three items deferred with reasons
 
-- [ ] **Momentum-end counts (once clean / twice interrupting a fling).** There is no counter in the
+- [x] **RESOLVED Session 5.** **Momentum-end counts (once clean / twice interrupting a fling).** There is no counter in the
       build and no log on this path, so the *count* cannot be observed — only its effect, and the
       sweep is idempotent by design precisely so the count does not matter. Needs a one-line
       instrumented build. ⚠ Now cheap: **`console.log` reaches logcat in a preview build** (tag
       `ReactNativeJS`), established this session.
-- [ ] **Per-view first-item offsets, read not assumed (expect ~38 / 38 / 44).** Same reason —
+- [x] **RESOLVED Session 5 (38.0 / 38.0 / 44.0).** **Per-view first-item offsets, read not assumed (expect ~38 / 38 / 44).** Same reason —
       `getFirstItemOffset()` is not printed anywhere. D-2's technique (compare the first item's pixel
       row at master top across views) could measure it from screenshots if instrumentation is
       unwanted.
-- [ ] **The drift recipe, fix OFF.** The fix-ON half shows no drift, but the fix-OFF half requires a
+- [x] **RUN Session 5 — fix-OFF measured in one binary; no drift in either arm.** **The drift recipe, fix OFF.** The fix-ON half shows no drift, but the fix-OFF half requires a
       SECOND binary with the MVCP anchor fix removed, which contradicts F-11's one-binary rule for
       this session. Defer to a dedicated A/B session; the prototype's numbers (fix off 4/6 drifted,
       fix on 0/20) already stand.
@@ -539,3 +544,143 @@ instrumented build clears the first two; the third needs its own A/B session.
 - ⚠ **A screenshot can prove a sub-pixel bug by elimination.** Measuring the landed header's pixel
   row (702/702/702 vs 703 at master top) showed every landing is exact, which eliminated every
   large-magnitude explanation and left only the gap too small to see — no instrumentation needed.
+
+---
+
+### Session 5 — 2026-08-23, the three deferred items RUN on device
+
+**Device:** Pixel 7 Pro (cheetah), Android 16 / SDK 36, gesture navigation, 1440×3120 @ 560dpi,
+real 356-book library, large covers on. **Build:** EAS `preview` profile, **versionCode 111**,
+installed 01:01, `:app:assembleRelease`. Rig confirmed in the shipped bundle before any measurement
+(`armAnchorFix`, `sampleDriftAfterSweep`, `probeFirstItemOffset`, `logLadderPress`,
+`logLadderSettle`, `ladderInstrumentationEnabled` — all present; log prefixes `[LADDER]`,
+`anchorFix run#`, `drift run#`, `first view=` all present).
+
+⚠ **F-11 CORRECTION — the `[DT]` MVCP probe was NOT in this binary, and a rebuild would not have
+put it there.** `grep -c '[DT]'` on the extracted Hermes bundle returned **0**, while the probe is
+still present in local `node_modules` at the documented lines. Cause: `package.json` runs
+`"postinstall": "patch-package"` and the preview profile is a **cloud** `:app:assembleRelease`, so
+the build server reinstalls dependencies and reapplies only the seven shipping patches — a raw
+`node_modules` edit cannot survive that. The probe itself is not dev-gated (a bare `try` +
+`console.log`), so this is purely an install-path artifact, not release stripping.
+
+**The generalised lesson, which the KEEP ruling could not have known:** *a diagnostic that must
+survive a build belongs in `patches/` with a teardown ticket; one that must never ship belongs in
+`src/` behind a runtime flag.* `ladderInstrumentation.ts` is in the second category and reached the
+binary; `[DT]` is in neither and did not. **F-11's KEEP ruling was sound for a locally-built binary
+and silently void for a cloud-built one.** Consequence for this session: all Session 5 measurements
+come from one binary (versionCode 111), so the one-binary rule is satisfied, but there is **no
+MVCP-internal corroboration** for the drift A/B — only the ladder's own outcome measure.
+
+#### ⚠ The confound that nearly produced a wrong answer: a gesture back cancels the fling
+
+The driver observed that a human back press can itself stop the scroll. It can, and it does. On
+gesture navigation the back gesture is an **edge swipe**; that touch lands on the list and kills
+momentum *before* the back event dispatches. A hand-run "press back mid-fling" measured `n=1` and
+looked like a clean result — it was measuring a cancelled fling.
+
+**Every mid-fling measurement must use `adb shell input keyevent 4`**, which delivers back with no
+touch. Reproduced immediately once switched. The proof the fling was genuinely live is that the
+list travelled thousands of px between the drag settle and the press with **no momentum line in
+between**, and `settleSeq` is contiguous across that gap — the counter increments before the line
+is formatted, so a dropped log line would show as a numbering gap. There is none.
+
+Harness used, kept for reuse: `input swipe` for the fling (a fast swipe is a real fling; only a
+*settled release* needs `input motionevent`), then `sleep`, then `keyevent 4` — all inside one
+`adb shell` so the fling→back gap is not subject to host round-trip latency.
+
+#### Item 1 — momentum-end counts: **PASS**
+
+| trial | back | fling start | press offset | travelled while flying | settles | `n` |
+|---|---|---|---|---|---|---|
+| clean (from rest) | gesture | — | 18516.9 | — | `+266ms` | **1** |
+| mid-fling | keyevent, 400ms | 9202.9 | 12332.0 | +3129 | `+298ms`, `+378ms` | **1, 2** |
+| mid-fling | keyevent, 250ms | 9313.4 | 11671.1 | +2358 | `+286ms`, `+403ms` | **1, 2** |
+| mid-fling | keyevent, 600ms | 9254.6 | 13395.1 | +4141 | `+297ms`, `+386ms` | **1, 2** |
+
+Once on a clean press, twice on a press interrupting a fling — as specified. Three delays, 3/3.
+
+Two observations worth keeping:
+
+- **Both momentum ends report `offset=0.0`.** The cancelled fling's handler runs *after* the
+  programmatic scroll has landed, so the sweep never sees a stray settle away from the top. The
+  "interrupted fling emits a decline at the wrong offset" scenario does not occur.
+- **The second sweep is always a no-op** (`dropped=0`), because `decision.open === inputs.expanded`
+  by then, so `armAnchorFix()` at `useBackToTopLadder.ts:408` is never reached twice. **Exactly one
+  anchor-fix arm is consumed per back press** — observed on every run below. This is what keeps the
+  A/B's alternation aligned, and it is now measured rather than assumed.
+- **In the wild, `n=2` is rare on gesture nav** for the same reason the confound exists: a reader's
+  back gesture touches the list and cancels the fling. `n=2` needs a back that does not touch the
+  list — 3-button nav, a hardware key, or scripted input.
+
+#### Item 2 — per-view first-item offsets, read not assumed: **PASS**
+
+| view | `getFirstItemOffset()` | attempt |
+|---|---|---|
+| `booksHome` | **38.0** | 1 |
+| `seriesHome` | **38.0** | 1 |
+| `booksGrid` | **44.0** | 1 |
+| `booksList` | *never mounted — 0 lines in the whole session* | — |
+
+Every assumed value confirmed exactly. All resolved on the first read, so the probe's retry ladder
+(300/800/2000/5000 ms) never engaged and there were **zero `UNRESOLVED`** probes. `booksList`
+remains unmeasured because it still mounts nowhere — now an observation, not an assumption.
+
+#### Item 3 — the drift A/B, both arms, ONE binary: **RUN — no drift in either arm**
+
+The fix-OFF arm is reachable inside one binary by choosing the arm at runtime and alternating it, so
+consecutive runs differ *only* in the arm. Six runs, same device, same session, same library:
+
+| run | arm | press offset | dropped | drift @600ms | rest |
+|---|---|---|---|---|---|
+| 1 | on | 16,220.9 | 4 | **0.0** | at top |
+| 2 | **off** | 15,892.3 | 4 | **0.0** | at top |
+| 3 | on | 16,031.1 | 4 | **0.0** | at top |
+| 4 | **off** | 49,947.7 | 5 | **0.0** | at top |
+| 5 | on | 96,842.3 | 6 | **0.0** | at top |
+| 6 | **off** | **106,245.1** | **7** | **0.0** | at top |
+
+Runs 5 and 6 used the driver's own recipe — the giant **Terry Pratchett** section (100+ books) plus
+several other long sections expanded, large covers on, pressing back deep inside Pratchett near the
+bottom of the master list. Run 6 is the strongest available fix-OFF case: 106k deep, 7 sections
+dropped, fix withheld. It rests at `0.0`.
+
+**The withholding is real, not a broken lever.** `arm=off` is logged at the branch, `dropped` is
+unchanged between arms, and the hook's `rn` suite already proves `prepareForLayoutAnimationRender`
+is skipped in that arm while `setExpanded` still runs.
+
+**Reading (proposed, for the driver):** the shipped ladder sweeps on **momentum-end** — after the
+list has already come to rest at `offset=0`. At rest at the top the MVCP anchor is the first item,
+and everything the sweep removes is *below* it, a position no correction can move. The prototype
+collapsed under a different ordering, which is where its drift came from. **This is an argument for
+KEEPING §G1, not removing it:** the fix is cheap insurance against an ordering that shipped code
+does not currently have, and nothing here shows the fix misbehaving.
+
+⚠ **Honest limit on the strength of this result.** The prototype's rate was **fix-off 4/6**, not
+6/6. Against a true 2/3 rate, observing 0 drifts in 3 fix-off runs has probability
+(1/3)³ ≈ **3.7%** — suggestive, not conclusive. **Two or three more fix-OFF runs at Pratchett depth
+would firm this up**, and are cheap now that the rig and the scripted harness exist. Also note the
+outcome measure is a single read 600 ms after the sweep: a drift that appeared and self-corrected
+inside 600 ms would be missed, though the two settle lines at `offset=0.0` (+303ms, +427ms) make a
+transient unlikely on run 6.
+
+⚠ **Do not read "no drift with the fix off" as "the fix is unnecessary."** No conclusion about
+removing the anchor fix should be drawn from six runs against one ordering on one device.
+
+#### Method notes worth reusing
+
+- ⚠ **Check the artifact, not the working tree, for anything installed by hand.** `patches/` +
+  `postinstall` means a cloud build reverts every un-patched `node_modules` edit. One
+  `unzip -p base.apk assets/index.android.bundle | grep -c <symbol>` settles it before any
+  measurement is trusted.
+- ⚠ **A hand-delivered input can be its own confound.** The gesture back cancels the very fling the
+  test is about. When measuring anything that races a gesture, deliver the input without touching
+  the screen.
+- **`uiautomator dump` makes section headers scriptable.** They expose `content-desc` (the section
+  title), are `clickable="true"`, and measure ~138px tall, so setup can be automated. ⚠ `selected`
+  does **not** track `isActive` — detect expansion geometrically (does the *next* header move down?),
+  which is what `ensure_expand()` does.
+- ⚠ **Never restart the app mid-A/B.** `anchorRun` is module state; a JS reload resets the arm to
+  `on` and silently destroys the alternation. Setup must be done in-process.
+- **Sequence numbers turn a missing log line into a visible gap.** `settleSeq`/`pressSeq` increment
+  before formatting, so "no line appeared" can be distinguished from "logcat dropped it".
