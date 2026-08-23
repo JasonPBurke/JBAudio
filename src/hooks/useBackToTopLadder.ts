@@ -1,6 +1,5 @@
 import {
   useCallback,
-  useEffect,
   useLayoutEffect,
   useRef,
   type Dispatch,
@@ -21,13 +20,6 @@ import {
   type LadderView,
   type SectionRange,
 } from '@/helpers/ladderDecisions';
-import {
-  armAnchorFix,
-  logLadderPress,
-  logLadderSettle,
-  probeFirstItemOffset,
-  sampleDriftAfterSweep,
-} from '@/helpers/ladderInstrumentation';
 import type { LadderList } from '@/types/ladderList';
 
 /**
@@ -182,21 +174,6 @@ export function useBackToTopLadder({
     inputsRef.current = { view, drawerOpen, expanded, setExpanded };
   });
 
-  /*
-   * ⚠ TICKET 08 INSTRUMENTATION -- ticket 09 deletes this effect whole.
-   *
-   * Reads each view's `getFirstItemOffset()` once, shortly after that view
-   * mounts, so the checklist's "read, not assumed" item needs no back press per
-   * view -- including on `booksList`, which nothing currently mounts and no
-   * device has ever measured. `probeFirstItemOffset` returns a no-op canceller
-   * when the module is off, so on a shipping build this effect subscribes to
-   * nothing and schedules nothing.
-   */
-  useEffect(
-    () => probeFirstItemOffset(view, () => listRef.current?.getFirstItemOffset()),
-    [view, listRef],
-  );
-
   const onBackPress = useCallback(() => {
     try {
       /*
@@ -208,28 +185,11 @@ export function useBackToTopLadder({
        * happens and the app does not background.
        */
       const list = listRef.current;
-      const snapshot = list
-        ? buildSnapshot(list, inputsRef.current, sectionRangesRef.current)
-        : null;
-      const decision = decideBackPress(snapshot);
-
-      /*
-       * ⚠ TICKET 08 INSTRUMENTATION -- ticket 09 deletes this call.
-       *
-       * It NUMBERS the press, which is what makes the settle lines below
-       * countable against it. "Once on a clean press, twice when the press
-       * interrupts a fling" is otherwise an assumption about an event nobody
-       * can see, and the sweep's idempotence is the argument that rests on it.
-       *
-       * Inside the `try`, deliberately: this is the containment boundary, and
-       * an instrument must not be the thing that crashes a back press.
-       */
-      logLadderPress({
-        view: inputsRef.current.view,
-        offset: snapshot?.offset,
-        firstItemOffset: snapshot?.firstItemOffset,
-        decision,
-      });
+      const decision = decideBackPress(
+        list
+          ? buildSnapshot(list, inputsRef.current, sectionRangesRef.current)
+          : null,
+      );
 
       /*
        * A `scrollTo` decision can only come from a snapshot, and a snapshot can
@@ -321,28 +281,11 @@ export function useBackToTopLadder({
       if (list === null) return;
 
       const inputs = inputsRef.current;
-      const snapshot = buildSnapshot(list, inputs, sectionRangesRef.current);
-      const decision = decideSweep(snapshot, trigger, velocityY);
-
-      /*
-       * ⚠ TICKET 08 INSTRUMENTATION -- ticket 09 deletes this call.
-       *
-       * BEFORE the bail-out below, so DECLINED settles are logged too. An
-       * interrupted fling's first momentum end arrives at a non-top offset and
-       * declines -- and that decline IS the second of the two events the
-       * checklist is counting, so logging only the sweeps would answer a
-       * different question and answer it wrongly.
-       */
-      logLadderSettle({
-        view: snapshot.view,
+      const decision = decideSweep(
+        buildSnapshot(list, inputs, sectionRangesRef.current),
         trigger,
         velocityY,
-        offset: snapshot.offset,
-        firstItemOffset: snapshot.firstItemOffset,
-        expandedCount: inputs.expanded.size,
-        decision,
-      });
-
+      );
       if (decision.kind !== 'collapse') return;
 
       /*
@@ -391,22 +334,7 @@ export function useBackToTopLadder({
        * through a strictly narrower door than an absolute write left open.
        */
       if (decision.open !== inputs.expanded) {
-        /*
-         * ⚠ TICKET 08 INSTRUMENTATION WRAPS A LOAD-BEARING LINE -- ticket 09
-         * restores the bare `list.prepareForLayoutAnimationRender()` call.
-         *
-         * `armAnchorFix()` returns TRUE and logs nothing unless the module is
-         * switched on, so a shipping build runs the fix exactly as the argument
-         * above requires. Switched on it can WITHHOLD the fix on alternate
-         * sweeps -- which is the fix-OFF arm ticket 08 deferred for want of a
-         * second binary, now reachable inside ONE binary as F-11 requires.
-         *
-         * The drift sample is the arm's outcome measure: where the list came to
-         * rest 600 ms later. Fix on, at top; fix off, the prototype saw it
-         * dragged hundreds of px back down the list.
-         */
-        if (armAnchorFix()) list.prepareForLayoutAnimationRender();
-        sampleDriftAfterSweep(() => list.getAbsoluteLastScrollOffset());
+        list.prepareForLayoutAnimationRender();
       }
 
       /*
