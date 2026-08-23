@@ -80,10 +80,16 @@ const SECTIONED_VIEWS = new Set<LadderView>(['booksHome']);
  *
  * ⚠ The second job is NOT what C1 asks for. C1 rung 2 requires the header be
  * "meaningfully above the fold", and 1 dp makes a 5 px hop qualify: back is
- * consumed for a move the reader cannot see. That is a real deviation, it is
- * recorded against ticket 08, and splitting the two roles is the fix -- but the
- * threshold for "meaningfully" is a spec decision and spec.md is signed off, so
- * it waits for the driver rather than being invented here.
+ * consumed for a move the reader cannot see, and only the NEXT press reaches
+ * master top. That is a real deviation -- DRIVER RULING 2026-08-23: ACCEPTED as
+ * it stands, because the hop is invisible, the ladder still completes on the
+ * following press, and the window is one dp wide (spec.md D4, ninth amendment).
+ *
+ * ⚠ DO NOT widen this constant casually. It is the one number holding both
+ * roles together, and the ruling above rests on it staying sub-pixel. If it
+ * ever has to grow, SPLIT IT FIRST -- a grid-snap tolerance for the containment
+ * test, a separate "meaningfully above" threshold for the fire condition --
+ * because only the first is bracketed by the pixel grid.
  */
 const SUBPIXEL_EPSILON = 1;
 

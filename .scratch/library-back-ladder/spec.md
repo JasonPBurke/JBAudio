@@ -30,8 +30,9 @@ The rung no longer identifies its section by index, so every passage describing 
 superseded: **D4** (the mechanism itself), **H4**'s "the rung asks containment" clause, **J1**'s
 press-time read list, and Testing Decisions cases **11** and **13**, which specified the very
 behaviour D-1 had to remove. **D3 is unchanged and was correct throughout** — the fault was D4's
-mechanism for reaching it, never the intent. One question is left OPEN for the driver rather than
-settled here: see D4's amendment on C1's *"meaningfully above the fold"*.
+mechanism for reaching it, never the intent. One question raised by the amendment — C1's
+*"meaningfully above the fold"* — was put to the driver and **answered the same day: the current
+behaviour is accepted**. See D4's amendment.
 Map (the argument, ticket by ticket): [map.md](map.md)
 Prototype branch: **`proto/back-ladder-rung-ab`** — throwaway, see §Further Notes.
 
@@ -461,14 +462,22 @@ Three consequences, each load-bearing:
 - **The lookup is ORDER-INDEPENDENT** — a maximum, not a first match — so it no longer depends
   on H4's non-overlap guarantee. See H4's amendment.
 
-⚠ **OPEN, for the driver — `T` is doing TWO jobs and C1 only asked for one.** It gates both
-*"which header is the offset AT"* (where it must be ≥ the grid snap, or D-2 returns) and *"is
-this header worth scrolling to"* (C1 rung 2's *"meaningfully above the fold"*). At `T = 1` a
-header 5 px above the offset fires the rung: back is consumed for a hop the reader cannot see,
-and only the NEXT press reaches master top. Verified against the shipped decision — `offset
-1505`, header `y 1500` → `scrollTo(1500, 'section')`. **Splitting the two into separate
-constants is the fix; what "meaningfully" should be is a UX decision this amendment does not
-presume to make.**
+⚠ **`T` does TWO jobs and C1 only asked for one. *(Driver decision, 2026-08-23: the current
+behaviour is ACCEPTED. Revisit if the conditions below change.)*** `T` gates both *"which header
+is the offset AT"* (where it must be ≥ the grid snap, or D-2 returns) and *"is this header worth
+scrolling to"* (C1 rung 2's *"meaningfully above the fold"*). At `T = 1` a header 5 px above the
+offset fires the rung: back is consumed for a hop the reader cannot see, and only the NEXT press
+reaches master top. Verified against the shipped decision — `offset 1505`, header `y 1500` →
+`scrollTo(1500, 'section')`.
+
+The deviation from C1 is real and is accepted on its consequences: the hop is invisible, the
+ladder still completes on the following press, nothing is lost or mis-landed, and the window is
+one dp wide. **What would reopen it:** `T` growing beyond a sub-pixel allowance for any reason;
+a view whose `firstItemOffset` or header height makes the dead press land somewhere a reader
+notices; or a report of "back did nothing". **The fix, when that day comes, is to split `T` into
+two named constants** — a grid-snap tolerance for the containment test, and a separate
+"meaningfully above" threshold for the fire condition — since only the first is bracketed by the
+pixel grid and the second is a UX number.
 
 **D5. The rung is a plain `scrollToOffset`, never `scrollToIndex`.** The header is above the
 viewport and therefore already measured, so its layout is exact. The memory topic that
