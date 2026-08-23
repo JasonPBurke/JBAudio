@@ -33,6 +33,12 @@ behaviour D-1 had to remove. **D3 is unchanged and was correct throughout** — 
 mechanism for reaching it, never the intent. One question raised by the amendment — C1's
 *"meaningfully above the fold"* — was put to the driver and **answered the same day: the current
 behaviour is accepted**. See D4's amendment.
+**Amended 2026-08-23 (tenth amendment)** — two edits, also raised by implementation ticket
+[08](../library-back-ladder-impl/issues/08-device-verification.md)'s device pass: **F5** and **E5**.
+F5's open device question is answered — the overscroll bounce DOES sweep, confirmed with a control —
+and a THIRD sweeping gesture was found that F5's recorded lever does not cover: a settled slow drag
+down into the list. E5's smear risk was measured on shipping code and is not the shape E5 assumed.
+Both were put to the driver and **accepted as they stand**, with the reopen condition recorded.
 Map (the argument, ticket by ticket): [map.md](map.md)
 Prototype branch: **`proto/back-ladder-rung-ab`** — throwaway, see §Further Notes.
 
@@ -517,6 +523,20 @@ must be stated, because it is what makes the double fire harmless.
 scale**. Consequently the **two-stage jump** (instant to within a screenful, then animate the
 last leg) and the **distance-dependent rule** are both unneeded and stay unbuilt.
 
+*Amended 2026-08-23 ([impl 08](../library-back-ladder-impl/issues/08-device-verification.md)).*
+**Measured on shipping code, and the risk is not the shape E5 assumed.** Screen-recorded at 120 Hz
+on a preview build against the real 355-book library and analysed frame by frame: the jump does not
+produce a smear of mismatched cells. **The list viewport goes fully BLANK for ~160 ms** — flat
+luminance 26.3 against 62–63 settled — then fills over ~90 ms, fully settled ~320 ms after the
+press, with cover art resolving last. "Consecutive frames sharing no cells" understates it: for
+about half the jump there are no cells at all.
+
+*(Driver decision, 2026-08-23: **ACCEPTED.** It is brief, it is the same every time, nothing is
+mis-landed, and the list is correct the moment it settles. **Revisit on evidence** — a user
+reporting the blank as a glitch or a perceived hang. E5's conclusion is UNCHANGED: the two-stage
+jump and the distance-dependent rule stay unbuilt, and note that the two-stage jump would not even
+address this — an instant first leg lands in the same unrendered region.)*
+
 **E6. ⚠ The ladder must NOT consult `ReducedMotionConfig`.** That component is Reanimated's
 and has no path to the platform `ObjectAnimator` this scroll runs on. **Reduced motion is
 handled by the OS animator scale, for free and correctly:** at scale `0` the jump takes 0 ms,
@@ -588,6 +608,27 @@ as a fling and the bounce-sweep silently never happens. F4's `-4.76` is device-m
 velocity *is* reported for drag-end on the rig — but the bounce's own value is inferred, not
 measured. Confirm on device (§ ticket 08); if the bounce never sweeps, this is why, and the
 feature is not otherwise harmed.
+
+*Amended 2026-08-23 ([impl 08](../library-back-ladder-impl/issues/08-device-verification.md)).*
+**Both halves of the question above are answered, and a THIRD sweeping gesture was found.**
+
+- **The bounce DOES sweep — confirmed on device**, against a control (identical setup without
+  the bounce left the below-fold section expanded). The platform reports it, the safe default
+  never fires, and the ⚠ above is closed. F5 stands exactly as written.
+- **A settled slow drag DOWN INTO the list also sweeps** — ticket 10's F-7, recorded there as an
+  open question and now answered: **it is reachable, not theoretical.** The precondition needs no
+  scrolling at all: at rest at the top, expand a VISIBLE section, then expand the one ABOVE it —
+  the second expansion pushes the first below the fold while it stays open. A drag down into the
+  list released at ~0 velocity then collapses it. I2 is not violated, so nothing visible changes
+  and the loss is **silent** until the reader scrolls down. **F5's "reversible lever" above does
+  NOT cover this**, because this drag *begins* at the top.
+
+*(Driver decision, 2026-08-23: **ACCEPTED as it stands.** The precondition takes two deliberate
+expansions near the top, the loss is one tap to undo, and nothing is mis-landed. **Revisit on
+evidence** — a user reporting that they dislike it, or reporting that they hit it at all. If it
+ever must be fixed, the lever is NOT the start-offset test above: the bounce moves the list UP off
+the top while this moves it DOWN into the list, so gating the drag-trigger sweep on the drag not
+having moved into the list separates the two where a start-position test cannot.)*
 
 **F6. Sampling point: read visibility from the list's ref at the moment the sweep runs**, and
 compare it against the section ranges by index overlap — `range.start <= endIndex && range.end

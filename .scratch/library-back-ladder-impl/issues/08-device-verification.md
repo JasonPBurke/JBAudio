@@ -296,8 +296,9 @@ ladder ends, no climbing. The reported defect is gone.
       **fully blank for ~160 ms** (t=1.752→1.911, flat luminance 26.3 vs 62–63 settled), then fills
       over ~90 ms, fully settled ~320 ms after the press; cover art resolves last. So it is not a
       "smear" of mismatched cells — it is a brief EMPTY viewport. Frames and per-frame luminance are
-      in the session scratchpad. Whether 160 ms of blank is objectionable is a judgement call and is
-      left to the driver; it is not a correctness failure.
+      in the session scratchpad. **DRIVER RULING 2026-08-23: ACCEPTED** — brief, identical every
+      time, nothing mis-landed, and the list is correct the moment it settles. Reopens on a user
+      report of a glitch or a perceived hang. Recorded in `spec.md` §E5 (tenth amendment).
 - [x] **Rung overshoot — NOT REPRODUCED.** ~25 back presses across this session, never once landed
       past the header.
 - [x] **Card reload after a collapse — observed, matches the known accepted behaviour.** Cover art
@@ -333,8 +334,11 @@ sweeping) moves the list UP off the top and returns; this failure moves the list
 Gating the drag-trigger sweep on the drag not having moved *into* the list separates the two cases,
 where a start-position test cannot.
 
-**Severity is the driver's call.** The precondition needs two adjacent expansions near the top, which
-is plausible but not the commonest path; the loss is silent; and the data is recoverable by one tap.
+**DRIVER RULING 2026-08-23: ACCEPTED AS IT STANDS, revisit on evidence.** Not severe enough to
+correct now — the precondition needs two deliberate expansions near the top, which is plausible but
+not the commonest path; the loss is one tap to undo; nothing is mis-landed. **What reopens it: a user
+report of disliking the behaviour, or of hitting it at all.** Recorded in `spec.md` §F5 (tenth
+amendment) together with the lever to use if that day comes.
 
 #### Not observable on this binary — three items deferred with reasons
 
