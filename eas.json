@@ -18,12 +18,16 @@
         "gradleCommand": ":app:assembleRelease -PreactNativeArchitectures=arm64-v8a"
       },
       "env": {
+        "SENTRY_ORG": "studio-jas",
+        "SENTRY_PROJECT": "react-native",
         "EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY": "goog_zFaTAcSCKFBNGsdvOyoiFnkglwz"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
+        "SENTRY_ORG": "studio-jas",
+        "SENTRY_PROJECT": "react-native",
         "ANDROID_SDK_ROOT": "/home/jason/Android/Sdk",
         "EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY": "goog_zFaTAcSCKFBNGsdvOyoiFnkglwz"
       }
@@ -34,6 +38,8 @@
         "buildType": "apk"
       },
       "env": {
+        "SENTRY_ORG": "studio-jas",
+        "SENTRY_PROJECT": "react-native",
         "EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY": "goog_zFaTAcSCKFBNGsdvOyoiFnkglwz"
       }
     }
