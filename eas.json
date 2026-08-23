@@ -18,7 +18,6 @@
         "gradleCommand": ":app:assembleRelease -PreactNativeArchitectures=arm64-v8a"
       },
       "env": {
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY": "goog_zFaTAcSCKFBNGsdvOyoiFnkglwz"
       }
     },
@@ -26,7 +25,6 @@
       "autoIncrement": true,
       "env": {
         "ANDROID_SDK_ROOT": "/home/jason/Android/Sdk",
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY": "goog_zFaTAcSCKFBNGsdvOyoiFnkglwz"
       }
     },
