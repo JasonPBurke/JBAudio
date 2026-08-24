@@ -57,3 +57,11 @@ app-example
 skills-lock.json
 
 .env.local
+
+# .scratch is the issue tracker (markdown stays tracked); its device-check
+# screenshots/recordings are local-only to keep EAS build tarballs small
+.scratch/**/*.png
+.scratch/**/*.jpg
+.scratch/**/*.jpeg
+.scratch/**/*.gif
+.scratch/**/*.mp4
