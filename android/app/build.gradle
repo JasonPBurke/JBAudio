@@ -96,7 +96,17 @@ sentry {
     // Only attempt the upload when a token is actually present. A local
     // `npm run android` release build without SENTRY_AUTH_TOKEN would
     // otherwise fail the whole build on the upload step.
-    autoUploadProguardMapping.set(System.getenv("SENTRY_AUTH_TOKEN") != null)
+    // Announce which way the gate went. Without this the skip is SILENT, and a
+    // production build that quietly stopped uploading mappings would only be
+    // discovered later, via an unreadable crash. Grep the EAS build log for
+    // "[sentry-mapping]".
+    def hasSentryToken = System.getenv("SENTRY_AUTH_TOKEN") != null
+    println(hasSentryToken
+        ? "[sentry-mapping] SENTRY_AUTH_TOKEN present -- R8 mapping WILL be uploaded."
+        : "[sentry-mapping] SENTRY_AUTH_TOKEN absent -- R8 mapping upload SKIPPED. "
+          + "Expected for local builds; if you see this in an EAS production build, "
+          + "the mapping is missing and native crashes will be unreadable.")
+    autoUploadProguardMapping.set(hasSentryToken)
     includeProguardMapping.set(true)
 
     // Debug builds are not minified, so there is no mapping to upload.
