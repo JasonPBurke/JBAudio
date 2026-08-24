@@ -19,6 +19,7 @@ import { colors } from '@/constants/tokens';
 import { scanLibrary } from '@/helpers/scanLibrary';
 import { useThemeStore } from '@/store/themeStore';
 import { useTheme } from '@/hooks/useTheme';
+import { useRequiresPro } from '@/hooks/useRequiresPro';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -68,6 +69,7 @@ const DrawerContent = (props: Props) => {
   const setMode = useThemeStore((state) => state.setMode);
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { hasPurchasedPro } = useRequiresPro();
 
   const handleThemeToggle = () => {
     if (mode === 'system') {
@@ -180,7 +182,7 @@ const DrawerContent = (props: Props) => {
         dividerColor={dividerColor}
       />
       <DrawerRow
-        label='Get Pro'
+        label={hasPurchasedPro ? 'Manage Pro' : 'Get Pro'}
         icon={Crown}
         onPress={() => router.navigate('/subscription')}
         iconColor={iconColor}
