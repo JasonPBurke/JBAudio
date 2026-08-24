@@ -81,6 +81,40 @@ def enableProguardInReleaseBuilds = (findProperty('android.enableProguardInRelea
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
 apply from: new File(["node", "--print", "require.resolve('@sentry/react-native/package.json')"].execute().text.trim(), "../sentry.gradle")
+
+// The line above (@sentry/react-native's sentry.gradle) handles the JS bundle
+// and source maps only. This plugin exists for ONE additional job: uploading
+// the R8 `mapping.txt` so Java/Kotlin frames deobfuscate. Everything else the
+// plugin can do is switched off below -- it would duplicate or conflict with
+// @sentry/react-native, which already owns the SDK version and JS source maps.
+apply plugin: "io.sentry.android.gradle"
+
+sentry {
+    // Org/project resolve from SENTRY_ORG / SENTRY_PROJECT (set per-profile in
+    // eas.json) or from the gitignored android/sentry.properties locally.
+    //
+    // Only attempt the upload when a token is actually present. A local
+    // `npm run android` release build without SENTRY_AUTH_TOKEN would
+    // otherwise fail the whole build on the upload step.
+    autoUploadProguardMapping.set(System.getenv("SENTRY_AUTH_TOKEN") != null)
+    includeProguardMapping.set(true)
+
+    // Debug builds are not minified, so there is no mapping to upload.
+    ignoredBuildTypes.set(["debug"] as Set)
+
+    // Off: @sentry/react-native pins and installs the Android SDK itself.
+    autoInstallation {
+        enabled.set(false)
+    }
+    // Off: bytecode instrumentation for DB/OkHttp/file-IO spans. Not wanted
+    // here, and it would add build time plus instrument WatermelonDB's SQLite.
+    tracingInstrumentation {
+        enabled.set(false)
+    }
+    // Off: uploading native source files to Sentry.
+    includeSourceContext.set(false)
+}
+
 android {
     ndkVersion rootProject.ext.ndkVersion
 

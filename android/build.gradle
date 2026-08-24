@@ -9,6 +9,13 @@ buildscript {
     classpath('com.android.tools.build:gradle')
     classpath('com.facebook.react:react-native-gradle-plugin')
     classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
+    // Uploads the R8 mapping file so Java/Kotlin stack traces deobfuscate in
+    // Sentry. @sentry/react-native's sentry.gradle handles the JS bundle and
+    // source maps ONLY -- it has no ProGuard/mapping support at all -- so
+    // without this plugin, enabling R8 would turn every native-layer crash
+    // (MediaInfo turbomodule, SafCueReader, RNTP, Glide OOM) into
+    // `a.b.c(Unknown Source)`. Configured narrowly in app/build.gradle.
+    classpath('io.sentry:sentry-android-gradle-plugin:6.19.0')
   }
 }
 
