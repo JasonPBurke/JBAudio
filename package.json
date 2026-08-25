@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "test": "jest",
     "postinstall": "patch-package",
-    "generate:lucide-shim": "node ./scripts/generateLucideShim.js"
+    "generate:lucide-shim": "node ./scripts/generateLucideShim.js",
+    "build:local": "node ./scripts/buildLocal.js"
   },
   "dependencies": {
     "@bam.tech/react-native-image-resizer": "^3.0.11",
