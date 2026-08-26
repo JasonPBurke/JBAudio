@@ -15,12 +15,9 @@ import { Play } from 'lucide-react-native';
 import LoaderKitView from 'react-native-loader-kit';
 import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
-import { handleBookPlay } from '@/helpers/handleBookPlay';
-import { awaitPlayerReady } from '@/helpers/awaitPlayerReady';
+import { playBookFromRow } from '@/helpers/playBookFromRow';
 import { BookDurationRow } from '@/components/BookDurationRow';
 import { useBookById, useBookDisplayData } from '@/store/library';
-import TrackPlayer, { State } from 'react-native-track-player';
-import { recordFootprint } from '@/db/footprintQueries';
 import { setTitleDetailsNavIntent } from '@/store/titleDetailsNavIntent';
 
 export type BookListItemProps = {
@@ -56,32 +53,19 @@ export const BookListItem = memo(function BookListItem({
     });
   }, [router, bookId, author, bookTitle]);
 
-  const handlePressPlay = useCallback(async () => {
-    if (!fullBook) return;
-    await awaitPlayerReady();
-    const playbackState = await TrackPlayer.getPlaybackState();
-    const isCurrentlyPlaying = playbackState.state === State.Playing;
-
-    // Record footprint before playing (only if this is the active book)
-    if (!isCurrentlyPlaying) {
-      try {
-        const activeTrack = await TrackPlayer.getActiveTrack();
-        if (activeTrack?.bookId === bookId) {
-          await recordFootprint(bookId, 'play');
-        }
-      } catch {
-        // Silently fail if footprint recording fails
-      }
-    }
-
-    handleBookPlay(
-      fullBook,
-      isCurrentlyPlaying,
-      isActiveBook,
-      activeBookId,
-      setActiveBookId,
-    );
-  }, [fullBook, isActiveBook, activeBookId, setActiveBookId, bookId]);
+  const handlePressPlay = useCallback(
+    () =>
+      playBookFromRow({
+        book: fullBook,
+        // The ACTIVE Book (player state); the series surfaces pass the
+        // Requested one here. See playBookFromRow's header.
+        alreadyInPlay: isActiveBook,
+        activeBookId,
+        setActiveBookId,
+        recordPlayFootprint: true,
+      }),
+    [fullBook, isActiveBook, activeBookId, setActiveBookId],
+  );
 
   // If data isn't ready or the book was deleted, render nothing.
   // Must stay below every hook so the hook order is render-stable.

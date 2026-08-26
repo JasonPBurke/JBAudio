@@ -36,15 +36,13 @@ import {
 } from 'react-native';
 import FastImage from '@d11/react-native-fast-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import TrackPlayer, { State } from 'react-native-track-player';
 
 import { unknownBookImageUri } from '@/constants/images';
 import { fontSize, screenPadding } from '@/constants/tokens';
 import { useTheme } from '@/hooks/useTheme';
 import { withOpacity } from '@/helpers/colorUtils';
 import { useQueueStore } from '@/store/queue';
-import { handleBookPlay } from '@/helpers/handleBookPlay';
-import { awaitPlayerReady } from '@/helpers/awaitPlayerReady';
+import { playBookFromRow } from '@/helpers/playBookFromRow';
 import { seriesBackdropUri } from '@/helpers/seriesArtwork';
 import type { DerivedSeries } from '@/helpers/seriesAssembly';
 import {
@@ -107,20 +105,16 @@ export const SeriesBrowseRow = memo(function SeriesBrowseRow({
 
   const handleOpen = useCallback(() => onOpen(series.id), [onOpen, series.id]);
 
-  const handlePlay = useCallback(async () => {
-    if (!target?.bookId) return;
-    await awaitPlayerReady();
-    const playbackState = await TrackPlayer.getPlaybackState();
-    void handleBookPlay(
-      target,
-      playbackState.state === State.Playing,
-      target.bookId === activeBookId,
+  const onPlay = useCallback(() => {
+    void playBookFromRow({
+      book: target ?? undefined,
+      // The REQUESTED Book (queue store); the grid card and list row pass the
+      // Active one here. See playBookFromRow's header.
+      alreadyInPlay: target?.bookId === activeBookId,
       activeBookId,
       setActiveBookId,
-    );
+    });
   }, [target, activeBookId, setActiveBookId]);
-
-  const onPlay = useCallback(() => void handlePlay(), [handlePlay]);
 
   return (
     <Pressable

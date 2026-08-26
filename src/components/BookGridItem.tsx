@@ -14,8 +14,7 @@ import LoaderKitView from 'react-native-loader-kit';
 import { Play } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useQueueStore } from '@/store/queue';
-import { handleBookPlay } from '@/helpers/handleBookPlay';
-import { awaitPlayerReady } from '@/helpers/awaitPlayerReady';
+import { playBookFromRow } from '@/helpers/playBookFromRow';
 import { BookDurationRow } from '@/components/BookDurationRow';
 import { useBookById, useBookDisplayData } from '@/store/library';
 import { unknownBookImageUri } from '@/constants/images';
@@ -23,8 +22,6 @@ import {
   useIsBookActive,
   useIsBookActiveAndPlaying,
 } from '@/store/playerState';
-import TrackPlayer, { State } from 'react-native-track-player';
-import { recordFootprint } from '@/db/footprintQueries';
 import { Book } from '@/types/Book';
 import { setTitleDetailsNavIntent } from '@/store/titleDetailsNavIntent';
 
@@ -71,30 +68,19 @@ const BookPlayButton = memo(function BookPlayButton({
   const isActiveBook = useIsBookActive(bookId);
   const isActiveAndPlaying = useIsBookActiveAndPlaying(bookId);
 
-  const handlePressPlay = useCallback(async () => {
-    await awaitPlayerReady();
-    const playbackState = await TrackPlayer.getPlaybackState();
-    const isCurrentlyPlaying = playbackState.state === State.Playing;
-
-    if (!isCurrentlyPlaying) {
-      try {
-        const activeTrack = await TrackPlayer.getActiveTrack();
-        if (activeTrack?.bookId === bookId) {
-          await recordFootprint(bookId, 'play');
-        }
-      } catch {
-        // Silently fail if footprint recording fails
-      }
-    }
-
-    handleBookPlay(
-      fullBook,
-      isCurrentlyPlaying,
-      isActiveBook,
-      activeBookId,
-      setActiveBookId,
-    );
-  }, [fullBook, isActiveBook, activeBookId, setActiveBookId, bookId]);
+  const handlePressPlay = useCallback(
+    () =>
+      playBookFromRow({
+        book: fullBook,
+        // The ACTIVE Book (player state); the series surfaces pass the
+        // Requested one here. See playBookFromRow's header.
+        alreadyInPlay: isActiveBook,
+        activeBookId,
+        setActiveBookId,
+        recordPlayFootprint: true,
+      }),
+    [fullBook, isActiveBook, activeBookId, setActiveBookId],
+  );
 
   const playingIconStyle = useMemo(
     () => [

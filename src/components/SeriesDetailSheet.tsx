@@ -42,7 +42,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import LoaderKitView from 'react-native-loader-kit';
-import TrackPlayer, { State } from 'react-native-track-player';
 import { Check, Play, Wrench } from 'lucide-react-native';
 
 import { unknownBookImageUri } from '@/constants/images';
@@ -53,8 +52,7 @@ import { useQueueStore } from '@/store/queue';
 import { useIsBookActive, useIsBookActiveAndPlaying } from '@/store/playerState';
 import { useSettingsStore } from '@/store/settingsStore';
 import { setTitleDetailsNavIntent } from '@/store/titleDetailsNavIntent';
-import { handleBookPlay } from '@/helpers/handleBookPlay';
-import { awaitPlayerReady } from '@/helpers/awaitPlayerReady';
+import { playBookFromRow } from '@/helpers/playBookFromRow';
 import { Book } from '@/types/Book';
 import type { DerivedSeries } from '@/helpers/seriesAssembly';
 import { seriesBackdropUri } from '@/helpers/seriesArtwork';
@@ -119,21 +117,19 @@ type TextLayoutEvent = Parameters<
  * the list row, the book details screen and Android Auto at the same time, and
  * it flips a restarted book back to `Started` so the rule cannot fire twice.
  */
-async function playBook(
+function playBook(
   book: Book,
   activeBookId: string | null,
   setActiveBookId: (bookId: string) => void,
-) {
-  if (!book.bookId) return;
-  await awaitPlayerReady();
-  const playbackState = await TrackPlayer.getPlaybackState();
-  void handleBookPlay(
+): Promise<void> {
+  return playBookFromRow({
     book,
-    playbackState.state === State.Playing,
-    book.bookId === activeBookId,
+    // The REQUESTED Book (queue store); the grid card and list row pass the
+    // Active one here. See playBookFromRow's header.
+    alreadyInPlay: book.bookId === activeBookId,
     activeBookId,
     setActiveBookId,
-  );
+  });
 }
 
 const SeriesDetailSheet = ({ series }: { series: DerivedSeries }) => {
