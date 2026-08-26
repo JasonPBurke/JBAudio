@@ -23,6 +23,24 @@ type ChapterData = {
  * Calculate the current chapter index for a book based on playback position.
  * For single-file books, this calculates the chapter from position.
  * For multi-file books, this returns the track index.
+ *
+ * ⚠ KNOWN LAYERING VIOLATION, left standing deliberately.
+ *
+ * This is a persistence module, and it asks the Player where it is. Worse, it
+ * then decides what Position is measured against for this Book -- which is a
+ * question five different mechanisms in this app answer, by consulting
+ * different sources, with results that can disagree. Persistence should be told
+ * the answer, not work it out.
+ *
+ * The RNTP-adapter work does NOT fix this, by design. That pass makes this file
+ * reach the Player through one adapter instead of by name, which changes the
+ * shape of the coupling and not its direction. Fixing it properly means the
+ * queue-shape question getting a module of its own, and this file asking that
+ * module instead of deciding.
+ *
+ * The rule, so it survives without a pointer: NOTHING under db/ may decide what
+ * Position is measured against. If you are here to add a second such decision,
+ * that is the signal the module is overdue.
  */
 export async function getCurrentChapterInfo(
   bookId: string,

@@ -89,6 +89,24 @@ _Avoid_: complete, done, read
 A Book with listening progress that is not yet Finished.
 _Avoid_: in progress, current, playing
 
+**Player**:
+The running audio engine: the thing that holds a Queue, has a Position, and keeps playing when the
+app's screens are gone. ⚠ Distinct from the *player screen*, which is one view onto it — and from
+the several components named after it.
+_Avoid_: track player, engine, service
+
+**Active Book**:
+The Book the Player currently has loaded, as the Player reports it. ⚠ An observation, not an
+instruction: it **lags** a switch, and is only true once the Queue has actually changed.
+_Avoid_: current book, active track, now playing
+
+**Requested Book**:
+The Book the app has most recently decided to play. Set the moment the user asks, before the Queue
+is built, so it **leads** a switch. ⚠ For the length of a switch it disagrees with the Active Book,
+and that window is real — code that treats them as one word will be right during steady playback
+and wrong exactly when a Book changes.
+_Avoid_: active book, selected book, queued book
+
 **Position**:
 Where playback has reached. ⚠ What it is measured against depends on how the queue was built —
 for some Books it is an offset into the whole Book, for others into one Chapter — so "how far
@@ -96,7 +114,14 @@ through?" and "how far into this item?" are different questions.
 _Avoid_: progress (which is the user-facing fraction), offset, time
 
 **Queue**:
-What the player has actually been handed to play. It is built from a Book but is not the same
+What the Player has actually been handed to play. It is built from a Book but is not the same
 shape as one: a single-file Book may become one item or many, and the same Book can differ
 between devices.
 _Avoid_: playlist (which is a hand-made Series), tracklist
+
+**Remote control**:
+The surfaces outside the app that can command the Player without its UI: the notification, the lock
+screen, Android Auto, headset buttons. ⚠ Commands arrive **inbound** — the OS driving the app —
+which is the opposite direction from everything else in this section, and conflating the two has
+already hidden one defect.
+_Avoid_: media session, notification controls, external controls
