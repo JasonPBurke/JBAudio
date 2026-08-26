@@ -235,6 +235,17 @@ follows.
 - **Baseline at the time of writing:** 914 tests, 71 of 74 suites, `tsc` clean,
   `eslint` clean — with the RN lane's three suites failing to start. Expect the
   post-repair baseline to be higher, and use that as the comparison.
+- **RESOLVED — the post-repair baseline is 954 tests, 74 of 74 suites**, `tsc` 0,
+  `eslint` 0 errors. See [ticket 01](issues/01-repair-rn-jest-lane.md). This is the
+  number every later ticket measures "unchanged" against.
+  ⚠ Two additions the spec did not anticipate, both binding on tickets 02-12:
+  **(a)** the gate must be run from a **clean tree and a cold cache** —
+  `npm ci && npx jest --watchman=false --clearCache && npx jest --watchman=false` —
+  because a warm transform cache produced a fully convincing false green during the
+  repair; **(b)** the repair moved the toolchain to **jest 29.7.0** (jest-expo 55 is
+  a jest-29 package and jest 30's runtime is what broke the lane) and bumped the
+  native `react-native-worklets` 0.7.2 -> 0.7.4, so ticket 08's device pass needs a
+  real `npm run android`, not a Metro reload.
 
 **Device verification — two passes, matched to two risks.** Neither risk is
 reachable by the jest lanes, and they are different risks, which is the argument
@@ -267,7 +278,7 @@ the old form still exists until ticket 08 forbids it.
 
 | # | Ticket | Blocked by |
 | --- | --- | --- |
-| 01 | Repair the `rn` jest lane | — |
+| 01 | Repair the `rn` jest lane — **RESOLVED**, baseline 954/74 | — |
 | 02 | Extract the shared "play this Book from a row" operation | — |
 | 03 | Author the chapter-boundary device checklist | — |
 | 04 | Create the RNTP adapter beside RNTP *(expand)* | — |
