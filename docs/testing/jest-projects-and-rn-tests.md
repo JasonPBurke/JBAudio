@@ -33,12 +33,67 @@ pure test into the slow lane the day someone added JSX to it.
 
 | Package | Version | Note |
 |---|---|---|
-| `jest-expo` | `~55.0.21` | ⚠ `latest` is the **57** line, which is SDK 57. Match the Expo SDK, not `latest`. |
+| `jest-expo` | `~55.0.22` | ⚠ `latest` is the **57** line, which is SDK 57. Match the Expo SDK, not `latest`. |
+| `jest` | `^29.7.0` | ⚠ **Pinned to the 29 line deliberately. Do not "upgrade jest".** See below. |
+| `jest-environment-jsdom` | `^29.7.0` | Must track the jest major. |
+| `@types/jest` | `29.5.14` | Must track it too — types a major ahead of the runtime is its own silent-green hole. |
 | `@testing-library/react-native` | `14.0.1` | RNTL. Peers: react ≥19, RN ≥0.78. |
 | `test-renderer` | `1.2.0` | **Not** `react-test-renderer`. RNTL 14 moved to this standalone package, which is the supported replacement for the renderer React 19 deprecated. |
 
 The `android` preset rather than `jest-expo/universal`: this app ships Android only, and the
 universal preset runs every suite once per platform.
+
+⚠ **Why jest is held at 29.** `jest-expo@55` is a jest-29 package. On jest 30 the entire `rn` lane
+dies with *"You are trying to 'import' a file outside of the scope of the test code"*, which names
+neither jest nor the version. `expo@55`'s `winter/runtime.native.ts` installs
+`__ExpoImportMetaRegistry` as a **lazy, enumerable** global whose getter `require`s another module;
+`jest-expo` loads that file from `setupFiles`, i.e. outside test code, and jest 30 added a runtime
+guard that jest 29 does not have. Established 2026-08-26 while repairing this lane (`325a75f`),
+which also had to re-hoist a nested `expo-modules-core` and take `react-native-worklets` to `0.7.4`
+to satisfy its optional peer. Revisit only when the Expo SDK itself moves to a jest-30 `jest-expo`.
+
+## Running the suite
+
+```
+npx jest --watchman=false
+```
+
+**Use `--watchman=false` in any script, CI step, or agent/background invocation.** Nothing about
+this project needs watchman: it is only a crawler for the haste map, the full suite is ~4 s either
+way, and jest's `--watch` still works without it.
+
+⚠ **Bare `npx jest` can die before a single test runs, with a stack trace that blames
+`fb-watchman`.** The real message is above the trace and easy to scroll past:
+
+```
+Watchman is running at a lower than normal priority.
+(nice_value=5, min_acceptable_nice_value=0) ... Watchman is refusing to start.
+```
+
+That is watchman **refusing on purpose**, not crashing. It aborts whenever its nice value is above
+zero. A normal interactive terminal is nice 0 and is unaffected; anything running at reduced
+priority — a background agent job, a `nice`d script, some CI runners — inherits a positive nice
+value and trips it. **It has nothing to do with inotify limits or the watchman version**, both of
+which were already fixed on this machine on 2026-07-27 (official prebuilt `20260727`, limits at
+`524288`/`512`). Raising the limits again will not help, because the failure happens before any
+watching begins. Diagnose with `nice` — if it prints anything but `0`, this is your problem.
+
+> **ACTION — needs a normal terminal, and root for the optional half.**
+>
+> 1. Confirm the machine is actually fine, from your own terminal (not an agent):
+>    `nice` → expect `0`, then `npx jest` → expect it to pass. If so, nothing here is broken and
+>    `--watchman=false` is only ever needed for reduced-priority callers.
+> 2. *Optional*, only if you want watchman to work from agent/background contexts too — this
+>    disables a guard watchman added for a reason, so skip it unless the noise is costing you:
+>    ```
+>    printf '{"min_acceptable_nice_value": 20}\n' | sudo tee /etc/watchman.json
+>    watchman shutdown-server
+>    nice -n 5 watchman version    # should now succeed instead of refusing
+>    ```
+>    `min_acceptable_nice_value` is a real watchman config key and `/etc/watchman.json` is the
+>    global config path, but **this exact fix is untested** — it was written from the binary's
+>    strings, because the session that diagnosed this could neither reach nice 0 nor write `/etc`.
+>    If step 2 does not work, keep `--watchman=false` and move on; it costs nothing.
 
 ## Traps — all of these fail quietly
 
@@ -113,6 +168,23 @@ run, no error. Widened to `**/*.rn.test.[jt]s?(x)` on 2026-08-22; jest's default
 you are ever unsure a file is being collected, `npx jest --listTests` answers it in a second — and
 that is the only cheap check, because a suite that never runs looks exactly like a suite that
 passed.
+
+**9. A WARM TRANSFORM CACHE CAN REPORT A FULLY CONVINCING FALSE GREEN.** This is the worst one in
+the list, because it does not merely fail to warn you — it hands you the number you were hoping for.
+While repairing this lane on 2026-08-26, a **half-fixed** tree produced a clean
+`74 suites / 954 tests`: the correct totals, reproducible twice. `npm ci` followed by `--clearCache`
+put all three `rn` suites straight back to failing to start. The cache still held transformed output
+from before the breakage, so the suites never re-resolved the module that was actually broken.
+
+Consequence: **any run that is establishing a baseline, gating a ticket, or proving the `rn` lane is
+alive must come from a clean tree and a cold cache.**
+
+```
+npm ci && npx jest --watchman=false --clearCache && npx jest --watchman=false
+```
+
+An incremental `npm install` followed by `npx jest` is not a gate. Day-to-day iteration on a warm
+cache is fine — the rule is about the runs you are going to *believe*.
 
 ## `jest.rn-setup.js`
 

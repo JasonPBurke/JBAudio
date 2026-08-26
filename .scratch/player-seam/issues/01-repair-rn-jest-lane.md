@@ -37,8 +37,13 @@ Prefer `npm dedupe`, or declaring the dependency directly to force the hoist.
 ⚠ Do **not** reach for a `moduleNameMapper` entry — it papers over a resolution
 bug that will also affect anything else `jest-expo` requires by bare name.
 
-⚠ The bare test command also crashes in `fb-watchman` on this machine (apt
-watchman 4.9.0). That is **out of scope** and is not fixed with a
+⚠ The bare test command also crashes in `fb-watchman` on this machine.
+(⚠ **CORRECTION, 2026-08-26** — the "apt watchman 4.9.0" attribution written here
+was WRONG: that watchman was replaced on 2026-07-27. The real cause is that
+watchman refuses to start at nice > 0, and a background/agent job runs at nice 5.
+A human's terminal is nice 0 and never sees it. See
+`docs/testing/jest-projects-and-rn-tests.md` → **Running the suite**.)
+That is **out of scope** and is not fixed with a
 `.watchmanconfig` — that was never the fix. The working invocation disables
 watchman, and every later ticket's gate is written that way.
 
