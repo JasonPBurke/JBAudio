@@ -81,6 +81,8 @@ four alternatives that were rejected.
 - [x] `getActiveTrack` is not exported
 - [x] Zero callers; no other file changes in this ticket
 - [x] `tsc` 0, `eslint` 0, test count unchanged from ticket 01's baseline
+      — ⚠ read as **ticket 02's** 75/966, not ticket 01's literal 74/954;
+      ticket 02 legitimately added a suite. Unchanged either way.
 - [x] No lint rule yet — that is ticket 08
 
 ## Answer
@@ -111,11 +113,62 @@ reasonably expect RNTP's own signature and find a narrower one.
    internally anyway — the semantics are identical, only the overload is gone.
 2. **`getPlaybackState(): Promise<{ state: State }>` drops the error payload.**
    RNTP's real return is a discriminated union whose `State.Error` branch also
-   carries `error`. All five callers destructure `{ state }` and none reads
-   `error`. This is the ratified signature; widening it back is a one-line change
+   carries `error`. All **six** callers destructure `{ state }` and none reads
+   `error` — `relativeSeek.ts:96`, `remotePlayPause.ts:16`,
+   `playBookFromRow.ts:104`, `sleepTimer.ts:227`, `(settings)/timer.tsx:322`,
+   `service.js:410`. This is the ratified signature; widening it back is a one-line change
    if a caller ever needs the payload.
 3. **`setupPlayer(options)` requires its argument.** RNTP defaults it to `{}`;
    the one caller (`playerSetup.ts:70`) always passes a full object.
+4. **`add` also drops RNTP's `insertBeforeIndex` second parameter.** No caller
+   passes one. Recorded late — the two-axis review caught it and the first
+   three write-ups did not.
+
+### ⚠ THE SURFACE IS EXTENDED BY TWO, and this is the recorded reason
+
+The ratified block says "do not extend without recording a reason here". This is
+that reason, and it was found by review rather than by scoping.
+
+`AndroidAudioContentType` and `AppKilledPlaybackBehavior` are now re-exported.
+Both are **enums**, both are imported by `src/helpers/playerSetup.ts`, and
+`spec.md`'s Enforcement section says stage one "bans the default export and the
+enums and types, **all of which the adapter re-exports**". As ratified that
+sentence was false: those two enums are banned by stage one and had nothing to
+migrate to, so ticket 05 could not have taken `playerSetup.ts` off RNTP and
+ticket 08 would have needed an exemption for one of the files the seam exists to
+tidy. Re-exporting an enum costs nothing and decides nothing.
+
+Measured, not sampled — every named RNTP import in `src/`, tests excluded:
+
+| Named import | Sites | On the surface? |
+|---|---|---|
+| `State` | 7 | ✅ re-exported |
+| `Event` | 5 | ✅ re-exported |
+| `Track` | 4 | ✅ re-exported |
+| `Capability`, `RepeatMode`, `Progress` | 1 each | ✅ re-exported |
+| `AndroidAudioContentType`, `AppKilledPlaybackBehavior` | 1 each (`playerSetup.ts`) | ⚠ **added by this ticket** |
+| `useActiveTrack` (11), `useIsPlaying` (2), `useTrackPlayerEvents` (1) | 14 | ✅ out of scope — stage one permits the React hooks; ticket 09 owns them |
+| `isPlaying` | 1 (`PlayerStateSync.tsx:40`) | ❌ **still a hole — see below** |
+
+### ⚠ `isPlaying` IS THE REMAINING HOLE, and it is left open deliberately
+
+It is the one named import that neither the surface covers nor the hooks
+carve-out excuses, so **ticket 08's stage-one ban still cannot be clean without
+either adding it or exempting one file.** Handed to ticket 09 rather than
+guessed at here, for three reasons:
+
+1. **It is not a hook**, despite living in RNTP's `hooks/` folder. It is
+   `export async function isPlaying()`, and RNTP's own doc comment describes it
+   as being for "whenever you need to know the play state outside of a React
+   component" — so "stage one still permits the React hooks" does not cover it.
+2. **It derives rather than reads.** It is `getPlaybackState` + `getPlayWhenReady`
+   fed through `determineIsPlaying`. Passing RNTP's own version through would not
+   be *this* module deciding, but it would drag `getPlayWhenReady` onto the
+   surface too, and neither is on the ratified list.
+3. **Its one caller is reactive.** `PlayerStateSync.tsx` takes the live value from
+   `useIsPlaying()` and calls `isPlaying()` only to resync after extended
+   background — and ticket 09 moves that whole file onto the store mirror.
+   Classifying it before 09 knows the file's shape is a guess.
 
 ### The `typeof` guard is the point of the whole file
 
@@ -147,6 +200,12 @@ the discrepancy does not get read as the adapter having grown three functions.
 - **No tests.** The adapter is covered by the existing suite once callers
   migrate (tickets 05–07), which is why the count gate is *unchanged* rather than
   *at or above*. Adding a passthrough-assertion suite now would test `jest.mock`.
+  Three properties were nevertheless proven with a throwaway probe that was run
+  and deleted: the enum re-exports stay `===` to RNTP's *under `jest.mock`*, the
+  adapter reaches the mocked `default`, and `getActiveBookId` yields `null`
+  rather than `undefined` for a missing or misspelled field. ⚠ **That last one is
+  a migration note for 05–07:** the 20 imperative sites read `activeTrack?.bookId`
+  and get `undefined` today, so any `=== undefined` check becomes `=== null`.
 - **No lint rule** — ticket 08.
 - **No `Event` widening for `'remote-play-book'`.** `subscribe` is typed
   `T extends Event`, and `service.js:514` subscribes to a custom native event

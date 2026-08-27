@@ -1,5 +1,7 @@
 import type { EmitterSubscription } from 'react-native';
 import TrackPlayer, {
+  AndroidAudioContentType,
+  AppKilledPlaybackBehavior,
   Capability,
   Event,
   RepeatMode,
@@ -61,8 +63,14 @@ import type {
  * `src/helpers/__tests__/support/fakePlayer.ts` keeps faking RNTP and tests
  * keep `jest.mock`ing RNTP, so the real adapter runs on top of the fake and is
  * exercised by the existing suite rather than being the one untested module.
- * That is also why every call below goes through RNTP's DEFAULT export — the
+ * That is also why every CALL below goes through RNTP's DEFAULT export — the
  * mocks replace `default`, and a named import would route around them.
+ *
+ * ⚠ THE ENUM RE-EXPORTS ARE THE ONE EXCEPTION, and they are named imports by
+ * necessity. A test whose `jest.mock` factory omits `State` therefore re-exports
+ * `undefined` through this file. Nothing regresses — the same mock already
+ * yields `undefined` at the call site today — but once a migrated module takes
+ * `State` from here, a mock that never needed to name it may suddenly have to.
  *
  * See `docs/adr/0003-only-the-rntp-adapter-imports-rntp.md` for why, and for
  * the four alternatives that were rejected.
@@ -75,11 +83,15 @@ import type {
 /**
  * Which Book the Player currently has loaded, or `null` when it has none.
  *
- * The `typeof` guard is the single point where `Track`'s `any` index signature
- * is converted into a checked read. It is not a decision: a queue item without
- * a usable `bookId` is indistinguishable from no active item to every caller,
- * and the alternative — leaking `any` one layer up — is the defect this
- * function exists to remove.
+ * The `typeof` guard is the single point ON THE ACTIVE-ITEM READ PATH where
+ * `Track`'s `any` index signature is converted into a checked read — not the
+ * single point in the file. `getQueue` still hands out `Track[]` whose
+ * `bookId` is `any`, deliberately and by the same asymmetry: the restore path
+ * reads `queue[0].bookId` unchecked and that read is not one of the 31.
+ *
+ * It is not a decision: a queue item without a usable `bookId` is
+ * indistinguishable from no active item to every caller, and the alternative —
+ * leaking `any` one layer up — is the defect this function exists to remove.
  */
 export async function getActiveBookId(): Promise<string | null> {
   const bookId = (await TrackPlayer.getActiveTrack())?.bookId;
@@ -182,8 +194,9 @@ export async function reset(): Promise<void> {
 /**
  * Append items to the queue.
  *
- * Array-only. RNTP also overloads this on a bare item; the ratified surface
- * carries one shape, so a single-item caller passes `[track]`.
+ * Array-only, and without RNTP's `insertBeforeIndex` second parameter — no
+ * caller passes one. RNTP also overloads this on a bare item; the ratified
+ * surface carries one shape, so a single-item caller passes `[track]`.
  */
 export async function add(tracks: AddTrack[]): Promise<number | void> {
   return TrackPlayer.add(tracks);
@@ -241,7 +254,30 @@ export function subscribe<T extends Event>(
 
 // ---------------------------------------------------------------------------
 // Re-exports — identity-equal to RNTP's, never redefined
+//
+// `AndroidAudioContentType` and `AppKilledPlaybackBehavior` are the ratified
+// surface plus two, added on the ticket's own terms and with the reason
+// recorded there. Both are enums, both are imported by `helpers/playerSetup.ts`,
+// and ticket 08's stage-one ban bans enums — so without them that file could
+// not come off RNTP and the ban's stated premise ("the enums and types, all of
+// which the adapter re-exports") would simply be false. Measured across every
+// named RNTP import in `src/`, not sampled.
+//
+// ⚠ `isPlaying` is the remaining hole and is NOT here on purpose. It is an
+// imperative async function despite living in RNTP's `hooks/` folder, so the
+// stage-one "React hooks stay permitted" carve-out does not cover it, and it
+// DERIVES (`getPlaybackState` + `getPlayWhenReady` + `determineIsPlaying`)
+// rather than reading. Its one caller is `components/PlayerStateSync.tsx`,
+// which ticket 09 may restructure entirely. Classifying it now would be a
+// guess; see ticket 04's `## Answer`.
 // ---------------------------------------------------------------------------
 
-export { Capability, Event, RepeatMode, State };
+export {
+  AndroidAudioContentType,
+  AppKilledPlaybackBehavior,
+  Capability,
+  Event,
+  RepeatMode,
+  State,
+};
 export type { AddTrack, Progress, Track };
