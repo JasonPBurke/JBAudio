@@ -7,10 +7,13 @@ import {
   useState,
   useCallback,
 } from 'react';
-import TrackPlayer, {
+import { useActiveTrack } from 'react-native-track-player';
+import {
   Event,
-  useActiveTrack,
-} from 'react-native-track-player';
+  getActiveTrackIndex,
+  getProgress,
+  subscribe,
+} from '@/player/trackPlayer';
 import { useBookById, useLibraryStore } from '@/store/library';
 import { useAppStateStore } from '@/store/appState';
 import { Chapter } from '@/types/Book';
@@ -51,7 +54,7 @@ export const useCurrentChapter = (): Chapter | undefined => {
  *   the spike): current chapter = chapters[queue index]. The queue index
  *   comes from the library store's playbackIndex, which service.js keeps
  *   current via PlaybackActiveTrackChanged; on mount, before the store has an
- *   entry, TrackPlayer.getActiveTrackIndex() fills the gap.
+ *   entry, the adapter's getActiveTrackIndex() fills the gap.
  * - Legacy single-file mode (spike off / no chapter offsets): the book is one
  *   queue item with absolute positions, so the chapter is derived from
  *   progress/seek events. Never match chapters by URL — clipped queue items
@@ -83,7 +86,7 @@ export const useCurrentChapterStable = () => {
     if (!chapterQueue || typeof storeIndex === 'number') return;
 
     let mounted = true;
-    TrackPlayer.getActiveTrackIndex()
+    getActiveTrackIndex()
       .then((index) => {
         if (mounted && typeof index === 'number') {
           setQueueIndexFallback(index);
@@ -124,7 +127,7 @@ export const useCurrentChapterStable = () => {
     const updateFromProgress = async () => {
       if (!useAppStateStore.getState().isActive) return;
       try {
-        const { position } = await TrackPlayer.getProgress();
+        const { position } = await getProgress();
         applyPosition(position);
       } catch {
         // Player might not be initialized yet
@@ -136,17 +139,14 @@ export const useCurrentChapterStable = () => {
 
     const subscriptions = [
       // Chapter boundary detection while playing
-      TrackPlayer.addEventListener(
+      subscribe(
         Event.PlaybackProgressUpdated,
         ({ position }) => applyPosition(position),
       ),
       // Seeks and play/pause: refresh immediately
-      TrackPlayer.addEventListener(Event.PlaybackState, updateFromProgress),
+      subscribe(Event.PlaybackState, updateFromProgress),
       // Re-initialize after cold start / queue swaps
-      TrackPlayer.addEventListener(
-        Event.PlaybackActiveTrackChanged,
-        updateFromProgress,
-      ),
+      subscribe(Event.PlaybackActiveTrackChanged, updateFromProgress),
     ];
 
     return () => subscriptions.forEach((sub) => sub.remove());

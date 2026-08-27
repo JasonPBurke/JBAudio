@@ -1,4 +1,21 @@
-import TrackPlayer, { Event, State } from 'react-native-track-player';
+import {
+  Event,
+  getActiveBookId,
+  getPlaybackState,
+  getProgress,
+  getQueue,
+  getTrack,
+  pause,
+  play,
+  seekBy,
+  seekTo,
+  skip,
+  skipToNext,
+  State,
+  stop,
+  subscribe,
+  updateMetadataForTrack,
+} from '@/player/trackPlayer';
 import RNShake from 'react-native-shake';
 import * as Haptics from 'expo-haptics';
 import { useLibraryStore } from '@/store/library';
@@ -168,7 +185,7 @@ async function handleProgressUpdated({ position, duration, track }) {
     bookId = progressTrackCache.bookId;
     trackUrl = progressTrackCache.url;
   } else {
-    const trackToUpdate = await TrackPlayer.getTrack(track);
+    const trackToUpdate = await getTrack(track);
 
     // getTrack can return undefined mid-queue-transition (reset/book switch).
     // Still tick the sleep timer so a duration timer isn't starved of its
@@ -239,7 +256,7 @@ async function handleProgressUpdated({ position, duration, track }) {
       if (hasValidChapterData(chapters)) {
         const currentChapter = chapters[currentChapterIndex];
         if (currentChapter) {
-          await TrackPlayer.updateMetadataForTrack(track, {
+          await updateMetadataForTrack(track, {
             title: currentChapter.chapterTitle,
             duration: currentChapter.chapterDuration,
             // Preserve existing metadata that shouldn't change
@@ -388,17 +405,17 @@ export default module.exports = async function () {
   // Record footprint for remote play (lock screen, headphones, etc.)
   const recordRemotePlayFootprint = async () => {
     try {
-      const activeTrack = await TrackPlayer.getActiveTrack();
-      if (activeTrack?.bookId) {
-        await stampLastPlayed(activeTrack.bookId);
-        await recordFootprint(activeTrack.bookId, 'play');
+      const bookId = await getActiveBookId();
+      if (bookId) {
+        await stampLastPlayed(bookId);
+        await recordFootprint(bookId, 'play');
       }
     } catch {
       // Silently fail if footprint recording fails
     }
   };
 
-  TrackPlayer.addEventListener(Event.RemotePlay, async () => {
+  subscribe(Event.RemotePlay, async () => {
     // Android Auto follows a browse-item selection with a play() command;
     // acting on it here would resume the OLD queue (and record a footprint
     // for the wrong book) while remote-play-book is still loading the new one.
@@ -407,67 +424,67 @@ export default module.exports = async function () {
     // QoL: repeat 1s of audio on resume, matching the in-app play button.
     // State-guarded because AA can send redundant play() commands while
     // already playing — rewinding then would cause an audible skip-back.
-    const { state } = await TrackPlayer.getPlaybackState();
+    const { state } = await getPlaybackState();
     if (state !== State.Playing && state !== State.Buffering) {
-      await TrackPlayer.seekBy(-1);
+      await seekBy(-1);
     }
-    await TrackPlayer.play();
+    await play();
   });
-  TrackPlayer.addEventListener(Event.RemotePause, () => {
-    TrackPlayer.pause();
+  subscribe(Event.RemotePause, () => {
+    pause();
   });
   // Single "toggle" media key (KEYCODE_MEDIA_PLAY_PAUSE) from steering-wheel
   // controls / Bluetooth AVRCP. Native consumes the key event and emits this;
   // without a listener the toggle is a silent no-op.
-  TrackPlayer.addEventListener(Event.RemotePlayPause, () => {
+  subscribe(Event.RemotePlayPause, () => {
     handleRemotePlayPause(recordRemotePlayFootprint);
   });
-  TrackPlayer.addEventListener(Event.RemoteStop, () => {
+  subscribe(Event.RemoteStop, () => {
     const msSincePlaying = Date.now() - lastPlayingStateAt;
     if (msSincePlaying < REMOTE_STOP_GUARD_MS) {
       return;
     }
-    TrackPlayer.stop();
+    stop();
   });
-  TrackPlayer.addEventListener(Event.RemoteSeek, async ({ position }) => {
+  subscribe(Event.RemoteSeek, async ({ position }) => {
     // Notification / AA seek-bar drag: mirror the in-app seek bar's
     // footprint. Awaited first so it captures the pre-seek position.
     await recordRemoteSeekFootprint();
-    TrackPlayer.seekTo(position);
+    seekTo(position);
   });
   // seekBack/seekForward (not native seekBy, which clamps within the current
   // queue item) so jumps from the notification / Android Auto cross chapter
   // boundaries exactly like the in-app buttons.
-  TrackPlayer.addEventListener(Event.RemoteJumpForward, () => {
+  subscribe(Event.RemoteJumpForward, () => {
     const { skipForwardDuration } = useSettingsStore.getState();
     seekForward(skipForwardDuration);
   });
-  TrackPlayer.addEventListener(Event.RemoteJumpBackward, () => {
+  subscribe(Event.RemoteJumpBackward, () => {
     const { skipBackDuration } = useSettingsStore.getState();
     seekBack(skipBackDuration);
   });
-  TrackPlayer.addEventListener(Event.RemoteNext, async () => {
-    const activeTrack = await TrackPlayer.getActiveTrack();
-    if (!activeTrack?.bookId) {
-      await TrackPlayer.skipToNext();
+  subscribe(Event.RemoteNext, async () => {
+    const bookId = await getActiveBookId();
+    if (!bookId) {
+      await skipToNext();
       return;
     }
 
     // Chapter-skip from notification / AA: mirror the in-app chapter list's
     // footprint. Awaited before the seek/skip to capture the pre-press spot.
-    await recordRemoteChapterChangeFootprint(activeTrack.bookId);
+    await recordRemoteChapterChangeFootprint(bookId);
 
-    const book = useLibraryStore.getState().books[activeTrack.bookId];
+    const book = useLibraryStore.getState().books[bookId];
     if (
       treatAsSingleFile(book) &&
       book.chapters &&
       book.chapters.length > 1
     ) {
-      const { position } = await TrackPlayer.getProgress();
+      const { position } = await getProgress();
       const nextStart = getNextChapterStartSeconds(book.chapters, position);
 
       if (nextStart !== null) {
-        await TrackPlayer.seekTo(nextStart);
+        await seekTo(nextStart);
       } else {
         // At last chapter: mark finished, reset and pause. The stop is kept
         // here on purpose — unlike the 1 Hz lead-time mark, this is a
@@ -482,21 +499,20 @@ export default module.exports = async function () {
         const alreadyFinished =
           book?.bookProgressValue === BookProgressState.Finished;
         if (!alreadyFinished) {
-          const bookModel = await getBookById(activeTrack.bookId);
+          const bookModel = await getBookById(bookId);
           if (bookModel) {
             await bookModel.updateBookProgress(BookProgressState.Finished);
           }
         }
-        await TrackPlayer.seekTo(0);
-        await TrackPlayer.pause();
+        await seekTo(0);
+        await pause();
       }
     } else {
-      await TrackPlayer.skipToNext();
+      await skipToNext();
     }
   });
-  TrackPlayer.addEventListener(Event.RemotePrevious, async () => {
-    const activeTrack = await TrackPlayer.getActiveTrack();
-    const bookId = activeTrack?.bookId;
+  subscribe(Event.RemotePrevious, async () => {
+    const bookId = await getActiveBookId();
 
     // Shared with the in-app SkipToPreviousButton: >15s into a chapter
     // restarts it, within the first 15s goes to the previous chapter. The
@@ -511,7 +527,12 @@ export default module.exports = async function () {
       }
     });
   });
-  TrackPlayer.addEventListener('remote-play-book', ({ bookId }) => {
+  // ⚠ NOT an Event member. Native emits this custom string from the
+  // Android Auto browse path, and the adapter types subscribe as
+  // `T extends Event` — so this call compiles only because this file is
+  // JavaScript. Ticket 12's TypeScript conversion has to answer it; see
+  // .scratch/player-seam/issues/12-convert-playback-service-to-typescript.md.
+  subscribe('remote-play-book', ({ bookId }) => {
     console.log('[service] remote-play-book received:', bookId);
     // Queue is about to be rebuilt — old index→bookId mappings are invalid.
     invalidateProgressTrackCache();
@@ -525,12 +546,12 @@ export default module.exports = async function () {
   // play() command has a queue to act on. Works headlessly. Native re-emits
   // this event while it waits for the queue, so guard against re-entry.
   let resumptionInFlight = false;
-  TrackPlayer.addEventListener(Event.PlaybackResume, async () => {
+  subscribe(Event.PlaybackResume, async () => {
     if (resumptionInFlight) return;
     resumptionInFlight = true;
     try {
       await ensurePlayerSetup();
-      const queue = await TrackPlayer.getQueue();
+      const queue = await getQueue();
       if (queue.length === 0) {
         await restoreLastActiveBook();
       }
@@ -544,14 +565,11 @@ export default module.exports = async function () {
   // Coalesced: see onProgressUpdatedCoalesced / handleProgressUpdated at
   // module scope. Bursts of queued events after long background collapse to
   // the newest event instead of replaying one handler run per queued second.
-  TrackPlayer.addEventListener(
-    Event.PlaybackProgressUpdated,
-    onProgressUpdatedCoalesced,
-  );
+  subscribe(Event.PlaybackProgressUpdated, onProgressUpdatedCoalesced);
 
-  TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async (event) => {
+  subscribe(Event.PlaybackQueueEnded, async (event) => {
     const { track, position } = event;
-    const trackToUpdate = await TrackPlayer.getTrack(track);
+    const trackToUpdate = await getTrack(track);
     if (!trackToUpdate?.bookId) return;
 
     // Get book data from library store - use isSingleFile from DB to avoid queue race condition
@@ -606,26 +624,26 @@ export default module.exports = async function () {
 
     // Reset to beginning and stop playback
     if (isSingleFile) {
-      await TrackPlayer.seekTo(0);
+      await seekTo(0);
     } else {
-      await TrackPlayer.skip(0);
+      await skip(0);
     }
-    await TrackPlayer.stop();
+    await stop();
   });
 
-  TrackPlayer.addEventListener(Event.PlaybackState, async (event) => {
+  subscribe(Event.PlaybackState, async (event) => {
     if (
       event.state === State.Paused ||
       event.state === State.Stopped ||
       event.state === State.Buffering
     ) {
-      const activeTrack = await TrackPlayer.getActiveTrack();
-      if (!activeTrack?.bookId) return;
+      const bookId = await getActiveBookId();
+      if (!bookId) return;
 
-      const { position } = await TrackPlayer.getProgress();
+      const { position } = await getProgress();
 
       // Get book data from library store - use isSingleFile from DB to avoid queue race condition
-      const book = useLibraryStore.getState().books[activeTrack.bookId];
+      const book = useLibraryStore.getState().books[bookId];
 
       // Use isSingleFile from database (set at scan time) instead of queue.length
       // This eliminates the race condition where queue isn't ready after app restart
@@ -642,13 +660,10 @@ export default module.exports = async function () {
           book.chapters,
           position,
         );
-        await updateChapterProgressInDB(
-          activeTrack.bookId,
-          progressWithinChapter,
-        );
+        await updateChapterProgressInDB(bookId, progressWithinChapter);
       } else if (book) {
         // Multi-file book OR single-chapter book: save progress directly
-        await updateChapterProgressInDB(activeTrack.bookId, position);
+        await updateChapterProgressInDB(bookId, position);
       }
       // If book not in Zustand yet, skip saving to avoid corruption
     }
@@ -668,7 +683,7 @@ export default module.exports = async function () {
     }
   });
 
-  TrackPlayer.addEventListener(
+  subscribe(
     Event.PlaybackActiveTrackChanged,
     async (event) => {
       // Track or queue changed (index can be undefined mid-reset) — either
@@ -681,11 +696,11 @@ export default module.exports = async function () {
 
       // CRITICAL FIX: Use getTrack(index) instead of getActiveTrack()
       // getActiveTrack() can return stale data during queue transitions
-      const trackAtIndex = await TrackPlayer.getTrack(event.index);
+      const trackAtIndex = await getTrack(event.index);
       if (!trackAtIndex?.bookId) return;
 
       // Skip chapter index updates for single-file books - handled in PlaybackProgressUpdated
-      const queue = await TrackPlayer.getQueue();
+      const queue = await getQueue();
       const isSingleFile = queue.length === 1;
       if (isSingleFile) return;
 

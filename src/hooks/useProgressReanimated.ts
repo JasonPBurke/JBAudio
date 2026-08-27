@@ -1,6 +1,11 @@
 import { useEffect } from 'react';
 import { useSharedValue, SharedValue } from 'react-native-reanimated';
-import TrackPlayer, { Event, Progress } from 'react-native-track-player';
+import {
+  Event,
+  getProgress,
+  type Progress,
+  subscribe,
+} from '@/player/trackPlayer';
 import { useAppStateStore } from '@/store/appState';
 
 export type ProgressReanimated = {
@@ -27,7 +32,7 @@ export const useProgressReanimated = (): ProgressReanimated => {
     // Get initial progress values
     const getInitialProgress = async () => {
       try {
-        const progress: Progress = await TrackPlayer.getProgress();
+        const progress: Progress = await getProgress();
         position.value = progress.position;
         duration.value = progress.duration;
         buffered.value = progress.buffered;
@@ -40,7 +45,7 @@ export const useProgressReanimated = (): ProgressReanimated => {
 
     // Subscribe to playback progress updates via event listener
     // This fires at the interval configured in updateOptions (typically 1 second)
-    const progressSubscription = TrackPlayer.addEventListener(
+    const progressSubscription = subscribe(
       Event.PlaybackProgressUpdated,
       (event) => {
         // Dormant while backgrounded: the screen is invisible, and freezing
@@ -55,12 +60,12 @@ export const useProgressReanimated = (): ProgressReanimated => {
     );
 
     // Also listen for track changes to reset progress
-    const trackChangedSubscription = TrackPlayer.addEventListener(
+    const trackChangedSubscription = subscribe(
       Event.PlaybackActiveTrackChanged,
       async () => {
         if (!useAppStateStore.getState().isActive) return;
         try {
-          const progress: Progress = await TrackPlayer.getProgress();
+          const progress: Progress = await getProgress();
           position.value = progress.position;
           duration.value = progress.duration;
           buffered.value = progress.buffered;
@@ -71,12 +76,12 @@ export const useProgressReanimated = (): ProgressReanimated => {
     );
 
     // Listen for seek completion to update position immediately
-    const seekSubscription = TrackPlayer.addEventListener(
+    const seekSubscription = subscribe(
       Event.PlaybackState,
       async () => {
         if (!useAppStateStore.getState().isActive) return;
         try {
-          const progress: Progress = await TrackPlayer.getProgress();
+          const progress: Progress = await getProgress();
           position.value = progress.position;
           duration.value = progress.duration;
           buffered.value = progress.buffered;

@@ -1,4 +1,11 @@
-import TrackPlayer, { State } from 'react-native-track-player';
+import {
+  getActiveBookId,
+  getPlaybackState,
+  pause,
+  play,
+  setVolume,
+  State,
+} from '@/player/trackPlayer';
 import { AppState } from 'react-native';
 import { create } from 'zustand';
 import {
@@ -183,9 +190,9 @@ async function _fireInner(): Promise<void> {
   isTimerInitiatedPause = true;
   try {
     // Drop volume instantly (backup path skips gradual fade since events were throttled)
-    await TrackPlayer.setVolume(0);
-    await TrackPlayer.pause();
-    await TrackPlayer.setVolume(1);
+    await setVolume(0);
+    await pause();
+    await setVolume(1);
 
     fadeState.isFading = false;
     fadeState.lastAppliedVolume = 1;
@@ -224,7 +231,7 @@ export async function activate(mode: TimerMode): Promise<void> {
   lastActivatedMode = mode;
   _clearGrace();
 
-  const playbackState = await TrackPlayer.getPlaybackState();
+  const playbackState = await getPlaybackState();
   const isPlaying = playbackState.state === State.Playing;
 
   if (mode.kind === 'duration') {
@@ -293,9 +300,9 @@ export async function activate(mode: TimerMode): Promise<void> {
   cachedTimer.timerActive = true;
 
   try {
-    const activeTrack = await TrackPlayer.getActiveTrack();
-    if (activeTrack?.bookId) {
-      await recordFootprint(activeTrack.bookId, 'timer_activation');
+    const bookId = await getActiveBookId();
+    if (bookId) {
+      await recordFootprint(bookId, 'timer_activation');
     }
   } catch {
     // silently fail
@@ -321,7 +328,7 @@ export async function cancel(): Promise<void> {
   await updateTimerActive(false);
   await updateSleepTime(null);
   await updateFrozenRemaining(null);
-  await TrackPlayer.setVolume(1);
+  await setVolume(1);
 }
 
 /**
@@ -387,7 +394,7 @@ export async function onProgressTick(_position: number): Promise<void> {
     const beginFadeout = sleepTime - effectiveFadeout;
 
     if (now < beginFadeout && fadeState.isFading) {
-      await TrackPlayer.setVolume(1);
+      await setVolume(1);
       fadeState.isFading = false;
       fadeState.lastAppliedVolume = 1;
       fadeState.baselineVolume = 1;
@@ -412,7 +419,7 @@ export async function onProgressTick(_position: number): Promise<void> {
         Math.abs(volume - fadeState.lastAppliedVolume) >= 0.01 &&
         nowSet - fadeState.lastSetVolumeAt >= VOLUME_THROTTLE_MS
       ) {
-        await TrackPlayer.setVolume(volume);
+        await setVolume(volume);
         fadeState.lastAppliedVolume = volume;
         fadeState.lastSetVolumeAt = nowSet;
       }
@@ -474,7 +481,7 @@ export async function onPlaybackResumed(): Promise<void> {
     await updateTimerActive(false);
     await updateSleepTime(null);
     await updateFrozenRemaining(null);
-    await TrackPlayer.setVolume(1);
+    await setVolume(1);
     fadeState.isFading = false;
     fadeState.lastAppliedVolume = 1;
     fadeState.baselineVolume = 1;
@@ -517,9 +524,9 @@ export async function onPlaybackResumed(): Promise<void> {
 
   if (willActivateBedtime) {
     try {
-      const activeTrack = await TrackPlayer.getActiveTrack();
-      if (activeTrack?.bookId) {
-        await recordFootprint(activeTrack.bookId, 'timer_activation');
+      const bookId = await getActiveBookId();
+      if (bookId) {
+        await recordFootprint(bookId, 'timer_activation');
       }
     } catch {
       // silently fail
@@ -584,8 +591,8 @@ export async function onChapterChanged(): Promise<void> {
     _setStore({ remainingChapters: newCount });
   } else {
     // timerChapters === 0: fire
-    await TrackPlayer.pause();
-    await TrackPlayer.setVolume(1);
+    await pause();
+    await setVolume(1);
     await updateTimerActive(false);
     _clearStore();
 
@@ -634,7 +641,7 @@ export async function resetFromShake(): Promise<boolean> {
   if (inGrace) {
     const mode = lastActivatedMode;
     await activate(mode);
-    await TrackPlayer.play();
+    await play();
     return true;
   }
 
