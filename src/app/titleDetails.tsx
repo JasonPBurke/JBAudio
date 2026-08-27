@@ -36,10 +36,8 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import TrackPlayer, {
-  useActiveTrack,
-  useIsPlaying,
-} from 'react-native-track-player';
+import { useActiveTrack, useIsPlaying } from 'react-native-track-player';
+import { getActiveBookId, pause } from '@/player/trackPlayer';
 
 import BookSeriesLine from '@/components/BookSeriesLine';
 import AddToSeriesPanel from '@/components/AddToSeriesPanel';
@@ -260,14 +258,16 @@ const TitleDetails = () => {
 
   const handlePlayPress = async () => {
     if (isPlayingBook) {
-      await TrackPlayer.pause();
+      await pause();
     } else {
       // Record footprint before playing (only if this is the active book)
       try {
-        const activeTrack = await TrackPlayer.getActiveTrack();
-        if (activeTrack?.bookId === book.bookId) {
-          await stampLastPlayed(activeTrack.bookId);
-          await recordFootprint(activeTrack.bookId, 'play');
+        // No local for the Player's answer: the guard proves it equals
+        // book.bookId, and `activeBookId` is already taken here by the queue
+        // store's Requested Book -- a different question (see CONTEXT.md).
+        if ((await getActiveBookId()) === book.bookId) {
+          await stampLastPlayed(book.bookId);
+          await recordFootprint(book.bookId, 'play');
         }
       } catch {
         // Silently fail if footprint recording fails

@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { PressableScale } from 'pressto';
 import { useActiveTrack } from 'react-native-track-player';
-import TrackPlayer from 'react-native-track-player';
+import { play, seekTo, skip } from '@/player/trackPlayer';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CircleX } from 'lucide-react-native';
@@ -92,16 +92,16 @@ const FootprintListScreen = () => {
       if (usesChapterQueue(book.chapters)) {
         // Multi-file and clipped single-file books: skip to the chapter's
         // queue item, then seek within it (positions are chapter-relative)
-        await TrackPlayer.skip(footprint.chapterIndex);
-        await TrackPlayer.seekTo(footprint.positionMs / 1000);
+        await skip(footprint.chapterIndex);
+        await seekTo(footprint.positionMs / 1000);
       } else {
         // Legacy single-file book: seek to chapter start + footprint position
         const seekTime =
           ((targetChapter.startMs || 0) + footprint.positionMs) / 1000;
-        await TrackPlayer.seekTo(seekTime);
+        await seekTo(seekTime);
       }
 
-      await TrackPlayer.play();
+      await play();
       router.back();
     },
     [book, router, isProUser],

@@ -14,7 +14,17 @@ import {
   ViewStyle,
   Pressable,
 } from 'react-native';
-import TrackPlayer, { useActiveTrack } from 'react-native-track-player';
+import { useActiveTrack } from 'react-native-track-player';
+import {
+  getActiveBookId,
+  getProgress,
+  getQueue,
+  pause,
+  play,
+  seekBy,
+  seekTo,
+  skipToNext,
+} from '@/player/trackPlayer';
 import {
   Play,
   Pause,
@@ -127,20 +137,20 @@ export function PlayPauseButton({
     if (intent) {
       (async () => {
         try {
-          const activeTrack = await TrackPlayer.getActiveTrack();
-          if (activeTrack?.bookId) {
-            await stampLastPlayed(activeTrack.bookId);
-            await recordFootprint(activeTrack.bookId, 'play');
+          const activeBookId = await getActiveBookId();
+          if (activeBookId) {
+            await stampLastPlayed(activeBookId);
+            await recordFootprint(activeBookId, 'play');
           }
         } catch {
           // Silently fail if footprint recording fails
         }
         // QoL: repeat 1s of audio on resume.
-        await TrackPlayer.seekBy(-1);
-        await TrackPlayer.play();
+        await seekBy(-1);
+        await play();
       })();
     } else {
-      TrackPlayer.pause();
+      pause();
     }
   };
 
@@ -344,15 +354,15 @@ export function SkipToNextButton({ iconSize = 30 }: PlayerButtonProps) {
   const book = useBookById(activeTrack?.bookId ?? '');
 
   const handlePress = async () => {
-    const queue = await TrackPlayer.getQueue();
+    const queue = await getQueue();
     const isSingleFile = queue.length === 1;
 
     if (isSingleFile && book?.chapters && book.chapters.length > 1) {
-      const { position } = await TrackPlayer.getProgress();
+      const { position } = await getProgress();
       const nextStart = getNextChapterStartSeconds(book.chapters, position);
 
       if (nextStart !== null) {
-        await TrackPlayer.seekTo(nextStart);
+        await seekTo(nextStart);
       } else {
         // At last chapter: mark finished, reset and stop
         if (activeTrack?.bookId) {
@@ -361,11 +371,11 @@ export function SkipToNextButton({ iconSize = 30 }: PlayerButtonProps) {
             await bookModel.updateBookProgress(BookProgressState.Finished);
           }
         }
-        await TrackPlayer.seekTo(0);
-        await TrackPlayer.pause();
+        await seekTo(0);
+        await pause();
       }
     } else {
-      await TrackPlayer.skipToNext();
+      await skipToNext();
     }
   };
 

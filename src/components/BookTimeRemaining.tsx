@@ -5,11 +5,14 @@ import React, {
   useRef,
 } from 'react';
 import { Text } from 'react-native';
-import TrackPlayer, {
-  useActiveTrack,
+import { useActiveTrack } from 'react-native-track-player';
+import {
   Event,
+  getActiveTrackIndex,
+  getProgress,
   State,
-} from 'react-native-track-player';
+  subscribe,
+} from '@/player/trackPlayer';
 import { useBookById } from '@/store/library';
 import { useAppStateStore } from '@/store/appState';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -65,7 +68,7 @@ const BookTimeRemainingInner = React.memo(
       // Get initial position
       const initializeRemaining = async () => {
         try {
-          const { position } = await TrackPlayer.getProgress();
+          const { position } = await getProgress();
           setRemainingText(calculateRemaining(position));
           lastUpdateRef.current = Math.floor(position / 5);
         } catch (error) {
@@ -76,7 +79,7 @@ const BookTimeRemainingInner = React.memo(
       initializeRemaining();
 
       // Subscribe to progress updates via event
-      const subscription = TrackPlayer.addEventListener(
+      const subscription = subscribe(
         Event.PlaybackProgressUpdated,
         ({ position }) => {
           // Dormant while backgrounded — this bar (in both the player screen
@@ -102,7 +105,7 @@ const BookTimeRemainingInner = React.memo(
       // whole class, not just the queue-ended case, and it runs after the
       // service's seekTo(0) because stop() is the last thing that handler
       // does.
-      const stateSubscription = TrackPlayer.addEventListener(
+      const stateSubscription = subscribe(
         Event.PlaybackState,
         async ({ state }) => {
           if (
@@ -114,7 +117,7 @@ const BookTimeRemainingInner = React.memo(
             return;
           }
           try {
-            const { position } = await TrackPlayer.getProgress();
+            const { position } = await getProgress();
             // Identical strings bail out of the re-render, so a pause that
             // changes nothing costs nothing.
             setRemainingText(calculateRemaining(position));
@@ -177,7 +180,7 @@ export const BookTimeRemaining = React.memo(
 
       const updateIndex = async () => {
         try {
-          const idx = await TrackPlayer.getActiveTrackIndex();
+          const idx = await getActiveTrackIndex();
           if (mounted) setCurrentIndex(idx);
         } catch {
           // ignore
@@ -187,11 +190,11 @@ export const BookTimeRemaining = React.memo(
       updateIndex();
 
       // Also listen for track changes
-      const subscription = TrackPlayer.addEventListener(
+      const subscription = subscribe(
         Event.PlaybackActiveTrackChanged,
         async () => {
           try {
-            const idx = await TrackPlayer.getActiveTrackIndex();
+            const idx = await getActiveTrackIndex();
             if (mounted) setCurrentIndex(idx);
           } catch {
             // ignore
@@ -235,8 +238,8 @@ export async function bookTimeRemaining(
 
   try {
     const [{ position }, currentIndex] = await Promise.all([
-      TrackPlayer.getProgress(),
-      TrackPlayer.getActiveTrackIndex(),
+      getProgress(),
+      getActiveTrackIndex(),
     ]);
 
     return calculateRemainingBookTime(book, position, currentIndex ?? undefined);

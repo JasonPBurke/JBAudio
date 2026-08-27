@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { PressableScale } from 'pressto';
 import { useActiveTrack } from 'react-native-track-player';
-import TrackPlayer from 'react-native-track-player';
+import { play, seekTo, setVolume, skip } from '@/player/trackPlayer';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CircleX } from 'lucide-react-native';
@@ -89,16 +89,16 @@ const ChapterListScreen = () => {
 
       if (usesChapterQueue(book.chapters)) {
         // Multi-file and clipped single-file books: one queue item per chapter
-        await TrackPlayer.skip(chapterIndex);
+        await skip(chapterIndex);
       } else {
         // Legacy single-file book: one queue item, absolute positions
         const selectedChapter = book.chapters[chapterIndex];
         const seekTime = (selectedChapter.startMs || 0) / 1000;
-        await TrackPlayer.seekTo(seekTime);
+        await seekTo(seekTime);
       }
 
-      await TrackPlayer.play();
-      await TrackPlayer.setVolume(1);
+      await play();
+      await setVolume(1);
       await updateBookChapterIndex(book.bookId, chapterIndex);
       router.back();
     },

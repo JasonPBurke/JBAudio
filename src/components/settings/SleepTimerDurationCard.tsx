@@ -30,7 +30,7 @@ type SleepTimerDurationCardProps = {
   onChapterChange: (chapters: number | null) => void;
   onCustomTimerConfirm: (value: { hours: number; minutes: number }) => void;
   maxChapters: number;
-  hasActiveTrack: boolean;
+  hasActiveBook: boolean;
 };
 
 const SleepTimerDurationCard = ({
@@ -41,7 +41,7 @@ const SleepTimerDurationCard = ({
   onChapterChange,
   onCustomTimerConfirm,
   maxChapters,
-  hasActiveTrack,
+  hasActiveBook,
 }: SleepTimerDurationCardProps) => {
   const [showPicker, setShowPicker] = useState(false);
   const { colors: themeColors, activeColorScheme } = useTheme();

@@ -7,7 +7,8 @@ import {
   useAnimatedReaction,
 } from 'react-native-reanimated';
 import { runOnJS } from 'react-native-worklets';
-import TrackPlayer, { useActiveTrack } from 'react-native-track-player';
+import { useActiveTrack } from 'react-native-track-player';
+import { getActiveBookId, getProgress, seekTo } from '@/player/trackPlayer';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { fontSize } from '@/constants/tokens';
 import { utilsStyles } from '@/styles';
@@ -184,19 +185,16 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
       isSliding.value = false;
 
       // Record footprint with position before the seek
-      // TrackPlayer still has the original position since seekTo hasn't been called yet
+      // The Player still has the original position since seekTo hasn't been called yet
       try {
-        const [activeTrack, { position: currentPos }] = await Promise.all([
-          TrackPlayer.getActiveTrack(),
-          TrackPlayer.getProgress(),
+        const [activeBookId, { position: currentPos }] = await Promise.all([
+          getActiveBookId(),
+          getProgress(),
         ]);
-        if (activeTrack?.bookId) {
+        if (activeBookId) {
           // recordSeekFootprint handles chapter detection for single-file books
           // currentPos is in seconds, convert to ms
-          await recordSeekFootprint(
-            activeTrack.bookId,
-            Math.round(currentPos * 1000),
-          );
+          await recordSeekFootprint(activeBookId, Math.round(currentPos * 1000));
         }
       } catch {
         // Silently fail if footprint recording fails
@@ -207,7 +205,7 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
         chapterDuration.value > 0 ? chapterDuration.value : duration.value;
 
       const seekPosition = chapStart + value * chapDur;
-      await TrackPlayer.seekTo(seekPosition);
+      await seekTo(seekPosition);
 
       // Update time display immediately after seek
       const rate = useSettingsStore.getState().playbackRate;

@@ -39,7 +39,14 @@ import {
 } from '@/db/settingsQueries';
 import * as sleepTimer from '@/setup/sleepTimer';
 import RNDateTimePicker from '@react-native-community/datetimepicker';
-import TrackPlayer, { State } from 'react-native-track-player';
+import {
+  getActiveBookId,
+  getActiveTrackIndex,
+  getPlaybackState,
+  getProgress,
+  getQueue,
+  State,
+} from '@/player/trackPlayer';
 import {
   isWithinBedtimeWindow,
   dateToMinutesSinceMidnight,
@@ -71,7 +78,7 @@ const TimerSettingsScreen = () => {
   const [timerChapters, setTimerChapters] = useState<number | null>(null);
   const [customTimer, setCustomTimer] = useState({ hours: 0, minutes: 0 });
   const [maxChapters, setMaxChapters] = useState(20);
-  const [hasActiveTrack, setHasActiveTrack] = useState(false);
+  const [hasActiveBook, setHasActiveBook] = useState(false);
   const [shakeInfoVisible, setShakeInfoVisible] = useState(false);
   const enabledValue = useSharedValue(0);
   const shakeEnabledValue = useSharedValue(0);
@@ -155,25 +162,27 @@ const TimerSettingsScreen = () => {
           console.error('Failed to fetch fadeout/timer settings:', error);
         }
 
-        // Compute maxChapters from TrackPlayer state
+        // Compute maxChapters from the Player's state
         try {
-          const activeTrack = await TrackPlayer.getActiveTrack();
+          // One read answers both questions: every queue item this app builds
+          // carries a bookId, so "is a Book loaded?" and "which Book?" have
+          // the same answer. Checked across all five track-construction
+          // shapes (handleBookPlay x2, restoreLastActiveBook x2,
+          // clippedChapters x1), not assumed.
+          const activeBookId = await getActiveBookId();
           if (isActive) {
-            setHasActiveTrack(
-              activeTrack !== null && activeTrack !== undefined,
-            );
+            setHasActiveBook(activeBookId !== null);
           }
           // Clipped single-file books have one queue item per chapter, so
           // they take the multi-file (else) path; this branch is legacy-only.
-          const queue = await TrackPlayer.getQueue();
+          const queue = await getQueue();
           const isSingleFile = queue.length === 1;
 
           if (isSingleFile) {
-            if (activeTrack?.bookId) {
-              const book =
-                useLibraryStore.getState().books[activeTrack.bookId];
+            if (activeBookId) {
+              const book = useLibraryStore.getState().books[activeBookId];
               if (book?.chapters && book.chapters.length > 1) {
-                const { position } = await TrackPlayer.getProgress();
+                const { position } = await getProgress();
                 const currentChapterIndex = findChapterIndexByPosition(
                   book.chapters,
                   position,
@@ -190,8 +199,7 @@ const TimerSettingsScreen = () => {
               setMaxChapters(0);
             }
           } else if (queue.length > 1) {
-            const currentTrackIndex =
-              await TrackPlayer.getActiveTrackIndex();
+            const currentTrackIndex = await getActiveTrackIndex();
             if (isActive) {
               if (currentTrackIndex !== undefined) {
                 setMaxChapters(queue.length - 1 - currentTrackIndex);
@@ -206,7 +214,7 @@ const TimerSettingsScreen = () => {
           // No track playing — use fallback
           if (isActive) {
             setMaxChapters(20);
-            setHasActiveTrack(false);
+            setHasActiveBook(false);
           }
         }
 
@@ -319,7 +327,7 @@ const TimerSettingsScreen = () => {
     if (newValue) {
       const { bedtimeStart, bedtimeEnd } = await getBedtimeSettings();
       if (isWithinBedtimeWindow(bedtimeStart, bedtimeEnd)) {
-        const playerState = await TrackPlayer.getPlaybackState();
+        const playerState = await getPlaybackState();
         if (playerState.state === State.Playing) {
           const { timerDuration, timerChapters } = await getTimerSettings();
           // Arm via activate() rather than raw DB writes: it updates the
@@ -420,7 +428,7 @@ const TimerSettingsScreen = () => {
           onChapterChange={handleChapterChange}
           onCustomTimerConfirm={handleCustomTimerConfirm}
           maxChapters={maxChapters}
-          hasActiveTrack={hasActiveTrack}
+          hasActiveBook={hasActiveBook}
         />
 
         <SettingsCard title='Shake to Reset Timer' icon={Vibrate}>
