@@ -7,12 +7,12 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { PressableScale } from 'pressto';
-import { useActiveTrack } from 'react-native-track-player';
 import { play, seekTo, skip } from '@/player/trackPlayer';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CircleX } from 'lucide-react-native';
 import { useBookById } from '@/store/library';
+import { useActiveBookId } from '@/store/playerState';
 import { useTheme } from '@/hooks/useTheme';
 import { usesChapterQueue } from '@/helpers/chapterPlayback';
 import { withOpacity } from '@/helpers/colorUtils';
@@ -42,8 +42,8 @@ const FootprintListScreen = () => {
   const { isProUser } = useRequiresPro();
   const [showProPopup, setShowProPopup] = useState(false);
 
-  const activeTrack = useActiveTrack();
-  const book = useBookById(activeTrack?.bookId ?? '');
+  const activeBookId = useActiveBookId();
+  const book = useBookById(activeBookId ?? '');
 
   const [footprints, setFootprints] = useState<FootprintItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,13 +51,13 @@ const FootprintListScreen = () => {
   // Load footprints when screen mounts
   useEffect(() => {
     const loadFootprints = async () => {
-      if (!activeTrack?.bookId) {
+      if (!activeBookId) {
         setLoading(false);
         return;
       }
 
       try {
-        const fps = await getFootprints(activeTrack.bookId);
+        const fps = await getFootprints(activeBookId);
         setFootprints(
           fps.map((fp) => ({
             id: fp.id,
@@ -75,7 +75,7 @@ const FootprintListScreen = () => {
     };
 
     loadFootprints();
-  }, [activeTrack?.bookId]);
+  }, [activeBookId]);
 
   const handleFootprintSelect = useCallback(
     async (footprint: FootprintItem) => {

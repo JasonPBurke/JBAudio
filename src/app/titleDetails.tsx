@@ -36,7 +36,6 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { useActiveTrack, useIsPlaying } from 'react-native-track-player';
 import { getActiveBookId, pause } from '@/player/trackPlayer';
 
 import BookSeriesLine from '@/components/BookSeriesLine';
@@ -45,6 +44,10 @@ import { useBookById, refreshLibraryStore } from '@/store/library';
 import { unknownBookImageUri } from '@/constants/images';
 import { colors, fontSize } from '@/constants/tokens';
 import { useQueueStore } from '@/store/queue';
+import {
+  useActiveBookId,
+  useIsPlayerPlaying,
+} from '@/store/playerState';
 import { selectGradientColors } from '@/helpers/gradientColorSorter';
 import { ensureReadable, withOpacity } from '@/helpers/colorUtils';
 import { useTheme } from '@/hooks/useTheme';
@@ -99,8 +102,11 @@ const TitleDetails = () => {
 
   const { colors: themeColors } = useTheme();
 
-  const { playing } = useIsPlaying();
-  const activeTrack = useActiveTrack();
+  const playing = useIsPlayerPlaying();
+  // The Player's ACTIVE Book. The `activeBookId` destructured from the queue
+  // store above is the REQUESTED Book -- a different question, deliberately
+  // left alone here. See CONTEXT.md.
+  const playerActiveBookId = useActiveBookId();
 
   useEffect(() => {
     return () => {
@@ -156,7 +162,7 @@ const TitleDetails = () => {
     return null;
   }
 
-  const isActiveBook = activeTrack?.bookId === book.bookId;
+  const isActiveBook = playerActiveBookId === book.bookId;
 
   const isBookStarted =
     book.bookProgressValue !== BookProgressState.NotStarted;

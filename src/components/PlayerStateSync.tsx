@@ -9,11 +9,24 @@ import { usePlayerStateStore } from '@/store/playerState';
 
 /**
  * This component syncs TrackPlayer state to our Zustand store.
- * It should be rendered ONCE at the app root level.
  *
- * By centralizing the TrackPlayer subscriptions here, we avoid having
- * every BookGridItem/BookListItem subscribe directly to TrackPlayer,
- * which was causing cascading re-renders.
+ * ⚠ IT IS THE ONLY CALLER OF THE PLAYER LIBRARY'S REACT HOOKS, and the only
+ * writer of `store/playerState`. Every other file reads a selector. Counted at
+ * `1a04fd7`: eleven `useActiveTrack()` subscriptions across twelve files, all
+ * for one field, `?.bookId`; ten of the eleven are gone and this is the
+ * survivor. A second one anywhere re-creates the shape. `eslint.config.js`
+ * still permits the three names
+ * imported below ANYWHERE under `src/` — it is an allow list, not a per-file
+ * exemption — so nothing mechanical stops that; ticket 10 closes the hole by
+ * emptying the list, at which point this file is the ban's last exception.
+ *
+ * ⚠ IT MUST STAY MOUNTED AT THE ROOT (`app/_layout.tsx`, above the router).
+ * The store's selectors are only correct while it is. See the mount invariant
+ * in `store/playerState.ts` — that header is the long version.
+ *
+ * The sticky last-Active-Book field is derived by the store's own
+ * `setActiveBookId` rather than written separately here, so that the "does not
+ * clear on null" rule has exactly one place that can get it wrong.
  */
 export const PlayerStateSync = () => {
   const { playing } = useIsPlaying();
@@ -26,8 +39,17 @@ export const PlayerStateSync = () => {
     setIsPlaying(playing ?? false);
   }, [playing, setIsPlaying]);
 
+  // ⚠ THE LAST UNCHECKED READ OF `Track.bookId` IN THE APP, and the narrowing
+  // is not decoration. RNTP declares `Track` with an `[key: string]: any` index
+  // signature, so `.bookId`, `.bookid` and `.bookID` all compile and two of
+  // them yield `undefined`. The adapter narrows the imperative half of this
+  // same read the same way (`getActiveBookId`, `player/trackPlayer.ts:97-99`);
+  // before ticket 09 a slip here cost one component, and now it would null the
+  // Active Book for every consumer of the mirror, with no error and no type
+  // change.
   useEffect(() => {
-    setActiveBookId(activeTrack?.bookId ?? null);
+    const bookId = activeTrack?.bookId;
+    setActiveBookId(typeof bookId === 'string' ? bookId : null);
   }, [activeTrack?.bookId, setActiveBookId]);
 
   // useIsPlaying() is purely event-derived, so after extended background the

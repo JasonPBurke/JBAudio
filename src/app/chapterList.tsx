@@ -7,12 +7,12 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { PressableScale } from 'pressto';
-import { useActiveTrack } from 'react-native-track-player';
 import { play, seekTo, setVolume, skip } from '@/player/trackPlayer';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CircleX } from 'lucide-react-native';
 import { useBookById, useLibraryStore } from '@/store/library';
+import { useActiveBookId } from '@/store/playerState';
 import { useTheme } from '@/hooks/useTheme';
 import { withOpacity, ensureReadable } from '@/helpers/colorUtils';
 import { usesChapterQueue } from '@/helpers/chapterPlayback';
@@ -32,8 +32,8 @@ const ChapterListScreen = () => {
   }>();
   const isReadOnly = readOnly === 'true';
 
-  const activeTrack = useActiveTrack();
-  const book = useBookById(paramBookId ?? activeTrack?.bookId ?? '');
+  const activeBookId = useActiveBookId();
+  const book = useBookById(paramBookId ?? activeBookId ?? '');
 
   const updateBookChapterIndex = useLibraryStore(
     useCallback((state) => state.updateBookChapterIndex, []),
@@ -52,12 +52,12 @@ const ChapterListScreen = () => {
   // Calculate active chapter index (only when this book is the loaded one)
   const activeIndex = useMemo(() => {
     if (isReadOnly || !book?.chapters?.length) return -1;
-    if (!activeTrack?.bookId || activeTrack.bookId !== book.bookId) return -1;
+    if (activeBookId !== book.bookId) return -1;
     const index =
       storeIndex ?? book.bookProgress?.currentChapterIndex ?? -1;
     if (index < 0) return -1;
     return Math.min(index, book.chapters.length - 1);
-  }, [isReadOnly, book, activeTrack?.bookId, storeIndex]);
+  }, [isReadOnly, book, activeBookId, storeIndex]);
 
   // Calculate initial scroll index to position active chapter at 3rd slot
   // For read-only mode, start at the top

@@ -1,7 +1,39 @@
 import { create } from 'zustand';
 
+/**
+ * The app's mirror of the Player's Active Book and transport state.
+ *
+ * ⚠ MOUNT INVARIANT — LOAD-BEARING, NOT AN ACCIDENT. Every selector below is
+ * only correct while `components/PlayerStateSync` is mounted: it is the one
+ * component that subscribes to the Player library's React hooks, and nothing
+ * else writes these fields. It is rendered once in the root layout
+ * (`app/_layout.tsx`), above the router, so the invariant holds for every
+ * screen. Move it under a route and every consumer silently reads a stale
+ * mirror on the screens that route does not cover -- a failure with no error
+ * and no type change. The library's hooks worked anywhere; these selectors do
+ * not, and that is the price paid for one subscription instead of twelve.
+ *
+ * ⚠ `activeBookId` HERE IS THE ACTIVE BOOK. `store/queue`'s identically named
+ * field is the REQUESTED Book -- what the play/restore/remote-play path asked
+ * for, which leads a Book switch while this one lags behind it. They are not
+ * duplicates and merging them breaks book-switching in a way no test that
+ * stays on one Book can see. See `CONTEXT.md`. (Five components read both, in
+ * one case four lines apart.)
+ */
 interface PlayerState {
   activeBookId: string | null;
+  /**
+   * The last Book the Player had loaded, which does NOT clear when the Player
+   * unloads. Consumers that must keep showing the Book that just stopped --
+   * the FloatingPlayer and the time-remaining line inside it -- read this
+   * instead of `activeBookId`.
+   *
+   * It is written by the same action, so whenever `activeBookId` is non-null
+   * the two are equal; `activeBookId ?? lastActiveBookId` and
+   * `lastActiveBookId` are therefore the same expression, and consumers use
+   * the latter.
+   */
+  lastActiveBookId: string | null;
   isPlaying: boolean;
   setActiveBookId: (id: string | null) => void;
   setIsPlaying: (playing: boolean) => void;
@@ -9,8 +41,14 @@ interface PlayerState {
 
 export const usePlayerStateStore = create<PlayerState>()((set) => ({
   activeBookId: null,
+  lastActiveBookId: null,
   isPlaying: false,
-  setActiveBookId: (id) => set({ activeBookId: id }),
+  setActiveBookId: (id) =>
+    set(
+      id === null
+        ? { activeBookId: null }
+        : { activeBookId: id, lastActiveBookId: id },
+    ),
   setIsPlaying: (playing) => set({ isPlaying: playing }),
 }));
 
@@ -33,6 +71,24 @@ export const useIsBookActiveAndPlaying = (bookId: string): boolean =>
  */
 export const useIsBookActive = (bookId: string): boolean =>
   usePlayerStateStore((state) => state.activeBookId === bookId);
+
+/**
+ * Selector: Which Book the Player currently has loaded, or `null` for none.
+ *
+ * For a component that only asks about ONE Book, prefer `useIsBookActive` --
+ * it returns `false` unchanged for every other Book and so does not re-render
+ * on a switch between two Books it does not care about. Reach for this one
+ * when the identity itself is the input, e.g. to look the Book up.
+ */
+export const useActiveBookId = (): string | null =>
+  usePlayerStateStore((state) => state.activeBookId);
+
+/**
+ * Selector: the last Book the Player had loaded, sticky across unload.
+ * See `lastActiveBookId` above for why this is not `activeBookId ?? previous`.
+ */
+export const useLastActiveBookId = (): string | null =>
+  usePlayerStateStore((state) => state.lastActiveBookId);
 
 /**
  * Selector: Get just the isPlaying state.

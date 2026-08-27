@@ -50,16 +50,23 @@ module.exports = defineConfig([
     // An allow list rather than a ban list, because the permitted names ARE the
     // migration tracker: what is still importable is exactly what is still
     // unmigrated, and the list empties when the reactive surface moves onto the
-    // store mirror. Three React hooks are that surface; `isPlaying` is the one
-    // imperative read the adapter pass left behind, for the same later ticket.
-    // Everything omitted is reachable through the adapter instead -- the enums
-    // and types it re-exports, the default export it replaces with wrappers.
+    // store mirror.
     //
-    // Deliberately NARROW, and measured rather than assumed: with these four
+    // ⚠ TICKET 09 MOVED THAT SURFACE, so the three survivors now share ONE
+    // importer: `components/PlayerStateSync.tsx`, the sole subscriber to the
+    // library's React hooks and the sole writer of `store/playerState`.
+    // `useTrackPlayerEvents` came off the list with the state logger, which now
+    // takes the adapter's `subscribe`. `isPlaying` is the imperative read the
+    // adapter pass left behind, still unclassified -- see the adapter header.
+    // Ticket 10 empties the rest. Everything omitted is reachable through the
+    // adapter instead -- the enums and types it re-exports, the default export
+    // it replaces with wrappers.
+    //
+    // Deliberately NARROW, and measured rather than assumed: with these three
     // names, `eslint` reports 0 errors on the tree as it stands. Probed on a
-    // throwaway file, because all four of these look exempt and are not -- the
-    // rule fires on `import TrackPlayer from`, on a bare enum, on `import type`
-    // and on `import * as`, and per-name rather than per-statement.
+    // throwaway file, because all of these look exempt and are not -- the rule
+    // fires on `import TrackPlayer from`, on a bare enum, on `import type` and
+    // on `import * as`, and per-name rather than per-statement.
     //
     // Probed the same way, three shapes it does NOT see, none an oversight:
     // `require(...)` and the module-name string literal in `jest.mock(...)`,
@@ -78,7 +85,6 @@ module.exports = defineConfig([
               allowImportNames: [
                 'useActiveTrack',
                 'useIsPlaying',
-                'useTrackPlayerEvents',
                 'isPlaying',
               ],
               message:

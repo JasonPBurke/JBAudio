@@ -6,12 +6,12 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useActiveTrack } from 'react-native-track-player';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { colors, screenPadding } from '@/constants/tokens';
 import { defaultStyles } from '@/styles';
 import { useBookById } from '@/store/library';
+import { useActiveBookId } from '@/store/playerState';
 import { selectGradientColors } from '@/helpers/gradientColorSorter';
 import { withOpacity } from '@/helpers/colorUtils';
 import { useTheme } from '@/hooks/useTheme';
@@ -110,7 +110,7 @@ const Spacer = ({
  * - PlayerChaptersModal: Now uses useCurrentChapterStable (event-based)
  *
  * This screen should only re-render when:
- * - Active track changes (useActiveTrack)
+ * - The Active Book changes (the playerState store mirror)
  * - Book data changes (useBookById)
  */
 const PlayerScreen = () => {
@@ -140,9 +140,9 @@ const PlayerScreen = () => {
   // rotation, unfolding and multi-window resizes.
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
-  // These hooks only fire on track change, not during playback progress
-  const activeTrack = useActiveTrack();
-  const book = useBookById(activeTrack?.bookId ?? '');
+  // These hooks only fire on Book change, not during playback progress
+  const activeBookId = useActiveBookId();
+  const book = useBookById(activeBookId ?? '');
 
   // Single shared chapter subscription — broadcast via Context to
   // PlayerChaptersModal and PlayerProgressBar so they don't each open their
@@ -199,8 +199,8 @@ const PlayerScreen = () => {
     router.push('/footprintList' as any);
   }, [router]);
 
-  // Loading state - only shown when no active track
-  if (!activeTrack) {
+  // Loading state - only shown when the Player has no Book loaded
+  if (!activeBookId) {
     return (
       <View style={[defaultStyles.container, loadingContainerStyle]}>
         <ActivityIndicator color={colors.icon} />

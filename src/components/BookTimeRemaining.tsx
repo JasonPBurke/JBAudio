@@ -5,7 +5,6 @@ import React, {
   useRef,
 } from 'react';
 import { Text } from 'react-native';
-import { useActiveTrack } from 'react-native-track-player';
 import {
   Event,
   getActiveTrackIndex,
@@ -14,12 +13,12 @@ import {
   subscribe,
 } from '@/player/trackPlayer';
 import { useBookById } from '@/store/library';
+import { useLastActiveBookId } from '@/store/playerState';
 import { useAppStateStore } from '@/store/appState';
 import { useSettingsStore } from '@/store/settingsStore';
 import { formatSecondsToHoursMinutes } from '@/helpers/miscellaneous';
 import { formatRate } from '@/helpers/playbackRate';
 import { calculateRemainingBookTime } from '@/helpers/chapterPlayback';
-import { useLastActiveTrack } from '@/hooks/useLastActiveTrack';
 import { colors } from '@/constants/tokens';
 
 type BookTimeRemainingProps = {
@@ -164,10 +163,9 @@ BookTimeRemainingInner.displayName = 'BookTimeRemainingInner';
  */
 export const BookTimeRemaining = React.memo(
   ({ size, color }: BookTimeRemainingProps) => {
-    const activeTrack = useActiveTrack();
-    const lastActiveTrack = useLastActiveTrack();
-    const displayedTrack = activeTrack ?? lastActiveTrack;
-    const displayedBook = useBookById(displayedTrack?.bookId ?? '');
+    // Sticky, not Active -- see `lastActiveBookId` in store/playerState.
+    const displayedBookId = useLastActiveBookId();
+    const displayedBook = useBookById(displayedBookId ?? '');
 
     // Track current index for chapter calculations
     const [currentIndex, setCurrentIndex] = useState<number | undefined>(
@@ -206,9 +204,9 @@ export const BookTimeRemaining = React.memo(
         mounted = false;
         subscription.remove();
       };
-    }, [displayedTrack?.bookId]);
+    }, [displayedBookId]);
 
-    if (!displayedTrack || !displayedBook) {
+    if (!displayedBookId || !displayedBook) {
       return null;
     }
 

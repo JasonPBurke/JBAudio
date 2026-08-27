@@ -5,7 +5,6 @@ import {
   View,
 } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { useActiveTrack } from 'react-native-track-player';
 import FastImage from '@d11/react-native-fast-image';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -14,13 +13,13 @@ import {
   PlayPauseButton,
   SeekBackButton,
 } from '@/components/PlayerControls';
-import { useLastActiveTrack } from '@/hooks/useLastActiveTrack';
 import { TickerText } from '@/components/TickerText';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/useTheme';
 import { useQueueStore } from '@/store/queue';
 import { useBookById } from '@/store/library';
+import { useLastActiveBookId } from '@/store/playerState';
 import { BookTimeRemaining } from '@/components/BookTimeRemaining';
 import { setPlayerNavIntent } from '@/store/playerNavIntent';
 
@@ -40,11 +39,13 @@ export const FloatingPlayer = React.memo(() => {
   const { colors: themeColors } = useTheme();
 
   const router = useRouter();
-  const activeTrack = useActiveTrack();
-  const lastActiveTrack = useLastActiveTrack();
-  const displayedTrack = activeTrack ?? lastActiveTrack;
+  // Sticky on purpose: the bar has to stay on screen showing the Book that
+  // just stopped -- including after a remount, which the per-component
+  // `useState` this replaced could not do. See `lastActiveBookId` in
+  // store/playerState.
+  const displayedBookId = useLastActiveBookId();
 
-  const displayedBook = useBookById(displayedTrack?.bookId ?? '');
+  const displayedBook = useBookById(displayedBookId ?? '');
 
   // This wrapper is a sibling of the inset-padded content view in
   // (drawer)/(library)/index.tsx, so it sits in the raw edge-to-edge window and
@@ -74,7 +75,7 @@ export const FloatingPlayer = React.memo(() => {
     router.navigate('/player');
   }, [router]);
 
-  if (!isPlayerReady || !displayedTrack || !displayedBook) {
+  if (!isPlayerReady || !displayedBookId || !displayedBook) {
     return null;
   }
 

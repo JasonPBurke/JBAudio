@@ -7,7 +7,6 @@ import {
   useAnimatedReaction,
 } from 'react-native-reanimated';
 import { runOnJS } from 'react-native-worklets';
-import { useActiveTrack } from 'react-native-track-player';
 import { getActiveBookId, getProgress, seekTo } from '@/player/trackPlayer';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { fontSize } from '@/constants/tokens';
@@ -16,6 +15,7 @@ import { useProgressReanimated } from '@/hooks/useProgressReanimated';
 import { useCurrentChapter } from '@/hooks/useCurrentChapterStable';
 import { useTheme } from '@/hooks/useTheme';
 import { useBookById } from '@/store/library';
+import { useActiveBookId } from '@/store/playerState';
 import { useAppStateStore } from '@/store/appState';
 import { useSettingsStore } from '@/store/settingsStore';
 import { shouldUseClippedChapters } from '@/helpers/clippedChapters';
@@ -77,8 +77,8 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
   // the native position is ALREADY chapter-relative — the chapter's absolute
   // startMs must not be subtracted (that pinned the bar at 0 and made seeks
   // land outside the clip window).
-  const activeTrack = useActiveTrack();
-  const book = useBookById(activeTrack?.bookId ?? '');
+  const activeBookId = useActiveBookId();
+  const book = useBookById(activeBookId ?? '');
   const isChapterRelative = shouldUseClippedChapters(book?.chapters);
 
   // Use shared values instead of refs for chapter info (worklet-compatible)

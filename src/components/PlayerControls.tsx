@@ -14,7 +14,6 @@ import {
   ViewStyle,
   Pressable,
 } from 'react-native';
-import { useActiveTrack } from 'react-native-track-player';
 import {
   getActiveBookId,
   getProgress,
@@ -61,6 +60,7 @@ import { BookProgressState } from '@/helpers/handleBookPlay';
 import database from '@/db';
 import { useObserveSettings } from '@/hooks/useObserveSettings';
 import {
+  useActiveBookId,
   useIsPlayerPlaying,
   usePlayerStateStore,
 } from '@/store/playerState';
@@ -350,8 +350,8 @@ export function SkipToPreviousButton({ iconSize = 30 }: PlayerButtonProps) {
 }
 
 export function SkipToNextButton({ iconSize = 30 }: PlayerButtonProps) {
-  const activeTrack = useActiveTrack();
-  const book = useBookById(activeTrack?.bookId ?? '');
+  const activeBookId = useActiveBookId();
+  const book = useBookById(activeBookId ?? '');
 
   const handlePress = async () => {
     const queue = await getQueue();
@@ -365,8 +365,8 @@ export function SkipToNextButton({ iconSize = 30 }: PlayerButtonProps) {
         await seekTo(nextStart);
       } else {
         // At last chapter: mark finished, reset and stop
-        if (activeTrack?.bookId) {
-          const bookModel = await getBookById(activeTrack.bookId);
+        if (activeBookId) {
+          const bookModel = await getBookById(activeBookId);
           if (bookModel) {
             await bookModel.updateBookProgress(BookProgressState.Finished);
           }

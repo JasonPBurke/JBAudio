@@ -7,7 +7,6 @@ import {
   useState,
   useCallback,
 } from 'react';
-import { useActiveTrack } from 'react-native-track-player';
 import {
   Event,
   getActiveTrackIndex,
@@ -16,6 +15,7 @@ import {
 } from '@/player/trackPlayer';
 import { useBookById, useLibraryStore } from '@/store/library';
 import { useAppStateStore } from '@/store/appState';
+import { useActiveBookId } from '@/store/playerState';
 import { Chapter } from '@/types/Book';
 import {
   usesChapterQueue,
@@ -61,8 +61,7 @@ export const useCurrentChapter = (): Chapter | undefined => {
  *   all share one URL.
  */
 export const useCurrentChapterStable = () => {
-  const activeTrack = useActiveTrack();
-  const bookId = activeTrack?.bookId ?? '';
+  const bookId = useActiveBookId() ?? '';
   const book = useBookById(bookId);
   const chapters = book?.chapters;
 
