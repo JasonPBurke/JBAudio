@@ -6,7 +6,15 @@ import {
 } from '@/db/chapterQueries';
 import { Book } from '@/types/Book';
 import { getBookById, stampLastPlayed } from '@/db/bookQueries';
-import TrackPlayer, { Track } from 'react-native-track-player';
+import {
+  add,
+  play,
+  reset,
+  seekTo,
+  setVolume,
+  skip,
+  type Track,
+} from '@/player/trackPlayer';
 import { updateLastActiveBook } from '@/db/settingsQueries';
 import { awaitPlayerReady } from '@/helpers/awaitPlayerReady';
 import {
@@ -150,14 +158,14 @@ const handleBookPlayInner = async (
   const useClipped = shouldUseClippedChapters(book.chapters);
 
   if (isChangingBook) {
-    await TrackPlayer.reset();
+    await reset();
 
     if (useClipped) {
-      await TrackPlayer.add(buildClippedChapterTracks(book));
-      if (chapterIndex > 0) await TrackPlayer.skip(chapterIndex);
+      await add(buildClippedChapterTracks(book));
+      if (chapterIndex > 0) await skip(chapterIndex);
       // DB progress for single-file books is already chapter-relative, and
       // positions inside a clipped window are chapter-relative too.
-      await TrackPlayer.seekTo(chapterProgress);
+      await seekTo(chapterProgress);
     } else if (singleFile) {
       // Single-file book: load only 1 track
       // Use chapter title/duration when valid chapter data exists
@@ -173,7 +181,7 @@ const handleBookPlayInner = async (
         bookId: book.bookId,
         duration: initialChapter?.chapterDuration,
       };
-      await TrackPlayer.add(track);
+      await add([track]);
 
       // Seek to absolute position (chapter start + progress within chapter)
       const absolutePosition = calculateAbsolutePosition(
@@ -181,7 +189,7 @@ const handleBookPlayInner = async (
         chapterIndex,
         chapterProgress,
       );
-      await TrackPlayer.seekTo(absolutePosition);
+      await seekTo(absolutePosition);
     } else {
       // Multi-file book: load N tracks (one per chapter)
       const tracks: Track[] = book.chapters.map((chapter) => ({
@@ -194,16 +202,16 @@ const handleBookPlayInner = async (
         duration: chapter.chapterDuration,
       }));
 
-      await TrackPlayer.add(tracks);
-      await TrackPlayer.skip(chapterIndex);
-      await TrackPlayer.seekTo(chapterProgress);
+      await add(tracks);
+      await skip(chapterIndex);
+      await seekTo(chapterProgress);
     }
 
     // reset() above dropped the rate back to 1× — restore before playing
     await applyPersistedPlaybackRate();
 
-    await TrackPlayer.play();
-    await TrackPlayer.setVolume(1);
+    await play();
+    await setVolume(1);
 
     if (book.bookId) {
       setActiveBookId(book.bookId);
@@ -212,8 +220,8 @@ const handleBookPlayInner = async (
   } else {
     // Same book - just seek to the correct position
     if (useClipped) {
-      await TrackPlayer.skip(chapterIndex);
-      await TrackPlayer.seekTo(chapterProgress);
+      await skip(chapterIndex);
+      await seekTo(chapterProgress);
     } else if (singleFile) {
       // Single-file book: seek to absolute position
       const absolutePosition = calculateAbsolutePosition(
@@ -221,15 +229,15 @@ const handleBookPlayInner = async (
         chapterIndex,
         chapterProgress,
       );
-      await TrackPlayer.seekTo(absolutePosition);
+      await seekTo(absolutePosition);
     } else {
       // Multi-file book: skip to chapter and seek
-      await TrackPlayer.skip(chapterIndex);
-      await TrackPlayer.seekTo(chapterProgress);
+      await skip(chapterIndex);
+      await seekTo(chapterProgress);
     }
 
-    await TrackPlayer.play();
-    await TrackPlayer.setVolume(1);
+    await play();
+    await setVolume(1);
   }
 };
 

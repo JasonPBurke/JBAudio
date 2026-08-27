@@ -1,4 +1,11 @@
-import TrackPlayer, { Track } from 'react-native-track-player';
+import {
+  add,
+  getQueue,
+  reset,
+  seekTo,
+  skip,
+  type Track,
+} from '@/player/trackPlayer';
 import * as Sentry from '@sentry/react-native';
 import { getLastActiveBook } from '@/db/settingsQueries';
 import { getBookWithChaptersForRestoration } from '@/db/bookQueries';
@@ -18,7 +25,7 @@ import { applyPersistedPlaybackRate } from '@/helpers/applyPlaybackRate';
 import type { Book } from '@/types/Book';
 
 /**
- * Loads the last active book into the TrackPlayer queue (paused) and seeks
+ * Loads the last active book into the Player's queue (paused) and seeks
  * to the persisted position. Moved verbatim from useSetupTrackPlayer so the
  * playback service can also run it headlessly (Android Auto / media
  * resumption when the UI never mounted). Errors propagate — callers decide
@@ -38,25 +45,25 @@ export async function restoreLastActiveBook(): Promise<void> {
 
   const { chapters, ...bookInfo } = bookData;
 
-  const queue = await TrackPlayer.getQueue();
+  const queue = await getQueue();
   // Only load tracks if queue is empty or has the wrong book.
   if (!queue.length || queue[0]?.bookId !== lastActiveBookId) {
-    await TrackPlayer.reset();
+    await reset();
 
     const singleFile = isSingleFileBook(chapters);
     const progressInfo = await getChapterProgressInDB(bookInfo.bookId);
 
     if (shouldUseClippedChapters(chapters)) {
       // SPIKE (Bug B): clipped per-chapter queue — restore like a multi-file book
-      await TrackPlayer.add(
+      await add(
         buildClippedChapterTracks({ ...bookInfo, chapters } as unknown as Book),
       );
       const clampedIndex = Math.min(
         progressInfo?.chapterIndex || 0,
         chapters.length - 1,
       );
-      if (clampedIndex > 0) await TrackPlayer.skip(clampedIndex);
-      await TrackPlayer.seekTo(progressInfo?.progress || 0);
+      if (clampedIndex > 0) await skip(clampedIndex);
+      await seekTo(progressInfo?.progress || 0);
     } else if (singleFile) {
       // Single-file book: load only 1 track
       // Use chapter title/duration when valid chapter data exists
@@ -76,7 +83,7 @@ export async function restoreLastActiveBook(): Promise<void> {
         bookId: bookInfo.bookId,
         duration: initialChapter?.chapterDuration,
       };
-      await TrackPlayer.add(track);
+      await add([track]);
 
       // Restore position by calculating absolute position from chapter + progress
       if (progressInfo) {
@@ -107,9 +114,9 @@ export async function restoreLastActiveBook(): Promise<void> {
             0,
             Math.min(absolutePosition, bookInfo.bookDuration - 1),
           );
-          await TrackPlayer.seekTo(clampedPosition);
+          await seekTo(clampedPosition);
         } else {
-          await TrackPlayer.seekTo(absolutePosition);
+          await seekTo(absolutePosition);
         }
 
         Sentry.addBreadcrumb({
@@ -138,7 +145,7 @@ export async function restoreLastActiveBook(): Promise<void> {
         duration: chapter.chapterDuration,
       }));
 
-      await TrackPlayer.add(tracks);
+      await add(tracks);
 
       if (
         progressInfo?.chapterIndex !== undefined &&
@@ -159,13 +166,13 @@ export async function restoreLastActiveBook(): Promise<void> {
           );
           // Fall back to last valid chapter
           const safeChapterIndex = Math.max(0, chapters.length - 1);
-          await TrackPlayer.skip(safeChapterIndex);
+          await skip(safeChapterIndex);
         } else if (progressInfo.chapterIndex > 0) {
-          await TrackPlayer.skip(progressInfo.chapterIndex);
-          await TrackPlayer.seekTo(progressInfo.progress || 0);
+          await skip(progressInfo.chapterIndex);
+          await seekTo(progressInfo.progress || 0);
         } else {
           // chapterIndex is 0, just seek within first track
-          await TrackPlayer.seekTo(progressInfo.progress || 0);
+          await seekTo(progressInfo.progress || 0);
         }
 
         Sentry.addBreadcrumb({

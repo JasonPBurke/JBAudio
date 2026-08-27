@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import TrackPlayer from 'react-native-track-player';
+import { setRate } from '@/player/trackPlayer';
 import { applyPlayerOptions } from '@/helpers/playerSetup';
 import { quantizeRate } from '@/helpers/playbackRate';
 import {
@@ -112,7 +112,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       playbackRate: rate,
       ...(rate !== 1.0 && { lastNonDefaultRate: rate }),
     });
-    await TrackPlayer.setRate(rate);
+    await setRate(rate);
     await updatePlaybackRate(rate);
     if (rate !== 1.0) await updateLastNonDefaultRate(rate);
   },

@@ -1,4 +1,15 @@
-import TrackPlayer, { State } from 'react-native-track-player';
+import {
+  getActiveBookId,
+  getActiveTrackIndex,
+  getPlaybackState,
+  getProgress,
+  getQueue,
+  pause,
+  play,
+  seekTo,
+  skip,
+  State,
+} from '@/player/trackPlayer';
 import { getBookById } from '@/db/bookQueries';
 import { BookProgressState } from '@/helpers/handleBookPlay';
 
@@ -93,7 +104,7 @@ export function resolveRelativeSeek({
 }
 
 async function isPlayingNow(): Promise<boolean> {
-  const { state } = await TrackPlayer.getPlaybackState();
+  const { state } = await getPlaybackState();
   return state === State.Playing || state === State.Buffering;
 }
 
@@ -101,7 +112,7 @@ async function isPlayingNow(): Promise<boolean> {
 async function restorePlayStateIfNeeded(wasPlaying: boolean): Promise<void> {
   if (!wasPlaying) return;
   if (!(await isPlayingNow())) {
-    await TrackPlayer.play();
+    await play();
   }
 }
 
@@ -120,9 +131,9 @@ async function readQueueShape(): Promise<{
   position: number;
 } | null> {
   const [queue, activeIndex, progress] = await Promise.all([
-    TrackPlayer.getQueue(),
-    TrackPlayer.getActiveTrackIndex(),
-    TrackPlayer.getProgress(),
+    getQueue(),
+    getActiveTrackIndex(),
+    getProgress(),
   ]);
 
   if (queue.length === 0) return null;
@@ -146,9 +157,9 @@ async function applyTarget(
     // skip(index) rather than repeated skipToNext/skipToPrevious: one native
     // call lands any number of chapters away, and no intermediate item is
     // ever prepared just to be abandoned.
-    await TrackPlayer.skip(target.index);
+    await skip(target.index);
   }
-  await TrackPlayer.seekTo(target.position);
+  await seekTo(target.position);
 }
 
 export async function seekBack(seconds: number): Promise<void> {
@@ -175,19 +186,19 @@ export async function seekForward(seconds: number): Promise<void> {
   const target = resolveRelativeSeek({ ...shape, delta: seconds });
 
   if (target.kind === 'finished') {
-    const activeTrack = await TrackPlayer.getActiveTrack();
-    if (activeTrack?.bookId) {
-      const bookModel = await getBookById(activeTrack.bookId);
+    const activeBookId = await getActiveBookId();
+    if (activeBookId) {
+      const bookModel = await getBookById(activeBookId);
       if (bookModel) {
         await bookModel.updateBookProgress(BookProgressState.Finished);
       }
     }
     if (shape.index !== 0) {
-      await TrackPlayer.skip(0);
+      await skip(0);
     }
-    await TrackPlayer.seekTo(0);
+    await seekTo(0);
     // Intentional pause — skip the play-state guard
-    await TrackPlayer.pause();
+    await pause();
     return;
   }
 

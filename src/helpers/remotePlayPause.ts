@@ -1,4 +1,10 @@
-import TrackPlayer, { State } from 'react-native-track-player';
+import {
+  getPlaybackState,
+  pause,
+  play,
+  seekBy,
+  State,
+} from '@/player/trackPlayer';
 
 /**
  * Handles Event.RemotePlayPause — the single "toggle" media key
@@ -13,10 +19,10 @@ import TrackPlayer, { State } from 'react-native-track-player';
 export async function handleRemotePlayPause(
   onPlay?: () => Promise<void> | void,
 ): Promise<void> {
-  const { state } = await TrackPlayer.getPlaybackState();
+  const { state } = await getPlaybackState();
 
   if (state === State.Playing || state === State.Buffering) {
-    await TrackPlayer.pause();
+    await pause();
     return;
   }
 
@@ -28,6 +34,6 @@ export async function handleRemotePlayPause(
     }
   }
   // QoL: repeat 1s of audio on resume, matching the in-app play button.
-  await TrackPlayer.seekBy(-1);
-  await TrackPlayer.play();
+  await seekBy(-1);
+  await play();
 }

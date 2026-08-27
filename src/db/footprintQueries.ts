@@ -3,7 +3,7 @@ import Footprint, { FootprintTrigger } from '@/db/models/Footprint';
 import Book from '@/db/models/Book';
 import Chapter from '@/db/models/Chapter';
 import { Q } from '@nozbe/watermelondb';
-import TrackPlayer from 'react-native-track-player';
+import { getActiveTrackIndex, getProgress } from '@/player/trackPlayer';
 import { usesChapterQueue } from '@/helpers/chapterPlayback';
 
 const MAX_FOOTPRINTS_PER_BOOK = 10;
@@ -47,8 +47,8 @@ export async function getCurrentChapterInfo(
 ): Promise<{ chapterIndex: number; positionInChapterMs: number } | null> {
   try {
     const [trackIndex, { position }] = await Promise.all([
-      TrackPlayer.getActiveTrackIndex(),
-      TrackPlayer.getProgress(),
+      getActiveTrackIndex(),
+      getProgress(),
     ]);
 
     if (trackIndex == null) return null;
@@ -171,7 +171,7 @@ export async function recordSeekFootprint(
       );
     } else {
       // Multi-file book - get current track index
-      const trackIndex = await TrackPlayer.getActiveTrackIndex();
+      const trackIndex = await getActiveTrackIndex();
       chapterIndex = trackIndex ?? 0;
       positionInChapterMs = positionBeforeSeekMs;
     }

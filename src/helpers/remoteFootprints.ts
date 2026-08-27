@@ -1,4 +1,4 @@
-import TrackPlayer from 'react-native-track-player';
+import { getActiveBookId, getProgress } from '@/player/trackPlayer';
 import {
   recordFootprint,
   recordSeekFootprint,
@@ -21,14 +21,14 @@ import { FootprintTrigger } from '@/db/models/Footprint';
 
 export async function recordRemoteSeekFootprint(): Promise<void> {
   try {
-    const [activeTrack, { position }] = await Promise.all([
-      TrackPlayer.getActiveTrack(),
-      TrackPlayer.getProgress(),
+    const [activeBookId, { position }] = await Promise.all([
+      getActiveBookId(),
+      getProgress(),
     ]);
-    if (activeTrack?.bookId) {
+    if (activeBookId) {
       // Position is in seconds — same conversion as PlayerProgressBar
       await recordSeekFootprint(
-        activeTrack.bookId,
+        activeBookId,
         Math.round(position * 1000),
       );
     }
@@ -45,8 +45,7 @@ export async function recordRemoteChapterChangeFootprint(
   > = 'chapter_change',
 ): Promise<void> {
   try {
-    const id =
-      bookId ?? (await TrackPlayer.getActiveTrack())?.bookId;
+    const id = bookId ?? (await getActiveBookId());
     if (id) {
       await recordFootprint(id, trigger);
     }

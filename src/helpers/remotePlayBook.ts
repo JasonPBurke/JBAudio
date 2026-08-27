@@ -1,4 +1,4 @@
-import TrackPlayer from 'react-native-track-player';
+import { play } from '@/player/trackPlayer';
 import type { Book } from '@/types/Book';
 import { useLibraryStore } from '@/store/library';
 import { useQueueStore } from '@/store/queue';
@@ -29,7 +29,7 @@ export async function handleRemotePlayBook(bookId: string): Promise<void> {
   const { activeBookId, setActiveBookId } = useQueueStore.getState();
   if (activeBookId === bookId) {
     void stampLastPlayed(bookId);
-    await TrackPlayer.play();
+    await play();
     return;
   }
 

@@ -1,4 +1,10 @@
-import TrackPlayer from 'react-native-track-player';
+import {
+  getActiveBookId,
+  getProgress,
+  getQueue,
+  seekTo,
+  skipToPrevious,
+} from '@/player/trackPlayer';
 import { useLibraryStore } from '@/store/library';
 import {
   getPreviousPressTarget,
@@ -27,8 +33,8 @@ const RESTART_CHAPTER_THRESHOLD_SECONDS = 15;
 export async function skipToPreviousChapter(
   onBeforeSkip?: (kind: PreviousPressKind) => void | Promise<void>,
 ): Promise<void> {
-  const queue = await TrackPlayer.getQueue();
-  const { position } = await TrackPlayer.getProgress();
+  const queue = await getQueue();
+  const { position } = await getProgress();
 
   const notifyBeforeSkip = async (kind: PreviousPressKind) => {
     if (!onBeforeSkip) return;
@@ -41,9 +47,9 @@ export async function skipToPreviousChapter(
 
   if (queue.length === 1) {
     // Legacy single-file book: one track, chapters are absolute seek offsets.
-    const activeTrack = await TrackPlayer.getActiveTrack();
-    const book = activeTrack?.bookId
-      ? useLibraryStore.getState().books[activeTrack.bookId]
+    const activeBookId = await getActiveBookId();
+    const book = activeBookId
+      ? useLibraryStore.getState().books[activeBookId]
       : undefined;
 
     if (book?.chapters && book.chapters.length > 1) {
@@ -53,11 +59,11 @@ export async function skipToPreviousChapter(
         RESTART_CHAPTER_THRESHOLD_SECONDS,
       );
       await notifyBeforeSkip(kind);
-      await TrackPlayer.seekTo(targetSeconds);
+      await seekTo(targetSeconds);
     } else {
       // Single-chapter book (or chapters not loaded): restart the track.
       await notifyBeforeSkip('restart');
-      await TrackPlayer.seekTo(0);
+      await seekTo(0);
     }
     return;
   }
@@ -66,14 +72,14 @@ export async function skipToPreviousChapter(
   // `position` is already chapter-relative and "restart" is seekTo(0).
   if (position > RESTART_CHAPTER_THRESHOLD_SECONDS) {
     await notifyBeforeSkip('restart');
-    await TrackPlayer.seekTo(0);
+    await seekTo(0);
   } else {
     await notifyBeforeSkip('previous');
     try {
-      await TrackPlayer.skipToPrevious();
+      await skipToPrevious();
     } catch {
       // First queue item has no previous — restart the book instead.
-      await TrackPlayer.seekTo(0);
+      await seekTo(0);
     }
   }
 }

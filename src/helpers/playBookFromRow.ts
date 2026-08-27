@@ -1,4 +1,8 @@
-import TrackPlayer, { State } from 'react-native-track-player';
+import {
+  getActiveBookId,
+  getPlaybackState,
+  State,
+} from '@/player/trackPlayer';
 import { Book } from '@/types/Book';
 import { handleBookPlay } from '@/helpers/handleBookPlay';
 import { awaitPlayerReady } from '@/helpers/awaitPlayerReady';
@@ -82,8 +86,8 @@ export type PlayBookFromRowArgs = {
  */
 const recordResumeFootprint = async (bookId: string): Promise<void> => {
   try {
-    const activeTrack = await TrackPlayer.getActiveTrack();
-    if (activeTrack?.bookId === bookId) {
+    const activeBookId = await getActiveBookId();
+    if (activeBookId === bookId) {
       await recordFootprint(bookId, 'play');
     }
   } catch {
@@ -101,7 +105,7 @@ export const playBookFromRow = async ({
   if (!book?.bookId) return;
 
   await awaitPlayerReady();
-  const playbackState = await TrackPlayer.getPlaybackState();
+  const playbackState = await getPlaybackState();
   const isCurrentlyPlaying = playbackState.state === State.Playing;
 
   if (recordPlayFootprint && !isCurrentlyPlaying) {

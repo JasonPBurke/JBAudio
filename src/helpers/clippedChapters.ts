@@ -1,4 +1,4 @@
-import type { Track } from 'react-native-track-player';
+import type { Track } from '@/player/trackPlayer';
 import type { Book, Chapter } from '@/types/Book';
 import { resolveTrackArtwork } from '@/helpers/defaultArtwork';
 import { CLIPPED_CHAPTERS_SPIKE } from '@/constants/featureFlags';

@@ -4,7 +4,7 @@
  *
  * Lives in its own dependency-free module so pure helpers (and their jest
  * tests) can compare against it without dragging in handleBookPlay.ts, which
- * imports TrackPlayer and the database. handleBookPlay re-exports it, so the
+ * imports the Player adapter and the database. handleBookPlay re-exports it, so the
  * long-standing `from '@/helpers/handleBookPlay'` import sites still work.
  */
 export enum BookProgressState {

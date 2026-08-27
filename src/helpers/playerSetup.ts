@@ -1,9 +1,12 @@
-import TrackPlayer, {
+import {
   AndroidAudioContentType,
   AppKilledPlaybackBehavior,
   Capability,
   RepeatMode,
-} from 'react-native-track-player';
+  setRepeatMode,
+  setupPlayer,
+  updateOptions,
+} from '@/player/trackPlayer';
 import {
   getSkipBackDuration,
   getSkipForwardDuration,
@@ -11,7 +14,7 @@ import {
 import { useQueueStore } from '@/store/queue';
 
 /**
- * The single source of truth for TrackPlayer options. updateOptions REPLACES
+ * The single source of truth for the Player's options. updateOptions REPLACES
  * capability arrays (and resets omitted android options) rather than merging,
  * so every caller must pass the complete set — never a hand-copied subset.
  * Used at setup and whenever the jump intervals change in settings.
@@ -20,7 +23,7 @@ export const applyPlayerOptions = async (
   skipBack: number,
   skipForward: number,
 ) => {
-  await TrackPlayer.updateOptions({
+  await updateOptions({
     android: {
       // Swipe-away from recents while playing keeps playing (explicit default).
       appKilledPlaybackBehavior: AppKilledPlaybackBehavior.ContinuePlayback,
@@ -57,7 +60,7 @@ export const applyPlayerOptions = async (
 };
 
 /**
- * Core TrackPlayer initialization (native player + options). Shared by the
+ * Core Player initialization (native player + options). Shared by the
  * UI path (useSetupTrackPlayer) and the headless path (ensurePlayerSetup).
  * Throws if the native player is already initialized — callers catch that.
  */
@@ -67,7 +70,7 @@ export const setupPlayerCore = async () => {
     getSkipForwardDuration(),
   ]);
 
-  await TrackPlayer.setupPlayer({
+  await setupPlayer({
     autoHandleInterruptions: true,
     androidAudioContentType: AndroidAudioContentType.Speech,
     maxCacheSize: 1024 * 5,
@@ -75,7 +78,7 @@ export const setupPlayerCore = async () => {
 
   await applyPlayerOptions(skipBack, skipForward);
 
-  await TrackPlayer.setRepeatMode(RepeatMode.Off);
+  await setRepeatMode(RepeatMode.Off);
 };
 
 /**
