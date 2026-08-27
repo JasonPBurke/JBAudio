@@ -178,9 +178,18 @@ The handler branches on the Queue shape and the two branches are barely alike:
   press next then previous and confirm you return to where you started.** If you
   do not, note which of the two moved wrongly — that identifies which reading is
   the stale one.
-- **Also on multi-item:** at the *first* queue item, `skipToPrevious()` throws and
-  is caught into a `seekTo(0)` (`chapterSkip.ts:80-82`). Confirm the press restarts
-  the Book rather than doing nothing.
+- ❌ **FAILED ON DEVICE, 2026-08-27 — and my prediction here was wrong.** I wrote
+  that at the *first* queue item `skipToPrevious()` throws and is caught into a
+  `seekTo(0)`, so the press restarts the Book. It does not. The driver found that a
+  multi-file Book does **not** restart, and tracing the native stack agrees: the
+  bridge resolves unconditionally (`MusicModule.kt:380-389`) and
+  `exoPlayer.seekToPreviousMediaItem()` is documented as *"Does nothing if there is
+  no previous item"* (`QueuedAudioPlayer.kt:191-194`). The `catch` at
+  `chapterSkip.ts:80-82` is dead code and its comment is false. **TICKET FILED:**
+  `.scratch/skip-previous-first-chapter/issues/01-restart-book-at-first-queue-item.md`
+  — pre-existing, affects the in-app control too, and a green test
+  (`chapterSkip.test.ts:121`) is guarding the dead branch by forcing a rejection the
+  bridge never produces.
 
 **Cheapest verification surface for this whole row is the footprint list.** Every
 press writes one, and the seek/next/previous footprints are awaited *before* the
@@ -189,80 +198,89 @@ where you landed instead of where you were means an `await` was dropped.
 
 ---
 
-#### Row 2 — Cold start from a headset play, with no app UI ever opening
+#### Row 2 — "Cold start from a headset play" — ⚠ THE ROW ITSELF IS MIS-SPECIFIED
 
-**⚠ This row now carries the entry-point migration, and nothing else covers it.**
-The stage-1 ban moved `registerPlaybackService` onto the adapter and changed
-`index.js`; **no jest suite imports `index.js`**. This row and the Android Auto
-row are the only checks that execute it. A break here is total — every Remote
-control dead — while the app's own UI looks perfectly normal, which is precisely
-why it cannot be judged by opening the app.
+**Rewritten 2026-08-27 after the driver rejected the first version. Both the row
+as ticket 08 wrote it and my expansion of it were wrong, in two separate ways.**
 
-**Preparation**
+**Objection 1, and it is correct: no app can own a bare headset press.** The
+driver has Audible, Sonicbooks and Smart Audiobook Player installed and asked
+which app a cold play press is supposed to start. There is no good answer.
+Android routes a media button to the app holding the active — or most recently
+active — media session; with nothing playing and no session alive, there is no
+defined winner, and an app that *did* grab it would be the one behaving badly.
+**This reads as a bug, not a feature, and the row should not have asserted it as
+one.** What is verifiable on our side is only that the service is *reachable*:
+RNTP's manifest declares `MEDIA_BUTTON`, `androidx.media3.session.MediaLibraryService`
+and `android.media.browse.MediaBrowserService` on `MusicService`. Reachable is not
+the same as chosen.
 
-1. Play the Book you intend to resume for long enough to persist a position, then
-   pause. This sets `getLastActiveBook()`, which the whole path depends on.
-2. **Force-stop the app — swiping it away is not enough.**
-   `appKilledPlaybackBehavior: ContinuePlayback` (`playerSetup.ts:29`) is set
-   precisely so a swipe-away keeps the service alive, so a swipe leaves you
-   testing a warm process and proves nothing:
-   `adb shell am force-stop com.fuzzylogic42.JBAudio`
-3. Confirm the process is actually gone before pressing anything:
-   `adb shell pidof com.fuzzylogic42.JBAudio` → no output.
-4. Start `adb logcat` before the press, not after. The decisive evidence appears
-   in the first second and there is no second chance without another force-stop.
+**Objection 2, and this one is my error alone: `force-stop` makes the test
+impossible.** `adb shell am force-stop` puts the package in Android's *stopped*
+state, and a stopped package receives no broadcasts or background starts until
+the user manually launches it again. So the procedure I wrote guaranteed the
+press could never arrive. "This does not work" is the correct outcome of those
+steps, not evidence about the app.
 
-**Trigger — and press it two different ways, they take different handlers**
+##### What the code actually implements, and what is therefore testable
 
-- A real Bluetooth/wired headset play button. This is the row as written and the
-  one that must pass.
-- `adb shell input keyevent 126` (`KEYCODE_MEDIA_PLAY`) → `Event.RemotePlay`.
-- `adb shell input keyevent 85` (`KEYCODE_MEDIA_PLAY_PAUSE`) → the *toggle*, which
-  lands on `Event.RemotePlayPause` (`service.js:439`) and `handleRemotePlayPause`
-  — a different handler. Steering-wheel and many AVRCP remotes send this one, and
-  without its listener the toggle is a silent no-op. **adb is a proxy, not a
-  substitute**: it does not exercise the Bluetooth AVRCP path. Use it to isolate,
-  then confirm on real hardware.
+`service.js:544-547` names it in as many words — *"Android Auto reconnect /
+Android 11+ media resumption"*. Two real headless entries, both **user-initiated,
+both unambiguous about which app is meant**:
 
-**The chain, and the one log line that decides it**
+1. **Android Auto browse and select** — `remote-play-book` → `handleRemotePlayBook`
+   → `ensurePlayerSetup()`. Already its own row in this checklist.
+2. **Android 11+ media resumption** — the user taps *this app's* resumable player
+   in the system media area. The system binds the MediaBrowserService,
+   `Event.PlaybackResume` fires (`service.js:549`), and `restoreLastActiveBook()`
+   loads the last Book **paused** at its saved position so the system's follow-up
+   `play()` has a queue to act on.
 
-- **`[entry] index.js evaluated, playback service registered`** — already in
-  `index.js`. **If this line does not appear, stop: the registration never ran and
-  everything below is moot.** This is the direct check on the entry migration.
-- `Event.PlaybackResume` (`service.js:549`) → `ensurePlayerSetup()` → `getQueue()`
-  comes back empty → `restoreLastActiveBook()` loads the Book **paused** at its
-  saved position.
-- The buffered play command then replays. Native buffers user-intent events that
-  arrive *before* the headless task starts and replays them immediately after
-  dispatch — **and that replay is only delivered if the listeners were registered
-  synchronously**, which is why the transport subscriptions sit above the first
-  `await` in the service (`service.js:400`). A cold start that needs a *second*
-  press is this guarantee breaking.
+A headset press belongs **after** one of those, not before: once resumption or AA
+has brought the session up, the headset button drives it. That is a real behaviour
+worth checking and it is what the code supports.
 
-- **Observable:** audio starts at the saved position (minus the ~1 s `RemotePlay`
-  rewind), the notification appears with the full strip, `last_played_at` is
-  stamped and a `play` footprint is recorded — **with no app UI ever drawn.**
+##### Re-specified row — run this instead
+
+- **Preparation:** play the Book briefly so `getLastActiveBook()` is set, then
+  pause. Get a genuinely cold process **without** the stopped flag:
+  `adb shell am kill com.fuzzylogic42.JBAudio` (kills the process; unlike
+  `force-stop` it does not mark the package stopped), or reboot the device.
+  Confirm with `adb shell pidof com.fuzzylogic42.JBAudio` → no output. Start
+  `logcat` before the trigger.
+- **Trigger:** tap the app's entry in the system's resumable-media controls —
+  **not** a headset button, and without opening the app.
+- **Observable:** `[entry] index.js evaluated, playback service registered`
+  appears; the Book loads paused at its saved position; a following play command
+  (system control or headset press) starts audio, with no app UI ever drawn.
 - **Shape:** both, and the landing spot is the whole point.
   `restoreLastActiveBook` restores differently per shape
-  (`helpers/restoreLastActiveBook.ts:56-67`): **multi-item** builds clipped/per-file
-  tracks, `skip(chapterIndex)` then `seekTo(chapter-relative offset)`;
-  **one-item** loads a single track and seeks to an **absolute** offset via
-  `calculateAbsolutePosition`. Verify the Book resumes **in the right Chapter and
-  at the right offset within it**, not merely at a plausible-looking number — a
-  shape bug here lands you at the correct *seconds* in the wrong *frame of
-  reference*, which is exactly the failure a screen cannot show you.
+  (`helpers/restoreLastActiveBook.ts:56-67`): **multi-item** builds per-Chapter
+  tracks, `skip(chapterIndex)` then `seekTo(Chapter-relative offset)`; **one-item**
+  loads a single track and seeks to an **absolute** offset via
+  `calculateAbsolutePosition`. Verify it resumes in the right Chapter *and* at the
+  right offset within it — a shape bug lands at the correct seconds in the wrong
+  frame of reference, which no screen will show you.
 - **Prediction:** safe. The registration is a mechanical passthrough and the
   restore path is untouched by this ticket.
-- **Watch for:**
-  - the entry log line missing → the migration broke the registration;
-  - the app UI actually launching → you triggered a different path; force-stop and
-    retry without touching the launcher;
-  - playback starting at **0** → `getLastActiveBook()` or the restore seek failed,
-    not the ban;
-  - **silence with no error** → the historical signature of "Player has not been
-    initialized" being swallowed in a headless runtime, which is the entire reason
-    `ensurePlayerSetup` exists (`playerSetup.ts:93`);
-  - needing two presses → the synchronous-listener guarantee above.
+- **Watch for:** the entry log line missing → the migration broke the
+  registration; playback starting at **0** → `getLastActiveBook()` or the restore
+  seek failed; **silence with no error** → the historical signature of "Player has
+  not been initialized" being swallowed headlessly, which is why
+  `ensurePlayerSetup` exists (`playerSetup.ts:93`); needing a second press → the
+  synchronous-listener guarantee at `service.js:400` breaking.
+
+##### Still true, and still the reason this row matters
+
+**No jest suite imports `index.js`.** This row and the Android Auto row are the
+only checks that execute the entry-point migration at all. A break there is total
+— every Remote control dead — while the app's own UI looks perfectly normal.
+
+⚠ **The checkbox above still reads "Cold start from a headset play, with no app UI
+ever opening" and should be re-worded before the pass is recorded.** Left as
+written rather than edited unilaterally: it is the driver's row, this is a change
+to what the ticket *asks for* rather than to how it is run, and the same objection
+may apply to how the Android Auto row is worded.
 
 ---
 
