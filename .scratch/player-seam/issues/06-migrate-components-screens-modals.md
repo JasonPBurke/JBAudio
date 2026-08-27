@@ -5,11 +5,7 @@ a native module. A grid card's dependencies start describing a grid card.
 
 **Blocked by:** 02, 04
 
-**Status:** ready-for-human
-
-_(Code complete and all three gates green; `ready-for-human` rather than
-`resolved` because the fourth acceptance criterion is a device pass the driver
-has to run — see `### Device verification` at the bottom.)_
+**Status:** resolved
 
 ## Scope
 
@@ -33,11 +29,12 @@ the `undefined` → `null` change on that read.
 
 ## Acceptance criteria
 
-- [ ] No component, screen or modal makes a direct imperative call to the
+- [x] No component, screen or modal makes a direct imperative call to the
       Player library
-- [ ] Hook imports are left alone, untouched, in every file
-- [ ] `tsc` 0, `eslint` 0, test count at or above ticket 01's baseline
-- [ ] No behaviour change: play from every surface that offers it still works
+- [x] Hook imports are left alone, untouched, in every file
+- [x] `tsc` 0, `eslint` 0, test count at or above ticket 01's baseline
+- [x] No behaviour change: play from every surface that offers it still works
+      — **driver-verified on device 2026-08-27**
 
 ## Answer
 
@@ -54,8 +51,7 @@ one (`helpers/playBookFromRow.ts`), so nothing was migrated and then deleted.
 
 ### Ticket 05's mechanical rule covered all but one site
 
-Direct library call becomes the same call from the adapter; fetch-item-then-take
--`bookId` collapses to a single `getActiveBookId()`. **Five** active-Book reads
+Direct library call becomes the same call from the adapter; fetch-item-then-take -`bookId` collapses to a single `getActiveBookId()`. **Five** active-Book reads
 collapsed, one per file: `timer.tsx:171`, `titleDetails.tsx:268`,
 `PlayerControls.tsx:140`, `PlayerProgressBar.tsx:191` and
 `SleepTimerOptions.tsx:117`. `grep -rn 'getActiveBookId()' src/app src/components
@@ -95,13 +91,13 @@ Took (2) after verifying the premise across every track-construction shape, not
 sampling. There are **six** `add()` calls in `src/` and **five** distinct shapes,
 because two of the calls pass the same builder:
 
-| Shape | Built at | `add()` call |
-| --- | --- | --- |
-| single-file | `handleBookPlay.ts:181` | `:184` |
-| multi-file | `handleBookPlay.ts:201` | `:205` |
-| clipped | `clippedChapters.ts:102` | `handleBookPlay.ts:164` **and** `restoreLastActiveBook.ts:58` |
-| single-file (restore) | `restoreLastActiveBook.ts:86` | `:86` |
-| multi-file (restore) | `restoreLastActiveBook.ts:148` | `:148` |
+| Shape                 | Built at                       | `add()` call                                                  |
+| --------------------- | ------------------------------ | ------------------------------------------------------------- |
+| single-file           | `handleBookPlay.ts:181`        | `:184`                                                        |
+| multi-file            | `handleBookPlay.ts:201`        | `:205`                                                        |
+| clipped               | `clippedChapters.ts:102`       | `handleBookPlay.ts:164` **and** `restoreLastActiveBook.ts:58` |
+| single-file (restore) | `restoreLastActiveBook.ts:86`  | `:86`                                                         |
+| multi-file (restore)  | `restoreLastActiveBook.ts:148` | `:148`                                                        |
 
 Every one sets `bookId: <string>` off `Book.bookId`, which is a non-optional
 `string`. Nothing else in `src/` calls `add()`: `service.js` never adds, and
@@ -161,7 +157,7 @@ alternative — leaving `import { State } from 'react-native-track-player'` behi
 — would strand an RNTP import that is neither a hook nor scheduled to move.
 
 This is independent of ticket 08's lint rule, which bans the imports; the
-adapter's re-exports are what make the ban *possible*, and they already exist.
+adapter's re-exports are what make the ban _possible_, and they already exist.
 
 ⚠ The adapter's warning applies but bites nothing here: a `jest.mock` factory
 that omits `State` re-exports `undefined` through the adapter. None of these
@@ -206,7 +202,7 @@ It cannot be migrated: **the adapter does not export `isPlaying`, deliberately.*
 Ticket 04 ruled on it explicitly, listed this exact call site
 (`04-create-rntp-adapter.md:151`, "1 (`PlayerStateSync.tsx:40`)"), marked it
 "❌ **still a hole**", and handed it to **ticket 09** — because it is not a hook
-despite living in RNTP's `hooks/` folder, because it *derives* rather than reads
+despite living in RNTP's `hooks/` folder, because it _derives_ rather than reads
 (`getPlaybackState` + `getPlayWhenReady` + `determineIsPlaying`, neither helper
 on the ratified surface), and because ticket 09 moves this whole file onto the
 store mirror anyway. Classifying it here would pre-empt a decision that ticket
@@ -252,12 +248,45 @@ Gates on a cleared cache: tsc 0, eslint 0 errors (32 warnings, all pre-existing)
   the fast `helpers` lane. Not done here: it is a behaviour-bearing refactor, and
   this ticket's criterion is "no behaviour change". **Worth its own ticket.**
 
-### Device verification
+### Device verification — ✅ PASSED 2026-08-27
 
-**REQUIRED and NOT YET DONE.** Unlike ticket 05, this batch has no test coverage
-at all, and the ticket's fourth acceptance criterion is a behavioural one. Play
-must be exercised from every surface that offers it: the chapter list, the
-footprint list, title details, the player screen's play/pause and skip-to-next,
-the progress-bar scrub, the floating player, and the sleep-timer chapter counts
-in both `(settings)/timer.tsx` and the `SleepTimerOptions` modal — the last two
-on a single-file book AND a multi-file book, since they take different branches.
+**Driver-verified on device; every surface on the checklist passes.** This was
+the real gate for the ticket: the batch has no automated coverage at all, so the
+jest run only ever proved the helpers layer underneath was intact.
+
+Surfaces exercised: the chapter list, the footprint list, title details, the
+player screen's play/pause and skip-to-next, the progress-bar scrub, the floating
+player, and the sleep-timer chapter counts in both `(settings)/timer.tsx` and the
+`SleepTimerOptions` modal.
+
+⚠ **The sleep-timer surfaces make no `play` call at all.** That came up during the
+pass and is worth writing down, because it changes what testing them means. They
+are read-only: each computes one number, `maxChapters`, from the live queue, and
+it is observable only through the chapter stepper — the `+` dims at the ceiling,
+and the label flips to "End of Book" at exactly `chaptersToEnd === maxChapters`.
+
+Two things about them that are non-obvious and cost time to rediscover:
+
+1. **Only the legacy single-file branch exercises what this ticket changed.**
+   `getActiveBookId()` is the one non-passthrough on the adapter, and the
+   multi-file/clipped branch never calls it — it uses `getQueue()` +
+   `getActiveTrackIndex()`, both passthroughs. A multi-file book therefore tests
+   almost nothing here. To land on the legacy branch reliably, use an
+   **auto-chaptered** single-file book: `shouldUseClippedChapters` returns false
+   if any chapter is `isAutoGenerated` (`clippedChapters.ts:75`).
+2. **The two surfaces refresh differently.** `timer.tsx` uses `useFocusEffect`,
+   so it recomputes on every focus. `SleepTimerOptions` is rendered inside
+   `PlayerControls` with `useEffect(..., [db])`, so it computes when the player
+   screen mounts and **not** when the bottom sheet opens — the sheet has to be
+   dismissed and the player reopened to get a fresh count. A stale count there is
+   pre-existing behaviour, not a regression.
+
+### Spawned a follow-up ticket
+
+`.scratch/sleep-timer-stepper/issues/01-clamp-modal-chapter-stepper.md` — the
+modal's chapter stepper persists counts it refuses to display. Both `disabled`
+props are commented out (`SleepTimerOptions.tsx:468` and `:511`), so the buttons
+only dim, and both handlers write the DB unclamped while clamping local state;
+`SleepTimerDurationCard` guards correctly. Found while writing the device-test
+guide for this ticket, and **not caused by it** — every line involved predates
+`756cbec` and was untouched by it.
