@@ -12,6 +12,7 @@ import type {
   EventPayloadByEvent,
   PlayerOptions,
   Progress,
+  ServiceHandler,
   Track,
   TrackMetadataBase,
   UpdateOptions,
@@ -229,6 +230,19 @@ export async function setupPlayer(options: PlayerOptions): Promise<void> {
  */
 export async function updateOptions(options: UpdateOptions): Promise<void> {
   return TrackPlayer.updateOptions(options);
+}
+
+/**
+ * Register the headless playback service.
+ *
+ * ⚠ Its ONE caller is the app entry (`index.js`) and it must stay there. Route
+ * modules only execute when the router renders them, so on a headless start --
+ * Android Auto or a headset connecting while the process has no UI -- a
+ * registration living in a route would never run and every remote control would
+ * be dead. The entry records the same reason at the call site.
+ */
+export function registerPlaybackService(factory: () => ServiceHandler): void {
+  TrackPlayer.registerPlaybackService(factory);
 }
 
 // ---------------------------------------------------------------------------
