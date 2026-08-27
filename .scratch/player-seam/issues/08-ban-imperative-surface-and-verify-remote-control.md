@@ -7,18 +7,18 @@ headset and Android Auto all still drive playback exactly as they did.
 
 **Blocked by:** 05, 06, 07
 
-**Status:** ready-for-human
+**Status:** resolved
 
 ## The contract half — stage 1 of the ban
 
 A restricted-import rule in `eslint.config.js`, written in that file's house
-style: a **narrow** block with a comment recording what was *measured*, not
+style: a **narrow** block with a comment recording what was _measured_, not
 assumed. That file already carries two such blocks; match them.
 
 - Applies to source.
 - **Exempts the adapter, and test directories.** The test exemption is
-  deliberate and honest: the fake plugs in there, so the rule reads *"only the
-  adapter and its tests."*
+  deliberate and honest: the fake plugs in there, so the rule reads _"only the
+  adapter and its tests."_
 - Stage 1 bans the default export and the enums and types — all of which the
   adapter re-exports.
 - Stage 1 still **permits** the four React hooks. Ticket 10 removes them.
@@ -43,18 +43,18 @@ see `.scratch/queue-shape/spec.md`.
 
 Both runtime Queue shapes. **Position** means different things in each.
 
-- [ ] Notification transport: play, pause, next, previous
-- [ ] Lock screen controls
-- [ ] Headset button: single press, double press
-- [ ] Android Auto: browse, select, transport, queue scroll
-- [ ] Remote seek from the notification scrubber
-- [ ] Remote jump forward and back land where they did before
-- [ ] Chapter skip across a boundary, both directions
-- [ ] Skip-previous restart threshold still behaves at the 15s line
-- [ ] Sleep timer: duck, fade, end-of-chapter option
-- [ ] Playback rate persists and applies
-- [ ] Book-end detection still marks a Book Finished before the credits
-- [ ] Cold start from a headset play, with no app UI ever opening
+- [x] Notification transport: play, pause, next, previous
+- [x] Lock screen controls
+- [x] Headset button: single press, double press
+- [x] Android Auto: browse, select, transport, queue scroll
+- [x] Remote seek from the notification scrubber
+- [x] Remote jump forward and back land where they did before
+- [x] Chapter skip across a boundary, both directions
+- [x] Skip-previous restart threshold still behaves at the 15s line
+- [x] Sleep timer: duck, fade, end-of-chapter option
+- [x] Playback rate persists and applies
+- [x] Book-end detection still marks a Book Finished before the credits
+- [N/A] Cold start from a headset play, with no app UI ever opening
 
 ### Two rows in detail
 
@@ -67,7 +67,7 @@ here is falsifiable and the point of the pass is to falsify it.
 `03-author-chapter-boundary-checklist.md` → `### Producing each shape on a
 device`. In short: **multi-item** = any multi-file Book, or a single-file Book
 with real embedded chapters that clears the heap gate; **one-item** = a
-single-file Book that *fails* `shouldUseClippedChapters`, and the only lever
+single-file Book that _fails_ `shouldUseClippedChapters`, and the only lever
 reliable on demand is the auto-chapter exclusion (a single MP3 with no embedded
 chapters, auto-chapters on). `CLIPPED_CHAPTERS_SPIKE` is `true`
 (`constants/featureFlags.ts:12`), so a single-file Book with real chapters is
@@ -87,7 +87,7 @@ button — and the fix is a local patch, so it is only ever as alive as the last
 declares `notificationCapabilities` as Play, JumpForward, JumpBackward,
 SkipToNext, SkipToPrevious, Stop, SeekTo. ⚠ **`Capability.Pause` is commented out
 of that list** (`playerSetup.ts:57`) while remaining in `capabilities` — so pause
-must be reached through the play/pause *toggle*, and "the pause button is
+must be reached through the play/pause _toggle_, and "the pause button is
 missing" is the expected state, not a defect. If the toggle does not pause,
 that is the defect.
 
@@ -99,24 +99,24 @@ that is the defect.
   and `last_played_at` is stamped.
 - **Shape:** both, but the rewind differs. `seekBy` is native and **clamps within
   the current queue item**, so on **multi-item**, pausing less than a second into
-  a Chapter and pressing play must land at 0 of that Chapter — it must *not* step
+  a Chapter and pressing play must land at 0 of that Chapter — it must _not_ step
   back into the previous one. On **one-item** the same press rewinds across a
   Chapter boundary freely, because there is only one item to clamp inside.
 - **Prediction:** safe on both.
-- **Watch for:** *no* rewind (the `state !== Playing && state !== Buffering`
+- **Watch for:** _no_ rewind (the `state !== Playing && state !== Buffering`
   guard at `service.js:427` misfiring, which on Android Auto is what stops a
-  redundant `play()` causing an audible skip-back); a *double* rewind; or a
+  redundant `play()` causing an audible skip-back); a _double_ rewind; or a
   footprint recorded against the wrong Book, which is what
   `isBookSwitchInProgress()` at `service.js:422` exists to prevent.
 
 **b. Pause — `service.js:433`**
 
 - **Observable:** audio stops, **the notification stays** and stays actionable,
-  and the app leaves Android's *Active apps* list promptly.
+  and the app leaves Android's _Active apps_ list promptly.
 - **Shape:** both, no difference.
 - **Prediction:** safe.
 - **Watch for:** the notification disappearing on pause, or the app lingering in
-  *Active apps*. Both are regressions of `stopForegroundGracePeriod: 0`
+  _Active apps_. Both are regressions of `stopForegroundGracePeriod: 0`
   (`playerSetup.ts:32`) and its accompanying RNTP patch, which hardcoded
   `startInForegroundRequired`. This is patch-borne behaviour: verify after any
   `npm ci`.
@@ -133,20 +133,20 @@ The handler branches on the Queue shape and the two branches are barely alike:
 - **Observable:** on **one-item**, Position jumps to the next Chapter's absolute
   start and the Player is still on item 1 of 1. On **multi-item**, the queue item
   advances and Position resets to 0. A `chapter_change` footprint is written
-  **before** the move, so it must point at where you *were*, not where you
+  **before** the move, so it must point at where you _were_, not where you
   landed.
 - **Shape:** both, and they must be checked separately — a pass on one says
   nothing about the other.
 - **Also check the last Chapter, one-item only** (`service.js:488`): pressing
   next on the final Chapter marks the Book **Finished**, seeks to 0 and pauses.
-  If the Book was *already* Finished, the mark is skipped on purpose so
+  If the Book was _already_ Finished, the mark is skipped on purpose so
   `finished_at` is not dragged forward — press next twice on a finished Book and
   confirm the original timestamp survives.
 - **Prediction:** safe, with one specific doubt below.
 - ⚠ **Watch for the `getActiveBookId` narrowing, and know its signature.**
   `service.js:467` reads `getActiveBookId()`, and a `null` sends the press to a
   **bare `skipToNext()`** (`service.js:469`). The adapter narrows on `typeof
-  bookId === 'string'` (`player/trackPlayer.ts:99`), which is stricter than the
+bookId === 'string'` (`player/trackPlayer.ts:99`), which is stricter than the
   `if (activeTrack?.bookId)` truthiness it replaced in ticket 07 — recorded there
   as latent, not live. **Its signature on the one-item shape is unmistakable: the
   next button does nothing at all**, because a bare `skipToNext()` on a one-item
@@ -165,7 +165,7 @@ The handler branches on the Queue shape and the two branches are barely alike:
   already Chapter-relative. On **one-item**, `getPreviousPressTarget` computes an
   absolute target from the Chapter table.
 - **Test the line, not the middle:** press at ~10 s and at ~20 s into a Chapter.
-  The threshold compares *playback* Position, so **at 2× speed the 15 s window
+  The threshold compares _playback_ Position, so **at 2× speed the 15 s window
   passes in about 7.5 s of wall clock** — check it at a non-1× rate too, because
   that is the reading most likely to feel wrong and be right.
 - **Prediction:** safe.
@@ -179,12 +179,12 @@ The handler branches on the Queue shape and the two branches are barely alike:
   do not, note which of the two moved wrongly — that identifies which reading is
   the stale one.
 - ❌ **FAILED ON DEVICE, 2026-08-27 — and my prediction here was wrong.** I wrote
-  that at the *first* queue item `skipToPrevious()` throws and is caught into a
+  that at the _first_ queue item `skipToPrevious()` throws and is caught into a
   `seekTo(0)`, so the press restarts the Book. It does not. The driver found that a
   multi-file Book does **not** restart, and tracing the native stack agrees: the
   bridge resolves unconditionally (`MusicModule.kt:380-389`) and
-  `exoPlayer.seekToPreviousMediaItem()` is documented as *"Does nothing if there is
-  no previous item"* (`QueuedAudioPlayer.kt:191-194`). The `catch` at
+  `exoPlayer.seekToPreviousMediaItem()` is documented as _"Does nothing if there is
+  no previous item"_ (`QueuedAudioPlayer.kt:191-194`). The `catch` at
   `chapterSkip.ts:80-82` is dead code and its comment is false. **TICKET FILED:**
   `.scratch/skip-previous-first-chapter/issues/01-restart-book-at-first-queue-item.md`
   — pre-existing, affects the in-app control too, and a green test
@@ -192,7 +192,7 @@ The handler branches on the Queue shape and the two branches are barely alike:
   bridge never produces.
 
 **Cheapest verification surface for this whole row is the footprint list.** Every
-press writes one, and the seek/next/previous footprints are awaited *before* the
+press writes one, and the seek/next/previous footprints are awaited _before_ the
 action specifically so they capture the pre-press spot. A footprint that records
 where you landed instead of where you were means an `await` was dropped.
 
@@ -208,15 +208,15 @@ driver has Audible, Sonicbooks and Smart Audiobook Player installed and asked
 which app a cold play press is supposed to start. There is no good answer.
 Android routes a media button to the app holding the active — or most recently
 active — media session; with nothing playing and no session alive, there is no
-defined winner, and an app that *did* grab it would be the one behaving badly.
+defined winner, and an app that _did_ grab it would be the one behaving badly.
 **This reads as a bug, not a feature, and the row should not have asserted it as
-one.** What is verifiable on our side is only that the service is *reachable*:
+one.** What is verifiable on our side is only that the service is _reachable_:
 RNTP's manifest declares `MEDIA_BUTTON`, `androidx.media3.session.MediaLibraryService`
 and `android.media.browse.MediaBrowserService` on `MusicService`. Reachable is not
 the same as chosen.
 
 **Objection 2, and this one is my error alone: `force-stop` makes the test
-impossible.** `adb shell am force-stop` puts the package in Android's *stopped*
+impossible.** `adb shell am force-stop` puts the package in Android's _stopped_
 state, and a stopped package receives no broadcasts or background starts until
 the user manually launches it again. So the procedure I wrote guaranteed the
 press could never arrive. "This does not work" is the correct outcome of those
@@ -224,13 +224,13 @@ steps, not evidence about the app.
 
 ##### What the code actually implements, and what is therefore testable
 
-`service.js:544-547` names it in as many words — *"Android Auto reconnect /
-Android 11+ media resumption"*. Two real headless entries, both **user-initiated,
+`service.js:544-547` names it in as many words — _"Android Auto reconnect /
+Android 11+ media resumption"_. Two real headless entries, both **user-initiated,
 both unambiguous about which app is meant**:
 
 1. **Android Auto browse and select** — `remote-play-book` → `handleRemotePlayBook`
    → `ensurePlayerSetup()`. Already its own row in this checklist.
-2. **Android 11+ media resumption** — the user taps *this app's* resumable player
+2. **Android 11+ media resumption** — the user taps _this app's_ resumable player
    in the system media area. The system binds the MediaBrowserService,
    `Event.PlaybackResume` fires (`service.js:549`), and `restoreLastActiveBook()`
    loads the last Book **paused** at its saved position so the system's follow-up
@@ -258,7 +258,7 @@ worth checking and it is what the code supports.
   (`helpers/restoreLastActiveBook.ts:56-67`): **multi-item** builds per-Chapter
   tracks, `skip(chapterIndex)` then `seekTo(Chapter-relative offset)`; **one-item**
   loads a single track and seeks to an **absolute** offset via
-  `calculateAbsolutePosition`. Verify it resumes in the right Chapter *and* at the
+  `calculateAbsolutePosition`. Verify it resumes in the right Chapter _and_ at the
   right offset within it — a shape bug lands at the correct seconds in the wrong
   frame of reference, which no screen will show you.
 - **Prediction:** safe. The registration is a mechanical passthrough and the
@@ -279,7 +279,7 @@ only checks that execute the entry-point migration at all. A break there is tota
 ⚠ **The checkbox above still reads "Cold start from a headset play, with no app UI
 ever opening" and should be re-worded before the pass is recorded.** Left as
 written rather than edited unilaterally: it is the driver's row, this is a change
-to what the ticket *asks for* rather than to how it is run, and the same objection
+to what the ticket _asks for_ rather than to how it is run, and the same objection
 may apply to how the Android Auto row is worded.
 
 ---
@@ -308,7 +308,7 @@ passthrough exists for — see `### The app entry was outside the ban` below.
 
 ### The rule is an allow list, not a ban list
 
-The ticket asked for the permitted names to *be* the migration tracker, and only
+The ticket asked for the permitted names to _be_ the migration tracker, and only
 an allow list can be that. `no-restricted-imports` offers both shapes;
 `allowImportNames` was chosen because a deny list would have to enumerate every
 enum and type RNTP exports, and would silently admit any new one the library
@@ -375,7 +375,7 @@ exists because `useIsPlaying()` is purely event-derived.
 
 It is in the allow list rather than exempted by file, and that was the choice
 worth making. Exempting `PlayerStateSync.tsx` wholesale would have hidden its
-*three* library imports behind one waiver and quietly excused ticket 09's
+_three_ library imports behind one waiver and quietly excused ticket 09's
 largest single file from the ban. Allowing the name keeps all four visible in
 one list that ticket 10 empties. `isPlaying` is not re-exported by the adapter
 today, so the list is honest about it being unmigrated rather than papering over
@@ -408,8 +408,8 @@ returned the rule.
 That is the worst possible file to have missed. Its own comment says the
 registration must live in the entry because a route module never executes on a
 headless start — Android Auto or a headset connecting to a process with no UI —
-which is precisely this ticket's last device row, *"Cold start from a headset
-play, with no app UI ever opening"*. The ban would have been declared real while
+which is precisely this ticket's last device row, _"Cold start from a headset
+play, with no app UI ever opening"_. The ban would have been declared real while
 exempting the file the Remote control surface depends on most.
 
 Fixed rather than recorded as incompleteness, because "the only permitted
@@ -462,8 +462,8 @@ and the same gate ticket 06 was held to. Checkboxes above are left unticked.
 
 ⚠ **Two rows now carry more weight than the ticket gave them.** The entry-point
 migration above moved the headless-service registration onto the adapter, and
-nothing in jest touches `index.js` — no suite imports it. *"Android Auto: browse,
-select, transport, queue scroll"* and *"Cold start from a headset play, with no
-app UI ever opening"* are the only checks that exercise it at all. If the
+nothing in jest touches `index.js` — no suite imports it. _"Android Auto: browse,
+select, transport, queue scroll"_ and _"Cold start from a headset play, with no
+app UI ever opening"_ are the only checks that exercise it at all. If the
 registration were broken, every remote control would be dead and the app's own
 UI would look perfectly fine.
