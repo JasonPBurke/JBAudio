@@ -100,12 +100,21 @@ one was silent, so it now carries a `⚠` comment at the call site naming ticket
 ### Deliberately not done
 
 - **The service stays JavaScript.** Ticket 12's, per this ticket's own warning.
-- **The duplicated `timer_activation` footprint block.** `sleepTimer.ts:300` and
-  `:524` are now byte-identical, and `helpers/remoteFootprints.ts` already exists
-  as the home for that shape. The collapse made a pre-existing duplication
-  visible; extracting it is a behaviour-bearing refactor and this ticket's whole
-  defence is that it contains none. Same call ticket 06 made on the duplicated
-  chapters-remaining block. **Worth its own ticket.**
+- **The duplicated active-Book footprint shape. TICKET FILED:**
+  `.scratch/active-book-footprints/issues/01-collapse-the-active-book-footprint-shape.md`.
+  The collapse made a pre-existing duplication legible; extracting it is a
+  behaviour-bearing refactor and this ticket's whole defence is that it contains
+  none. Same call ticket 06 made on the duplicated chapters-remaining block.
+
+  ⚠ **The review's version of this find was narrower than the truth, and the
+  ticket carries the corrected census.** The Standards axis reported two
+  byte-identical blocks in `sleepTimer.ts` and named `helpers/remoteFootprints.ts`
+  as the home. Tracing found **four** sites in two pairs — `sleepTimer.ts:302`
+  and `:526` (`timer_activation`), plus `service.js:407` and
+  `PlayerControls.tsx:139` (`play` + `stampLastPlayed`, identical apart from a
+  local variable name that ticket 07 itself split) — and `remoteFootprints.ts`'s
+  own header scopes it to Remote control while three of the four sites are not,
+  so that file is the wrong home as it stands.
 - **No device pass.** This ticket's warning assigns the service's untyped
   active-Book reads to ticket 08's device pass, and every one of them is on the
   Remote control surface that pass already covers row by row.
