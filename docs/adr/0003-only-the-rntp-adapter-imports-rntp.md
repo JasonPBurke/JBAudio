@@ -4,7 +4,8 @@
 2026-08-23 and the grilling session that scoped it. **Implemented 2026-08-27**
 by tickets 04–10 of `.scratch/player-seam/`: `src/player/trackPlayer.ts` is the
 sole importer of the library, and the lint rule of decision 4 reached its final
-form (no allow list) in ticket 10. The ticket 03 chapter-boundary device pass
+form (no allow list) in ticket 10. Ticket 12 closed the last gap on 2026-08-28
+— see the amended note under `## Known incompleteness`. The ticket 03 chapter-boundary device pass
 that ticket 10 prescribes is still outstanding — see that ticket's `## Answer`.
 
 One module imports `react-native-track-player`. A lint rule enforces it. That
@@ -170,9 +171,30 @@ Named in place with a rule-shaped comment. ⚠ **That comment names no file
 path** — `seriesProgress.ts`'s explanatory comment already rotted and points at
 the wrong file, which is exactly what a pointer invites.
 
-**The playback service stays JavaScript**, so the adapter's types do not protect
-its handful of active-Book reads. Verified by device pass instead. Booked
-separately.
+~~**The playback service stays JavaScript**, so the adapter's types do not
+protect its handful of active-Book reads. Verified by device pass instead.
+Booked separately.~~
+
+**RESOLVED 2026-08-28 by ticket 12.** `src/setup/service.js` is
+`src/setup/service.ts` and `tsc` checks it. Two things about the resolution
+matter more than the fact of it:
+
+- The active-Book reads are protected **by a local `getBookFromStore(id):
+  Book | undefined`, not by the adapter.** `books` is a `Record<string, Book>`
+  with `noUncheckedIndexedAccess` off, so a direct index types a genuine
+  runtime miss out of existence. The hazard this ADR half-anticipated was
+  never that types would break working code — it was that they would AGREE
+  WITH A WRONG ASSUMPTION and make five load-bearing `?.`s read as noise.
+- Decision 1 now costs the adapter **two casts** (`event as Event`,
+  `handler as never`) inside `subscribe`, so that the playback service can
+  subscribe to `remote-play-book` — an event OUR OWN PATCH emits, which is in
+  neither RNTP's `Event` enum nor `EventPayloadByEvent`. This RELOCATES the
+  unsoundness to the boundary module rather than removing it, which is the
+  trade this ADR asks for: the alternative was a raw native event name plus a
+  cast in the exact file this document exists to keep free of them.
+
+The device pass remains the acceptance gate for the behaviour; the types are
+not a substitute for it.
 
 ## The general lesson, since this is the third time
 
