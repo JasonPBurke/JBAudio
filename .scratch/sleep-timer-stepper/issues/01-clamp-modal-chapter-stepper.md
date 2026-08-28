@@ -274,3 +274,66 @@ effort; the `## Answer` here is the record.
 - **`hasActiveBook` is still a dead prop** on `SleepTimerDurationCard` (the
   sibling finding in Provenance). Left alone: this ticket touched the stepper,
   and removing a prop touches the call site and its screen.
+
+## Device test — PENDING
+
+JS-only change: `npx expo start` and reload is enough, **no native rebuild**, and
+**no schema change, so no device wipe** (unlike the series work).
+
+**The fix's own defect is invisible at the moment of the press** — pre-fix, the
+press clamped local state, so the screen looked right and only the DB was wrong.
+Every row below is therefore written around an observable *consequence*, and all
+of Part A is visible in the UI with no `adb`. Run each row on the **pre-fix
+build first** (`git checkout bf95df8 -- src/`, reload; then restore) — the
+"Before" column is the proof the row can detect the bug at all. A row that looks
+identical before and after is not testing anything.
+
+**Queue shape:** the ceiling is computed on two different branches
+(`updateMaxChapters`, multi-file vs legacy single-file), so run rows A2/A3 on a
+multi-file book **and** on a one-item book if you have Pro. Prove the shape,
+don't assume it: `adb shell dumpsys media_session | grep -i queue` (8 vs 1).
+
+### Part A — the clamp (no planting needed)
+
+| # | Steps | Before (pre-fix) | After (expected) |
+|---|---|---|---|
+| A1 | Chapter timer OFF. Player → timer sheet → press `−` on the chapter row. | The row **lights up as armed** (the `-1` echoes back through the observer as `!== null`) while no timer is running. | Nothing happens at all. Row stays unarmed, label stays "End of Chapter". |
+| A2 | Press `+` until the label reads **"End of Book"**, then press `+` once more. | Label flips to "End of N Chapters" with a count past the end of the book. | Label stays "End of Book". |
+| A3 | Play the **last** chapter of a book, open the sheet (ceiling is 0). Press `+`, then `−`. | `+` writes 1 and the label changes. | Both presses are no-ops; label stays "End of Chapter". |
+| A4 | Settings → Sleep Timer → same two bound presses on the card. | Already correct. | Unchanged — this row guards against the shared helper breaking the surface that was right. |
+| A5 | Step up to 3, close the sheet, reopen it. | 3 | 3 — the clamp must not have broken ordinary persistence. |
+
+### Part B — healing a value already on disk
+
+A post-fix build **cannot write a negative**, so this must be planted. Cheapest
+method, no adb: `git checkout bf95df8 -- src/`, reload Metro, run row A1 once to
+write `-1`, then `git checkout HEAD -- src/` and reload. The DB survives both.
+
+| # | Steps | Before | After (expected) |
+|---|---|---|---|
+| B1 | Plant `-1` as above. Open the timer sheet. | Chapter row renders **armed** holding a negative count. | Row renders **off**; count reads "End of Chapter". |
+| B2 | With `-1` planted, open **Settings → Sleep Timer**. | Chapter row highlighted as the configured mode. | Not highlighted. |
+| B3 | ⚠ **Pro required.** Plant `-1`, then: Settings → Sleep Timer → configure "End of Chapter" (this sets `timer_chapters` — do it *before* planting, since bedtime cannot be enabled without a timer configured), enable **Bedtime Mode**, set the window to bracket now (start ≈ now − 5 min, end ≈ now + 2 h). Confirm no duration timer is set. Re-plant `-1`. Force-stop, relaunch, start playback, let a chapter boundary pass. | **Playback stops at the end of the next chapter** — a chapter timer the user never armed. This is the whole reason the ticket exists. | Playback continues. Bedtime does not arm chapter mode. |
+| B4 | If B3 cannot be run (no Pro), verify from the DB instead — debug build: `adb shell run-as com.fuzzylogic42.JBAudio find . -name '*.db'`, pull it, and confirm `settings.timer_chapters` reads **NULL**, not `-1` and not `0`, after the sheet has been opened once. | `-1` | `NULL` |
+
+### Part C — regression
+
+| # | Steps | Expected |
+|---|---|---|
+| C1 | Arm "End of Chapter" from the sheet, play to a chapter boundary. | Playback pauses at the boundary, as before. |
+| C2 | Arm "End of 3 Chapters", cross one boundary, reopen the sheet. | Count has decremented to 2. |
+| C3 | Arm from **Settings → Sleep Timer** instead, play to the boundary. | Same as C1 — the shared helper did not change arming. |
+
+### Traps
+
+- ⚠ **The ceiling is computed once, on sheet mount** (`updateMaxChapters` runs in
+  the `[db]` effect). Skip chapters with the sheet open and it goes stale, so a
+  `+` that looks wrongly clamped may just be a stale ceiling. **Close and reopen
+  the sheet after any seek or skip** before judging rows A2/A3.
+- ⚠ Row A1's "before" symptom needs the chapter timer **off** at the start
+  (`timer_chapters` NULL). If a count is already configured, `−` is a legitimate
+  decrement and proves nothing.
+- ⚠ Do not read the countdown pill as the state of the sheet: they derive
+  differently, which is its own filed defect
+  (`.scratch/sleep-timer-armed-flag/issues/01-derive-armed-state-from-timer-active.md`).
+  Judge these rows by the chapter row inside the sheet.
