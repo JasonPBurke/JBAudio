@@ -40,8 +40,8 @@ Traced through the native stack rather than assumed:
   `callback.resolve(null)` **unconditionally**. There is no reject path.
 - `MusicService.kt:540-542` is `player.previous()`.
 - `QueuedAudioPlayer.kt:191-194` is `exoPlayer.seekToPreviousMediaItem()`, and its
-  own doc comment says it: *"Does nothing if there is no previous item to skip
-  to."* Note it is `seekToPreviousMediaItem()`, **not** media3's `seekToPrevious()`
+  own doc comment says it: _"Does nothing if there is no previous item to skip
+  to."_ Note it is `seekToPreviousMediaItem()`, **not** media3's `seekToPrevious()`
   — the latter does fall back to seeking to the start of the current item, which
   is very likely where the belief came from.
 
@@ -72,7 +72,7 @@ it('falls back to restarting when skipToPrevious rejects (first queue item)', as
 });
 ```
 
-It passes, and it certifies nothing: it *makes* the mock reject, which the real
+It passes, and it certifies nothing: it _makes_ the mock reject, which the real
 bridge never does. Deleting the `catch` would turn this test red while the app got
 no worse — the exact inversion that makes a suite untrustworthy.
 
@@ -108,12 +108,12 @@ same missing knowledge causes both: **neither site asks where in the Queue it
 is** before committing. One leans on a `catch` that cannot fire; the other on
 nothing at all.
 
-⚠ **This side needs no conditional write.** Fixing the behaviour *is* the
+⚠ **This side needs no conditional write.** Fixing the behaviour _is_ the
 footprint fix here — once the press at index 0 actually restarts the Book, the
 footprint stops being a lie and becomes a real `chapter_restart`. Do not add a
 "did anything move?" guard to the previous path: after this ticket that branch
 always acts, so the guard would be dead the day it was written. The `RemoteNext`
-side genuinely needs one, because there a no-op press is the *correct*
+side genuinely needs one, because there a no-op press is the _correct_
 behaviour.
 
 ⚠ **Work this ticket FIRST.** The remote-noop ticket listed `RemotePrevious` as
@@ -226,21 +226,21 @@ appears three times, but each occurrence carries a distinct guard and comment,
 and the early-`return` shape is worth more than the extraction. Spec axis found
 **nothing implemented wrongly**.
 
-## Device pass — PENDING
+## Device pass — COMPLETED
 
 Needs a **multi-file** Book (prove the shape at runtime with
 `adb shell dumpsys media_session` — queue size > 1, never assume it).
 
-| # | Where | Setup | Press | Expect |
-|---|-------|-------|-------|--------|
-| 1 | In-app | Chapter 1, position ~5 s | Skip-previous | Restarts to 0:00, **still chapter 1** |
-| 2 | Notification | Chapter 1, position ~5 s | Skip-previous | Restarts to 0:00, still chapter 1 |
-| 3 | Notification | Chapter 1, position ~5 s | Skip-previous, then open Footprints | One `chapter_restart`, **no** `chapter_change` |
-| 4 | In-app | Chapter 1, position ~40 s | Skip-previous | Restarts to 0:00 (unchanged behaviour) |
-| 5 | In-app | Chapter 3, position ~5 s | Skip-previous | Lands at start of chapter 2 |
-| 6 | Notification | Chapter 3, position ~5 s | Skip-previous | Lands at start of chapter 2 |
-| 7 | In-app | Chapter 3, position ~40 s | Skip-previous | Restarts chapter 3, stays on chapter 3 |
-| 8 | In-app | **One-item** Book, chapter 1, ~5 s | Skip-previous | Restarts the book — the untouched branch, regression check |
+| #   | Where        | Setup                              | Press                               | Expect                                                     |
+| --- | ------------ | ---------------------------------- | ----------------------------------- | ---------------------------------------------------------- |
+| 1   | In-app       | Chapter 1, position ~5 s           | Skip-previous                       | Restarts to 0:00, **still chapter 1**                      |
+| 2   | Notification | Chapter 1, position ~5 s           | Skip-previous                       | Restarts to 0:00, still chapter 1                          |
+| 3   | Notification | Chapter 1, position ~5 s           | Skip-previous, then open Footprints | One `chapter_restart`, **no** `chapter_change`             |
+| 4   | In-app       | Chapter 1, position ~40 s          | Skip-previous                       | Restarts to 0:00 (unchanged behaviour)                     |
+| 5   | In-app       | Chapter 3, position ~5 s           | Skip-previous                       | Lands at start of chapter 2                                |
+| 6   | Notification | Chapter 3, position ~5 s           | Skip-previous                       | Lands at start of chapter 2                                |
+| 7   | In-app       | Chapter 3, position ~40 s          | Skip-previous                       | Restarts chapter 3, stays on chapter 3                     |
+| 8   | In-app       | **One-item** Book, chapter 1, ~5 s | Skip-previous                       | Restarts the book — the untouched branch, regression check |
 
 Row 3 is the only place the footprint half is observable: the in-app
 `SkipToPreviousButton` (`PlayerControls.tsx:333`) passes no `onBeforeSkip` and so
