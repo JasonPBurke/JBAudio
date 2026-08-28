@@ -79,8 +79,11 @@ jest.mock('@/db/settingsQueries', () => {
   };
 });
 
-jest.mock('@/db/footprintQueries', () => ({
-  recordFootprint: jest.fn().mockResolvedValue(undefined),
+// The timer records footprints through this helper, whose real module pulls
+// in bookQueries -> the WatermelonDB node adapter. Stub the seam, not the
+// query layer behind it.
+jest.mock('@/helpers/activeBookFootprints', () => ({
+  recordActiveBookFootprint: jest.fn().mockResolvedValue(undefined),
 }));
 
 // ─── Controllable clock ───────────────────────────────────────────────────────

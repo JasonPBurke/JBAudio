@@ -1,5 +1,4 @@
 import {
-  getActiveBookId,
   getPlaybackState,
   pause,
   play,
@@ -17,7 +16,7 @@ import {
   updateFrozenRemaining,
 } from '@/db/settingsQueries';
 import { isWithinBedtimeWindow } from '@/helpers/bedtimeUtils';
-import { recordFootprint } from '@/db/footprintQueries';
+import { recordActiveBookFootprint } from '@/helpers/activeBookFootprints';
 
 // ─── Public Types ─────────────────────────────────────────────────────────────
 
@@ -299,14 +298,7 @@ export async function activate(mode: TimerMode): Promise<void> {
   // active flag back to false, which would stall the tick-driven fire path.
   cachedTimer.timerActive = true;
 
-  try {
-    const bookId = await getActiveBookId();
-    if (bookId) {
-      await recordFootprint(bookId, 'timer_activation');
-    }
-  } catch {
-    // silently fail
-  }
+  await recordActiveBookFootprint('timer_activation');
 }
 
 /**
@@ -523,14 +515,7 @@ export async function onPlaybackResumed(): Promise<void> {
     settings.bedtimeModeEnabled && !settings.timerActive && inBedtimeWindow;
 
   if (willActivateBedtime) {
-    try {
-      const bookId = await getActiveBookId();
-      if (bookId) {
-        await recordFootprint(bookId, 'timer_activation');
-      }
-    } catch {
-      // silently fail
-    }
+    await recordActiveBookFootprint('timer_activation');
 
     if (settings.timerDuration !== null) {
       // Bedtime activation: we know we're playing, so compute endTimeMs directly

@@ -24,7 +24,7 @@ import {
   updateChapterProgressInDB,
   updateChapterIndexInDB,
 } from '@/db/chapterQueries';
-import { getBookById, stampLastPlayed } from '@/db/bookQueries';
+import { getBookById } from '@/db/bookQueries';
 import { BookProgressState } from '@/helpers/handleBookPlay';
 import { handleRemotePlayPause } from '@/helpers/remotePlayPause';
 import {
@@ -35,7 +35,6 @@ import { ensurePlayerSetup } from '@/helpers/playerSetup';
 import { handleRemoteNextPress } from '@/helpers/remoteNext';
 import { restoreLastActiveBook } from '@/helpers/restoreLastActiveBook';
 import { shouldUseClippedChapters } from '@/helpers/clippedChapters';
-import { recordFootprint } from '@/db/footprintQueries';
 import {
   findChapterIndexByPosition,
   calculateProgressWithinChapter,
@@ -45,9 +44,10 @@ import { evaluateBookEnd } from '@/helpers/bookEndDetection';
 import { seekBack, seekForward } from '@/helpers/relativeSeek';
 import { skipToPreviousChapter } from '@/helpers/chapterSkip';
 import {
+  recordActiveBookPlayFootprint,
   recordRemoteSeekFootprint,
   recordRemoteChapterChangeFootprint,
-} from '@/helpers/remoteFootprints';
+} from '@/helpers/activeBookFootprints';
 import * as sleepTimer from '@/setup/sleepTimer';
 import { useSleepTimerStore } from '@/setup/sleepTimer';
 
@@ -402,25 +402,13 @@ export default module.exports = async function () {
   // immediately after task dispatch (MusicService.onHeadlessTaskStarted) —
   // that replay is only received if the listeners are already registered.
 
-  // Record footprint for remote play (lock screen, headphones, etc.)
-  const recordRemotePlayFootprint = async () => {
-    try {
-      const bookId = await getActiveBookId();
-      if (bookId) {
-        await stampLastPlayed(bookId);
-        await recordFootprint(bookId, 'play');
-      }
-    } catch {
-      // Silently fail if footprint recording fails
-    }
-  };
-
   subscribe(Event.RemotePlay, async () => {
     // Android Auto follows a browse-item selection with a play() command;
     // acting on it here would resume the OLD queue (and record a footprint
     // for the wrong book) while remote-play-book is still loading the new one.
     if (isBookSwitchInProgress()) return;
-    await recordRemotePlayFootprint();
+    // Footprint for remote play (lock screen, headphones, etc.)
+    await recordActiveBookPlayFootprint();
     // QoL: repeat 1s of audio on resume, matching the in-app play button.
     // State-guarded because AA can send redundant play() commands while
     // already playing — rewinding then would cause an audible skip-back.
@@ -437,7 +425,7 @@ export default module.exports = async function () {
   // controls / Bluetooth AVRCP. Native consumes the key event and emits this;
   // without a listener the toggle is a silent no-op.
   subscribe(Event.RemotePlayPause, () => {
-    handleRemotePlayPause(recordRemotePlayFootprint);
+    handleRemotePlayPause(recordActiveBookPlayFootprint);
   });
   subscribe(Event.RemoteStop, () => {
     const msSincePlaying = Date.now() - lastPlayingStateAt;

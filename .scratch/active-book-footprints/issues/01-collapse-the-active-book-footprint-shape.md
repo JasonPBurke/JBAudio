@@ -4,7 +4,7 @@
 then write a footprint for it stop being four places. One of them already exists
 as an extracted helper; the other three grew alongside it.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 ## The shape
 
@@ -119,15 +119,95 @@ about the Book existing, so it cannot be dropped as redundant.
 
 ## Acceptance criteria
 
-- [ ] One helper owns the read-guard-record shape; all four sites call it
-- [ ] The home decision above is made explicitly and the reason recorded in an
+- [x] One helper owns the read-guard-record shape; all four sites call it
+- [x] The home decision above is made explicitly and the reason recorded in an
       `## Answer`, including what happened to `remoteFootprints.ts`'s header
-- [ ] `stampLastPlayed` did not acquire a boolean parameter
-- [ ] A test asserts the helper swallows a `recordFootprint` rejection rather
+- [x] `stampLastPlayed` did not acquire a boolean parameter
+- [x] A test asserts the helper swallows a `recordFootprint` rejection rather
       than propagating it — the one behaviour that is currently untested and
       that an extraction could silently break
-- [ ] Footprints written are unchanged in trigger, position and count
-- [ ] `tsc` 0, `eslint` 0, test count at or above baseline
+- [x] Footprints written are unchanged in trigger, position and count
+- [x] `tsc` 0, `eslint` 0, test count at or above baseline
+
+## Answer
+
+**Home: option 2 — a new sibling, `src/helpers/activeBookFootprints.ts`.**
+`helpers/remoteFootprints.ts` is **gone**, not left behind: both of its
+functions moved onto the new file, and its test suite moved with them to
+`__tests__/activeBookFootprints.test.ts`. The test file registers as a git
+rename; the helper does not — its header and internals changed enough that git
+scores it as an add plus a delete, so follow it with `git log --follow` rather
+than expecting the rename to show.
+
+Why not option 1 (rescope in place) or option 3 (a second small helper):
+
+- Option 3 was rejected outright by the ticket's own reasoning — two files
+  owning one shape is the state we came to remove.
+- Option 1 and option 2 differ only in whether the file keeps its name. Renaming
+  is the point: the reviewer who filed this against the wrong file did so
+  because the name said *Remote control*, and the shape is not about remote
+  control. A rescoped `remoteFootprints.ts` would have the right header and the
+  wrong name, which is the same trap one layer down.
+
+**What happened to the header.** It was rewritten, not deleted. Its factual
+content survives in two places on the new file:
+
+- The **membership rule** is now the shape, not the transport: *presses that
+  only know the Active Book*. The old header's contrast case (sites that hold a
+  `bookId` already — `titleDetails`, `chapterList`, `playBookFromRow`) is kept
+  verbatim in spirit, because it is what makes the rule decidable. Remote
+  control is now named as one example of a caller alongside the in-app
+  transport and the sleep timer, instead of as the definition.
+- The **await-before-the-seek** requirement was narrowed rather than dropped. It
+  is true of the two remote helpers and not of the timer or play sites, so it
+  now sits on that pair explicitly instead of over the whole file, where it
+  would have been false for half the contents.
+
+**Shape.** One private `withActiveBook(bookId, record)` owns read → guard →
+record → swallow. Public surface:
+
+| Function | Callers |
+|---|---|
+| `recordActiveBookFootprint(trigger, bookId?)` | sites 1 + 2 (`timer_activation`) |
+| `recordActiveBookPlayFootprint()` | sites 3 + 4 (`play` + `stampLastPlayed`) |
+| `recordRemoteSeekFootprint(bookId?)` | service seek handlers (moved, body unchanged) |
+| `recordRemoteChapterChangeFootprint(bookId?, trigger?)` | service / `remoteNext` (now a one-line delegate) |
+
+**`stampLastPlayed` took the two-line-wrapper option, not a boolean.**
+Leaving the stamp at the call sites was not actually available: sites 3 and 4
+have no `bookId` in hand — reading it is the whole reason they call the helper —
+so leaving the stamp behind would have left the read behind with it. The
+wrapper is the only option that does not reintroduce the shape.
+
+⚠ **`recordRemoteSeekFootprint` deliberately does NOT use `withActiveBook`.**
+Its Book read is inside a `Promise.all` with `getProgress()`; routing it through
+the shared shape would serialise them and put a second bridge round-trip in
+front of the seek, moving the position the breadcrumb captures. That is a change
+to a recorded footprint's *position*, which this ticket bars. It keeps its own
+`try`/`catch` and its own comment saying why.
+
+⚠ **The extraction moved a test seam.** `sleepTimer` used to import
+`@/db/footprintQueries` directly, and `sleepTimer.processDeath.test.ts` stubbed
+that module. The new helper also imports `@/db/bookQueries` (for the play
+wrapper's stamp), which pulls `@/db` and WatermelonDB's **node SQLite adapter**
+onto `sleepTimer`'s module graph — the harness died with `Cannot find module
+'better-sqlite3'`, six tests, entirely at import time. Fixed by stubbing
+`@/helpers/activeBookFootprints` instead: the seam moved up, so the mock moved
+up. **Any future test that loads `sleepTimer` or `service.js` must mock the
+helper, not `footprintQueries`.**
+
+**Verification.** `tsc` 0, `eslint` 0 errors (32 pre-existing warnings), jest
+**83 suites / 1036 tests** on a cold cache — baseline was 83/1027, +9 from the
+new cases (the swallow at both new entry points, the no-Book guard, the supplied
+-`bookId` short-circuit, and the stamp-before-record ordering). No footprint
+changed trigger, position or count: sites 1–4 call the helper at exactly the
+point their inline block sat, and the recorded arguments are identical.
+
+⚠ **Collision with `.scratch/remote-noop-footprint/` landed the other way.**
+That ticket went first (`a2a5241`), so this one rebased onto it: its
+`handleRemoteNextPress` extraction injects the chapter-change recorder rather
+than importing it, so nothing there needed touching beyond `service.js`'s import
+line.
 
 ## Provenance
 

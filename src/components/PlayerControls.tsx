@@ -15,7 +15,6 @@ import {
   Pressable,
 } from 'react-native';
 import {
-  getActiveBookId,
   getProgress,
   getQueue,
   pause,
@@ -54,8 +53,8 @@ import PlaybackSpeedOptions from '../modals/PlaybackSpeedOptions';
 import { formatRate, resolveSpeedTap } from '@/helpers/playbackRate';
 import CountdownTimer from './CountdownTimer';
 import AnimatedZZZ from './animations/AnimatedZZZ';
-import { recordFootprint } from '@/db/footprintQueries';
-import { getBookById, stampLastPlayed } from '@/db/bookQueries';
+import { getBookById } from '@/db/bookQueries';
+import { recordActiveBookPlayFootprint } from '@/helpers/activeBookFootprints';
 import { BookProgressState } from '@/helpers/handleBookPlay';
 import database from '@/db';
 import { useObserveSettings } from '@/hooks/useObserveSettings';
@@ -136,15 +135,7 @@ export function PlayPauseButton({
 
     if (intent) {
       (async () => {
-        try {
-          const activeBookId = await getActiveBookId();
-          if (activeBookId) {
-            await stampLastPlayed(activeBookId);
-            await recordFootprint(activeBookId, 'play');
-          }
-        } catch {
-          // Silently fail if footprint recording fails
-        }
+        await recordActiveBookPlayFootprint();
         // QoL: repeat 1s of audio on resume.
         await seekBy(-1);
         await play();
