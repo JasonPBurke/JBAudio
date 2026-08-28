@@ -315,6 +315,19 @@ showed `book_progress_value=2.0` with `finished_at` stamped at the press second
 (21:38:48). On the emulator the identical press was a no-op, because a
 multi-file book takes the `else` branch and `skipToNext()` has nowhere to go.
 
+⚠ **A SECOND DEFECT WAS FOUND AT THIS ROW, and row 7's own observable still
+passes.** Ticket 03's row 7 asks that the last-chapter press "mark the Book
+finished and reset", and it does both. But the **chapter list keeps highlighting
+the last chapter** afterwards, while the same Book reset through
+`PlaybackQueueEnded` (row 11's path) resets the highlight correctly.
+`PlaybackQueueEnded` resets four things — progress and index, in the store and in
+the DB — and `RemoteNext`'s finish branch resets only playback, never the index,
+so `chapterList`'s `playbackIndex[bookId]` selector wins over the correct DB row.
+Pre-existing, filed as
+`.scratch/remote-noop-footprint/issues/02-remote-next-finish-branch-leaves-the-chapter-index-stale.md`.
+Reported by the driver — it is outside every observable ticket 03 names, which is
+worth noticing about the checklist itself.
+
 ⚠ **The sliver, and why a second fixture was needed.** `Boundary Single` is
 5400.058 s, not 5400 s, so auto-chaptering produced a **fourth chapter 58 ms
 long** at 90:00 — visible in the app's chapter list as `Track 04  00:00`. Its
