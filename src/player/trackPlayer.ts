@@ -365,13 +365,36 @@ export function registerPlaybackService(factory: () => ServiceHandler): void {
  * without a React re-render, and any design that treats `subscribe` as a smell
  * to eliminate will fight that module and lose.
  */
-export function subscribe<T extends Event>(
+/**
+ * RNTP's event/payload map plus the events OUR OWN PATCH emits.
+ *
+ * `remote-play-book` is emitted by the Android Auto browse path in the
+ * patched native layer. It is not in RNTP's `Event` enum and not in
+ * `EventPayloadByEvent`, so before this existed the only subscriber -- the
+ * playback service -- compiled solely because it was JavaScript.
+ *
+ * Adding a member here is a claim about the PATCH, so it belongs in the one
+ * module that already owns the impedance mismatch with a patched native
+ * layer. Keep it in step with `android/src/` and the patch-package patch.
+ */
+export type AppEventPayloadByEvent = EventPayloadByEvent & {
+  /** Android Auto browse selection. Payload is our patch's, not RNTP's. */
+  'remote-play-book': { bookId: string };
+};
+
+export function subscribe<T extends keyof AppEventPayloadByEvent>(
   event: T,
-  handler: EventPayloadByEvent[T] extends never
+  handler: AppEventPayloadByEvent[T] extends never
     ? () => void
-    : (payload: EventPayloadByEvent[T]) => void,
+    : (payload: AppEventPayloadByEvent[T]) => void,
 ): EmitterSubscription {
-  return TrackPlayer.addEventListener(event, handler);
+  // The two casts this module accepts on purpose. RNTP's own signature only
+  // admits its `Event` enum, so a name it does not know cannot be passed
+  // without one -- and the alternative is writing a raw native event name
+  // plus a cast back into the playback service, the exact file ADR 0003
+  // exists to keep free of them. This RELOCATES the unsoundness to the
+  // boundary module; it does not remove it.
+  return TrackPlayer.addEventListener(event as Event, handler as never);
 }
 
 // ---------------------------------------------------------------------------

@@ -16,6 +16,7 @@ import {
   subscribe,
   updateMetadataForTrack,
 } from '@/player/trackPlayer';
+import type { AppEventPayloadByEvent } from '@/player/trackPlayer';
 import RNShake from 'react-native-shake';
 import * as Haptics from 'expo-haptics';
 import { useLibraryStore } from '@/store/library';
@@ -34,6 +35,7 @@ import {
 import { ensurePlayerSetup } from '@/helpers/playerSetup';
 import { handleRemoteNextPress } from '@/helpers/remoteNext';
 import { resetBookToStart } from '@/helpers/resetBookToStart';
+import type { SingleFileChapterTracking } from '@/helpers/resetBookToStart';
 import { restoreLastActiveBook } from '@/helpers/restoreLastActiveBook';
 import { shouldUseClippedChapters } from '@/helpers/clippedChapters';
 import {
@@ -42,6 +44,10 @@ import {
   hasValidChapterData,
 } from '@/helpers/singleFileBook';
 import { evaluateBookEnd } from '@/helpers/bookEndDetection';
+import type {
+  BookEndDecision,
+  BookEndInput,
+} from '@/helpers/bookEndDetection';
 import { seekBack, seekForward } from '@/helpers/relativeSeek';
 import { skipToPreviousChapter } from '@/helpers/chapterSkip';
 import {
@@ -49,6 +55,7 @@ import {
   recordRemoteSeekFootprint,
   recordRemoteChapterChangeFootprint,
 } from '@/helpers/activeBookFootprints';
+import type { Book } from '@/types/Book';
 import * as sleepTimer from '@/setup/sleepTimer';
 import { useSleepTimerStore } from '@/setup/sleepTimer';
 
@@ -62,12 +69,32 @@ const { setPlaybackIndex, setPlaybackProgress } =
 // memory gate excludes from clipping (oversized sample tables — see
 // shouldUseClippedChapters) load as ONE legacy track and need the
 // single-file handling, exactly like when the spike is off.
-const treatAsSingleFile = (book) =>
+/**
+ * The library store's entry for a book, or `undefined` when it has none.
+ *
+ * ⚠ THE `book?.`s IN THIS FILE ARE LOAD-BEARING, AND THIS ACCESSOR IS WHAT
+ * MAKES THE COMPILER AGREE WITH THEM. `books` is a `Record<string, Book>`
+ * and `noUncheckedIndexedAccess` is off, so `books[bookId]` types as `Book`
+ * — never `Book | undefined` — even though at runtime the lookup genuinely
+ * misses. That miss is the whole point of the headless / cold-start path
+ * `handleRemotePlayBook` and `restoreLastActiveBook` exist for, where this
+ * service runs before the library store is populated.
+ *
+ * Reading the map directly would let the TypeScript conversion type that
+ * miss out of existence, leaving every `book?.` below looking like
+ * removable noise to the next reader. Routed through here they are
+ * compiler-required instead.
+ */
+function getBookFromStore(bookId: string): Book | undefined {
+  return useLibraryStore.getState().books[bookId];
+}
+
+const treatAsSingleFile = (book: Book | undefined) =>
   (book?.isSingleFile ?? false) &&
   !shouldUseClippedChapters(book?.chapters);
 
 // Single-file book chapter tracking state (module-scope)
-let singleFileChapterState = {
+let singleFileChapterState: SingleFileChapterTracking = {
   lastChapterIndex: -1,
   bookId: null,
 };
@@ -79,7 +106,7 @@ let lastProgressSaveTime = 0;
 // Saves at most every 30 seconds during playback to limit data loss.
 // Used for both single-file (chapter-relative) and multi-file (track-relative)
 // progress — the interval is shared since only one book plays at a time.
-async function savePeriodicProgress(bookId, progress) {
+async function savePeriodicProgress(bookId: string, progress: number) {
   const now = Date.now();
   if (now - lastProgressSaveTime < PROGRESS_SAVE_INTERVAL) return;
   lastProgressSaveTime = now;
@@ -97,10 +124,17 @@ async function savePeriodicProgress(bookId, progress) {
 // sleepTimer.onProgressTick ignores position — it only needs a recent call.
 // At the normal 1 Hz cadence the pending slot is always empty when an event
 // arrives, so behavior is unchanged.
-let pendingProgressEvent = null;
+/**
+ * The payload RNTP hands the 1 Hz progress event, named through the adapter
+ * so this file still imports no RNTP type directly (ADR 0003).
+ */
+type ProgressUpdatedEvent =
+  AppEventPayloadByEvent[Event.PlaybackProgressUpdated];
+
+let pendingProgressEvent: ProgressUpdatedEvent | null = null;
 let progressHandlerRunning = false;
 
-function onProgressUpdatedCoalesced(event) {
+function onProgressUpdatedCoalesced(event: ProgressUpdatedEvent) {
   pendingProgressEvent = event;
   if (progressHandlerRunning) return;
   progressHandlerRunning = true;
@@ -121,7 +155,17 @@ function onProgressUpdatedCoalesced(event) {
 // index can't map to a different track without the queue being rebuilt —
 // which fires PlaybackActiveTrackChanged (where this cache is invalidated).
 // Caching them removes a getTrack() bridge round-trip from every tick.
-let progressTrackCache = { index: -1, bookId: null, url: null };
+type ProgressTrackCache = {
+  index: number;
+  bookId: string | null;
+  url: string | null;
+};
+
+let progressTrackCache: ProgressTrackCache = {
+  index: -1,
+  bookId: null,
+  url: null,
+};
 
 function invalidateProgressTrackCache() {
   progressTrackCache = { index: -1, bookId: null, url: null };
@@ -145,12 +189,15 @@ function invalidateProgressTrackCache() {
 // so would let a stale latch suppress their mark and lose the ✓ altogether,
 // which is the very bug this ticket exists to fix. They read the store, which
 // has had the whole lead window to catch up by the time they run.
-let finishMarkedBookId = null;
+let finishMarkedBookId: string | null = null;
 
 // Applies an evaluateBookEnd() decision. Marking is ALL it does: it never
 // pauses, stops or seeks — see D2 in
 // .scratch/book-end-detection/issues/01-mark-finished-before-the-credits.md.
-async function applyBookEndDecision(bookId, decision) {
+async function applyBookEndDecision(
+  bookId: string,
+  decision: BookEndDecision,
+) {
   if (decision === 'clear') {
     if (finishMarkedBookId === bookId) finishMarkedBookId = null;
     return;
@@ -178,10 +225,14 @@ async function applyBookEndDecision(bookId, decision) {
 
 // Extracted body of the PlaybackProgressUpdated listener; invoked only via
 // onProgressUpdatedCoalesced above.
-async function handleProgressUpdated({ position, duration, track }) {
+async function handleProgressUpdated({
+  position,
+  duration,
+  track,
+}: ProgressUpdatedEvent) {
   //? event {"buffered": 107.232, "duration": 4626.991, "position": 0.526, "track": 3}
-  let bookId;
-  let trackUrl;
+  let bookId: string;
+  let trackUrl: string | null;
   if (progressTrackCache.index === track && progressTrackCache.bookId) {
     bookId = progressTrackCache.bookId;
     trackUrl = progressTrackCache.url;
@@ -201,7 +252,7 @@ async function handleProgressUpdated({ position, duration, track }) {
   }
 
   // Get book data from library store - use isSingleFile from DB to avoid queue race condition
-  const book = useLibraryStore.getState().books[bookId];
+  const book = getBookFromStore(bookId);
 
   // Use isSingleFile from database (set at scan time) instead of queue.length
   // This eliminates the race condition where queue isn't ready after app restart
@@ -213,7 +264,7 @@ async function handleProgressUpdated({ position, duration, track }) {
   // queue item, so `duration` spans the whole book. Everything else — real
   // multi-file books, clipped per-chapter queues, and single-chapter books —
   // is one item per chapter with a chapter-relative `duration`.
-  let queueShape = 'multi-item';
+  let queueShape: BookEndInput['queueShape'] = 'multi-item';
 
   if (isSingleFile && book && book.chapters && book.chapters.length > 1) {
     const chapters = book.chapters;
@@ -261,7 +312,7 @@ async function handleProgressUpdated({ position, duration, track }) {
             title: currentChapter.chapterTitle,
             duration: currentChapter.chapterDuration,
             // Preserve existing metadata that shouldn't change
-            artwork: book.artwork,
+            artwork: book.artwork ?? undefined,
             artist: book.author,
             album: book.bookTitle,
           });
@@ -327,7 +378,7 @@ async function handleProgressUpdated({ position, duration, track }) {
       queueShape,
       queueChapters: book?.chapters,
       currentIndex: track,
-      currentTrackUrl: trackUrl,
+      currentTrackUrl: trackUrl ?? undefined,
       progressState: book?.bookProgressValue,
       alreadyMarked: finishMarkedBookId === bookId,
     }),
@@ -353,7 +404,7 @@ const REMOTE_STOP_GUARD_MS = 500;
 // window OR within the 2-minute post-expiry grace, AND the user has the
 // setting enabled — driven by Zustand `subscribe` callbacks that re-evaluate
 // on every store change. The accelerometer stays idle outside those windows.
-let _shakeSubscription = null;
+let _shakeSubscription: ReturnType<typeof RNShake.addListener> | null = null;
 
 function _evaluateShakeListenerState() {
   const enabled = useSettingsStore.getState().shakeToResetEnabled;
@@ -464,7 +515,7 @@ export default module.exports = async function () {
     // a branch that moves, and neither property is visible from a "was it
     // recorded?" assertion. See
     // .scratch/remote-noop-footprint/issues/01-*.md.
-    const book = useLibraryStore.getState().books[bookId];
+    const book = getBookFromStore(bookId);
     await handleRemoteNextPress({
       bookId,
       book,
@@ -491,10 +542,11 @@ export default module.exports = async function () {
     });
   });
   // ⚠ NOT an Event member. Native emits this custom string from the
-  // Android Auto browse path, and the adapter types subscribe as
-  // `T extends Event` — so this call compiles only because this file is
-  // JavaScript. Ticket 12's TypeScript conversion has to answer it; see
-  // .scratch/player-seam/issues/12-convert-playback-service-to-typescript.md.
+  // Android Auto browse path — our own patch, not RNTP. It type-checks
+  // because the adapter declares it in `AppEventPayloadByEvent`, which is
+  // also where the two casts it costs now live. Ticket 12 answered this;
+  // the call site is cast-free on purpose, so if a second custom event
+  // appears, teach the adapter rather than casting here.
   subscribe('remote-play-book', ({ bookId }) => {
     console.log('[service] remote-play-book received:', bookId);
     // Queue is about to be rebuilt — old index→bookId mappings are invalid.
@@ -536,7 +588,7 @@ export default module.exports = async function () {
     if (!trackToUpdate?.bookId) return;
 
     // Get book data from library store - use isSingleFile from DB to avoid queue race condition
-    const book = useLibraryStore.getState().books[trackToUpdate.bookId];
+    const book = getBookFromStore(trackToUpdate.bookId);
 
     // Use isSingleFile from database (set at scan time) instead of queue.length
     const isSingleFile = treatAsSingleFile(book);
@@ -601,7 +653,7 @@ export default module.exports = async function () {
       const { position } = await getProgress();
 
       // Get book data from library store - use isSingleFile from DB to avoid queue race condition
-      const book = useLibraryStore.getState().books[bookId];
+      const book = getBookFromStore(bookId);
 
       // Use isSingleFile from database (set at scan time) instead of queue.length
       // This eliminates the race condition where queue isn't ready after app restart
