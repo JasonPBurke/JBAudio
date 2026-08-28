@@ -6,7 +6,7 @@ surface which used to update when a chapter turns over still does.
 
 **Blocked by:** 09
 
-**Status:** ready-for-human
+**Status:** resolved
 
 ## The contract half — stage 2 of the ban
 
@@ -48,9 +48,9 @@ current-chapter components already use — not by reverting the migration.
       — met on intent: **77 suites, 975 tests**. The "74 of 74" figure was
       already stale when this ticket was written and ticket 09 recorded the
       same; the tree ran 76 at `972e98c`. The criterion is left as written.
-- [ ] Every row of ticket 03's checklist run on **both** runtime Queue shapes
+- [x] Every row of ticket 03's checklist run on **both** runtime Queue shapes
       — **not started. The driver's half.**
-- [ ] Result recorded below under `## Answer`, including every row that failed
+- [x] Result recorded below under `## Answer`, including every row that failed
       and what was done about it
       — **partial, and deliberately left unchecked.** The contract half is
       recorded in full, as is the one row settled off-device (row 4). The
@@ -176,7 +176,7 @@ replacement — every other file gets both rules from the later block, and the o
 ignored file falls through to the earlier block and gets the library ban alone.
 Nothing was blocked; the reasoning had simply stopped one step early.
 
-### The device pass — MULTI-ITEM SHAPE COMPLETE, one-item shape owed
+### The device pass — the multi-item shape
 
 Run 2026-08-27 on a **Pixel 7 Pro emulator** (`emulator-5554`, Android 15 / API
 35) against a debug build of `b3e9d6a`. The build was made fresh for the pass:
@@ -262,28 +262,80 @@ reasoned about the `useActiveTrack()` inside that component, and that hook never
 runs in the app at all, which makes the in-app half of row 7 vacuous in the same
 way row 12 is.
 
-### The one-item shape — STILL OWED, and it needs a Pro build
+### The one-item shape — COMPLETE
 
-The one-item queue could not be produced on this emulator. It requires a
-single-file Book whose chapters are auto-generated (the auto-chapter exclusion is
-the only lever that can be forced on demand — the heap-gate route cannot), and
-`autoChapterInterval` is `number | null` with the interval picker behind the Pro
-entitlement, which this bundle does not have. The other lever,
-`CLIPPED_CHAPTERS_SPIKE`, is a hard-coded `true` in `constants/featureFlags.ts`,
-not a runtime setting; flipping it would mean the pass was no longer running
-against this tree, so it was not touched.
+Run 2026-08-27 on a **physical Pixel 7 Pro** (`29131FDH3009SZ`, Android 16),
+against the same tree. A phone was required rather than preferred: the shape
+needs auto-generated chapters, `autoChapterInterval` is `number | null`, and the
+interval picker is behind the **Pro entitlement** which the emulator bundle does
+not have. The other lever, `CLIPPED_CHAPTERS_SPIKE`, is a hard-coded `true` in
+`constants/featureFlags.ts` rather than a runtime setting, so forcing it would
+have meant the pass no longer described this tree. It was not touched.
 
-The fixture for it is built and already on the emulator: `Boundary Single`, one
-5400-second MP3 with **zero embedded chapters** (verified with `ffprobe`), which
-with the interval at 30 minutes yields boundaries at exactly 30:00 and 60:00 —
-seek to 29:50 and one arrives in ten seconds.
+**Fixtures**, both single-file MP3s with **zero embedded chapters** (verified
+with `ffprobe`), auto-chaptered at a 30-minute interval:
 
-⚠ Per ticket 03's own mechanism table, the one-item shape is the **weaker** half
-of the evidence: `PlaybackActiveTrackChanged` never fires at a boundary there, so
-ticket 09 deleted a re-render that was never occurring and every row is
-unaffected by construction. It still has to be *run* — to confirm the things that
-do move on that shape still move, and to settle row 7's last-chapter branch —
-but the falsifiable half is the multi-item one, and that half is complete.
+- `Boundary Single` — 5400 s. Marks at 0:00 / 30:00 / 60:00, **all
+  `is_auto_generated=1`**, which is what trips the exclusion in
+  `shouldUseClippedChapters` and makes `usesChapterQueue` false.
+- `Boundary End` — 3900 s, added mid-pass. See "the sliver" below.
+
+**Shape proven at runtime:** `dumpsys media_session` reported `queueTitle=null,
+size=1` (versus `size=8` on the emulator), and `position=1755360` — an
+**absolute** offset into the Book rather than into a Chapter, which is the other
+half of ticket 03's distinction.
+
+| row | result | what was seen |
+|---|---|---|
+| 1 | **PASS** | highlight moved Track 02 → Track 03, exactly one row |
+| 2 | **PASS** | no footprint written across a real boundary (21:31:37), confirmed in the DB |
+| 3 | **PASS** | title Track 01 → Track 02; art and gradient unchanged |
+| 4 | n/a | multi-item only, per ticket 03's own row |
+| 5 | **PASS** | `1h 00m left` → `59m left` across the turn; a decrease, no upward jump |
+| 6 | **PASS** | floating player held title, artwork and glyph; only the "left" text ticked |
+| 7 | **PASS** | the finish branch — see below |
+| 8 | **PASS** | bar reset to the left edge, `29:56` → `00:01`, remaining → `−29:58` |
+| 9 | n/a | renders `null` |
+| 10 | **PASS** | title and bar moved in the same frame, via the `positionIndex` branch |
+| 11 | **PASS** | played off the end; session `PLAYING` → `NONE(0)` and the bar stayed mounted with its artwork, title and "left" text |
+| 12 | n/a | not mounted |
+
+**Rows 8 and 10 are not repeats of the emulator's result.** Row 8 passed there
+because native Position was already chapter-relative; here Position is absolute
+and `PlayerProgressBar` windows it by subtracting the chapter's `startMs` — the
+same pixels by the opposite mechanism. Row 10 likewise took its `positionIndex`
+branch (index re-derived from `PlaybackProgressUpdated`) rather than the
+`chapterQueue` branch. Running the checklist twice is what separates those.
+
+**Row 7's finish branch — the behaviour the multi-item shape cannot reach.**
+With the book single-file and `getNextChapterStartSeconds` returning `null` at
+the last chapter, a notification Next press must mark the Book finished, seek to
+0 and pause. Observed exactly: state went `PAUSED(2)` with `pos=0s`, and the DB
+showed `book_progress_value=2.0` with `finished_at` stamped at the press second
+(21:38:48). On the emulator the identical press was a no-op, because a
+multi-file book takes the `else` branch and `skipToNext()` has nowhere to go.
+
+⚠ **The sliver, and why a second fixture was needed.** `Boundary Single` is
+5400.058 s, not 5400 s, so auto-chaptering produced a **fourth chapter 58 ms
+long** at 90:00 — visible in the app's chapter list as `Track 04  00:00`. Its
+existence makes the last chapter unreachable by seeking, and therefore makes row
+7's finish branch untestable on that fixture. `Boundary End` was synthesised at
+3900 s so its final chapter is a real five minutes (60:00–65:00). **Any future
+one-item fixture should use a duration that is NOT a multiple of the
+auto-chapter interval**, or the last chapter is an unusable sliver.
+
+### Both shapes, and what the pass actually establishes
+
+Every row of ticket 03's checklist has now run on both runtime Queue shapes. No
+row failed. Rows 9 and 12 have no device observable by construction (renders
+`null`; not mounted), and row 4 is multi-item only by ticket 03's own reckoning.
+
+The multi-item half is the half that carries the evidence — it is where
+`PlaybackActiveTrackChanged` fires at a boundary and where all eleven former
+`useActiveTrack()` subscriptions used to re-render, so every "safe" prediction
+was falsifiable there. The one-item half is confirmatory by construction, but it
+is not redundant: it exercises different internal branches for rows 8 and 10,
+and it is the only shape on which row 7's finish branch exists at all.
 
 ### Row 4 was confirmed stale WITHOUT a device, and fixed
 

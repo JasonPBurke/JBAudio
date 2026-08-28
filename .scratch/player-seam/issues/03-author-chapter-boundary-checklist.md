@@ -425,3 +425,22 @@ before this row is run on the one-item shape.
 Also filed from this row: a no-op remote Next still writes a `chapter_change`
 footprint — `.scratch/remote-noop-footprint/issues/01-no-op-remote-next-records-a-chapter-change.md`.
 Pre-existing, unrelated to the migration.
+
+⚠ **FIXTURE RECIPE AMENDED 2026-08-27 — the one-item recipe above has a trap.**
+Synthesising a "~90-minute MP3" produces 5400.058 s, not 5400 s, and
+auto-chaptering at a 30-minute interval then yields a **fourth chapter 58 ms
+long** at 90:00 (shown in the app as `Track 04  00:00`). That sliver is the last
+chapter, it cannot be reached by seeking, and it makes row 7's finish branch
+untestable on that fixture.
+
+**Give a one-item fixture a duration that is NOT a multiple of the auto-chapter
+interval.** 3900 s (65 min) at a 30-minute interval gives three chapters with a
+real five-minute last chapter — long enough to seek into and short enough to play
+to the end quickly. Two other things a one-item fixture needs: **zero embedded
+chapters** (verify with `ffprobe -show_chapters`), and the interval set, which is
+**Pro-gated** — so this shape needs a Pro build, not an emulator.
+
+⚠ And the fixture must be registered with MediaStore or the app cannot see it at
+all: `scanLibrary` enumerates via `enumerateAudioViaMediaStore`, so after
+`adb push` run `adb shell content call --uri content://media --method scan_volume
+--arg external_primary`.
