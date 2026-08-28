@@ -162,11 +162,13 @@ Accepted and actioned:
 
 Noted, deliberately **not** actioned — out of this ticket's scope:
 
-- The same four-write shape survives at three other sites in `service.js`
-  (`:250`, `:553`, `:666`), differing only in the values. `resetBookToStart` is
-  the zero-valued special case of a `setChapterPosition(bookId, index, position)`
-  that would absorb all four. Worth a follow-up ticket; it is a wider refactor
-  than "the shared reset has one home".
+- The same four-write shape survives at other sites in `service.js` (`:250`,
+  `:553`, `:666`), differing only in the values. `resetBookToStart` is the
+  zero-valued special case of a `setChapterPosition(bookId, index, position)`.
+  Wider than "the shared reset has one home", so it is now its own ticket:
+  **`.scratch/chapter-position-writes/issues/01-collapse-the-chapter-position-writes.md`**
+  — which also records that two of those sites write half the shape on purpose,
+  so it is not a mechanical extraction.
 - `PlaybackQueueEnded`'s **multi-file** and fallback branches still never touch
   `singleFileChapterState`. Pre-existing, and correct-looking (the detector is
   for single-file Books), but the asymmetry is now more conspicuous sitting next
