@@ -93,9 +93,15 @@ export async function updateCustomTimer(
   });
 }
 
+/**
+ * The single write site for the chapter count. Healed here so the invariant
+ * does not depend on every caller remembering it — the press sites guard too,
+ * but a future writer would otherwise reintroduce the defect this fixed.
+ */
 export async function updateChapterTimer(timerChapters: number | null) {
+  const healed = normalizeChapterCount(timerChapters);
   return updateSetting((record) => {
-    record.timerChapters = timerChapters;
+    record.timerChapters = healed;
   });
 }
 
@@ -207,9 +213,9 @@ export async function getTimerSettings() {
     return {
       timerDuration: settings.timerDuration,
       timerActive: settings.timerActive,
-      // Healed on read: a device that ran the old unclamped modal stepper can
-      // hold a negative count, which setup/sleepTimer.ts reads as "fire at the
-      // next chapter boundary" rather than "off".
+      // Healed on read for rows written before the clamp existed: a negative
+      // count reads as an ARMED chapter timer to setup/sleepTimer.ts, which
+      // arms bedtime mode on `!== null` and fires when it is not `> 0`.
       timerChapters: normalizeChapterCount(settings.timerChapters),
       sleepTime: settings.sleepTime,
       frozenRemainingMs: settings.timerFrozenRemaining,

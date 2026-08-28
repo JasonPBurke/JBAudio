@@ -41,29 +41,38 @@ describe('stepChapterCount', () => {
   });
 });
 
-describe('the two stepper surfaces agree', () => {
+describe('the no-op contract both press sites are built on', () => {
   // The player modal (SleepTimerOptions) and the settings card
   // (SleepTimerDurationCard) draw the same stepper and differ only in how they
   // deliver the result: the modal persists inline, the card calls back to the
-  // screen that owns persistence. The press itself resolves here, so a press
-  // at a bound cannot mean two different things. This table is that contract.
+  // screen that owns persistence. Both write ONLY when the returned count
+  // differs from the one they passed in, so "a press at a bound writes
+  // nothing" reduces to this identity — which is the contract, and is asserted
+  // here without restating the arithmetic the function itself computes.
   //
   // Neither component can be rendered under jest — see trap 7 in
   // docs/testing/jest-projects-and-rn-tests.md — so the shared unit IS the
-  // assertion, and both call sites are one line each around it.
+  // assertion, and both call sites are one line around it.
   const maxChapters = 3;
-  const counts = [0, 1, 2, 3];
+  const isNoOp = (count: number, delta: number) =>
+    stepChapterCount(count, delta, maxChapters) === count;
 
-  it.each(counts)('resolves + at %i the same way for both', (count) => {
-    const next = stepChapterCount(count, 1, maxChapters);
-    expect(next).toBe(Math.min(count + 1, maxChapters));
-    expect(next === count).toBe(count === maxChapters);
+  it.each([0, 1, 2, 3])('a + press at %i is a no-op only at the top', (n) => {
+    expect(isNoOp(n, 1)).toBe(n === maxChapters);
   });
 
-  it.each(counts)('resolves - at %i the same way for both', (count) => {
-    const next = stepChapterCount(count, -1, maxChapters);
-    expect(next).toBe(Math.max(count - 1, 0));
-    expect(next === count).toBe(count === 0);
+  it.each([0, 1, 2, 3])('a - press at %i is a no-op only at zero', (n) => {
+    expect(isNoOp(n, -1)).toBe(n === 0);
+  });
+
+  it('never returns a count outside the range, from any starting point', () => {
+    for (const count of [-2, -1, 0, 1, 2, 3, 4, 9]) {
+      for (const delta of [-1, 1]) {
+        const next = stepChapterCount(count, delta, maxChapters);
+        expect(next).toBeGreaterThanOrEqual(0);
+        expect(next).toBeLessThanOrEqual(maxChapters);
+      }
+    }
   });
 });
 
@@ -77,8 +86,14 @@ describe('normalizeChapterCount', () => {
     expect(normalizeChapterCount(7)).toBe(7);
   });
 
-  it('heals a negative count persisted by the unclamped stepper', () => {
-    expect(normalizeChapterCount(-1)).toBe(0);
-    expect(normalizeChapterCount(-4)).toBe(0);
+  // Healed to null (the timer's "off" value), NOT to 0. A negative count is
+  // the fingerprint of a press that should have been a no-op, and the row held
+  // null before it. Healing to 0 would leave setup/sleepTimer.ts arming
+  // bedtime mode (it arms on `!== null`) and firing at the next chapter
+  // boundary (it fires when the count is not `> 0`) — i.e. every affected
+  // device behaving exactly as the corruption made it behave.
+  it('heals a negative count to off, not to zero', () => {
+    expect(normalizeChapterCount(-1)).toBeNull();
+    expect(normalizeChapterCount(-4)).toBeNull();
   });
 });

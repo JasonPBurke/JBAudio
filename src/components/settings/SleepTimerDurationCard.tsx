@@ -6,12 +6,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import SettingsCard from '@/components/settings/SettingsCard';
 import { colorTokens } from '@/constants/tokens';
-import { withOpacity } from '@/helpers/colorUtils';
-import { useTheme } from '@/hooks/useTheme';
 import {
   normalizeChapterCount,
   stepChapterCount,
 } from '@/helpers/chapterTimerStepper';
+import { withOpacity } from '@/helpers/colorUtils';
+import { useTheme } from '@/hooks/useTheme';
 
 const PRESET_DURATIONS_MS = new Set([
   900000, 1800000, 2700000, 3600000, 5400000, 7200000,
@@ -62,8 +62,9 @@ const SleepTimerDurationCard = ({
       : colorTokens.dark.text;
   };
 
-  const chapterTimerActive = timerChapters !== null;
-  const chaptersToEnd = normalizeChapterCount(timerChapters) ?? 0;
+  const healedChapters = normalizeChapterCount(timerChapters);
+  const chapterTimerActive = healedChapters !== null;
+  const chaptersToEnd = healedChapters ?? 0;
 
   // Shared with the player's SleepTimerOptions modal so a press at a bound
   // means the same thing on both surfaces.

@@ -99,6 +99,31 @@ change chapter. The footprint list gains a breadcrumb back to a jump that never
 occurred. Whatever the fix, the footprint must end up labelled by what actually
 happened — `chapter_restart` for a restart.
 
+**The invariant, stated once for both tickets:** a footprint is a breadcrumb
+back to a spot the user left. If the press does not leave, there is no
+breadcrumb. This ticket and
+`.scratch/remote-noop-footprint/issues/01-no-op-remote-next-records-a-chapter-change.md`
+are the same violation of it, mirrored at opposite ends of the Queue, and the
+same missing knowledge causes both: **neither site asks where in the Queue it
+is** before committing. One leans on a `catch` that cannot fire; the other on
+nothing at all.
+
+⚠ **This side needs no conditional write.** Fixing the behaviour *is* the
+footprint fix here — once the press at index 0 actually restarts the Book, the
+footprint stops being a lie and becomes a real `chapter_restart`. Do not add a
+"did anything move?" guard to the previous path: after this ticket that branch
+always acts, so the guard would be dead the day it was written. The `RemoteNext`
+side genuinely needs one, because there a no-op press is the *correct*
+behaviour.
+
+⚠ **Work this ticket FIRST.** The remote-noop ticket listed `RemotePrevious` as
+"probably not affected" and asked a verifier to confirm it. That claim is wrong
+on multi-item Books — `## The problem` above is the trace — and this ticket is
+what makes it true. That ticket has been amended to depend on this one; working
+them in the other order means either rediscovering this bug from the Footprints
+screen, or "verifying" `RemotePrevious` on a one-item Book, where it is
+genuinely clean, and ticking the box wrongly.
+
 ## Scope
 
 - One-item Books are **correct today** and must stay correct — that branch returns

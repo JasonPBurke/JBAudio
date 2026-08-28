@@ -71,9 +71,10 @@ const SleepTimerOptions = ({
         db.collections.get<UserSettings>('settings');
       const settings = await settingsCollection.query().fetch();
       if (settings.length > 0) {
+        const healedChapters = normalizeChapterCount(settings[0].timerChapters);
         setActiveTimerDuration(settings[0].timerDuration);
-        setChapterTimerActive(settings[0].timerChapters !== null);
-        setChaptersToEnd(normalizeChapterCount(settings[0].timerChapters) ?? 0);
+        setChapterTimerActive(healedChapters !== null);
+        setChaptersToEnd(healedChapters ?? 0);
         if (settings[0].customTimer !== null) {
           const hours = Math.floor(settings[0].customTimer / 60);
           const minutes = settings[0].customTimer % 60;
@@ -91,13 +92,17 @@ const SleepTimerOptions = ({
       if (settings.length > 0) {
         const timerDuration = settings[0].timerDuration;
         const customTimerValue = settings[0].customTimer;
-        const timerChaptersValue = settings[0].timerChapters;
+        // Healed before it reaches state: a negative count read back raw is
+        // what let the modal display an armed chapter timer holding one.
+        const timerChaptersValue = normalizeChapterCount(
+          settings[0].timerChapters,
+        );
 
         setActiveTimerDuration(timerDuration);
 
         setChapterTimerActive(timerChaptersValue !== null);
         if (timerChaptersValue !== null) {
-          setChaptersToEnd(normalizeChapterCount(timerChaptersValue) ?? 0);
+          setChaptersToEnd(timerChaptersValue);
         }
 
         if (customTimerValue !== null) {
@@ -153,16 +158,16 @@ const SleepTimerOptions = ({
   // this stepper refuses to display. Guarding here rather than restoring the
   // buttons' `disabled` props is deliberate: the dimmed-but-live button is
   // what kept this invisible, and it is also how the settings card guards.
-  const handleChapterStep = (delta: number) => {
+  const stepChapters = (delta: number) => {
     const next = stepChapterCount(chaptersToEnd, delta, maxChapters);
     if (next === chaptersToEnd) return;
     updateChapterTimer(next);
     setChaptersToEnd(next);
   };
 
-  const handleChapterPlus = () => handleChapterStep(1);
+  const handleChapterPlus = () => stepChapters(1);
 
-  const handleChapterMinus = () => handleChapterStep(-1);
+  const handleChapterMinus = () => stepChapters(-1);
 
   const handlePresetPress = async (duration: number) => {
     //! convert to milliseconds before saving for timer calculation

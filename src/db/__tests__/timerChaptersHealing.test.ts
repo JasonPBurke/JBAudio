@@ -1,4 +1,4 @@
-import { getTimerSettings } from '@/db/settingsQueries';
+import { getTimerSettings, updateChapterTimer } from '@/db/settingsQueries';
 
 /**
  * Devices in closed testing can already hold an out-of-range `timer_chapters`:
@@ -8,8 +8,9 @@ import { getTimerSettings } from '@/db/settingsQueries';
  * chapter timer whenever the count is not `> 0`, and its bedtime
  * auto-activation branch arms chapter mode straight from this getter.
  *
- * The write is fixed at both press sites; this is the healing half, and the
- * ticket's recorded choice is clamp-on-read rather than a migration (see
+ * Both press sites now guard, this module's single write site heals what it is
+ * handed, and every read heals rows written before either existed. The ticket's
+ * recorded choice is healing rather than a migration (see
  * `.scratch/sleep-timer-stepper/issues/01-clamp-modal-chapter-stepper.md`).
  *
  * Faked at the `@/db` boundary for the reason `seriesBackgroundsSetting.test.ts`
@@ -22,9 +23,13 @@ jest.mock('@dr.pogodin/react-native-fs', () => ({
 
 let mockSettingsRows: Record<string, unknown>[] = [];
 
+/** What the single settings record was last asked to store. */
+const written: Record<string, unknown> = {};
+
 jest.mock('@/db', () => ({
   __esModule: true,
   default: {
+    write: async (work: () => Promise<void>) => work(),
     collections: {
       get: () => ({
         query: () => ({ fetch: async () => mockSettingsRows }),
@@ -46,12 +51,48 @@ const rowWith = (timerChapters: number | null) => ({
   customTimer: null,
 });
 
+describe('updateChapterTimer heals what it is handed', () => {
+  // The guard lives at the write boundary as well as at the two press sites,
+  // so a future caller cannot reintroduce the defect by forgetting to clamp.
+  const recordingRow = () => ({
+    update: async (updater: (r: Record<string, unknown>) => void) =>
+      updater(written),
+  });
+
+  it('stores a negative count as off, never as a negative', async () => {
+    mockSettingsRows = [recordingRow()];
+
+    await updateChapterTimer(-1);
+
+    expect(written.timerChapters).toBeNull();
+  });
+
+  it('stores an in-range count unchanged', async () => {
+    mockSettingsRows = [recordingRow()];
+
+    await updateChapterTimer(2);
+
+    expect(written.timerChapters).toBe(2);
+  });
+
+  it('still stores an explicit off', async () => {
+    mockSettingsRows = [recordingRow()];
+
+    await updateChapterTimer(null);
+
+    expect(written.timerChapters).toBeNull();
+  });
+});
+
 describe('getTimerSettings heals a persisted chapter count', () => {
-  it('reads a negative count back as zero', async () => {
+  // null, not 0: healing to 0 would leave setup/sleepTimer.ts arming bedtime
+  // mode (it arms on `!== null`) and firing at the next chapter boundary (it
+  // fires when the count is not `> 0`) — the corruption's exact behaviour.
+  it('reads a negative count back as off', async () => {
     mockSettingsRows = [rowWith(-1)];
 
     await expect(getTimerSettings()).resolves.toMatchObject({
-      timerChapters: 0,
+      timerChapters: null,
     });
   });
 

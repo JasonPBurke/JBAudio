@@ -103,6 +103,14 @@ about the Book existing, so it cannot be dropped as redundant.
 - **Any change to what gets recorded, or when.** This is a locality ticket. If
   the extraction changes a single footprint's trigger, position or timing, it
   has gone wrong.
+- **The `RemoteNext` no-op footprint guard.** `remoteFootprints.ts`'s
+  `recordRemoteChapterChangeFootprint` — the instance this ticket calls "the
+  same shape already extracted" — is about to gain a caller-side condition from
+  `.scratch/remote-noop-footprint/issues/01-no-op-remote-next-records-a-chapter-change.md`,
+  which stops a no-op press writing at all. That is a change to *when* a
+  footprint is recorded, barred by the bullet above, so the two tickets do not
+  merge. ⚠ They do collide on the same file: whichever lands second rebases its
+  call sites onto the other.
 - **`getActiveBookId`'s string narrowing.** Ticket 07's `## Answer` records a
   latent divergence there; it is ticket 04's ratified decision and not this
   ticket's business.

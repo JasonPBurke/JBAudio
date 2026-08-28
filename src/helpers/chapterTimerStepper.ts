@@ -33,22 +33,32 @@ export function stepChapterCount(
 }
 
 /**
- * Heal a persisted chapter count on the way out of the database.
+ * Heal a chapter count crossing the database boundary — on the way in at the
+ * one write site, and on the way out at every read site.
  *
- * `null` is a real value here — the chapter timer is off — and is preserved.
- * Only the lower bound is enforced: `maxChapters` is a runtime fact about the
- * book and the playhead, unknown to any read site, and it resolves
- * asynchronously in the UI (it starts at 0), so clamping to it on read would
- * flatten a legitimate count to zero on the first frame.
+ * A negative count heals to `null`, the chapter timer's "off" value, NOT to 0.
+ * `-1` is the fingerprint of a `−` press at zero, and before that press the row
+ * held `null`; 0 is a different setting the user did not choose. The
+ * distinction is the whole point of the heal: `setup/sleepTimer.ts` arms
+ * bedtime mode on `timerChapters !== null` and then fires whenever the count is
+ * not `> 0`, so healing to 0 leaves every affected device behaving exactly as
+ * the corruption made it behave — bedtime still arms, and it still stops
+ * playback at the end of the next chapter. Only `null` makes it stop.
  *
- * The high side needs no healing: an over-count simply never fires, whereas a
- * negative count reads as "fire at the next chapter boundary" to
- * setup/sleepTimer.ts (`onChapterChanged` fires whenever the count is not
- * `> 0`) — see the ticket's `## Answer` section.
+ * Erring toward "off" is the safe direction for a sleep timer: the cost of
+ * being wrong is a timer the user can see is off and re-arm, against playback
+ * silently stopping on a night they never set one.
+ *
+ * Only the lower bound is enforced. `maxChapters` is a runtime fact about the
+ * book and the playhead, unknown at the write boundary and to every read site,
+ * and in the UI it resolves asynchronously from 0 — clamping to it here would
+ * flatten a legitimate count to zero on the first frame. The high side needs no
+ * healing anyway: an over-count simply never fires, because the book ends
+ * first.
  */
 export function normalizeChapterCount(
   timerChapters: number | null,
 ): number | null {
-  if (timerChapters === null) return null;
-  return Math.max(timerChapters, 0);
+  if (timerChapters === null || timerChapters < 0) return null;
+  return timerChapters;
 }

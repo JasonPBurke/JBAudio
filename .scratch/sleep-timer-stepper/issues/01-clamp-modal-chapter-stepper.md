@@ -152,23 +152,28 @@ does — but the user never asked for a chapter timer, and the value that armed 
 is out of range.
 
 **Route B — through the modal itself.** The ticket assumed a remount was needed
-to read `-1` back. It is not:
+to read `-1` back. It is not: the settings observer
+(`SleepTimerOptions.tsx:88-95`) echoes the DB straight into state, so `-1` lands
+in `chaptersToEnd` in the **same modal session**.
 
-- The settings observer (`SleepTimerOptions.tsx:88-95`) echoes the DB straight
-  into state — `if (timerChaptersValue !== null) setChaptersToEnd(timerChaptersValue)`
-  — so `-1` lands in `chaptersToEnd` in the **same modal session**, and
-  `chapterTimerActive` (`timerChapters !== null`) goes `true` with it,
-  independently of `timer_active`.
-- `cancel()` (`:316-332`) clears `timer_active`, `sleep_time` and the frozen
-  remainder but **not** `timer_chapters`. The `-1` survives a cancel, and the
-  observer never resets state downwards (it skips the null case), so
-  `chaptersToEnd` stays `-1` while `chapterTimerActive` goes false.
-- From there the row press arms via
-  `activate({ kind: 'chapter', chaptersRemaining: -1 })` (`:212`) — same
-  fire-at-the-next-boundary outcome, plus `remainingChapters: -1` in the store.
+To arm from it, the modal needs `chapterTimerActive` false while `chaptersToEnd`
+holds `-1`. The deterministic way there is a **duration** timer: `activate({kind:
+'duration'})` writes `updateChapterTimer(null)` (`sleepTimer.ts:274`), so the
+observer sets `chapterTimerActive` false while its `if (timerChaptersValue !==
+null)` skip leaves `chaptersToEnd` at `-1`. The next chapter-row press then arms
+via `activate({ kind: 'chapter', chaptersRemaining: -1 })` (`:212`) — same
+fire-at-the-next-boundary outcome, plus `remainingChapters: -1` in the store.
 
-So "the arm path is currently unaffected" held only for as long as the modal's
-local state stayed clamped, and the observer un-clamps it.
+⚠ A first draft of this trace routed through `cancel()` instead. That is
+**racy, not deterministic**, and a device repro following it could fail:
+`cancel()` (`:316-332`) does leave `timer_chapters` set, but every write it
+makes re-emits the observer, which re-asserts `chapterTimerActive = true`
+unconditionally (`:97`) — so whether the press-handler's own
+`setChapterTimerActive((prev) => !prev)` or the observer lands last decides the
+outcome. Corrected after review.
+
+Either way, "the arm path is currently unaffected" held only for as long as the
+modal's local state stayed clamped, and the observer un-clamps it.
 
 **High side.** A `+` past the ceiling persists a count larger than the chapters
 left; that timer simply never fires, because the book ends first. Bounded and
@@ -178,39 +183,62 @@ inert, unlike the negative case.
 
 **Shared decision unit.** `src/helpers/chapterTimerStepper.ts` — `stepChapterCount`
 resolves one press and returns where it lands (equal to the current count when
-the press is a no-op); `normalizeChapterCount` heals a persisted value on read.
-Both press sites are one line around `stepChapterCount`, so "the two steppers
-behave identically" is structural rather than a convention.
+the press is a no-op); `normalizeChapterCount` heals a count crossing the
+database boundary, in either direction. Both press sites are one line around
+`stepChapterCount`, so "the two steppers behave identically" is structural
+rather than a convention.
 
-- `SleepTimerOptions.tsx` — one `handleChapterStep(delta)` that writes nothing
+- `SleepTimerOptions.tsx` — one `stepChapters(delta)` that writes nothing
   when the press lands where it started. **Guarded in the handler, not by
   restoring the two `disabled` props** (which are now deleted): the ticket
   preferred it, and it is also how the card guards, so the two match in shape
   and not only in outcome. The buttons still dim via icon opacity.
 - `SleepTimerDurationCard.tsx` — its two inline guards replaced by the same
-  helper. Behaviour unchanged; it was already correct.
+  helper, under the same name. It was already correct at the bounds; see the
+  deliberate out-of-range change below.
 
-**Healing: clamp on read, as recommended — no migration.** Negatives normalize
-to 0 at every read path: `getTimerSettings()` (`settingsQueries.ts:213`, which
-covers `setup/sleepTimer.ts`'s restore/bedtime/decrement paths *and* the settings
-screen), the modal's own two reads, and `useObserveSettings` (which feeds
-`PlayerControls`). Reasons recorded in the helper's doc comment:
+**Healing: no migration, as recommended — but healed to `null`, not to 0, and at
+the write boundary as well as on read.** Both corrections came out of review:
 
-- `null` is a real value — the chapter timer is off — and is preserved. Healing
-  it to 0 would arm an "end of chapter" timer on every device that has never
-  used one.
-- Only the **lower** bound is enforced. `maxChapters` is a runtime fact about the
-  book and the playhead, unknown to any read site, and in the UI it resolves
-  asynchronously from 0 — clamping to it on read would flatten a legitimate
-  count to zero on the first frame. The high side needs no healing anyway (see
-  above).
-- No migration, per the ticket and [[watermelondb-addcolumns-defaultvalue-trap]].
+- ⚠ **`-1 → 0` would have been inert.** It is still non-null, so bedtime still
+  arms (`!== null`), and 0 still fires at the next chapter boundary (`not > 0`).
+  Every affected device would have behaved *identically* after the "heal" — the
+  first draft of this Answer conceded the outcome equivalence without noticing
+  it made the fix a no-op on the reachable path. A negative is the fingerprint
+  of a press that should have been a no-op, and the row held `null` before that
+  press, so `null` is the honest heal. It is also the safe direction for a sleep
+  timer: the cost of being wrong is a timer the user can see is off and re-arm,
+  against playback silently stopping on a night they never set one.
+- ⚠ **The write boundary was left unguarded.** The first draft healed five read
+  sites and left `updateChapterTimer` — the single write site, and the one every
+  caller goes through — writing whatever it was handed, so any future writer
+  reintroduced the defect. It now heals what it is handed.
+
+Healed on read at every path a persisted row can reach: `getTimerSettings()`
+(`settingsQueries.ts`, covering `setup/sleepTimer.ts`'s restore/bedtime/decrement
+paths *and* the settings screen), the modal's two reads, and `useObserveSettings`
+(which feeds `PlayerControls`). Both components now derive `chapterTimerActive`
+from the healed value too, so a legacy row cannot render an armed chapter timer.
+
+Only the **lower** bound is enforced anywhere: `maxChapters` is a runtime fact
+about the book and the playhead, unknown at the write boundary and to every read
+site, and in the UI it resolves asynchronously from 0 — clamping to it would
+flatten a legitimate count to zero on the first frame. The high side needs no
+healing (see above). No migration, per the ticket and
+[[watermelondb-addcolumns-defaultvalue-trap]].
+
+**Deliberate behaviour change on the card.** The spec said "make the modal match
+the card… the smaller diff", and the shared helper does change one card
+behaviour: `−` at an out-of-range 9 with `maxChapters` 5 now yields 5, where it
+used to yield 8. That is the healing direction, and the "identical behaviour"
+criterion cannot be met by a helper only one surface uses.
 
 ## Tests
 
-`src/helpers/__tests__/chapterTimerStepper.test.ts` (15) and
-`src/db/__tests__/timerChaptersHealing.test.ts` (3). The healing test was
-mutation-checked — reverting the `getTimerSettings` clamp fails it.
+`src/helpers/__tests__/chapterTimerStepper.test.ts` (18) and
+`src/db/__tests__/timerChaptersHealing.test.ts` (6) — 24 in total. Both healing
+sites were mutation-checked: reverting the `getTimerSettings` clamp, and
+separately the `updateChapterTimer` clamp, each fails a test.
 
 ⚠ **Why not a rendered comparison of the two steppers.** Neither component can be
 rendered under jest: trap 7 in `docs/testing/jest-projects-and-rn-tests.md` — the
@@ -221,6 +249,11 @@ once. The doc's ratified answer is to extract the decision unit and test that,
 which is what the shared helper is. Both call sites are a single line, and are
 verified by inspection only in that last inch.
 
+**Note on tracker shape:** this effort is a single ticket with no `map.md`, so
+`docs/agents/issue-tracker.md`'s "append a context pointer to the map's
+Decisions-so-far" step has nowhere to land. Precedented for a one-ticket defect
+effort; the `## Answer` here is the record.
+
 ## Still open, deliberately not done here
 
 - **The structural question** the ticket flagged: should the modal persist per
@@ -230,6 +263,11 @@ verified by inspection only in that last inch.
   `timer_active`**, in both the modal and the card. Found during the trace above:
   after `cancel()` the row can render as armed because `cancel()` leaves
   `timer_chapters` set. Out of scope for a clamping ticket; worth its own.
+- **The in-memory mirror is not healed.** `sleepTimer.activate()` writes
+  `mode.chaptersRemaining` to its cache and to the Zustand store directly
+  (`:279`) as well as to the DB; only the DB write heals. Unreachable now that
+  both press sites guard, and inventing behaviour for an armed chapter timer
+  with a null count would be speculative — recorded rather than fixed.
 - **`hasActiveBook` is still a dead prop** on `SleepTimerDurationCard` (the
   sibling finding in Provenance). Left alone: this ticket touched the stepper,
   and removing a prop touches the call site and its screen.
