@@ -22,7 +22,7 @@ An armed duration timer has two persisted shapes and cold start restores
 whichever applies:
 
 - RUNNING — `sleep_time` = absolute end instant, `timer_frozen_remaining` null
-- FROZEN  — `timer_frozen_remaining` = ms left, `sleep_time` null
+- FROZEN — `timer_frozen_remaining` = ms left, `sleep_time` null
 
 So a paused timer keeps its banked minutes across a process death indefinitely.
 See `src/setup/sleepTimer.ts` and schema v34.
@@ -32,8 +32,7 @@ See `src/setup/sleepTimer.ts` and schema v34.
 ### 1. The headless cold start (the blocking objection)
 
 `syncFromDB()` lives inside the RNTP **playback service** (`src/setup/service.js`,
-registered at `index.js:9`), not the UI. That service starts cold from a
-Bluetooth headset play, the media notification, or an Android Auto connection —
+registered at `index.js:9`), not the UI. That service starts cold from the media notification, or an Android Auto connection —
 with no app UI ever opening.
 
 So "deactivate on cold start" would cancel the timer at the exact moment
@@ -47,7 +46,7 @@ just re-arms it" — that argument assumes the UI is open, and here it never is.
 ### 2. The timer is denominated in playback, not wall-clock
 
 Driver's framing, and it is the more coherent model: the timer measures
-*listening time remaining*, not *a wall-clock stop instant*. Under that
+_listening time remaining_, not _a wall-clock stop instant_. Under that
 definition 25 banked minutes is exactly the right number however much wall time
 passed while paused, and staleness is irrelevant by construction. It also means
 timer state should be a function of playback state — and process lifecycle is
@@ -69,8 +68,8 @@ Fully headless, no UI at any point:
 2. User swipes the app off recents — playback continues (FGS holds the process).
 3. User pauses from the notification / Bluetooth / Android Auto.
    → FGS demotes (`stopForegroundGracePeriod: 0`) and the task is already gone
-     from recents, so nothing holds the process up. It is very likely killed.
-4. Later, user presses play on a headset or starts the book from Android Auto.
+   from recents, so nothing holds the process up. It is very likely killed.
+4. Later, user presses starts the book from Android Auto.
    → Cold runtime, service-only, no UI.
 
 Shipped behaviour: the frozen value is restored and converted back to a running
@@ -80,7 +79,7 @@ unbounded, silently.
 
 ## If revisited, the more promising variant
 
-Bound the *staleness* rather than keying on process death: drop a frozen timer
+Bound the _staleness_ rather than keying on process death: drop a frozen timer
 that has been frozen longer than some window (1-4h), applied uniformly whether
 or not the process survived. This keeps the short-interruption case correct and
 kills only genuinely stale timers. Costs one persisted `frozen_at` timestamp.
