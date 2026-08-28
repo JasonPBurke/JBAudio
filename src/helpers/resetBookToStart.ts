@@ -25,8 +25,9 @@ export type SingleFileChapterTracking = {
  * when that selector is `undefined`, so a stale STORE entry beats a correct
  * DB row. Both halves of both values have to move together, which is why all
  * four writes live here and neither caller writes them itself. The index pair
- * is delegated to `setChapterIndex`, the one home that pairing now has for
- * every site that writes it; this module stays the home for the whole rewind.
+ * is delegated to `setChapterIndex` — see that module for why the pairing is
+ * an invariant rather than a preference — and this module stays the home for
+ * the whole rewind.
  *
  * The tracking rewind is the fifth piece and the least obvious: leaving
  * `lastChapterIndex` at the final chapter makes the next progress tick — the

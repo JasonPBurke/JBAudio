@@ -598,7 +598,13 @@ export default module.exports = async function () {
       // own copy of this reset.
       await resetBookToStart(trackToUpdate.bookId, singleFileChapterState);
     } else if (!isSingleFile && book) {
-      // Multi-file book: use track index as chapter index
+      // Multi-file book: use track index as chapter index.
+      // `setChapterIndex` writes its store half synchronously before it
+      // awaits, so both in-memory writes still land in this one block. That
+      // costs the two independent DB writes their old order — index now
+      // persists before progress — which is the trade taken deliberately:
+      // the alternative delayed the STORE index write by a bridge round-trip,
+      // and the store is what `chapterList` reads first.
       setPlaybackProgress(trackToUpdate.bookId, position);
       await setChapterIndex(trackToUpdate.bookId, track);
 

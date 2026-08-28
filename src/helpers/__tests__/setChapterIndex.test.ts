@@ -2,14 +2,11 @@ import { setChapterIndex } from '../setChapterIndex';
 import { updateChapterIndexInDB } from '@/db/chapterQueries';
 
 /*
- * The store+DB pair for a Book's chapter INDEX. It exists as one unit because
- * the two halves are a correctness invariant, not a tidiness preference:
- * `chapterList.tsx` resolves its highlight as
- * `storeIndex ?? book.bookProgress?.currentChapterIndex ?? -1`, so the store is
- * consulted FIRST and a stale store entry beats a correct DB row. The pair was
- * open-coded at four sites and one of them drifted — see
- * .scratch/chapter-position-writes/issues/01-*.md and
- * .scratch/remote-noop-footprint/issues/02-*.md.
+ * The store+DB pair for a Book's chapter INDEX. Why the two halves are one
+ * unit, and why their ORDER is load-bearing, is documented on the module
+ * itself — see `setChapterIndex.ts`. Tickets:
+ * .scratch/chapter-position-writes/issues/01-*.md (the extraction) and
+ * .scratch/remote-noop-footprint/issues/02-*.md (the drift that motivated it).
  */
 
 const mockSetPlaybackIndex = jest.fn();

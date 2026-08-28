@@ -243,17 +243,23 @@ means re-costing this ticket with both of those benefits withdrawn.
 
 - [x] The store+DB pairing for the chapter **index** has one home under
       `src/helpers/`, called by sites A, B, D and E
-- [x] `resetBookToStart` calls it for the index half and is otherwise unchanged
+- [x] `resetBookToStart` calls it for the index half and is otherwise
+      unchanged — with one recorded exception: its two DB writes swap order, so
+      that both STORE writes stay synchronous and adjacent. Argued under
+      `## Answer`; its tests pass unchanged.
 - [x] Site F (`handleBookPlay`) is resolved in writing: correct-as-is, or filed
-      as its own bug ticket with a `fakePlayer` repro
+      as its own bug ticket with a `fakePlayer` repro — filed as `02`, reading 2,
+      and the repro was **run**: DB index `0`, store index `1`. Output recorded
+      in `02`; the probe itself was deleted rather than land red here.
 - [x] `singleFileChapterState` stays outside the unit, or the ticket records why
       it moved in
 - [x] No behaviour change: A's index write stays inside the chapter-changed
       guard, and `sleepTimer.onChapterChanged()` / `updateMetadataForTrack` fire
       exactly as often as before
 - [x] The progress axis is untouched — no site in the rejected table above moves
-- [x] `service.js:55`'s module-scope destructure drops `setPlaybackIndex` and
-      keeps `setPlaybackProgress`
+- [x] `service.ts:62`'s module-scope destructure drops `setPlaybackIndex` and
+      keeps `setPlaybackProgress` (the ticket said `service.js:55`; ticket 12
+      renamed the file before this landed)
 - [x] Covered by tests in the `helpers` lane
 
 ## Traps

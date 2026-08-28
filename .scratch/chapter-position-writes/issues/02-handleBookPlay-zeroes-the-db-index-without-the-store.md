@@ -79,10 +79,32 @@ lane:
    the first tick, so `fakePlayer` is there to hold the queue still rather than
    to advance it.
 
-⚠ The by-construction half of this (step 4 fails because the module never
-writes the store) is established. The repro above is **specified, not yet
-run** — writing and running it is this ticket's first task, so that the fix has
-a red test to turn green.
+### It has been run
+
+**2026-08-28 — observed, not merely argued.** A throwaway probe appended to
+`handleBookPlay.test.ts`'s existing harness (its mocks and `finishedBook()`
+fixture already set up the demote path) substituted a stateful stand-in store
+seeded with `playbackIndex = { b1: 1 }`, took the `restartFromZero` path, and
+asserted the store had reached `0`:
+
+```
+PROBE RESULT -> DB index: 0, store playbackIndex.b1: 1
+
+● PROBE site F › leaves the store index at the previous listen while the DB row goes to 0
+    Expected: 0
+    Received: 1
+```
+
+So the drift is real and reproducible in the `helpers` lane: the DB row goes to
+`0`, the store keeps `1`, and `chapterList` reads the store first.
+
+The probe was **deleted rather than committed** — a red test on ticket 01's
+branch would break its suite, and the assertion belongs to this ticket. Recreate
+it from the steps above; it is ~25 lines appended to the existing describe
+block, and no `fakePlayer` queue driving turned out to be necessary, because the
+window under test is the one *before* any player event. Treat the
+`fakePlayer` reference in this ticket's parent as satisfied by the stand-in
+store: the mechanism is a missing store write, not a queue behaviour.
 
 ## The fix, if it triages in
 
