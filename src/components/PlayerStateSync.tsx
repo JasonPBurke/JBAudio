@@ -2,9 +2,9 @@ import { useEffect } from 'react';
 import { AppState } from 'react-native';
 import {
   isPlaying,
-  useActiveTrack,
+  useActiveTrackBookId,
   useIsPlaying,
-} from 'react-native-track-player';
+} from '@/player/trackPlayer';
 import { usePlayerStateStore } from '@/store/playerState';
 
 /**
@@ -14,11 +14,18 @@ import { usePlayerStateStore } from '@/store/playerState';
  * writer of `store/playerState`. Every other file reads a selector. Counted at
  * `1a04fd7`: eleven `useActiveTrack()` subscriptions across twelve files, all
  * for one field, `?.bookId`; ten of the eleven are gone and this is the
- * survivor. A second one anywhere re-creates the shape. `eslint.config.js`
- * still permits the three names
- * imported below ANYWHERE under `src/` — it is an allow list, not a per-file
- * exemption — so nothing mechanical stops that; ticket 10 closes the hole by
- * emptying the list, at which point this file is the ban's last exception.
+ * survivor. A second one anywhere re-creates the shape.
+ *
+ * ⚠ NOTHING MECHANICAL ENFORCES THAT ANY MORE, and the change is worth
+ * knowing about. Ticket 08's eslint rule was an allow list whose permitted
+ * names were the migration tracker, and while it stood, adding a twelfth
+ * subscription meant importing a name the list happened to permit. Ticket 10
+ * emptied it: the rule now says "nobody outside `player/` imports the
+ * library", which this file satisfies by taking the same two hooks off the
+ * adapter instead. They are ordinary exports of an ordinary module, so a
+ * second caller would lint clean. It would also LOOK clean on screen — a
+ * duplicated subscription renders correctly and merely costs renders — which
+ * is why the rule is restated here and in the adapter's own hooks section.
  *
  * ⚠ IT MUST STAY MOUNTED AT THE ROOT (`app/_layout.tsx`, above the router).
  * The store's selectors are only correct while it is. See the mount invariant
@@ -30,7 +37,7 @@ import { usePlayerStateStore } from '@/store/playerState';
  */
 export const PlayerStateSync = () => {
   const { playing } = useIsPlaying();
-  const activeTrack = useActiveTrack();
+  const activeBookId = useActiveTrackBookId();
 
   const setIsPlaying = usePlayerStateStore((s) => s.setIsPlaying);
   const setActiveBookId = usePlayerStateStore((s) => s.setActiveBookId);
@@ -39,18 +46,19 @@ export const PlayerStateSync = () => {
     setIsPlaying(playing ?? false);
   }, [playing, setIsPlaying]);
 
-  // ⚠ THE LAST UNCHECKED READ OF `Track.bookId` IN THE APP, and the narrowing
-  // is not decoration. RNTP declares `Track` with an `[key: string]: any` index
-  // signature, so `.bookId`, `.bookid` and `.bookID` all compile and two of
-  // them yield `undefined`. The adapter narrows the imperative half of this
-  // same read the same way (`getActiveBookId`, `player/trackPlayer.ts:97-99`);
-  // before ticket 09 a slip here cost one component, and now it would null the
-  // Active Book for every consumer of the mirror, with no error and no type
-  // change.
+  // The narrowing that used to live here moved into the adapter with the
+  // import, and `useActiveTrackBookId` is where to read about it: RNTP's
+  // `Track` carries an `[key: string]: any` index signature, so `.bookid` and
+  // `.bookID` compile and read `undefined`, and this one line is the app's
+  // single answer to which Book is playing. The hook returns `string | null`
+  // already checked, so the `null` below is the adapter's answer rather than a
+  // guess made here. Render count is unchanged: RNTP's `useActiveTrack` still
+  // runs, one layer down, and still re-renders this component on every track
+  // event — the collapse ticket 09 bought is that it re-renders THIS component
+  // only.
   useEffect(() => {
-    const bookId = activeTrack?.bookId;
-    setActiveBookId(typeof bookId === 'string' ? bookId : null);
-  }, [activeTrack?.bookId, setActiveBookId]);
+    setActiveBookId(activeBookId);
+  }, [activeBookId, setActiveBookId]);
 
   // useIsPlaying() is purely event-derived, so after extended background the
   // store mirrors whatever the last delivered event said until the backlog

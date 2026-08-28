@@ -1,8 +1,11 @@
 # Only the RNTP adapter imports RNTP — and it hands back a bookId, not a Track
 
 **Status:** accepted (driver, 2026-08-25), from the architecture review of
-2026-08-23 and the grilling session that scoped it. Not yet implemented at the
-time of writing — see `.scratch/player-seam/spec.md`.
+2026-08-23 and the grilling session that scoped it. **Implemented 2026-08-27**
+by tickets 04–10 of `.scratch/player-seam/`: `src/player/trackPlayer.ts` is the
+sole importer of the library, and the lint rule of decision 4 reached its final
+form (no allow list) in ticket 10. The ticket 03 chapter-boundary device pass
+that ticket 10 prescribes is still outstanding — see that ticket's `## Answer`.
 
 One module imports `react-native-track-player`. A lint rule enforces it. That
 module is an **adapter**: RNTP's vocabulary, RNTP's semantics, and no decisions
@@ -58,7 +61,15 @@ identifier, in a codebase that believes itself typed.**
    `getActiveTrack` at all. It *does* return `Track[]` from the queue read and
    accept `Track[]` on add.
 4. **A lint rule enforces (1)**, staged, with the remaining allowlist serving as
-   the migration's own tracker.
+   the migration's own tracker. *(Both stages are done: the allow list emptied
+   in ticket 10 and was deleted with it, so the rule bans the library outright
+   outside the adapter and the test directories. Ticket 10 added a **second**
+   block beside it carrying the one-subscriber rule ticket 09 bought — only
+   `components/PlayerStateSync.tsx` may take the adapter's two React hooks.
+   ⚠ The two blocks are coupled: flat config REPLACES rule options rather than
+   merging them, so the later block restates the former's `paths` entry and the
+   earlier block survives only for the file the later one ignores. Neither can
+   be edited alone. See ticket 10's `## Answer`.)*
 
 ## Why the asymmetry is right
 

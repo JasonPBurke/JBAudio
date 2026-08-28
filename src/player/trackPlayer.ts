@@ -6,6 +6,12 @@ import TrackPlayer, {
   Event,
   RepeatMode,
   State,
+  // ⚠ These three are NAMED module exports, not members of the default export
+  // the fake replaces. Aliased so the wrappers below can keep RNTP's names --
+  // see the note on the fake in the header.
+  isPlaying as rntpIsPlaying,
+  useActiveTrack as useRntpActiveTrack,
+  useIsPlaying as useRntpIsPlaying,
 } from 'react-native-track-player';
 import type {
   AddTrack,
@@ -64,14 +70,19 @@ import type {
  * `src/helpers/__tests__/support/fakePlayer.ts` keeps faking RNTP and tests
  * keep `jest.mock`ing RNTP, so the real adapter runs on top of the fake and is
  * exercised by the existing suite rather than being the one untested module.
- * That is also why every CALL below goes through RNTP's DEFAULT export — the
- * mocks replace `default`, and a named import would route around them.
+ * That is also why every CALL below that CAN go through RNTP's DEFAULT export
+ * does — the mocks replace `default`, and a named import would route around
+ * them.
  *
- * ⚠ THE ENUM RE-EXPORTS ARE THE ONE EXCEPTION, and they are named imports by
- * necessity. A test whose `jest.mock` factory omits `State` therefore re-exports
- * `undefined` through this file. Nothing regresses — the same mock already
- * yields `undefined` at the call site today — but once a migrated module takes
- * `State` from here, a mock that never needed to name it may suddenly have to.
+ * ⚠ TWO GROUPS CANNOT, and both are named imports by necessity rather than by
+ * choice: the enums, and the three hook/`isPlaying` wrappers RNTP publishes as
+ * module exports rather than as methods on `TrackPlayer`. A test whose
+ * `jest.mock` factory omits `State` therefore re-exports `undefined` through
+ * this file, and one that renders a component reaching the wrappers must name
+ * them in its factory — `player/__tests__/trackPlayer.rn.test.tsx` is the
+ * worked example. Nothing regressed when the wrappers arrived: their one
+ * caller already imported the same named exports directly, so every mock that
+ * covered it still does.
  *
  * See `docs/adr/0003-only-the-rntp-adapter-imports-rntp.md` for why, and for
  * the four alternatives that were rejected.
@@ -80,6 +91,18 @@ import type {
 // ---------------------------------------------------------------------------
 // Reads — the active item collapses to a bookId; the queue stays structural
 // ---------------------------------------------------------------------------
+
+/**
+ * The one conversion of `Track`'s `any` index signature into a checked read.
+ *
+ * Shared by the imperative and reactive active-item reads so that "narrowed
+ * identically" is a fact rather than a claim in two docblocks that can drift.
+ * Private: the narrowing is the adapter's job, and a caller holding this would
+ * mean a caller holding a `Track`.
+ */
+function asBookId(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
+}
 
 /**
  * Which Book the Player currently has loaded, or `null` when it has none.
@@ -95,8 +118,7 @@ import type {
  * leaking `any` one layer up — is the defect this function exists to remove.
  */
 export async function getActiveBookId(): Promise<string | null> {
-  const bookId = (await TrackPlayer.getActiveTrack())?.bookId;
-  return typeof bookId === 'string' ? bookId : null;
+  return asBookId((await TrackPlayer.getActiveTrack())?.bookId);
 }
 
 /** The active queue index, or `undefined` when nothing is loaded. */
@@ -121,6 +143,30 @@ export async function getPlaybackState(): Promise<{ state: State }> {
 }
 
 /**
+ * Whether the Player should read as "playing" to a person looking at the UI.
+ *
+ * Not the same question as `getPlaybackState`, and not derivable from it here:
+ * RNTP combines the transport state with `playWhenReady` and folds
+ * Loading/Buffering/Error/Ended into one answer. `undefined` means not yet
+ * known, which is distinct from `false`.
+ *
+ * The RETURN TYPE omits RNTP's `bufferingDuringPlay`, because no caller reads
+ * it — the same trim, for the same reason, as `getPlaybackState`'s `error`
+ * payload. ⚠ Type-level only: the field is still present at runtime, so this
+ * hides it rather than stripping it. Widen the type here if a caller ever
+ * wants it.
+ *
+ * ⚠ THE AUTHORITATIVE READ, and the reason it exists alongside the hook below.
+ * `useIsPlaying` is purely event-derived, so after a long background it
+ * reports whatever the last delivered event said until the backlog drains;
+ * this asks the Player directly. `components/PlayerStateSync` calls it on
+ * foreground for exactly that reason.
+ */
+export async function isPlaying(): Promise<{ playing: boolean | undefined }> {
+  return rntpIsPlaying();
+}
+
+/**
  * The whole queue, as items. Structural on purpose — see the header: callers
  * need per-item durations and the first item's `bookId`, not an answer.
  */
@@ -131,6 +177,67 @@ export async function getQueue(): Promise<Track[]> {
 /** One queue item by index. Write-adjacent: read, edit, `updateMetadataForTrack`. */
 export async function getTrack(index: number): Promise<Track | undefined> {
   return TrackPlayer.getTrack(index);
+}
+
+// ---------------------------------------------------------------------------
+// Reactive reads — the library's React hooks
+//
+// ⚠ ONE COMPONENT MAY CALL THESE: `components/PlayerStateSync`, which mirrors
+// them into `store/playerState` for everyone else. That was ticket 09's whole
+// point — eleven `useActiveTrack()` subscriptions collapsed to one — and until
+// ticket 10 the eslint allow list enforced it mechanically. It no longer can:
+// the list is empty, so the ban now reads "nobody imports RNTP", and these two
+// names are on THIS module's surface where any file may take them. The rule
+// survives as a rule. A second caller re-creates the shape ticket 09 removed,
+// and re-creates it invisibly, because a duplicated subscription is correct on
+// screen and merely wasteful.
+//
+// They are here rather than reimplemented on `subscribe` because RNTP's
+// `useActiveTrack` also fetches once on mount to seed cold start; hand-rolling
+// it would drop that seed, and the FloatingPlayer would stay blank after a
+// process restart until the next track change.
+// ---------------------------------------------------------------------------
+
+/**
+ * Which Book the Player currently has loaded, or `null` when it has none —
+ * the reactive twin of `getActiveBookId`, and narrowed identically.
+ *
+ * ⚠ NAMED FOR RNTP'S HOOK, NOT FOR THE ANSWER, deliberately, and the tension
+ * is real rather than overlooked. CONTEXT.md's **Active Book** entry lists
+ * "active track" under _Avoid_, and this name uses it — as a compound naming
+ * RNTP's own `useActiveTrack` (the source), not as a synonym for the Active
+ * Book (the answer). The adapter's rule is RNTP's vocabulary, and
+ * `getActiveTrackIndex` above already spends the same phrase.
+ *
+ * The alternative, `useActiveBookId`, is worse: `store/playerState` already
+ * exports that name for the MIRROR this hook feeds, and this app has been
+ * bitten once already by two identically named `activeBookId` fields meaning
+ * different things (`store/queue`'s is the REQUESTED Book — see that store's
+ * header, CONTEXT.md, and ticket 11, which exists to rename them). A third
+ * would be indefensible. Every consumer other than `PlayerStateSync` wants the
+ * mirror, and this name makes the two impossible to confuse at an import
+ * site.
+ *
+ * The `typeof` guard is not decoration: `Track` carries an `[key: string]: any`
+ * index signature, so `.bookId`, `.bookid` and `.bookID` all compile and two
+ * yield `undefined`. Since ticket 09 this value is the app's single answer to
+ * "which Book is playing?", so a slip nulls the Active Book for every consumer
+ * with no error and no type change. Covered by
+ * `player/__tests__/trackPlayer.rn.test.tsx`.
+ */
+export function useActiveTrackBookId(): string | null {
+  return asBookId(useRntpActiveTrack()?.bookId);
+}
+
+/**
+ * Whether the Player reads as "playing", re-rendering when that changes.
+ *
+ * Event-derived, and narrowed to `{ playing }` on the same terms as the
+ * imperative `isPlaying` above. Reach for that one when the answer must be
+ * authoritative rather than merely current.
+ */
+export function useIsPlaying(): { playing: boolean | undefined } {
+  return useRntpIsPlaying();
 }
 
 // ---------------------------------------------------------------------------
@@ -277,13 +384,12 @@ export function subscribe<T extends Event>(
 // which the adapter re-exports") would simply be false. Measured across every
 // named RNTP import in `src/`, not sampled.
 //
-// ⚠ `isPlaying` is the remaining hole and is NOT here on purpose. It is an
-// imperative async function despite living in RNTP's `hooks/` folder, so the
-// stage-one "React hooks stay permitted" carve-out does not cover it, and it
-// DERIVES (`getPlaybackState` + `getPlayWhenReady` + `determineIsPlaying`)
-// rather than reading. Its one caller is `components/PlayerStateSync.tsx`,
-// which ticket 09 may restructure entirely. Classifying it now would be a
-// guess; see ticket 04's `## Answer`.
+// ⚠ `isPlaying` WAS the hole ticket 04 left open, and ticket 10 closed it as a
+// wrapper rather than a re-export — see `isPlaying` above. It is an imperative
+// async function despite living in RNTP's `hooks/` folder, and it DERIVES
+// (`getPlaybackState` + `getPlayWhenReady` + `determineIsPlaying`) rather than
+// reading. Deriving is RNTP's decision about RNTP's own state, not one of
+// ours, so it passes the mechanical test the rest of this file passes.
 // ---------------------------------------------------------------------------
 
 export {

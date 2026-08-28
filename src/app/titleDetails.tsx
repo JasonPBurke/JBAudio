@@ -51,6 +51,7 @@ import {
 import { selectGradientColors } from '@/helpers/gradientColorSorter';
 import { ensureReadable, withOpacity } from '@/helpers/colorUtils';
 import { useTheme } from '@/hooks/useTheme';
+import { useRerenderOnChapterTurn } from '@/hooks/useRerenderOnChapterTurn';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { BookDurationRow } from '@/components/BookDurationRow';
 import {
@@ -76,6 +77,13 @@ const TitleDetails = () => {
   }>();
 
   const book = useBookById(bookId);
+
+  // The progress capsule and "N h M m left" beside the play button come from
+  // `BookDurationRow`, which reads live progress UNSUBSCRIBED and so refreshes
+  // only when this screen re-renders. Nothing else here re-renders at a chapter
+  // turn — see the hook for the full account, and for ticket 03 row 4.
+  useRerenderOnChapterTurn(bookId);
+
   const [isLoading, setIsLoading] = useState(false);
   const [showLoading, setShowLoading] = useState(false);
   const [showMenu, setShowMenu] = useState(false);

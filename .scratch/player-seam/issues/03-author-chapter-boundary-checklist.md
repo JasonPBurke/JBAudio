@@ -390,3 +390,19 @@ Recorded so they are not mistaken for regressions when they *do* keep working:
 **Predicted result for ticket 10: eleven rows pass, row 4 (title details) fails
 on the multi-item shape.** If row 4 passes, something re-renders that screen
 that this reading did not find — go and find it before believing the pass.
+
+---
+
+⚠ **AMENDED 2026-08-27 BY TICKET 10 — READ THIS BEFORE RUNNING THE PASS.** The
+paragraph directly above is now a trap. Row 4's staleness was confirmed by
+tracing rather than on a device (no re-render source survives on that screen at
+a chapter turn: `current_chapter_index` is absent from the library store's
+observed columns, `service.js` never writes the queue store, and the remaining
+selectors are Active-Book selectors), and **it was fixed** — `titleDetails.tsx`
+now calls `hooks/useRerenderOnChapterTurn`. So row 4 will pass, and passing is
+no longer evidence that this reading missed something. **Do not go hunting.**
+
+What to run instead, on the **multi-item** shape, is the positive observable:
+with title details open, the capsule under the play button advances and the
+"N h M m left" text ticks down as each chapter turns over. The other eleven rows
+are unchanged and unrun. See ticket 10's `## Answer`.
