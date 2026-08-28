@@ -19,10 +19,18 @@ import { FootprintTrigger } from '@/db/models/Footprint';
  * Failures never block the playback action itself.
  */
 
-export async function recordRemoteSeekFootprint(): Promise<void> {
+/**
+ * `bookId` is optional only because the seek handler has none in hand. Pass
+ * it wherever the caller knows it: re-reading the active Book costs a bridge
+ * round-trip and, worse, a Book switch racing the handler would attribute the
+ * breadcrumb to the wrong Book.
+ */
+export async function recordRemoteSeekFootprint(
+  bookId?: string,
+): Promise<void> {
   try {
     const [activeBookId, { position }] = await Promise.all([
-      getActiveBookId(),
+      bookId ?? getActiveBookId(),
       getProgress(),
     ]);
     if (activeBookId) {

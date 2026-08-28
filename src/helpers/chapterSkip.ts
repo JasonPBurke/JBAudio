@@ -8,12 +8,20 @@ import {
 } from '@/player/trackPlayer';
 import { useLibraryStore } from '@/store/library';
 import {
+  getNextChapterStartSeconds,
   getPreviousPressTarget,
   PreviousPressKind,
 } from '@/helpers/singleFileBook';
+import { Chapter } from '@/types/Book';
 
 /**
- * Skip-to-previous with a restart-current-chapter threshold.
+ * The two transport press decisions — skip-to-previous below,
+ * skip-to-next (`resolveNextPress`) at the bottom of the file. They share one
+ * home because they are the same question at opposite ends of the Queue:
+ * *where in the Queue is this press happening?* Neither native skip reports
+ * that it moved nothing, so both ends have to ASK before they act.
+ *
+ * ── Skip-to-previous with a restart-current-chapter threshold ──
  *
  * More than RESTART_CHAPTER_THRESHOLD_SECONDS into a chapter, the press
  * restarts that chapter; at or under the threshold it goes to the previous
@@ -108,4 +116,79 @@ export async function skipToPreviousChapter(
 
   await notifyBeforeSkip('previous');
   await skipToPrevious();
+}
+
+/**
+ * What a skip-to-NEXT press resolves to, before anything acts on it.
+ *
+ * Deciding this up front is the whole point: at the LAST item of a multi-item
+ * Queue `skipToNext()` RESOLVES having moved nothing (native
+ * `seekToNextMediaItem()` is documented as "does nothing if there is no next
+ * item" and `MusicModule` resolves the promise unconditionally), so a caller
+ * that acts first and records afterwards cannot tell a real chapter change
+ * from a press that went nowhere. That is how `Event.RemoteNext` came to write
+ * a `chapter_change` footprint for a no-op press. A footprint is a breadcrumb
+ * back to a spot the user left; if the press does not leave, there is no
+ * breadcrumb — so the caller needs the verdict BEFORE it records.
+ *
+ * The mirror of `skipToPreviousChapter`'s index check at the other end of the
+ * Queue, and it reads the same way: `undefined` from `getActiveTrackIndex()`
+ * means the index could not be READ, not that it is the last item, so an
+ * unreadable index takes the ordinary acting path rather than silently
+ * swallowing a press.
+ *
+ * `'finish'` is the legacy single-file book's last chapter: a deliberate press
+ * asking to leave a chapter there has nowhere left to play, so the caller
+ * marks the Book finished instead of seeking. It is NOT a chapter change, and
+ * its footprint is labeled accordingly by the caller.
+ */
+export type NextPressAction =
+  /** Legacy single-file book: seek to the next chapter's absolute start. */
+  | { kind: 'chapter'; seekSeconds: number }
+  /** Chapter queue: `skipToNext()` will move to the next queue item. */
+  | { kind: 'skip' }
+  /** Last chapter of a legacy single-file book: end of the Book. */
+  | { kind: 'finish' }
+  /** Last queue item: the press moves nothing, so nothing should be recorded. */
+  | { kind: 'none' };
+
+/** The only thing this decision needs from the Book. */
+export type NextPressBook = { chapters?: Chapter[] } | undefined;
+
+/**
+ * `treatAsSingleFile` is passed in rather than derived here: whether a
+ * single-file Book loads as ONE queue item or one item per chapter is the
+ * clipped-chapters memory gate's call (see `shouldUseClippedChapters`), and
+ * the playback service already holds that verdict. A clipped Book is
+ * single-file in the DB and a chapter queue at runtime — the Queue decides,
+ * and its chapter list must not.
+ */
+export async function resolveNextPress(
+  book: NextPressBook,
+  treatAsSingleFile: boolean,
+): Promise<NextPressAction> {
+  if (treatAsSingleFile && book?.chapters && book.chapters.length > 1) {
+    const { position } = await getProgress();
+    const nextStart = getNextChapterStartSeconds(book.chapters, position);
+    return nextStart !== null
+      ? { kind: 'chapter', seekSeconds: nextStart }
+      : { kind: 'finish' };
+  }
+
+  const [activeIndex, queue] = await Promise.all([
+    getActiveTrackIndex(),
+    getQueue(),
+  ]);
+
+  // An unreadable index or an empty queue read is not evidence that the press
+  // is a no-op — act, exactly as the previous side does.
+  if (
+    activeIndex !== undefined &&
+    queue.length > 0 &&
+    activeIndex >= queue.length - 1
+  ) {
+    return { kind: 'none' };
+  }
+
+  return { kind: 'skip' };
 }

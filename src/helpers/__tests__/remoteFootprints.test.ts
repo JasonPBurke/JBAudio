@@ -117,3 +117,13 @@ describe('recordRemoteChapterChangeFootprint', () => {
     ).resolves.toBeUndefined();
   });
 });
+
+describe('recordRemoteSeekFootprint — explicit bookId', () => {
+  it('uses the bookId it was given rather than re-reading the active track', async () => {
+    await recordRemoteSeekFootprint('book-9');
+
+    expect(mockRecordSeekFootprint).toHaveBeenCalledWith('book-9', 12345);
+    // A Book switch racing the handler must not steal the breadcrumb.
+    expect(mockGetActiveTrack).not.toHaveBeenCalled();
+  });
+});

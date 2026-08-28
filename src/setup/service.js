@@ -32,6 +32,7 @@ import {
   isBookSwitchInProgress,
 } from '@/helpers/remotePlayBook';
 import { ensurePlayerSetup } from '@/helpers/playerSetup';
+import { handleRemoteNextPress } from '@/helpers/remoteNext';
 import { restoreLastActiveBook } from '@/helpers/restoreLastActiveBook';
 import { shouldUseClippedChapters } from '@/helpers/clippedChapters';
 import { recordFootprint } from '@/db/footprintQueries';
@@ -39,7 +40,6 @@ import {
   findChapterIndexByPosition,
   calculateProgressWithinChapter,
   hasValidChapterData,
-  getNextChapterStartSeconds,
 } from '@/helpers/singleFileBook';
 import { evaluateBookEnd } from '@/helpers/bookEndDetection';
 import { seekBack, seekForward } from '@/helpers/relativeSeek';
@@ -470,46 +470,19 @@ export default module.exports = async function () {
       return;
     }
 
-    // Chapter-skip from notification / AA: mirror the in-app chapter list's
-    // footprint. Awaited before the seek/skip to capture the pre-press spot.
-    await recordRemoteChapterChangeFootprint(bookId);
-
+    // The press itself lives in helpers/remoteNext.ts, where it can be
+    // tested: the footprint must be written BEFORE the seek/skip and ONLY on
+    // a branch that moves, and neither property is visible from a "was it
+    // recorded?" assertion. See
+    // .scratch/remote-noop-footprint/issues/01-*.md.
     const book = useLibraryStore.getState().books[bookId];
-    if (
-      treatAsSingleFile(book) &&
-      book.chapters &&
-      book.chapters.length > 1
-    ) {
-      const { position } = await getProgress();
-      const nextStart = getNextChapterStartSeconds(book.chapters, position);
-
-      if (nextStart !== null) {
-        await seekTo(nextStart);
-      } else {
-        // At last chapter: mark finished, reset and pause. The stop is kept
-        // here on purpose — unlike the 1 Hz lead-time mark, this is a
-        // deliberate user press asking to leave the last chapter, so there is
-        // nowhere left to play. Only the MARK is guarded: a press inside the
-        // lead window must not rewrite an already-set `finished_at`.
-        //
-        // Guarded on the STORE, never on finishMarkedBookId — see the latch's
-        // comment. A lead-time mark landed at least a tick ago and the
-        // observer refreshes within about one, so the store is the reliable
-        // reading here and it cannot go stale across listens.
-        const alreadyFinished =
-          book?.bookProgressValue === BookProgressState.Finished;
-        if (!alreadyFinished) {
-          const bookModel = await getBookById(bookId);
-          if (bookModel) {
-            await bookModel.updateBookProgress(BookProgressState.Finished);
-          }
-        }
-        await seekTo(0);
-        await pause();
-      }
-    } else {
-      await skipToNext();
-    }
+    await handleRemoteNextPress({
+      bookId,
+      book,
+      treatAsSingleFile: treatAsSingleFile(book),
+      onBeforeChapterChange: () => recordRemoteChapterChangeFootprint(bookId),
+      onBeforeLeaveBook: () => recordRemoteSeekFootprint(bookId),
+    });
   });
   subscribe(Event.RemotePrevious, async () => {
     const bookId = await getActiveBookId();
