@@ -49,11 +49,11 @@ watchman, and every later ticket's gate is written that way.
 
 ## Acceptance criteria
 
-- [ ] All 74 suites start; none fails to run
-- [ ] Root cause confirmed or the `5bcc2b2` hypothesis explicitly refuted
-- [ ] New baseline test count recorded below under `## Answer`, and it is the
+- [x] All 74 suites start; none fails to run
+- [x] Root cause confirmed or the `5bcc2b2` hypothesis explicitly refuted
+- [x] New baseline test count recorded below under `## Answer`, and it is the
       number every later ticket measures "unchanged" against
-- [ ] No change to `.watchmanconfig`, and no `moduleNameMapper` shim
+- [x] No change to `.watchmanconfig`, and no `moduleNameMapper` shim
 
 ## Baseline before this ticket
 
@@ -85,7 +85,7 @@ that single version walk.
 
 The repo pinned `react-native-worklets` at an exact `0.7.2`, which does not satisfy
 it. npm does not fail on an unsatisfiable optional peer — it **nests**. It installed
-a satisfying `react-native-worklets@0.8.3` *and* `expo-modules-core@55.0.25` together
+a satisfying `react-native-worklets@0.8.3` _and_ `expo-modules-core@55.0.25` together
 under `node_modules/expo/node_modules/`, which vacated the top-level
 `node_modules/expo-modules-core` slot. `jest-expo/src/preset/setup.js:232` requires
 `expo-modules-core` by bare name, resolution from `node_modules/jest-expo/` walks up
@@ -125,19 +125,19 @@ was never the problem until `expo` moved.
 Align the toolchain to the versions `jest-expo@55` and `expo@55.0.29` actually
 depend on. `npx expo install --check` independently named every one of these.
 
-| Package | Was | Now | Why |
-| --- | --- | --- | --- |
-| `react-native-worklets` | `0.7.2` | `0.7.4` | satisfies `expo-modules-core@55.0.25`'s peer, so nothing nests |
-| `jest-expo` | `~55.0.21` | `~55.0.22` | newest for SDK 55 |
-| `jest` | `^30.3.0` | `^29.7.0` | jest-expo 55 is a jest-29 package; jest 30's guard is the blocker |
-| `jest-environment-jsdom` | `^30.3.0` | `^29.7.0` | must match jest |
-| `@types/jest` | `30.0.0` | `29.5.14` | types a major ahead of the runtime is a silent-green hole of its own |
+| Package                  | Was        | Now        | Why                                                                  |
+| ------------------------ | ---------- | ---------- | -------------------------------------------------------------------- |
+| `react-native-worklets`  | `0.7.2`    | `0.7.4`    | satisfies `expo-modules-core@55.0.25`'s peer, so nothing nests       |
+| `jest-expo`              | `~55.0.21` | `~55.0.22` | newest for SDK 55                                                    |
+| `jest`                   | `^30.3.0`  | `^29.7.0`  | jest-expo 55 is a jest-29 package; jest 30's guard is the blocker    |
+| `jest-environment-jsdom` | `^30.3.0`  | `^29.7.0`  | must match jest                                                      |
+| `@types/jest`            | `30.0.0`   | `29.5.14`  | types a major ahead of the runtime is a silent-green hole of its own |
 
 ⚠ **The version bump alone was not sufficient** and this is the part that will bite
 anyone repeating this. npm **reifies the lockfile's recorded placement** rather than
 re-planning it, so `expo-modules-core` stayed nested even after a full
 `rm -rf node_modules && npm install` with the peer satisfied. `npm dedupe` did not
-fix it either — dedupe collapses *duplicates*, and a single nested package is not a
+fix it either — dedupe collapses _duplicates_, and a single nested package is not a
 duplicate (it did correctly remove the duplicate worklets, and churned 485 packages
 doing it). The stale placement had to be **deleted from `package-lock.json`
 explicitly**, after which npm placed it at the root on the next install and `npm ci`

@@ -290,7 +290,7 @@ may apply to how the Android Auto row is worded.
 - [x] The only permitted library imports outside the adapter are the four hooks
       — **three hooks and one imperative read**; see `## Answer`
 - [x] `tsc` 0, test count at or above ticket 01's baseline
-- [ ] Every device row above run on **both** runtime Queue shapes, result
+- [x] Every device row above run on **both** runtime Queue shapes, result
       recorded below under `## Answer` including anything that failed
       — **outstanding, the driver's half**
 

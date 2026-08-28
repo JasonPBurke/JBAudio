@@ -65,17 +65,17 @@ one. See the queue-shape taxonomy in the book-end-detection notes.
 
 ## Acceptance criteria
 
-- [ ] One row per file from ticket 09's list, none omitted
-- [ ] Each row names an observable, in the user's words
-- [ ] Each row states which runtime Queue shape it applies to, or both
-- [ ] Sites that already track the index independently are marked as such
-- [ ] The checklist is recorded below under `## Answer`
+- [x] One row per file from ticket 09's list, none omitted
+- [x] Each row names an observable, in the user's words
+- [x] Each row states which runtime Queue shape it applies to, or both
+- [x] Sites that already track the index independently are marked as such
+- [x] The checklist is recorded below under `## Answer`
 
 ## Answer
 
 Authored 2026-08-26 against the tree at `36fe321`, **before** any part of ticket
 09 was written. Derived by reading each of the twelve files as they behave
-today. Nothing here was observed on a device; every row is a *prediction* that
+today. Nothing here was observed on a device; every row is a _prediction_ that
 ticket 10 either confirms or falsifies.
 
 ### The mechanism this whole list turns on
@@ -87,18 +87,18 @@ whenever that event fires, whether or not the Book changed.
 
 That gives the two runtime Queue shapes completely different exposure:
 
-| | **one-item queue** | **multi-item queue** |
-|---|---|---|
-| What the Player holds | the whole Book as one item | one item per Chapter |
-| What Position measures | absolute offset into the Book | offset into the current Chapter |
-| A chapter turn is… | Position crossing a `startMs` | a queue-item change |
-| `PlaybackActiveTrackChanged` at a boundary | **never fires** | fires |
-| `useActiveTrack()` re-render at a boundary | **never happens** | happens, at all 11 sites |
-| Who writes `playbackIndex` | `service.js` `PlaybackProgressUpdated` (~L232) | `service.js` `PlaybackActiveTrackChanged` (L693) |
+|                                            | **one-item queue**                             | **multi-item queue**                             |
+| ------------------------------------------ | ---------------------------------------------- | ------------------------------------------------ |
+| What the Player holds                      | the whole Book as one item                     | one item per Chapter                             |
+| What Position measures                     | absolute offset into the Book                  | offset into the current Chapter                  |
+| A chapter turn is…                         | Position crossing a `startMs`                  | a queue-item change                              |
+| `PlaybackActiveTrackChanged` at a boundary | **never fires**                                | fires                                            |
+| `useActiveTrack()` re-render at a boundary | **never happens**                              | happens, at all 11 sites                         |
+| Who writes `playbackIndex`                 | `service.js` `PlaybackProgressUpdated` (~L232) | `service.js` `PlaybackActiveTrackChanged` (L693) |
 
 **Consequence, and the single most useful thing on this page:** on the one-item
 shape ticket 09 deletes a re-render that was never occurring, so every row is
-trivially unaffected — it still has to be *run*, to confirm the things that do
+trivially unaffected — it still has to be _run_, to confirm the things that do
 move on that shape still move, but a failure there means something other than
 ticket 09 broke. **On the multi-item shape, every "safe" verdict below is a
 claim that some other subscription is doing the work, and each one is falsifiable.**
@@ -110,10 +110,10 @@ Any site subscribed to that selector is immune to ticket 09 by construction.
 ### Producing each shape on a device
 
 - **multi-item** — any multi-file Book (a folder of per-chapter files), or a
-  single-file Book with *real* embedded chapters that clears the heap gate in
+  single-file Book with _real_ embedded chapters that clears the heap gate in
   `shouldUseClippedChapters`. Fastest subject: two ~60 s files synthesised with
   ffmpeg, so the boundary lands a minute in.
-- **one-item** — a single-file Book that *fails* `shouldUseClippedChapters`.
+- **one-item** — a single-file Book that _fails_ `shouldUseClippedChapters`.
   The only lever that is reliable on demand is the auto-chapter exclusion: a
   single MP3 with **no** embedded chapters, with auto-chapters on. The heap-gate
   route cannot be forced. Auto-chapter intervals are 30 or 60 minutes, so
@@ -135,10 +135,10 @@ Twelve rows, one per file in ticket 09's list, in ticket 09's order.
 - **Tracks the index independently:** ⚠ **yes.** `activeIndex` comes from
   `storeIndex` — a `useLibraryStore` selector on `playbackIndex[bookId]`
   (L44–L50) — falling back to `book.bookProgress?.currentChapterIndex`.
-  `activeTrack` is used only as a gate: *is the loaded Book this Book*
+  `activeTrack` is used only as a gate: _is the loaded Book this Book_
   (`activeTrack.bookId !== book.bookId → -1`).
 - **Prediction:** **safe.** The store selector re-renders the screen on its own.
-- **Watch for:** the screen going from highlighted to *no* highlight at all
+- **Watch for:** the screen going from highlighted to _no_ highlight at all
   rather than a stale highlight — that is the gate failing, not the index.
 
 ---
@@ -151,11 +151,11 @@ Twelve rows, one per file in ticket 09's list, in ticket 09's order.
 - **Prediction:** **safe, because nothing was ever going to happen.** The list is
   fetched once, in an effect keyed on `[activeTrack?.bookId]` (L52–L78), and a
   chapter turn does not change `bookId`. Confirmed against the writers: a
-  `'chapter_change'` footprint is only recorded by a *manual* chapter selection
+  `'chapter_change'` footprint is only recorded by a _manual_ chapter selection
   (`chapterList.tsx:85`) or a remote prev/next (`service.js:509`). **A natural
   chapter turnover records no footprint at all.**
 - **Watch for:** a row appearing. That would mean an automatic writer was added
-  since this was authored, and the screen is stale *today* as well as after — a
+  since this was authored, and the screen is stale _today_ as well as after — a
   pre-existing bug, not a ticket 09 regression.
 
 ---
@@ -184,7 +184,7 @@ Twelve rows, one per file in ticket 09's list, in ticket 09's order.
 
 - **Observable:** ⚠ **the thin progress capsule under the play button advances,
   and the "N h M m left" text beside it ticks down.** The play/pause glyph, the
-  cover, the chapter *count* and everything else hold still.
+  cover, the chapter _count_ and everything else hold still.
 - **Shape:** **multi-item only.** On the one-item shape the screen never
   re-rendered at a boundary in the first place, so the capsule is already only
   as fresh as the last unrelated re-render.
@@ -192,7 +192,7 @@ Twelve rows, one per file in ticket 09's list, in ticket 09's order.
 - **Prediction:** ⚠⚠ **THE ONE ROW PREDICTED TO FAIL.** `BookDurationRow`
   (`src/components/BookDurationRow.tsx:39`) reads live progress with an
   **unsubscribed** `useLibraryStore.getState()` — deliberately, with `'use no
-  memo'` and a comment saying it "refreshes whenever the parent re-renders". Its
+memo'` and a comment saying it "refreshes whenever the parent re-renders". Its
   parent is this screen. This screen's only chapter-boundary re-render source is
   `useActiveTrack()`, because `current_chapter_index` is **not** among the 21
   columns in the library store's `observeWithColumns` list
@@ -217,7 +217,7 @@ Twelve rows, one per file in ticket 09's list, in ticket 09's order.
 
 - **Observable:** the "N h M m left" line keeps counting down across the
   boundary without jumping, freezing or resetting. On the multi-item shape it
-  must not jump *upward* at the turn.
+  must not jump _upward_ at the turn.
 - **Shape:** both, but only the multi-item shape actually exercises the
   index — `calculateRemainingBookTime` ignores `currentIndex` entirely on the
   one-item shape, where Position is already absolute.
@@ -227,10 +227,10 @@ Twelve rows, one per file in ticket 09's list, in ticket 09's order.
   prop. Its effect is keyed on `[displayedTrack?.bookId]`, so the subscription
   survives a chapter turn rather than being torn down and rebuilt.
 - **Prediction:** **safe.**
-- **Watch for:** the number jumping *up* by roughly one chapter's length at the
+- **Watch for:** the number jumping _up_ by roughly one chapter's length at the
   boundary and then settling. That is `currentIndex` arriving a beat after the
   chapter-relative Position — a race between two subscriptions, visible only on
-  the multi-item shape, and it would be a *new* symptom worth recording even
+  the multi-item shape, and it would be a _new_ symptom worth recording even
   though it is not what ticket 09 breaks.
 
 ---
@@ -247,7 +247,7 @@ Twelve rows, one per file in ticket 09's list, in ticket 09's order.
 - **Watch for:** the title or artwork flickering or blanking at the turn. Under
   ticket 09 `displayedTrack` becomes a sticky store field; a momentary `null`
   there would unmount the whole bar (`if (!isPlayerReady || !displayedTrack ||
-  !displayedBook) return null`, L77) and the `FadeIn` would replay. That is the
+!displayedBook) return null`, L77) and the `FadeIn` would replay. That is the
   sticky-last field failing, and it is the reason row 11 exists.
 
 ---
@@ -295,8 +295,7 @@ Twelve rows, one per file in ticket 09's list, in ticket 09's order.
 - **Shape:** both.
 - **Tracks the index independently:** n/a — it never reads a chapter index, and
   must not start.
-- **Prediction:** **safe, and it is the component doing the work after ticket
-  09.** Its `setActiveBookId` effect is keyed on `[activeTrack?.bookId, …]`
+- **Prediction:** **safe, and it is the component doing the work after ticket 09.** Its `setActiveBookId` effect is keyed on `[activeTrack?.bookId, …]`
   (L31), so a chapter turn inside one Book **already** writes nothing today.
   That is precisely why the Active-Book selector cannot carry chapter-boundary
   freshness to anyone.
@@ -328,8 +327,8 @@ Twelve rows, one per file in ticket 09's list, in ticket 09's order.
 
 ---
 
-**11. Last-active-track hook — `src/hooks/useLastActiveTrack.tsx`** *(deleted by
-ticket 09)*
+**11. Last-active-track hook — `src/hooks/useLastActiveTrack.tsx`** _(deleted by
+ticket 09)_
 
 - **Observable at a chapter boundary:** **nothing.** Both consumers take
   `?.bookId` off it immediately and it is only consulted when `activeTrack` is
@@ -338,7 +337,7 @@ ticket 09)*
 - **Tracks the index independently:** n/a.
 - **Prediction:** **safe at a boundary — but its replacement must be verified
   somewhere else**, because a chapter turn cannot exercise the behaviour it
-  exists for. Its whole job is *stickiness*: `if (!activeTrack) return;` keeps
+  exists for. Its whole job is _stickiness_: `if (!activeTrack) return;` keeps
   the last non-null track forever.
 - **Extra check, not at a chapter boundary, on both shapes:** play a Book to the
   very end and let `PlaybackQueueEnded` reset the queue. Both consumers must
@@ -347,8 +346,8 @@ ticket 09)*
     "left" text; it must not disappear or fade back in.
   - **Book time remaining** — the text stays rendered rather than returning
     `null` (its guard is `if (!displayedTrack || !displayedBook) return null`).
-  If ticket 09's new store field clears on null instead of sticking, both go
-  blank at once — an unmissable failure, which is the good news.
+    If ticket 09's new store field clears on null instead of sticking, both go
+    blank at once — an unmissable failure, which is the good news.
 
 ---
 
@@ -368,7 +367,7 @@ ticket 09)*
 
 ### Two observables not owned by any of the twelve
 
-Recorded so they are not mistaken for regressions when they *do* keep working:
+Recorded so they are not mistaken for regressions when they _do_ keep working:
 
 - **The notification / lock-screen title** changes to the new chapter at a
   boundary on the one-item shape, written by `TrackPlayer.updateMetadataForTrack`
