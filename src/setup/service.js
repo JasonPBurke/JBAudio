@@ -33,6 +33,7 @@ import {
 } from '@/helpers/remotePlayBook';
 import { ensurePlayerSetup } from '@/helpers/playerSetup';
 import { handleRemoteNextPress } from '@/helpers/remoteNext';
+import { resetBookToStart } from '@/helpers/resetBookToStart';
 import { restoreLastActiveBook } from '@/helpers/restoreLastActiveBook';
 import { shouldUseClippedChapters } from '@/helpers/clippedChapters';
 import {
@@ -468,6 +469,7 @@ export default module.exports = async function () {
       bookId,
       book,
       treatAsSingleFile: treatAsSingleFile(book),
+      chapterTracking: singleFileChapterState,
       onBeforeChapterChange: () => recordRemoteChapterChangeFootprint(bookId),
       onBeforeLeaveBook: () => recordRemoteSeekFootprint(bookId),
     });
@@ -540,16 +542,11 @@ export default module.exports = async function () {
     const isSingleFile = treatAsSingleFile(book);
 
     if (isSingleFile && book && book.chapters && book.chapters.length > 1) {
-      // Single-file book with chapters: reset to beginning
-      setPlaybackProgress(trackToUpdate.bookId, 0);
-      setPlaybackIndex(trackToUpdate.bookId, 0);
-
-      await updateChapterProgressInDB(trackToUpdate.bookId, 0);
-      await updateChapterIndexInDB(trackToUpdate.bookId, 0);
-
-      // Reset chapter tracking state
-      singleFileChapterState.lastChapterIndex = 0;
-      singleFileChapterState.bookId = trackToUpdate.bookId;
+      // Single-file book with chapters: reset to beginning. Shared with
+      // RemoteNext's finish branch — the two paths that finish a Book have
+      // to leave it in the same state, and they did not while each kept its
+      // own copy of this reset.
+      await resetBookToStart(trackToUpdate.bookId, singleFileChapterState);
     } else if (!isSingleFile && book) {
       // Multi-file book: use track index as chapter index
       setPlaybackProgress(trackToUpdate.bookId, position);

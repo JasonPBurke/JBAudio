@@ -2,6 +2,10 @@ import { pause, seekTo, skipToNext } from '@/player/trackPlayer';
 import { getBookById } from '@/db/bookQueries';
 import { BookProgressState } from '@/helpers/bookProgressState';
 import { resolveNextPress, type NextPressBook } from '@/helpers/chapterSkip';
+import {
+  resetBookToStart,
+  type SingleFileChapterTracking,
+} from '@/helpers/resetBookToStart';
 
 /**
  * Handles Event.RemoteNext — the skip-forward button on the notification
@@ -40,6 +44,12 @@ export type RemoteNextPress = {
    * the DB and a chapter queue at runtime.
    */
   treatAsSingleFile: boolean;
+  /**
+   * The playback service's module-scope chapter-change detector, handed over
+   * so the finish branch can rewind it through the shared reset. Passed in
+   * because the progress handler in `setup/service.js` owns it.
+   */
+  chapterTracking: SingleFileChapterTracking;
   /** Records a `chapter_change` footprint. Awaited before the seek/skip. */
   onBeforeChapterChange: () => Promise<void> | void;
   /**
@@ -52,12 +62,17 @@ export type RemoteNextPress = {
   onBeforeLeaveBook: () => Promise<void> | void;
 };
 
-/** A recorder failure must never block the press. */
-const record = async (recorder: () => Promise<void> | void) => {
+/**
+ * Bookkeeping around a press — footprints going in, the reset coming out —
+ * must never block the press itself.
+ */
+const withoutBlockingThePress = async (
+  work: () => Promise<void> | void,
+) => {
   try {
-    await recorder();
+    await work();
   } catch {
-    // Non-fatal — playback must proceed even if footprinting fails.
+    // Non-fatal — playback must proceed even if the bookkeeping fails.
   }
 };
 
@@ -65,6 +80,7 @@ export async function handleRemoteNextPress({
   bookId,
   book,
   treatAsSingleFile,
+  chapterTracking,
   onBeforeChapterChange,
   onBeforeLeaveBook,
 }: RemoteNextPress): Promise<void> {
@@ -76,12 +92,12 @@ export async function handleRemoteNextPress({
       return;
 
     case 'chapter':
-      await record(onBeforeChapterChange);
+      await withoutBlockingThePress(onBeforeChapterChange);
       await seekTo(action.seekSeconds);
       return;
 
     case 'skip':
-      await record(onBeforeChapterChange);
+      await withoutBlockingThePress(onBeforeChapterChange);
       await skipToNext();
       return;
 
@@ -90,7 +106,7 @@ export async function handleRemoteNextPress({
       // The stop is deliberate — unlike the 1 Hz lead-time mark, this is a
       // user press asking to leave the last chapter, and there is nowhere
       // left to play.
-      await record(onBeforeLeaveBook);
+      await withoutBlockingThePress(onBeforeLeaveBook);
 
       // Only the MARK is guarded: a press inside the lead window must not
       // rewrite an already-set `finished_at`. Guarded on the STORE, never on
@@ -106,6 +122,24 @@ export async function handleRemoteNextPress({
       }
       await seekTo(0);
       await pause();
+
+      // The same rewind `Event.PlaybackQueueEnded` performs — the two paths
+      // both finish a Book and must leave it in the same state. Omitting it
+      // here is what left the chapter list highlighting the last chapter of
+      // a Book that had just been reset to 0.
+      //
+      // Last, and deliberately so, for two reasons. It is bookkeeping
+      // behind a press that has already been served, so a DB failure inside
+      // it must not cost the user the seek or the pause they asked for —
+      // hence the same swallow the recorders get. And
+      // a 1 Hz progress tick can still land on either await above: after the
+      // seek the Book really is at 0, so the worst that tick can do is write
+      // the same zeroes we are about to write. Resetting FIRST would leave
+      // the tracker at chapter 0 while the position is still in the last
+      // chapter, and that tick would write the stale index straight back.
+      await withoutBlockingThePress(() =>
+        resetBookToStart(bookId, chapterTracking),
+      );
       return;
   }
 }
