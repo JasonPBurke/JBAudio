@@ -212,9 +212,10 @@ export async function getTrack(index: number): Promise<Track | undefined> {
  * The alternative, `useActiveBookId`, is worse: `store/playerState` already
  * exports that name for the MIRROR this hook feeds, and this app has been
  * bitten once already by two identically named `activeBookId` fields meaning
- * different things (`store/queue`'s is the REQUESTED Book — see that store's
- * header, CONTEXT.md, and ticket 11, which exists to rename them). A third
- * would be indefensible. Every consumer other than `PlayerStateSync` wants the
+ * different things — `store/queue`'s was the REQUESTED Book until ticket 11
+ * renamed it `requestedBookId` (see that store's header and CONTEXT.md).
+ * Re-using the mirror's name here would put that collision straight back, one
+ * layer down. Every consumer other than `PlayerStateSync` wants the
  * mirror, and this name makes the two impossible to confuse at an import
  * site.
  *

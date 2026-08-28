@@ -50,7 +50,7 @@ beforeEach(() => {
   mockBooks({});
   (getBookWithChaptersForRestoration as jest.Mock).mockResolvedValue(null);
   useQueueStore.setState({
-    activeBookId: null,
+    requestedBookId: null,
     isPlayerReady: true,
     playerSetupPromise: null,
   });
@@ -71,7 +71,7 @@ describe('handleRemotePlayBook', () => {
   });
 
   it('just resumes when the requested book is already active', async () => {
-    useQueueStore.setState({ activeBookId: 'b1' });
+    useQueueStore.setState({ requestedBookId: 'b1' });
 
     await handleRemotePlayBook('b1');
 

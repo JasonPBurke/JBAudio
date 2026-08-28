@@ -63,8 +63,8 @@ const handleBookPlayInner = async (
   book: Book | undefined,
   playing: boolean | undefined,
   isActiveBook: boolean,
-  activeBookId: string | null,
-  setActiveBookId: (bookId: string) => void,
+  requestedBookId: string | null,
+  setRequestedBookId: (bookId: string) => void,
 ) => {
   if (!book) return;
   if (isActiveBook && playing) return;
@@ -151,7 +151,7 @@ const handleBookPlayInner = async (
   const chapterIndex = restartFromZero ? 0 : storedChapterIndex;
   const chapterProgress = restartFromZero ? 0 : storedChapterProgress;
 
-  const isChangingBook = book.bookId !== activeBookId;
+  const isChangingBook = book.bookId !== requestedBookId;
 
   const singleFile = isSingleFileBook(book.chapters);
   // SPIKE (Bug B): clipped per-chapter queue — behaves like a multi-file book
@@ -214,7 +214,7 @@ const handleBookPlayInner = async (
     await setVolume(1);
 
     if (book.bookId) {
-      setActiveBookId(book.bookId);
+      setRequestedBookId(book.bookId);
       await updateLastActiveBook(book.bookId);
     }
   } else {
@@ -252,8 +252,8 @@ export const handleBookPlay = (
   book: Book | undefined,
   playing: boolean | undefined,
   isActiveBook: boolean,
-  activeBookId: string | null,
-  setActiveBookId: (bookId: string) => void,
+  requestedBookId: string | null,
+  setRequestedBookId: (bookId: string) => void,
 ): Promise<void> => {
   const next = playChain
     .catch(() => {})
@@ -262,8 +262,8 @@ export const handleBookPlay = (
         book,
         playing,
         isActiveBook,
-        activeBookId,
-        setActiveBookId,
+        requestedBookId,
+        setRequestedBookId,
       ),
     );
   playChain = next;

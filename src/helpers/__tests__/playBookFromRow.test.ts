@@ -36,7 +36,7 @@ const mockAwaitPlayerReady = awaitPlayerReady as jest.Mock;
 const book = (bookId = 'b1'): Book =>
   ({ bookId, bookTitle: 'Dune' }) as unknown as Book;
 
-const setActiveBookId = jest.fn();
+const setRequestedBookId = jest.fn();
 
 /*
  * The arguments every case below shares, so each test names only what it varies.
@@ -50,8 +50,8 @@ const args = (
 ): PlayBookFromRowArgs => ({
   book: book(),
   alreadyInPlay: false,
-  activeBookId: null,
-  setActiveBookId,
+  requestedBookId: null,
+  setRequestedBookId,
   ...overrides,
 });
 
@@ -76,19 +76,21 @@ describe('playBookFromRow', () => {
         true,
         false,
         null,
-        setActiveBookId,
+        setRequestedBookId,
       );
     });
 
     it('passes `alreadyInPlay` through untouched — the caller owns that question', async () => {
-      await playBookFromRow(args({ alreadyInPlay: true, activeBookId: 'b9' }));
+      await playBookFromRow(
+        args({ alreadyInPlay: true, requestedBookId: 'b9' }),
+      );
 
       expect(mockHandleBookPlay).toHaveBeenCalledWith(
         expect.anything(),
         false,
         true,
         'b9',
-        setActiveBookId,
+        setRequestedBookId,
       );
     });
 

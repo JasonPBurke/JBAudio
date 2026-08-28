@@ -36,7 +36,7 @@ export const BookListItem = memo(function BookListItem({
   // Fetch the full book object only when needed for actions like playback.
   const fullBook = useBookById(bookId);
 
-  const { setActiveBookId, activeBookId } = useQueueStore();
+  const { setRequestedBookId, requestedBookId } = useQueueStore();
   const isActiveBook = useIsBookActive(bookId);
   const isActiveAndPlaying = useIsBookActiveAndPlaying(bookId);
 
@@ -60,11 +60,11 @@ export const BookListItem = memo(function BookListItem({
         // The ACTIVE Book (player state); the series surfaces pass the
         // Requested one here. See playBookFromRow's header.
         alreadyInPlay: isActiveBook,
-        activeBookId,
-        setActiveBookId,
+        requestedBookId,
+        setRequestedBookId,
         recordPlayFootprint: true,
       }),
-    [fullBook, isActiveBook, activeBookId, setActiveBookId],
+    [fullBook, isActiveBook, requestedBookId, setRequestedBookId],
   );
 
   // If data isn't ready or the book was deleted, render nothing.

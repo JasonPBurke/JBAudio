@@ -6,7 +6,7 @@ them before merging them.
 
 **Blocked by:** 10
 
-**Status:** needs-triage
+**Status:** resolved
 
 ## The problem
 
@@ -45,15 +45,65 @@ Books mid-playback.
 
 ## Acceptance criteria
 
-- [ ] Both fields and their selectors renamed to carry the distinction
-- [ ] The four callers from ticket 02 are reconciled, or their difference is
-      recorded as deliberate with a reason
-- [ ] No behaviour change — the divergence window stays exactly as it is; the
+- [x] Both fields and their selectors renamed to carry the distinction —
+      **as ruled, one field moved, not two.** See the driver ruling below.
+- [x] The four callers from ticket 02 are reconciled, or their difference is
+      recorded as deliberate with a reason — **recorded as deliberate**, with
+      the reason now stated as a finding rather than a deferral, in
+      `helpers/playBookFromRow`'s header.
+- [x] No behaviour change — the divergence window stays exactly as it is; the
       point is that it becomes visible
-- [ ] `tsc` 0, `eslint` 0, test count at or above baseline
+- [x] `tsc` 0, `eslint` 0 errors (32 warnings, all pre-existing and unmoved),
+      jest 78 suites / 981 tests, up from 77 / 975
 
-## Triage note
+## Driver ruling (2026-08-27)
 
-`needs-triage` rather than `ready-for-agent`: the naming wants a driver ruling,
-and it is worth deciding whether this rides along with the queue-shape work,
-which touches an overlapping set of files.
+**Rename the queue store's field only.** `store/playerState`'s `activeBookId`
+already IS CONTEXT.md's `Active Book`, spelled exactly as the glossary spells
+it; only `store/queue`'s was named after the wrong question, and the glossary
+lists "active book" under _Avoid_ for the Requested Book. Renaming the correct
+field as well would have churned ~14 files, including `themeStore` and six
+screens, to make a right name different. Naming each field after its own
+question is what AC 1 was asking for, and one rename achieves it.
+
+Also ruled: this does NOT ride along with the queue-shape work. It landed on
+its own.
+
+## What changed
+
+- `store/queue`: `activeBookId` → `requestedBookId`, `setActiveBookId` →
+  `setRequestedBookId`, and a header stating the intent-vs-observation split.
+- `useBookQueue` **deleted** — a selector for the renamed field with zero
+  callers, found during the census.
+- Propagated to the 9 consumers: `handleBookPlay`, `playBookFromRow`,
+  `remotePlayBook`, `restoreLastActiveBook`, `BookGridItem`, `BookListItem`,
+  `SeriesBrowseRow`, `SeriesDetailSheet`, `titleDetails`.
+- `titleDetails`: local `playerActiveBookId` → `activeBookId`. The `player`
+  prefix existed only to dodge the collision this ticket removed.
+- `store/playerState`, `player/trackPlayer`, `CONTEXT.md`: comments that
+  asserted the two fields were "identically named" are no longer true and were
+  rewritten; the glossary entries now name the field each term lives in.
+
+## Two things found on the way
+
+1. **A stale claim, now fixed.** `helpers/playBookFromRow`'s header said
+   `titleDetails` "reads a THIRD active-Book source — `activeTrack?.bookId`,
+   straight off RNTP's hook". Ticket 10 ended that; there is no `activeTrack`
+   in the file. It reads the mirror (`useActiveBookId`) and the live one-shot
+   (`getActiveBookId()`) — same question, two freshnesses — plus the Requested
+   Book. Prose asserting facts about *other* files has no compiler keeping it
+   honest, which is the argument for doing this ticket in code.
+2. **The merge hazard had zero test coverage.** `handleBookPlay.test.ts`
+   contained no reference to the fourth argument at all: every case passed the
+   `null` default, so the rebuild-vs-seek branch was selected by a default and
+   never asserted. Two cases were added, plus `store/__tests__/queue.test.ts`.
+   ⚠ They pin the BRANCH, not the CALL SITES — a caller that passes the Active
+   Book here still type-checks and leaves both files green. That limit is
+   stated in the test's own header. The guard at the call sites is the name.
+3. **`src/store/playerState.ts` is CRLF** — a fourth CRLF file, alongside the
+   three already known (`setup/service.js`, `components/PlayerControls.tsx`,
+   `modals/SleepTimerOptions.tsx`). A scripted text-mode edit rewrote it to LF
+   and turned a 12-line comment change into a 204-line whole-file diff. Caught
+   from the commit stat and restored before the commit was finalised. Check
+   line endings before scripting an edit to any file in this repo, not just the
+   three on the known list.

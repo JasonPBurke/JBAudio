@@ -86,8 +86,8 @@ export const SeriesBrowseRow = memo(function SeriesBrowseRow({
 }) {
   const { colors: themeColors } = useTheme();
   const { width } = useWindowDimensions();
-  const activeBookId = useQueueStore((s) => s.activeBookId);
-  const setActiveBookId = useQueueStore((s) => s.setActiveBookId);
+  const requestedBookId = useQueueStore((s) => s.requestedBookId);
+  const setRequestedBookId = useQueueStore((s) => s.setRequestedBookId);
 
   const cap = Math.min(width, CONTENT_CAP);
   const coverSize = clusterCoverSize(width);
@@ -110,11 +110,11 @@ export const SeriesBrowseRow = memo(function SeriesBrowseRow({
       book: target ?? undefined,
       // The REQUESTED Book (queue store); the grid card and list row pass the
       // Active one here. See playBookFromRow's header.
-      alreadyInPlay: target?.bookId === activeBookId,
-      activeBookId,
-      setActiveBookId,
+      alreadyInPlay: target?.bookId === requestedBookId,
+      requestedBookId,
+      setRequestedBookId,
     });
-  }, [target, activeBookId, setActiveBookId]);
+  }, [target, requestedBookId, setRequestedBookId]);
 
   return (
     <Pressable

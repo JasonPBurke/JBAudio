@@ -13,12 +13,18 @@ import { create } from 'zustand';
  * and no type change. The library's hooks worked anywhere; these selectors do
  * not, and that is the price paid for one subscription instead of twelve.
  *
- * ⚠ `activeBookId` HERE IS THE ACTIVE BOOK. `store/queue`'s identically named
- * field is the REQUESTED Book -- what the play/restore/remote-play path asked
- * for, which leads a Book switch while this one lags behind it. They are not
- * duplicates and merging them breaks book-switching in a way no test that
- * stays on one Book can see. See `CONTEXT.md`. (Five components read both, in
- * one case four lines apart.)
+ * ⚠ `activeBookId` HERE IS THE ACTIVE BOOK -- an OBSERVATION of what the
+ * Player reports it has loaded, so it LAGS a Book switch. Its counterpart is
+ * `store/queue`'s `requestedBookId`, the REQUESTED Book: what the
+ * play/restore/remote-play path asked for, which LEADS the same switch. They
+ * are not duplicates, and merging them breaks book-switching in a way no test
+ * that stays on one Book can see.
+ *
+ * Both fields were called `activeBookId` until ticket 11 renamed the queue's,
+ * which is the only reason the distinction is now legible at an import site;
+ * five components read both, in one case four lines apart. The rule the
+ * rename came from is CONTEXT.md's: name a key after the question it answers.
+ * See CONTEXT.md's `Active Book` and `Requested Book` entries.
  */
 interface PlayerState {
   activeBookId: string | null;

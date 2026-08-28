@@ -98,13 +98,19 @@ _Avoid_: track player, engine, service
 **Active Book**:
 The Book the Player currently has loaded, as the Player reports it. ⚠ An observation, not an
 instruction: it **lags** a switch, and is only true once the Queue has actually changed.
+Lives in `store/playerState` as `activeBookId`, mirrored there from the Player by
+`components/PlayerStateSync`; `player/trackPlayer`'s `getActiveBookId()` is the same answer read
+live, without the mirror's lag.
 _Avoid_: current book, active track, now playing
 
 **Requested Book**:
 The Book the app has most recently decided to play. Set the moment the user asks, before the Queue
 is built, so it **leads** a switch. ⚠ For the length of a switch it disagrees with the Active Book,
 and that window is real — code that treats them as one word will be right during steady playback
-and wrong exactly when a Book changes.
+and wrong exactly when a Book changes. Lives in `store/queue` as `requestedBookId`, and
+`helpers/handleBookPlay` reads it to tell a switch from a resume. Both fields were called
+`activeBookId` until the rename; that is the third instance of this cluster's rule — **name a key
+after the question it answers** — being learned the hard way.
 _Avoid_: active book, selected book, queued book
 
 **Position**:

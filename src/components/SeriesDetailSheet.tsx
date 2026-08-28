@@ -119,16 +119,16 @@ type TextLayoutEvent = Parameters<
  */
 function playBook(
   book: Book,
-  activeBookId: string | null,
-  setActiveBookId: (bookId: string) => void,
+  requestedBookId: string | null,
+  setRequestedBookId: (bookId: string) => void,
 ): Promise<void> {
   return playBookFromRow({
     book,
     // The REQUESTED Book (queue store); the grid card and list row pass the
     // Active one here. See playBookFromRow's header.
-    alreadyInPlay: book.bookId === activeBookId,
-    activeBookId,
-    setActiveBookId,
+    alreadyInPlay: book.bookId === requestedBookId,
+    requestedBookId,
+    setRequestedBookId,
   });
 }
 
@@ -465,12 +465,12 @@ const HeroPlayButton = memo(function HeroPlayButton({
   action: NonNullable<ReturnType<typeof heroPlayAction>>;
 }) {
   const { colors: themeColors } = useTheme();
-  const activeBookId = useQueueStore((s) => s.activeBookId);
-  const setActiveBookId = useQueueStore((s) => s.setActiveBookId);
+  const requestedBookId = useQueueStore((s) => s.requestedBookId);
+  const setRequestedBookId = useQueueStore((s) => s.setRequestedBookId);
 
   const onPress = useCallback(() => {
-    void playBook(action.book, activeBookId, setActiveBookId);
-  }, [action.book, activeBookId, setActiveBookId]);
+    void playBook(action.book, requestedBookId, setRequestedBookId);
+  }, [action.book, requestedBookId, setRequestedBookId]);
 
   return (
     <Pressable
@@ -518,15 +518,15 @@ const HeroPlayButton = memo(function HeroPlayButton({
 const BookRow = memo(function BookRow({ row }: { row: SeriesDetailRow }) {
   const { colors: themeColors } = useTheme();
   const router = useRouter();
-  const activeBookId = useQueueStore((s) => s.activeBookId);
-  const setActiveBookId = useQueueStore((s) => s.setActiveBookId);
+  const requestedBookId = useQueueStore((s) => s.requestedBookId);
+  const setRequestedBookId = useQueueStore((s) => s.setRequestedBookId);
   const bookId = row.book.bookId ?? '';
   const isActive = useIsBookActive(bookId);
   const isPlaying = useIsBookActiveAndPlaying(bookId);
 
   const onPlay = useCallback(() => {
-    void playBook(row.book, activeBookId, setActiveBookId);
-  }, [row.book, activeBookId, setActiveBookId]);
+    void playBook(row.book, requestedBookId, setRequestedBookId);
+  }, [row.book, requestedBookId, setRequestedBookId]);
 
   /*
    * §J1.3 — PRESENTING THE BOOK DETAILS SHEET FROM HERE REQUIRES THE APP'S

@@ -69,7 +69,7 @@ const TitleDetails = () => {
   const { top, bottom } = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } =
     useWindowDimensions();
-  const { setActiveBookId, activeBookId } = useQueueStore();
+  const { setRequestedBookId, requestedBookId } = useQueueStore();
   const { bookId, author, bookTitle } = useLocalSearchParams<{
     bookId: string;
     author: string;
@@ -111,10 +111,12 @@ const TitleDetails = () => {
   const { colors: themeColors } = useTheme();
 
   const playing = useIsPlayerPlaying();
-  // The Player's ACTIVE Book. The `activeBookId` destructured from the queue
-  // store above is the REQUESTED Book -- a different question, deliberately
-  // left alone here. See CONTEXT.md.
-  const playerActiveBookId = useActiveBookId();
+  // The ACTIVE Book -- what the Player reports it has loaded. Distinct from
+  // the `requestedBookId` destructured from the queue store above, which is
+  // the REQUESTED Book: an intent that leads a switch where this lags it. Both
+  // are read on this screen, four lines apart, which is why ticket 11 gave
+  // them different names. See CONTEXT.md.
+  const activeBookId = useActiveBookId();
 
   useEffect(() => {
     return () => {
@@ -170,7 +172,7 @@ const TitleDetails = () => {
     return null;
   }
 
-  const isActiveBook = playerActiveBookId === book.bookId;
+  const isActiveBook = activeBookId === book.bookId;
 
   const isBookStarted =
     book.bookProgressValue !== BookProgressState.NotStarted;
@@ -276,9 +278,9 @@ const TitleDetails = () => {
     } else {
       // Record footprint before playing (only if this is the active book)
       try {
-        // No local for the Player's answer: the guard proves it equals
-        // book.bookId, and `activeBookId` is already taken here by the queue
-        // store's Requested Book -- a different question (see CONTEXT.md).
+        // Asks the Player directly rather than reading the `activeBookId`
+        // mirror in scope above: same question, different freshness. No local
+        // for the answer -- the guard proves it equals book.bookId.
         if ((await getActiveBookId()) === book.bookId) {
           await stampLastPlayed(book.bookId);
           await recordFootprint(book.bookId, 'play');
@@ -296,8 +298,8 @@ const TitleDetails = () => {
           book,
           playing,
           isActiveBook,
-          activeBookId,
-          setActiveBookId,
+          requestedBookId,
+          setRequestedBookId,
         );
       } finally {
         clearTimeout(timer);

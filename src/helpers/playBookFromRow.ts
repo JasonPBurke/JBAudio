@@ -26,32 +26,36 @@ import { recordFootprint } from '@/db/footprintQueries';
  * ⚠ THE BOOK DETAILS SCREEN IS NOT A FIFTH CALLER, and it is not an oversight.
  * `src/app/titleDetails.tsx` holds a block that looks like the same copy and is
  * not the same operation: it is a play/PAUSE toggle, it stamps `stampLastPlayed`
- * beside the footprint, it drives a loading spinner around the play, and it
- * reads a THIRD active-Book source — `activeTrack?.bookId`, straight off RNTP's
- * hook rather than either store. Folding it in here would be a behaviour
- * change, not a de-duplication.
+ * beside the footprint, and it drives a loading spinner around the play.
+ * Folding it in here would be a behaviour change, not a de-duplication.
  *
- * ⚠ THE FOUR CALLERS DISAGREE ABOUT WHAT "ALREADY IN PLAY" MEANS, AND THE
- * DISAGREEMENT IS DELIBERATELY PRESERVED HERE.
+ * ⚠ THE FOUR CALLERS DISAGREE ABOUT WHAT "ALREADY IN PLAY" MEANS. TICKET 11
+ * RULED THE DISAGREEMENT DELIBERATE AND LEFT IT STANDING.
  *
  *   - The grid card and the list row pass the **Active Book** —
  *     `useIsBookActive`, read from the player-state store. That is an
  *     OBSERVATION of what the Player has loaded, and it LAGS a Book switch.
  *   - The series browse row and the series detail sheet pass the **Requested
- *     Book** — `book.bookId === activeBookId`, compared inline against the queue
- *     store. That is an INTENT, set the moment the user asks, so it LEADS a
- *     switch.
+ *     Book** — `book.bookId === requestedBookId`, compared inline against the
+ *     queue store. That is an INTENT, set the moment the user asks, so it
+ *     LEADS a switch.
  *
  * Same argument, same helper below it, two different questions. They agree
  * during steady playback and disagree for exactly the length of a Book switch,
  * which is why lining the four handlers up side by side was the only way to see
  * it. CONTEXT.md defines both terms.
  *
- * So it is a PARAMETER and each caller keeps passing what it passed before.
- * Picking one source for all four is a behaviour change, it is not this
- * module's call to make, and it would be invisible to every test that does not
- * switch Books mid-playback. Reconciling them is ticket 11's territory
- * (`.scratch/player-seam/issues/11-rename-active-vs-requested-book.md`).
+ * THE REASON IT STAYS A PARAMETER, which is ticket 11's answer rather than a
+ * deferral: `alreadyInPlay` only ever suppresses a press on the Book already
+ * playing, so the two sources differ solely in what a press does DURING a
+ * switch — the grid and list let the press through (their Active Book has not
+ * caught up yet), the series surfaces swallow it (their Requested Book already
+ * has). Both are defensible, no user has reported either, and picking one for
+ * all four is a behaviour change with no test that could see it: it is
+ * invisible to every test that does not switch Books mid-playback. Choosing
+ * between them wants a device session and a driver, not a rename. What ticket
+ * 11 fixed is that the two sources are now spelled differently at every call
+ * site, so the next reader sees the choice instead of inheriting it.
  */
 export type PlayBookFromRowArgs = {
   /** The Book to play. Absent (or id-less) means the row has nothing to play. */
@@ -67,8 +71,8 @@ export type PlayBookFromRowArgs = {
    */
   alreadyInPlay: boolean;
   /** The Requested Book, from the queue store. `handleBookPlay` compares against it. */
-  activeBookId: string | null;
-  setActiveBookId: (bookId: string) => void;
+  requestedBookId: string | null;
+  setRequestedBookId: (bookId: string) => void;
   /**
    * Record a `play` footprint before handing off. The grid and list rows do;
    * the two series surfaces never have, and this is not the place to change
@@ -98,8 +102,8 @@ const recordResumeFootprint = async (bookId: string): Promise<void> => {
 export const playBookFromRow = async ({
   book,
   alreadyInPlay,
-  activeBookId,
-  setActiveBookId,
+  requestedBookId,
+  setRequestedBookId,
   recordPlayFootprint = false,
 }: PlayBookFromRowArgs): Promise<void> => {
   if (!book?.bookId) return;
@@ -116,7 +120,7 @@ export const playBookFromRow = async ({
     book,
     isCurrentlyPlaying,
     alreadyInPlay,
-    activeBookId,
-    setActiveBookId,
+    requestedBookId,
+    setRequestedBookId,
   );
 };

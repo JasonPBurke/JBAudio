@@ -33,7 +33,7 @@ beforeEach(() => {
   useQueueStore.setState({
     isPlayerReady: false,
     playerSetupPromise: null,
-    activeBookId: null,
+    requestedBookId: null,
   });
 });
 

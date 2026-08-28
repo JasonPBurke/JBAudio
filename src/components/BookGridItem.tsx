@@ -63,8 +63,8 @@ const BookPlayButton = memo(function BookPlayButton({
   playIconSize,
 }: BookPlayButtonProps) {
   const { colors: themeColors } = useTheme();
-  const activeBookId = useQueueStore((state) => state.activeBookId);
-  const setActiveBookId = useQueueStore((state) => state.setActiveBookId);
+  const requestedBookId = useQueueStore((state) => state.requestedBookId);
+  const setRequestedBookId = useQueueStore((state) => state.setRequestedBookId);
   const isActiveBook = useIsBookActive(bookId);
   const isActiveAndPlaying = useIsBookActiveAndPlaying(bookId);
 
@@ -75,11 +75,11 @@ const BookPlayButton = memo(function BookPlayButton({
         // The ACTIVE Book (player state); the series surfaces pass the
         // Requested one here. See playBookFromRow's header.
         alreadyInPlay: isActiveBook,
-        activeBookId,
-        setActiveBookId,
+        requestedBookId,
+        setRequestedBookId,
         recordPlayFootprint: true,
       }),
-    [fullBook, isActiveBook, activeBookId, setActiveBookId],
+    [fullBook, isActiveBook, requestedBookId, setRequestedBookId],
   );
 
   const playingIconStyle = useMemo(

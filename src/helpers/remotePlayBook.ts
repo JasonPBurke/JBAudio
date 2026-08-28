@@ -26,8 +26,8 @@ export const isBookSwitchInProgress = () => bookSwitchInProgress;
 export async function handleRemotePlayBook(bookId: string): Promise<void> {
   await ensurePlayerSetup();
 
-  const { activeBookId, setActiveBookId } = useQueueStore.getState();
-  if (activeBookId === bookId) {
+  const { requestedBookId, setRequestedBookId } = useQueueStore.getState();
+  if (requestedBookId === bookId) {
     void stampLastPlayed(bookId);
     await play();
     return;
@@ -46,7 +46,13 @@ export async function handleRemotePlayBook(bookId: string): Promise<void> {
   bookSwitchInProgress = true;
   try {
     // playing=true is unused here: isActiveBook=false bypasses handleBookPlay's guard
-    await handleBookPlay(book, true, false, activeBookId, setActiveBookId);
+    await handleBookPlay(
+      book,
+      true,
+      false,
+      requestedBookId,
+      setRequestedBookId,
+    );
   } catch (error) {
     // Remote entry point: nothing upstream can handle this, so don't let it
     // become an unhandled rejection in the playback service.

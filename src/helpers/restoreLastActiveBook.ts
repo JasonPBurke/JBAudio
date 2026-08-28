@@ -194,5 +194,5 @@ export async function restoreLastActiveBook(): Promise<void> {
     await applyPersistedPlaybackRate();
   }
   // Always update the active book in our own state
-  useQueueStore.getState().setActiveBookId(bookInfo.bookId);
+  useQueueStore.getState().setRequestedBookId(bookInfo.bookId);
 }

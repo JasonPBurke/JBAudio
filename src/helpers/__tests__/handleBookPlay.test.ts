@@ -189,3 +189,74 @@ describe('a not-started book is promoted without restarting', () => {
     expect(TrackPlayer.seekTo).toHaveBeenCalledWith(300);
   });
 });
+
+/*
+ * THE REQUESTED BOOK IS WHAT DECIDES A SWITCH, and this is the only test that
+ * proves it. Ticket 11 renamed `store/queue`'s field from `activeBookId` to
+ * `requestedBookId` precisely because this argument had the same name as
+ * `store/playerState`'s Active Book while answering the opposite question:
+ * the Requested Book is an INTENT and LEADS a switch; the Active Book is an
+ * OBSERVATION and LAGS one.
+ *
+ * ⚠ THE HAZARD. Feeding the Active Book in here instead reads, for the length
+ * of a switch, as "this Book is already loaded" — so `isChangingBook` is
+ * false, the Queue is never rebuilt, and the app seeks inside the OLD Book
+ * while every screen names the new one.
+ *
+ * ⚠ WHAT THESE TWO CASES DO AND DO NOT COVER, stated plainly because an
+ * overclaiming comment is the exact defect ticket 11 was filed about. They
+ * cover the BRANCH: that this argument, and not some other reading of "what is
+ * playing", is what selects rebuild-vs-seek. Before them no case in this file
+ * passed a non-null value, so the entire switch branch was decided by one
+ * default and never asserted. They do NOT cover the CALL SITES: a caller that
+ * passes `store/playerState`'s Active Book here type-checks and leaves this
+ * file green. Nothing mechanical catches that — the guard there is the name,
+ * which is why the field was renamed rather than merely documented.
+ *
+ * `Started` keeps the finished/not-started demotion out of the way, so the
+ * only thing under test is which branch the fourth argument selects.
+ */
+describe('the Requested Book decides a switch from a resume', () => {
+  const startedBook = (bookId: string): Book => {
+    const book = finishedBook();
+    (book as { bookId: string }).bookId = bookId;
+    (book as { bookProgressValue: number }).bookProgressValue =
+      BookProgressState.Started;
+    return book;
+  };
+
+  it('rebuilds the Queue when the Requested Book differs', async () => {
+    const setRequestedBookId = jest.fn();
+
+    await handleBookPlay(
+      startedBook('b1'),
+      false,
+      false,
+      'b2', // the Requested Book is something else — this press IS a switch
+      setRequestedBookId,
+    );
+
+    expect(TrackPlayer.reset).toHaveBeenCalled();
+    expect(TrackPlayer.add).toHaveBeenCalled();
+    expect(setRequestedBookId).toHaveBeenCalledWith('b1');
+  });
+
+  it('seeks in place when the Requested Book is this Book', async () => {
+    const setRequestedBookId = jest.fn();
+
+    await handleBookPlay(
+      startedBook('b1'),
+      false,
+      false,
+      'b1', // already the Requested Book — this press is a resume
+      setRequestedBookId,
+    );
+
+    expect(TrackPlayer.reset).not.toHaveBeenCalled();
+    expect(TrackPlayer.add).not.toHaveBeenCalled();
+    expect(setRequestedBookId).not.toHaveBeenCalled();
+    // Still a real resume: the stored position is honoured.
+    expect(TrackPlayer.skip).toHaveBeenCalledWith(1);
+    expect(TrackPlayer.seekTo).toHaveBeenCalledWith(300);
+  });
+});
