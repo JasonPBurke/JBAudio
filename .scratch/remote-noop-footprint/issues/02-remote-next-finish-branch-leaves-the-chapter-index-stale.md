@@ -4,7 +4,7 @@
 the chapter list highlighting the last chapter, even though the Book has been
 reset to the beginning. The two "reset to the start" paths stop disagreeing.
 
-**Status:** resolved — code complete, **device test PENDING** (see below)
+**Status:** resolved — **DEVICE-VERIFIED 2026-08-28** (Pixel 7 Pro, versionCode 115)
 
 **Found:** 2026-08-27, on a physical Pixel 7 Pro, during ticket 10's
 chapter-boundary device pass. Reported by the driver. Pre-existing; **not**
@@ -87,11 +87,12 @@ A fix that restructures `RemoteNext` should address both together.
 
 ## Acceptance criteria
 
-- [ ] After a remote Next press on the last chapter, the chapter list highlights
-      chapter 1 — **device only** (E1)
-- [ ] The persisted `current_chapter_index` is 0 after that press, verified on a
-      Book never reset via `PlaybackQueueEnded` — **device only** (E2)
-- [ ] The highlight is still correct after an app restart — **device only** (E3)
+- [x] After a remote Next press on the last chapter, the chapter list highlights
+      chapter 1 — **device only** (E1) — verified 2026-08-28
+- [x] The persisted `current_chapter_index` is 0 after that press, verified on a
+      Book never reset via `PlaybackQueueEnded` — **device only** (E2) — verified
+      2026-08-28 via the cold-start route, see `## Device test`
+- [x] The highlight is still correct after an app restart — **device only** (E3) — verified 2026-08-28
 - [x] `PlaybackQueueEnded`'s behaviour is unchanged — the extracted helper is
       equivalent to the five lines it replaced
 - [x] The shared reset has one home, not two copies — `helpers/resetBookToStart.ts`
@@ -124,7 +125,61 @@ The call is wrapped in the same swallow the footprint recorders use: the press
 has already been served by then, so a DB failure in the bookkeeping behind it
 must not surface as a rejected handler.
 
-## Device test — PENDING
+## Device test — COMPLETE (2026-08-28)
+
+Physical **Pixel 7 Pro** (`29131FDH3009SZ`, Android 16), preview build
+**versionCode 115**. Fixture: **`Boundary End2`** — a freshly synthesised
+single-file Book, 3907.03 s, zero embedded chapters, auto-chaptered at the
+device's 30-minute interval into 3 chapters (0:00 / 30:00 / 60:00–65:07), runtime
+shape proven as `queueTitle=null, size=1`. It had **never** been finished via
+`PlaybackQueueEnded`, which is what makes E2 meaningful.
+
+**All rows passed.**
+
+| # | Result | Evidence |
+|---|---|---|
+| E1 | **PASS** | Next press 16:36:34 into the last chapter → `PAUSED(2)` at `position=0`, Book **Finished**, footprint `Seeked from / chapter 3 @ 00:46`. **Chapter list highlighted chapter 1.** |
+| E2 | **PASS** | See the cold-start reasoning below — the persisted `current_chapter_index` is 0. |
+| E3 | **PASS** | `am force-stop` at 16:39:27 (media session count for the package dropped to **0**), relaunched. Restored session came back `PAUSED(2)`, `position=0`, metadata **Track 01**; chapter list highlighted **chapter 1**. |
+| E4 **guard** | **PASS** | Played to the true end 17:07:19: `PLAYING(3)` → **`NONE(0)`**, `position=0`. Chapter list highlighted **chapter 1**. `PlaybackQueueEnded`'s behaviour is unchanged by the extraction. |
+| E5 **guard** | **PASS** | Play pressed from the reset position (16:40:30, 20 s of playback, stayed on Track 01). Footprints gained **only** a `Play pressed` row — **no** spurious `Chapter changed` at 0:00. The detector really was rewound with the index. |
+| E6 **guard** | **PASS** | C1/C2 re-run at 16:42:47 and 16:43:17: `Seeked from / chapter 3` both times, Book still Finished, highlight still chapter 1. |
+
+### How E2 was established without a DB read
+
+⚠ **`run-as` is unavailable on this build** — it is not debuggable
+(`flags=[ HAS_CODE ALLOW_CLEAR_USER_DATA LARGE_HEAP ]`, no `DEBUGGABLE`), and
+`ALLOW_BACKUP` is absent too, so `adb backup` is also closed. The
+`adb run-as` + WAL recipe this ticket points at **cannot run against a preview
+build**. Use a debug build if a literal column read is ever required.
+
+E2 was instead established through **E3's cold start**, which is a strictly
+stronger observation than the DB read the ticket asked for:
+
+`chapterList.tsx:57` resolves the highlight as
+`storeIndex ?? book.bookProgress?.currentChapterIndex ?? -1`. Immediately after
+E1 the correct highlight could have come from *either* the in-memory Zustand
+entry or the persisted column, and nothing distinguishes them. A force-stop
+empties the store, so on relaunch `storeIndex` is `undefined` and the persisted
+column is the **only** remaining source. A correct highlight after a cold start
+is therefore a direct read of `current_chapter_index = 0` through the UI — and it
+also tests the thing that actually matters to a user, which this ticket names
+itself: whether a wrong highlight *survives an app restart*.
+
+The restored media session independently corroborated it — it rebuilt on
+**Track 01** at `position=0`, which it could only have derived from the persisted
+row.
+
+### Note on the residual race
+
+The `## Comments` section flags that `pause()` can re-persist a non-zero *chapter
+progress* after our zero, and says E3 would then show chapter 1 highlighted at a
+non-zero position. **Not observed**: the restored session read `position=0`
+exactly. The race is not disproven — it is timing-dependent and we ran E3 once —
+but it did not reproduce here.
+
+## Device test — the plan as written
+
 
 Fixture: a **single-file** Book whose last chapter can actually be seeked into —
 see ticket 03's amended fixture recipe in `.scratch/player-seam/issues/`. A

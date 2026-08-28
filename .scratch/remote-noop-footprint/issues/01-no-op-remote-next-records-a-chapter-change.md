@@ -4,7 +4,7 @@
 changes nothing. The Footprints list stops showing chapter changes that never
 happened.
 
-**Status:** resolved
+**Status:** resolved — **DEVICE-VERIFIED 2026-08-28** (Pixel 7 Pro, versionCode 115; C2 partial, see `## Device test`)
 
 **Depends on:**
 `.scratch/skip-previous-first-chapter/issues/01-restart-book-at-first-queue-item.md`
@@ -259,13 +259,79 @@ so a common helper would add a bridge round-trip to buy symmetry.
   RESOLVING having moved nothing) rather than call spies.
 - `npx tsc --noEmit` clean; `eslint` clean on every touched file.
 - Full gate cold: **83 suites / 1027 tests passing** (81/1012 before).
-- ⚠ **Device verification still pending** — reproduce on `Boundary Multi`
-  (8 chapters, multi-item queue, prove the shape with `dumpsys media_session`
-  queue size): press Next on Ch08, then confirm via `run-as` that the
-  `footprints` table gained no row and the session stayed `PLAYING(3)` on
-  Chapter 08.
+- **Device verification DONE 2026-08-28** — see `## Device test` below. The
+  no-op press was confirmed on a multi-item queue proven at runtime
+  (`queueTitle=null, size=8`): six Next presses on the last chapter produced no
+  `chapter_change` row and no `PlaybackState` emission at all.
 
-## Device test — PENDING
+## Device test — COMPLETE (2026-08-28)
+
+Run on a physical **Pixel 7 Pro** (`29131FDH3009SZ`, Android 16) against the
+installed preview build **versionCode 115**, driver + agent split: the agent
+sent every transport press via `adb shell input keyevent` and read
+`dumpsys media_session`; the driver read the in-app Footprints list.
+
+**Every row passed.** C2 is partial for a build reason, not a code reason.
+
+| # | Result | Evidence |
+|---|---|---|
+| A1 | **PASS** | Next at 16:30:23 on Ch08. No footprint row. Session held `PLAYING(3)`/Track 08 with `updated` **byte-identical** across the press — no `PlaybackState` emitted at all. |
+| A2 | **PASS** | Four presses 16:30:23–16:30:30. Still no rows, `updated=94660214` unchanged throughout. |
+| A3 | **PASS** | Two presses while `PAUSED(2)` at 16:30:34/36. No rows, `updated=94699855` unchanged, same position and chapter. |
+| B1 **guard** | **PASS** | Ch03 → Ch04 at 16:14:40. Row: `Chapter changed / Track 03 @ 00:48` — the pre-press spot, **not** Ch04 @ 00:00. |
+| B2 **guard** | **PASS** | Single-file, press 16:34:08, seek to exactly `3600000 ms`. Row: `Chapter changed / chapter 2 @ 01:02`. Driver watched the progress bar to confirm 01:02 was real. |
+| B3 **guard** | **PASS** | `Chapter restart / 03 @ 0:29` (>15 s in), then `Chapter changed / 03 @ 0:02` (<15 s in), then `Chapter changed / 02 @ 0:02`, then `Chapter restart / 01 @ 0:02` at the first queue item. `RemotePrevious` untouched and behaving per the skip-previous ticket. |
+| C1 | **PASS** | Press 16:36:34 → `PAUSED(2)` at `position=0`. Row: **`Seeked from` / chapter 3 @ 00:46** — the decided `trigger_type`, not `chapter_change`. Book reads **Finished**. |
+| C2 | **PARTIAL** | Second finish press 16:43:17 on an already-Finished book: `Seeked from / chapter 3` row still written, reset still happened, book still Finished. **`finished_at` immutability NOT observed** — see limitation 3. |
+| C3 | **PASS** (superseded row) | Chapter list highlighted **chapter 1** after C1, per the 2026-08-28 amendment — defect 02 is fixed. |
+| D1 | **PASS** | In-app chapter tap → `Chapter changed / Track 04 @ 00:41`. |
+| D2 | **PASS** | Notification seek-bar drag → `Seeked from / 01 @ 0:23`, the pre-drag position. |
+| D3 | **PASS**, both shapes | Android Auto via **DHU**. Multi-item (`size=8`): Track 01 → Track 02, `Chapter changed / 01 @ 1:05`. One-item (`size=1`): seek to exactly `1800000 ms`, `Chapter changed / 01 @ 0:25`. |
+
+### Deviations from the plan above, and why
+
+1. **Fixtures were rebuilt.** `Boundary Multi` / `Boundary End` were **absent from
+   the device**. Replaced with `Boundary Multi2` (8 x 70.03 s) and `Boundary End2`
+   (3907.03 s, zero embedded chapters) under `/sdcard/Audiobooks/ZZ Boundary/`.
+   Fresh names were deliberate: ticket 02's E2 needs a Book never finished via
+   `PlaybackQueueEnded`, and only a never-before-seen Book guarantees that.
+   ⚠ **3907 s is prime**, so it cannot be an exact multiple of *any* auto-chapter
+   interval — this retires the "58 ms sliver" trap structurally rather than at one
+   interval setting. Prefer a prime duration for every future one-item fixture.
+2. **The "Before" column was not run.** The installed build carries both fixes and
+   reverting meant another build. Approved by the driver. The pre-fix evidence
+   already recorded in `## Evidence` (the 21:04:24 no-op row) and in ticket 02
+   stands as the proof these rows can detect the defect.
+3. ⚠ **`run-as` is unavailable on a preview build, so the DB recipe in
+   `## Reading the DB` cannot run.** `dumpsys package` reports
+   `flags=[ HAS_CODE ALLOW_CLEAR_USER_DATA LARGE_HEAP ]` — no `DEBUGGABLE`, and no
+   `ALLOW_BACKUP` either, so `adb backup` is closed too. All footprint evidence
+   came from the app's own Footprints list, which renders trigger label, chapter
+   title, `@ mm:ss` and a relative time (`footprintList.tsx:122-129`) — enough for
+   every row here. The single casualty is C2's `finished_at` comparison:
+   `finishedAt` is surfaced nowhere in `src/app` or `src/components`.
+   **To close C2, run it on a debuggable build.**
+
+### Traps found during this pass
+
+- ⚠ **The Footprints list is INVERTED — the newest row is at the BOTTOM.** The
+  rows above are written as if the newest were on top. Read the bottom row.
+- ⚠ **`dumpsys` `PlaybackState.position` was stale by up to 63 seconds**, repeatedly
+  (read 19.4 s, 0.5 s and 29:59 when the true positions were 45 s, 45 s and 31:02).
+  The existing trap note understates this: it is not merely "a snapshot", it can be
+  a *minute* behind. Only the footprint row gives a trustworthy position.
+- ⚠ **The phone's "Start head unit server" is ONE-SHOT.** A DHU session consumes it;
+  the next DHU sits at "Waiting for phone..." until it is re-armed on the phone.
+  Arm the phone first, then start the DHU.
+- ⚠ A **sleep timer firing mid-pass** interrupted playback and wrote its own
+  `timer_activation` footprints, which compete for `MAX_FOOTPRINTS_PER_BOOK`.
+  Turn the sleep timer off before a footprints pass.
+- The driver pressing play/pause between steps makes rows unattributable. Running
+  each sequence to a **paused, quiescent** state before handing off to the reader
+  fixed this: while paused with no presses in flight, the table cannot change.
+
+## Device test — the plan as written
+
 
 JS-only change: `npx expo start` and reload is enough — **no native rebuild**,
 and **no schema change, so no device wipe**.
