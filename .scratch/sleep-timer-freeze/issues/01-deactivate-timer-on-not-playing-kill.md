@@ -33,7 +33,11 @@ See `src/setup/sleepTimer.ts` and schema v34.
 
 `syncFromDB()` lives inside the RNTP **playback service** (`src/setup/service.js`,
 registered at `index.js:9`), not the UI. That service starts cold from the media notification, or an Android Auto connection —
-with no app UI ever opening.
+with no app UI ever opening. CORRECTION: there is no notification to interact
+with on a cold start. And the concern over an Android Auto start leaving the
+timer deactivated is overstated as a timer to stop playback in a vehicle is
+not a typically desired behavior and a future ticket may disable the timer
+altogether when connected to Android Auto (not in this scope).
 
 So "deactivate on cold start" would cancel the timer at the exact moment
 playback resumes, and then play unbounded. The user never sees a screen, so
