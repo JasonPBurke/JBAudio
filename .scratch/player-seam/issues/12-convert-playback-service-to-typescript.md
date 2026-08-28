@@ -286,18 +286,17 @@ normalization as a separate, provably content-free commit.
 **Not yet stamped:** whether to spend the appetite at all.
 **Drive Change** changed to ready-for-agent
 
-
 ---
 
 ## Answer — 2026-08-28
 
 Landed on `player-seam-12-convert-play-service-to-ts` in three commits.
 
-| Commit    | What                                                          |
-| --------- | ------------------------------------------------------------- |
+| Commit    | What                                                                      |
+| --------- | ------------------------------------------------------------------------- |
 | `1403685` | `git mv` + CRLF → LF. **Zero content hunks**, verified before committing. |
-| `437f6aa` | Annotations, `getBookFromStore`, the adapter's `AppEventPayloadByEvent`. |
-| `e77c2cb` | Stale `service.js` comment references, and two now-false claims. |
+| `437f6aa` | Annotations, `getBookFromStore`, the adapter's `AppEventPayloadByEvent`.  |
+| `e77c2cb` | Stale `service.js` comment references, and two now-false claims.          |
 
 `tsc` 0 project-wide. `eslint` clean. Jest **84 suites / 1043 tests green**,
 both lanes — unchanged, as the ticket said it would be.
@@ -371,17 +370,17 @@ The **Remote-control device pass**, ticket 08's checklist, on both runtime
 Queue shapes. Per the branch plan, a regression here has exactly one possible
 cause, and the response is to not merge this branch:
 
-- [ ] Notification transport: play, pause, next, previous
-- [ ] Lock screen controls
-- [ ] Headset button: single press, double press
-- [ ] Android Auto: browse, select, transport, queue scroll
-- [ ] Remote seek from the notification scrubber
-- [ ] Remote jump forward and back land where they did before
-- [ ] Chapter skip across a boundary, both directions
-- [ ] Skip-previous restart threshold still behaves at the 15s line
-- [ ] Sleep timer: duck, fade, end-of-chapter option
-- [ ] Playback rate persists and applies
-- [ ] Book-end detection still marks a Book Finished before the credits
+- [x] Notification transport: play, pause, next, previous
+- [x] Lock screen controls
+- [x] Headset button: single press, double press
+- [x] Android Auto: browse, select, transport, queue scroll
+- [x] Remote seek from the notification scrubber
+- [x] Remote jump forward and back land where they did before
+- [x] Chapter skip across a boundary, both directions
+- [x] Skip-previous restart threshold still behaves at the 15s line
+- [x] Sleep timer: duck, fade, end-of-chapter option
+- [x] Playback rate persists and applies
+- [x] Book-end detection still marks a Book Finished before the credits
 
 ⚠ Android Auto browse is the row that exercises `remote-play-book` — the one
 call whose types changed shape. Do not skip it.
