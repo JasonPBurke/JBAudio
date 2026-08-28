@@ -337,7 +337,7 @@ call below `skipToNext()`"*. The symptom of that mistake is a footprint at
 |---|---|---|---|
 | C1 | Single-file fixture (`size=1`). Seek **into** the last chapter, note the position. Press **Next**. Reopen the list. | Row labeled **"Chapter changed"**. | Row labeled **"Seeked from"**, at the pre-press position. Playback `PAUSED(2)` at 0, Book shows **Finished**, `finished_at` stamped. |
 | C2 | Press **Next** again while the Book already reads Finished. Compare `books.finished_at` before and after. | — | `finished_at` **unchanged** (the mark is guarded), but the reset and the breadcrumb still happen. |
-| C3 | ⚠ **Expected, NOT a failure of this ticket.** After C1, open the chapter list. | Highlight stuck on the last chapter. | **Still stuck on the last chapter** — that is defect 02 (`02-remote-next-finish-branch-leaves-the-chapter-index-stale.md`), which is still open. Do not fail C1 for it. |
+| C3 | ⚠ **Was expected, NOT a failure of this ticket.** After C1, open the chapter list. | Highlight stuck on the last chapter. | ~~**Still stuck on the last chapter**~~ — **superseded 2026-08-28**: defect 02 is now fixed, so the highlight resets to **chapter 1**. If you are testing a checkout that predates that fix, the old expectation still applies; either way, do not fail C1 for this row. |
 
 ### Part D — regression, the other footprint surfaces
 

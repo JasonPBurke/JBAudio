@@ -4,7 +4,7 @@
 the chapter list highlighting the last chapter, even though the Book has been
 reset to the beginning. The two "reset to the start" paths stop disagreeing.
 
-**Status:** ready-for-agent
+**Status:** resolved — code complete, **device test PENDING** (see below)
 
 **Found:** 2026-08-27, on a physical Pixel 7 Pro, during ticket 10's
 chapter-boundary device pass. Reported by the driver. Pre-existing; **not**
@@ -88,10 +88,92 @@ A fix that restructures `RemoteNext` should address both together.
 ## Acceptance criteria
 
 - [ ] After a remote Next press on the last chapter, the chapter list highlights
-      chapter 1
+      chapter 1 — **device only** (E1)
 - [ ] The persisted `current_chapter_index` is 0 after that press, verified on a
-      Book never reset via `PlaybackQueueEnded`
-- [ ] The highlight is still correct after an app restart
-- [ ] `PlaybackQueueEnded`'s behaviour is unchanged
-- [ ] The shared reset has one home, not two copies
-- [ ] Covered by a test in the `helpers` lane
+      Book never reset via `PlaybackQueueEnded` — **device only** (E2)
+- [ ] The highlight is still correct after an app restart — **device only** (E3)
+- [x] `PlaybackQueueEnded`'s behaviour is unchanged — the extracted helper is
+      equivalent to the five lines it replaced
+- [x] The shared reset has one home, not two copies — `helpers/resetBookToStart.ts`
+- [x] Covered by a test in the `helpers` lane — `resetBookToStart.test.ts` (3) plus
+      four new cases in `remoteNext.test.ts`
+
+## The fix, as built
+
+`src/helpers/resetBookToStart.ts` — `resetBookToStart(bookId, tracking)` does the
+four state writes (store progress, store index, `updateChapterProgressInDB`,
+`updateChapterIndexInDB`) **plus** the fifth piece the ticket asked us to check:
+it rewinds `singleFileChapterState`. The detector is passed in rather than owned
+because `handleProgressUpdated` reads and writes it on every tick.
+
+Both callers now hold that one home:
+
+- `Event.PlaybackQueueEnded`'s single-file branch (`service.js:~545`)
+- `RemoteNext`'s finish branch, via `handleRemoteNextPress`, which takes the
+  detector as a new `chapterTracking` field on `RemoteNextPress`
+
+⚠ **The reset runs LAST in the remote branch — after `seekTo(0)` and `pause()` —
+where `PlaybackQueueEnded` runs it first. That asymmetry is deliberate; do not
+"align" them.** A 1 Hz progress tick can land on any `await` in the branch. After
+the seek the Book really is at 0, so the worst a tick can do is write the same
+zeroes. Resetting *first* would leave the detector at chapter 0 while `position`
+is still in the last chapter, and that tick would write the stale index straight
+back — re-opening this exact bug.
+
+The call is wrapped in the same swallow the footprint recorders use: the press
+has already been served by then, so a DB failure in the bookkeeping behind it
+must not surface as a rejected handler.
+
+## Device test — PENDING
+
+Fixture: a **single-file** Book whose last chapter can actually be seeked into —
+see ticket 03's amended fixture recipe in `.scratch/player-seam/issues/`. A
+duration that is an exact multiple of the auto-chapter interval leaves a ~58 ms
+final chapter that cannot be reached.
+
+⚠ E2 is the criterion the original report could not settle: use a Book that has
+**never** been finished via `PlaybackQueueEnded` in its life on the device, or
+the DB row will read 0 for the wrong reason. A freshly scanned Book is the safe
+choice.
+
+| # | Steps | Before | After (expected) |
+|---|---|---|---|
+| E1 | Seek **into** the last chapter. Press **Next** on the notification player. Open the chapter list. | Highlight stuck on the **last** chapter. | Highlight on **chapter 1**. |
+| E2 | On a Book never finished via `PlaybackQueueEnded`, repeat E1, then read `books.current_chapter_index`. | Stale (expected non-zero — unconfirmed in the original report). | `0.0`. |
+| E3 | After E1, force-stop and reopen the app. Open the chapter list. | — | Still **chapter 1**. |
+| E4 **guard** | Play a single-file Book to its true end (`PlaybackQueueEnded`). Open the chapter list. | Chapter 1. | Identical — this path is unchanged. |
+| E5 **guard** | After E1, press **play**. Watch the Footprints list. | — | **No** spurious "Chapter changed" row at 0:00 — the detector was rewound with the index. |
+| E6 **guard** | Re-run ticket 01's C1/C2 rows. | — | Identical; the footprint ordering is untouched. |
+
+Reading the DB: use the `adb run-as` + WAL recipe in ticket 01's "Reading the DB"
+section — the main file is a 4 KB stub without `-wal`/`-shm`, and there is no
+`sqlite3` binary on device or host.
+
+## Comments
+
+**2026-08-28 — implemented, two-axis review run.**
+
+Accepted and actioned:
+
+- The reset call was left unwrapped while its comment promised it could not cost
+  the user their press. Now goes through the recorders' swallow, renamed
+  `record` → `withoutBlockingThePress` since it is no longer only recording.
+  Covered by a new test.
+
+Noted, deliberately **not** actioned — out of this ticket's scope:
+
+- The same four-write shape survives at three other sites in `service.js`
+  (`:250`, `:553`, `:666`), differing only in the values. `resetBookToStart` is
+  the zero-valued special case of a `setChapterPosition(bookId, index, position)`
+  that would absorb all four. Worth a follow-up ticket; it is a wider refactor
+  than "the shared reset has one home".
+- `PlaybackQueueEnded`'s **multi-file** and fallback branches still never touch
+  `singleFileChapterState`. Pre-existing, and correct-looking (the detector is
+  for single-file Books), but the asymmetry is now more conspicuous sitting next
+  to a helper that does rewind it.
+- **Residual race, pre-existing and not closed by this fix:** `pause()` fires
+  `Event.PlaybackState → Paused`, whose handler (`service.js:~592`) writes
+  `updateChapterProgressInDB` from a fresh `getProgress()`. If that read lags the
+  seek it can re-persist a non-zero *chapter progress* after our zero. The
+  chapter **index** is unaffected, so E1–E3 still hold; but if E3 shows chapter 1
+  highlighted with a non-zero position inside it, this is why.
