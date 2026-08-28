@@ -1,4 +1,5 @@
 import { useCallback, useRef, useSyncExternalStore } from 'react';
+import { normalizeChapterCount } from '@/helpers/chapterTimerStepper';
 
 export type SettingsSlice = {
   timerActive: boolean;
@@ -46,7 +47,7 @@ export function useObserveSettings(database: any | null): SettingsSlice {
           ? {
               timerActive: first.timerActive === true,
               timerDuration: first.timerDuration ?? null,
-              timerChapters: first.timerChapters ?? null,
+              timerChapters: normalizeChapterCount(first.timerChapters ?? null),
               sleepTime: first.sleepTime ?? null,
             }
           : null;

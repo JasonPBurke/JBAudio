@@ -8,6 +8,10 @@ import SettingsCard from '@/components/settings/SettingsCard';
 import { colorTokens } from '@/constants/tokens';
 import { withOpacity } from '@/helpers/colorUtils';
 import { useTheme } from '@/hooks/useTheme';
+import {
+  normalizeChapterCount,
+  stepChapterCount,
+} from '@/helpers/chapterTimerStepper';
 
 const PRESET_DURATIONS_MS = new Set([
   900000, 1800000, 2700000, 3600000, 5400000, 7200000,
@@ -59,7 +63,15 @@ const SleepTimerDurationCard = ({
   };
 
   const chapterTimerActive = timerChapters !== null;
-  const chaptersToEnd = timerChapters ?? 0;
+  const chaptersToEnd = normalizeChapterCount(timerChapters) ?? 0;
+
+  // Shared with the player's SleepTimerOptions modal so a press at a bound
+  // means the same thing on both surfaces.
+  const stepChapters = (delta: number) => {
+    const next = stepChapterCount(chaptersToEnd, delta, maxChapters);
+    if (next === chaptersToEnd) return;
+    onChapterChange(next);
+  };
 
   const customMs =
     customTimer.hours * 3600000 + customTimer.minutes * 60000;
@@ -148,11 +160,7 @@ const SleepTimerDurationCard = ({
       >
         <Pressable
           style={styles.stepperButton}
-          onPress={() => {
-            if (chaptersToEnd > 0) {
-              onChapterChange(chaptersToEnd - 1);
-            }
-          }}
+          onPress={() => stepChapters(-1)}
           hitSlop={8}
         >
           <CircleMinus
@@ -189,11 +197,7 @@ const SleepTimerDurationCard = ({
 
         <Pressable
           style={styles.stepperButton}
-          onPress={() => {
-            if (chaptersToEnd < maxChapters) {
-              onChapterChange(chaptersToEnd + 1);
-            }
-          }}
+          onPress={() => stepChapters(1)}
           hitSlop={8}
         >
           <CirclePlus

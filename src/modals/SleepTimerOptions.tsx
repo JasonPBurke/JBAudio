@@ -27,6 +27,10 @@ import {
 import { useRouter } from 'expo-router';
 import { useLibraryStore } from '@/store/library';
 import { findChapterIndexByPosition } from '@/helpers/singleFileBook';
+import {
+  normalizeChapterCount,
+  stepChapterCount,
+} from '@/helpers/chapterTimerStepper';
 import * as sleepTimer from '@/setup/sleepTimer';
 
 const SleepTimerOptions = ({
@@ -69,7 +73,7 @@ const SleepTimerOptions = ({
       if (settings.length > 0) {
         setActiveTimerDuration(settings[0].timerDuration);
         setChapterTimerActive(settings[0].timerChapters !== null);
-        setChaptersToEnd(settings[0].timerChapters || 0);
+        setChaptersToEnd(normalizeChapterCount(settings[0].timerChapters) ?? 0);
         if (settings[0].customTimer !== null) {
           const hours = Math.floor(settings[0].customTimer / 60);
           const minutes = settings[0].customTimer % 60;
@@ -93,7 +97,7 @@ const SleepTimerOptions = ({
 
         setChapterTimerActive(timerChaptersValue !== null);
         if (timerChaptersValue !== null) {
-          setChaptersToEnd(timerChaptersValue);
+          setChaptersToEnd(normalizeChapterCount(timerChaptersValue) ?? 0);
         }
 
         if (customTimerValue !== null) {
@@ -144,15 +148,21 @@ const SleepTimerOptions = ({
     return () => subscription.unsubscribe();
   }, [db]);
 
-  const handleChapterPlus = async () => {
-    updateChapterTimer(chaptersToEnd + 1);
-    setChaptersToEnd((prev) => Math.min(prev + 1, maxChapters));
+  // Both handlers resolve the press through stepChapterCount and write
+  // nothing when it lands where it started, so the DB can never hold a count
+  // this stepper refuses to display. Guarding here rather than restoring the
+  // buttons' `disabled` props is deliberate: the dimmed-but-live button is
+  // what kept this invisible, and it is also how the settings card guards.
+  const handleChapterStep = (delta: number) => {
+    const next = stepChapterCount(chaptersToEnd, delta, maxChapters);
+    if (next === chaptersToEnd) return;
+    updateChapterTimer(next);
+    setChaptersToEnd(next);
   };
 
-  const handleChapterMinus = () => {
-    updateChapterTimer(chaptersToEnd - 1);
-    setChaptersToEnd((prev) => Math.max(prev - 1, 0));
-  };
+  const handleChapterPlus = () => handleChapterStep(1);
+
+  const handleChapterMinus = () => handleChapterStep(-1);
 
   const handlePresetPress = async (duration: number) => {
     //! convert to milliseconds before saving for timer calculation
@@ -465,7 +475,6 @@ const SleepTimerOptions = ({
                 borderRadius: 4,
               }}
               onPress={handleChapterMinus}
-              // disabled={chaptersToEnd === 0}
             >
               <CircleMinus
                 size={28}
@@ -508,7 +517,6 @@ const SleepTimerOptions = ({
                 borderRadius: 4,
               }}
               onPress={handleChapterPlus}
-              // disabled={chaptersToEnd >= maxChapters}
             >
               <CirclePlus
                 size={28}

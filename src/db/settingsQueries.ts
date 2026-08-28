@@ -13,6 +13,7 @@ import {
   partitionBooksByRemovedFolder,
 } from '@/db/seriesOrphanPrune';
 import { deleteArtworkFiles } from '@/helpers/artworkFiles';
+import { normalizeChapterCount } from '@/helpers/chapterTimerStepper';
 import * as RNFS from '@dr.pogodin/react-native-fs';
 
 export async function ensureSettingsRecord(): Promise<void> {
@@ -206,7 +207,10 @@ export async function getTimerSettings() {
     return {
       timerDuration: settings.timerDuration,
       timerActive: settings.timerActive,
-      timerChapters: settings.timerChapters,
+      // Healed on read: a device that ran the old unclamped modal stepper can
+      // hold a negative count, which setup/sleepTimer.ts reads as "fire at the
+      // next chapter boundary" rather than "off".
+      timerChapters: normalizeChapterCount(settings.timerChapters),
       sleepTime: settings.sleepTime,
       frozenRemainingMs: settings.timerFrozenRemaining,
       fadeoutDuration: settings.timerFadeoutDuration,
