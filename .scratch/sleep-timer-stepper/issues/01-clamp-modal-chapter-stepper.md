@@ -260,9 +260,12 @@ effort; the `## Answer` here is the record.
   press at all, or route through a callback the way the card does? Not answered
   — the clamp is the contained fix, per the ticket's own recommendation.
 - **`chapterTimerActive` derives from `timerChapters !== null` and ignores
-  `timer_active`**, in both the modal and the card. Found during the trace above:
-  after `cancel()` the row can render as armed because `cancel()` leaves
-  `timer_chapters` set. Out of scope for a clamping ticket; worth its own.
+  `timer_active`** in the player sheet, so a cancelled or expired timer still
+  renders as armed. **Ticket filed:**
+  `.scratch/sleep-timer-armed-flag/issues/01-derive-armed-state-from-timer-active.md`
+  — it carries the traced census, the device-test table, and two rulings that
+  stop the obvious wrong fixes (do not clear the configured values in
+  `cancel()`; the settings card is correct as it stands).
 - **The in-memory mirror is not healed.** `sleepTimer.activate()` writes
   `mode.chaptersRemaining` to its cache and to the Zustand store directly
   (`:279`) as well as to the DB; only the DB write heals. Unreachable now that
