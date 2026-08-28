@@ -209,6 +209,90 @@ That ticket went first (`a2a5241`), so this one rebased onto it: its
 than importing it, so nothing there needed touching beyond `service.js`'s import
 line.
 
+## Device test — PENDING
+
+JS-only change: `npx expo start` and reload is enough — **no native rebuild**,
+and **no schema change, so no device wipe**.
+
+⚠ **Every row below is a GUARD row, and that inverts the usual method.** This
+is a locality ticket: the acceptance criterion is *"Footprints written are
+unchanged in trigger, position and count"*, so a row passes when Before and
+After read **identical**. There is no defect to reproduce and no "Before"
+column that proves a row can detect something — the comparison build is the
+assertion. Diff against `2b6c111` (the commit before the extraction):
+`git checkout 2b6c111 -- src/`, reload Metro; restore with
+`git checkout HEAD -- src/`.
+
+**Why device-test a refactor at all.** Three of the four sites have **zero
+automated coverage**: `service.js` has no test lane, and `PlayerControls.tsx`'s
+press was never covered. jest proves the helper in isolation; nothing proves the
+four call sites still reach it. The extraction also changed `service.js`'s
+**module import graph**, and the jest run showed exactly what that failure looks
+like — `sleepTimer.processDeath.test.ts` died at *import time* with
+`Cannot find module 'better-sqlite3'`, six tests gone before a single assertion.
+The device analogue is worse and quieter: a headless playback service that
+throws while loading modules takes **every remote control** down with it, with
+no redbox, because it is not running on the UI thread.
+
+**Reaching the Footprints list:** long-press the artwork on the Player screen.
+⚠ It loads on **mount** (`useEffect` keyed on the active Book), so it does not
+refresh while open — back out and re-enter after **every** press.
+
+**Labels** (`TRIGGER_LABELS`, `db/footprintQueries.ts:190`): `play` renders as
+**"Play pressed"**, `timer_activation` as **"Timer started at"**,
+`chapter_change` as **"Chapter changed"**, `seek` as **"Seeked from"**.
+
+**`stampLastPlayed` is observable without adb.** It writes `last_played_at`,
+which orders the **Started tab** — so a Book that jumps to the top of Started
+after a play press is the stamp firing. That is the only user-visible proof the
+play wrapper kept both halves; the footprint alone would pass with the stamp
+silently dropped.
+
+### Part A — the import graph (run FIRST; everything else assumes it passes)
+
+| # | Steps | Expected |
+|---|-------|----------|
+| A1 | Cold-start the app, start a Book, background it. `adb logcat -s ReactNativeJS \| grep '\[service\]'` | `playback service task started` appears exactly as before. **Any module-resolution error here invalidates every row below** — the service never registered its listeners. |
+| A2 | With the app backgrounded, press **play/pause on the notification** three times. | Playback responds every time. A silent no-op on all three = the service task died at import. |
+
+### Part B — the two `play` sites (3 + 4)
+
+| # | Steps | Expected (identical before and after) |
+|---|-------|----------------------------------------|
+| B1 | In-app: pause, then press **play** on the Player screen. Reopen the Footprints list. | **One** new "Play pressed" row, at the position you were paused at. Not two, not zero. |
+| B2 | Same press, then back out to Library → **Started** tab. | The Book is at the **top** of Started (`stampLastPlayed` fired). |
+| B3 | **Notification** play button (app backgrounded), then reopen the list. | One new "Play pressed" row. Same as B1 — this is `Event.RemotePlay`. |
+| B4 | **Bluetooth / steering-wheel single toggle key** (`KEYCODE_MEDIA_PLAY_PAUSE`), or `adb shell input keyevent 85`. | One new "Play pressed" row per press that STARTS playback. ⚠ Specifically worth a row: this is the one site where the recorder is passed as a **function reference** (`handleRemotePlayPause(recordActiveBookPlayFootprint)`) rather than called — it was a locally-defined closure before. |
+| B5 | Android Auto: select a **different** Book from browse. | **No** "Play pressed" row for the OLD Book. The `isBookSwitchInProgress()` guard sits above the call and must still short-circuit it. |
+
+### Part C — the two `timer_activation` sites (1 + 2)
+
+| # | Steps | Expected |
+|---|-------|----------|
+| C1 | Player sheet → sleep timer → set a **duration** timer. Reopen the list. | One new **"Timer started at"** row at the current position. |
+| C2 | Settings → Timer screen → arm a timer there (the second `activate()` surface). | Same single row. Both surfaces route through `activate()`. |
+| C3 | Set a **chapter** timer instead. | Same single row — the trigger does not vary by timer mode. |
+| C4 | **Bedtime auto-activation** (site 2, the one with no other path to it): Settings → set the bedtime window to span **now**, enable bedtime mode, ensure no timer is running, then **pause and resume** playback. | One new "Timer started at" row, written by `onPlaybackResumed()`. ⚠ Requires all three of `bedtimeModeEnabled && !timerActive && inBedtimeWindow` — if a timer is already armed, nothing records and the row proves nothing. |
+
+### Part D — the moved remote helpers (regression guard)
+
+Both moved file with the extraction, so an import slip breaks them without
+touching the four sites above.
+
+| # | Steps | Expected |
+|---|-------|----------|
+| D1 | Notification **seek back / forward**. Reopen the list. | A **"Seeked from"** row at the PRE-press position — not where you landed. |
+| D2 | Notification **Next** mid-Book (a press that moves). | A **"Chapter changed"** row at the spot you left. |
+| D3 | Notification **Next** at the last item of a multi-item Book (a no-op press). | **No new row** — `.scratch/remote-noop-footprint/` ticket 01's fix must survive this rebase. |
+
+### Part E — the swallow (optional, destructive-ish)
+
+The one behaviour jest now pins but no device row naturally exercises: a
+footprint failure must never block the action it accompanies. There is no clean
+way to fail the DB write on device on demand, so this is **left to jest**
+(`activeBookFootprints.test.ts`) unless a driver wants to temporarily throw from
+`recordFootprint` and confirm that play still starts and the timer still arms.
+
 ## Provenance
 
 Surfaced by the Standards axis of the `mattpocock-skills:code-review` run on
