@@ -1,8 +1,6 @@
 import { useLibraryStore } from '@/store/library';
-import {
-  updateChapterIndexInDB,
-  updateChapterProgressInDB,
-} from '@/db/chapterQueries';
+import { updateChapterProgressInDB } from '@/db/chapterQueries';
+import { setChapterIndex } from '@/helpers/setChapterIndex';
 
 /**
  * The chapter-change detector the playback service keeps at module scope for
@@ -26,7 +24,9 @@ export type SingleFileChapterTracking = {
  * highlight from `playbackIndex[bookId]` and only falls back to the DB row
  * when that selector is `undefined`, so a stale STORE entry beats a correct
  * DB row. Both halves of both values have to move together, which is why all
- * four writes live here and neither caller writes them itself.
+ * four writes live here and neither caller writes them itself. The index pair
+ * is delegated to `setChapterIndex`, the one home that pairing now has for
+ * every site that writes it; this module stays the home for the whole rewind.
  *
  * The tracking rewind is the fifth piece and the least obvious: leaving
  * `lastChapterIndex` at the final chapter makes the next progress tick — the
@@ -37,16 +37,16 @@ export async function resetBookToStart(
   bookId: string,
   tracking: SingleFileChapterTracking,
 ): Promise<void> {
-  const { setPlaybackProgress, setPlaybackIndex } =
-    useLibraryStore.getState();
+  const { setPlaybackProgress } = useLibraryStore.getState();
 
   // In-memory first: the UI reads the store, and the DB writes below are a
-  // bridge round-trip away.
+  // bridge round-trip away. `setChapterIndex` writes its store half
+  // synchronously before it awaits, so both in-memory writes still land in
+  // this one block; only the two independent DB writes swap order.
   setPlaybackProgress(bookId, 0);
-  setPlaybackIndex(bookId, 0);
+  await setChapterIndex(bookId, 0);
 
   await updateChapterProgressInDB(bookId, 0);
-  await updateChapterIndexInDB(bookId, 0);
 
   tracking.lastChapterIndex = 0;
   tracking.bookId = bookId;

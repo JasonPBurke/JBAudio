@@ -4,7 +4,8 @@
 store-write-then-DB-write pair. One home under `src/helpers/`, the way
 `resetBookToStart` is now one home for the zero-valued case.
 
-**Status:** ready-for-agent
+**Status:** ready-for-human — code complete, `tsc` 0, `eslint` clean, suite
+green at 85 suites / 1047 tests. Outstanding: the device pass below.
 
 **Blocked by:** `.scratch/player-seam/issues/12-convert-playback-service-to-typescript.md`
 — see `## Sequencing`.
@@ -240,20 +241,20 @@ means re-costing this ticket with both of those benefits withdrawn.
 
 ## Acceptance criteria
 
-- [ ] The store+DB pairing for the chapter **index** has one home under
+- [x] The store+DB pairing for the chapter **index** has one home under
       `src/helpers/`, called by sites A, B, D and E
-- [ ] `resetBookToStart` calls it for the index half and is otherwise unchanged
-- [ ] Site F (`handleBookPlay`) is resolved in writing: correct-as-is, or filed
+- [x] `resetBookToStart` calls it for the index half and is otherwise unchanged
+- [x] Site F (`handleBookPlay`) is resolved in writing: correct-as-is, or filed
       as its own bug ticket with a `fakePlayer` repro
-- [ ] `singleFileChapterState` stays outside the unit, or the ticket records why
+- [x] `singleFileChapterState` stays outside the unit, or the ticket records why
       it moved in
-- [ ] No behaviour change: A's index write stays inside the chapter-changed
+- [x] No behaviour change: A's index write stays inside the chapter-changed
       guard, and `sleepTimer.onChapterChanged()` / `updateMetadataForTrack` fire
       exactly as often as before
-- [ ] The progress axis is untouched — no site in the rejected table above moves
-- [ ] `service.js:55`'s module-scope destructure drops `setPlaybackIndex` and
+- [x] The progress axis is untouched — no site in the rejected table above moves
+- [x] `service.js:55`'s module-scope destructure drops `setPlaybackIndex` and
       keeps `setPlaybackProgress`
-- [ ] Covered by tests in the `helpers` lane
+- [x] Covered by tests in the `helpers` lane
 
 ## Traps
 
@@ -309,3 +310,118 @@ Net effect: roughly a third of the original scope carries essentially all of the
 value. The alternative considered and not taken was `wontfix` — one historical
 drift, no open defect, and a playback-critical file touched twice. Rejected
 because the index invariant is load-bearing and cheap to make explicit.
+
+
+---
+
+## Answer — 2026-08-28
+
+Landed on `chapter-position-writes-01-collapse-index-writes`.
+
+`src/helpers/setChapterIndex.ts` is the one home. Four callers: A
+(`handleProgressUpdated`, single-file), B (`Event.PlaybackQueueEnded`,
+multi-file), D (`Event.PlaybackActiveTrackChanged`, multi-file) and E
+(`resetBookToStart`). Covered by
+`src/helpers/__tests__/setChapterIndex.test.ts`, 4 tests in the `helpers` lane.
+
+`tsc` 0 project-wide. `eslint` clean. Jest **85 suites / 1047 tests green**,
+both lanes — up exactly one suite and four tests from ticket 12's 84/1043, so
+nothing else moved.
+
+### Branching — a deviation, recorded
+
+The branch plan said *its own branch off `main`, after 12 has merged*. **12 has
+not merged.** This branched off 12's tip instead.
+
+Branching off `main` would have reintroduced the CRLF `service.js` — the exact
+trap the sequencing exists to retire — and would have conflicted with 12 on
+nearly every hunk. Both of the plan's stated reasons therefore argued *against*
+`main` while 12 sits unmerged.
+
+The property the plan actually bought is **device-pass attribution**, and that
+is preserved: this is a separate branch with separate commits, so a
+Remote-control regression is still attributable to one ticket or the other, and
+it can be rebased onto `main` once 12 lands. What is lost is only that 12's own
+device pass no longer sits on a merged base — and 12 is already
+DEVICE-VERIFIED. Rebase this branch after 12 merges rather than merging it
+first.
+
+### Site F: reading 2, filed as `02`
+
+**F is latent drift, not correct-as-is.** Reading 1 does not survive the file:
+`handleBookPlay.ts` has **zero** references to `useLibraryStore`,
+`setPlaybackIndex` or `setPlaybackProgress`, so there is no store write for the
+first tick to race. The comment at `:143`–`:146` is about the **DB** write's
+ordering against `play()`, which a synchronous store write does not disturb.
+
+Filed as
+`.scratch/chapter-position-writes/issues/02-handleBookPlay-zeroes-the-db-index-without-the-store.md`,
+`needs-triage`, with the repro recipe and the one-line fix against
+`setChapterIndex`. Two bounds the ticket did not know, both found here and both
+severity-reducing:
+
+- The store has **no `persist` middleware**, so the drift is same-session only
+  and cannot survive a restart.
+- `chapterList`'s `activeIndex` is also gated on
+  `activeBookId === book.bookId`, narrowing it to the loaded Book — though
+  `restartFromZero` is the path that makes that Book active, so the gate is
+  open when it fires.
+
+Not fixed here, deliberately: this ticket claims *no behaviour change* and buys
+a device pass that says so. A new state write on the play path would spend that
+claim.
+
+### `singleFileChapterState` stayed outside — the ticket's reading confirmed
+
+It is site A's dedupe cache: the guard is what stops the 1 Hz tick from
+rewriting an unchanged index to WatermelonDB every second. The extraction sits
+**inside** that guard untouched, so `sleepTimer.onChapterChanged()` and
+`updateMetadataForTrack` fire on exactly the same edges. Nothing to overturn.
+
+### One judgement call the ticket did not anticipate: DB write order
+
+At sites B and E the original order was *store progress → store index → DB
+progress → DB index*. A single `setChapterIndex` call cannot reproduce that,
+because it owns one store write and one DB write.
+
+The order chosen keeps **both store writes synchronous and adjacent**, and lets
+the two DB writes swap:
+
+```ts
+setPlaybackProgress(bookId, 0);
+await setChapterIndex(bookId, 0);   // store half is sync, before it awaits
+await updateChapterProgressInDB(bookId, 0);
+```
+
+The rejected alternative — awaiting the DB progress write first — would have
+delayed the *store index* write by a bridge round-trip, degrading the one
+invariant this ticket exists to protect. The cost paid instead is that the two
+independent DB writes swap order, observable only if the process dies between
+them, which already left a half-written pair today. Site A needed no such
+choice: its order was already index-then-progress and is byte-for-byte
+preserved.
+
+`resetBookToStart.test.ts` passes **unchanged**, which is the evidence that E's
+externally visible behaviour did not move.
+
+### Device pass — outstanding
+
+This ticket's device-observable claim is narrower than 12's: the four call
+sites, and the 1 Hz tick path firing `sleepTimer.onChapterChanged()` and
+`updateMetadataForTrack` no more often than before.
+
+- [ ] Single-file Book with chapters: chapter list highlight follows playback
+      across a chapter boundary (site A)
+- [ ] Single-file Book: lock-screen / notification title changes on the
+      boundary exactly once, not repeatedly (A's `updateMetadataForTrack`)
+- [ ] Sleep timer set to end-of-chapter on a single-file Book fires on the
+      boundary, once (A's `sleepTimer.onChapterChanged()`)
+- [ ] Multi-file Book: chapter list highlight follows track changes (site D)
+- [ ] Multi-file Book: sleep-timer end-of-chapter still fires on track change
+      (D's `onChapterChanged()`)
+- [ ] Multi-file Book played to the true end: index and progress both persist,
+      and the highlight lands correctly (site B)
+- [ ] Single-file Book played to the true end: rewinds to chapter 1 and the
+      highlight follows (site E via `resetBookToStart`)
+- [ ] Kill and relaunch after each of the above: the restored chapter matches
+      what the list showed

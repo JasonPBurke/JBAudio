@@ -21,10 +21,7 @@ import RNShake from 'react-native-shake';
 import * as Haptics from 'expo-haptics';
 import { useLibraryStore } from '@/store/library';
 import { useSettingsStore } from '@/store/settingsStore';
-import {
-  updateChapterProgressInDB,
-  updateChapterIndexInDB,
-} from '@/db/chapterQueries';
+import { updateChapterProgressInDB } from '@/db/chapterQueries';
 import { getBookById } from '@/db/bookQueries';
 import { BookProgressState } from '@/helpers/handleBookPlay';
 import { handleRemotePlayPause } from '@/helpers/remotePlayPause';
@@ -35,6 +32,7 @@ import {
 import { ensurePlayerSetup } from '@/helpers/playerSetup';
 import { handleRemoteNextPress } from '@/helpers/remoteNext';
 import { resetBookToStart } from '@/helpers/resetBookToStart';
+import { setChapterIndex } from '@/helpers/setChapterIndex';
 import type { SingleFileChapterTracking } from '@/helpers/resetBookToStart';
 import { restoreLastActiveBook } from '@/helpers/restoreLastActiveBook';
 import { shouldUseClippedChapters } from '@/helpers/clippedChapters';
@@ -59,8 +57,7 @@ import type { Book } from '@/types/Book';
 import * as sleepTimer from '@/setup/sleepTimer';
 import { useSleepTimerStore } from '@/setup/sleepTimer';
 
-const { setPlaybackIndex, setPlaybackProgress } =
-  useLibraryStore.getState();
+const { setPlaybackProgress } = useLibraryStore.getState();
 
 // SPIKE (Bug B): with clipped per-chapter queues, single-file books flow
 // through the multi-file code paths below (queue index == chapter index,
@@ -297,11 +294,12 @@ async function handleProgressUpdated({
       singleFileChapterState.bookId = bookId;
       singleFileChapterState.lastChapterIndex = currentChapterIndex;
 
-      // Update Zustand store for UI reactivity
-      setPlaybackIndex(bookId, currentChapterIndex);
-      // Update database for persistence - save BOTH chapterIndex AND progress atomically
-      // This ensures they're always in sync, even if app is force-closed
-      await updateChapterIndexInDB(bookId, currentChapterIndex);
+      // Store then DB, as one unit — see helpers/setChapterIndex. This is
+      // guarded by the chapter-change check above, which is what stops the
+      // 1 Hz tick from rewriting an unchanged index to the DB every second.
+      await setChapterIndex(bookId, currentChapterIndex);
+      // Progress is written alongside it so the two persist together, even if
+      // the app is force-closed.
       await updateChapterProgressInDB(bookId, progressWithinChapter);
 
       // Update track metadata for lock screen/notification
@@ -602,10 +600,9 @@ export default module.exports = async function () {
     } else if (!isSingleFile && book) {
       // Multi-file book: use track index as chapter index
       setPlaybackProgress(trackToUpdate.bookId, position);
-      setPlaybackIndex(trackToUpdate.bookId, track);
+      await setChapterIndex(trackToUpdate.bookId, track);
 
       await updateChapterProgressInDB(trackToUpdate.bookId, position);
-      await updateChapterIndexInDB(trackToUpdate.bookId, track);
     } else {
       // Single chapter book or book not in Zustand: just reset progress
       setPlaybackProgress(trackToUpdate.bookId, 0);
@@ -714,10 +711,9 @@ export default module.exports = async function () {
       const isSingleFile = queue.length === 1;
       if (isSingleFile) return;
 
-      // Multi-file book: Update Zustand store immediately for UI reactivity
-      setPlaybackIndex(trackAtIndex.bookId, event.index);
-      // Update database for persistence
-      await updateChapterIndexInDB(trackAtIndex.bookId, event.index);
+      // Multi-file book: store then DB, as one unit — see
+      // helpers/setChapterIndex.
+      await setChapterIndex(trackAtIndex.bookId, event.index);
 
       // Handle sleep timer chapter countdown (multi-file books only)
       await sleepTimer.onChapterChanged();
