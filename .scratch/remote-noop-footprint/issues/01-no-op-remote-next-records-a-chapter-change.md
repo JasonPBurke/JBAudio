@@ -73,9 +73,10 @@ that did not happen, and it appears in the Footprints list.
   `src/setup/service.js:475`.
 - **`RemotePrevious` IS affected on multi-item Books — traced, not assumed.**
   The `onBeforeSkip` reasoning holds only for the **one-item** Queue shape:
-  `getPreviousPressTarget` is reached exclusively inside `if (queue.length ===
-  1)` (`src/helpers/chapterSkip.ts:57`). The multi-item branch
-  (`chapterSkip.ts:73-83`) calls `notifyBeforeSkip('previous')` unconditionally
+  `getPreviousPressTarget` is reached exclusively inside the `if (queue.length
+  === 1)` guard (`src/helpers/chapterSkip.ts:48`, call at `:56`). The
+  multi-item branch (`chapterSkip.ts:73-83`) calls
+  `notifyBeforeSkip('previous')` unconditionally
   and *then* `skipToPrevious()`, which is a silent no-op at index 0 — so a press
   at the very start of chapter 1 **does** write a footprint for a move that
   never happened. ⚠ Do not re-verify this on a one-item Book: that shape is
