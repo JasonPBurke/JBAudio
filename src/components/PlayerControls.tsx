@@ -231,7 +231,7 @@ export function SeekBackButton({
       withTiming(0, { duration: 100 }),
     );
 
-    // Shared with the RemoteJumpBackward handler in setup/service.js so the
+    // Shared with the RemoteJumpBackward handler in setup/service.ts so the
     // in-app button, notification and Android Auto all cross chapter
     // boundaries identically.
     await seekBack(seekDuration);
@@ -287,7 +287,7 @@ export function SeekForwardButton({
       withTiming(0, { duration: 100 }),
     );
 
-    // Shared with the RemoteJumpForward handler in setup/service.js so the
+    // Shared with the RemoteJumpForward handler in setup/service.ts so the
     // in-app button, notification and Android Auto all cross chapter
     // boundaries identically.
     await seekForward(seekDuration);
@@ -322,7 +322,7 @@ export function SeekForwardButton({
 
 export function SkipToPreviousButton({ iconSize = 30 }: PlayerButtonProps) {
   const handlePress = async () => {
-    // Shared with the RemotePrevious handler in setup/service.js: >15s into
+    // Shared with the RemotePrevious handler in setup/service.ts: >15s into
     // a chapter restarts it, within the first 15s goes to the previous
     // chapter — notification, Android Auto and in-app behave identically.
     await skipToPreviousChapter();

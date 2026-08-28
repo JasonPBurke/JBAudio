@@ -25,7 +25,7 @@ import { Chapter } from '@/types/Book';
  *
  * More than RESTART_CHAPTER_THRESHOLD_SECONDS into a chapter, the press
  * restarts that chapter; at or under the threshold it goes to the previous
- * chapter. Shared by the RemotePrevious handler in setup/service.js
+ * chapter. Shared by the RemotePrevious handler in setup/service.ts
  * (notification / Android Auto) and the in-app SkipToPreviousButton so
  * both press-sites behave identically — same pattern as relativeSeek.ts.
  *

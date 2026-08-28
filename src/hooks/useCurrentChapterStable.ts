@@ -52,7 +52,7 @@ export const useCurrentChapter = (): Chapter | undefined => {
  * Chapter identity (see helpers/chapterPlayback.ts):
  * - Chapter-queue mode (multi-file books, and clipped single-file books under
  *   the spike): current chapter = chapters[queue index]. The queue index
- *   comes from the library store's playbackIndex, which service.js keeps
+ *   comes from the library store's playbackIndex, which service.ts keeps
  *   current via PlaybackActiveTrackChanged; on mount, before the store has an
  *   entry, the adapter's getActiveTrackIndex() fills the gap.
  * - Legacy single-file mode (spike off / no chapter offsets): the book is one

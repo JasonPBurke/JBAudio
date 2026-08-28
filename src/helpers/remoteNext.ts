@@ -14,7 +14,7 @@ import {
  * sites, so this is the only path a user reaches.
  *
  * Extracted from the playback service for the same reason
- * `handleRemotePlayPause` was: `setup/service.js` has no test lane, and the
+ * `handleRemotePlayPause` was: `setup/service.ts` has no test lane, and the
  * property that matters here is one no "was it recorded?" assertion can see.
  *
  * ── The ordering rule, which is the whole point ──
@@ -47,7 +47,7 @@ export type RemoteNextPress = {
   /**
    * The playback service's module-scope chapter-change detector, handed over
    * so the finish branch can rewind it through the shared reset. Passed in
-   * because the progress handler in `setup/service.js` owns it.
+   * because the progress handler in `setup/service.ts` owns it.
    */
   chapterTracking: SingleFileChapterTracking;
   /** Records a `chapter_change` footprint. Awaited before the seek/skip. */
@@ -110,7 +110,7 @@ export async function handleRemoteNextPress({
 
       // Only the MARK is guarded: a press inside the lead window must not
       // rewrite an already-set `finished_at`. Guarded on the STORE, never on
-      // finishMarkedBookId — see the latch's comment in service.js. A
+      // finishMarkedBookId — see the latch's comment in service.ts. A
       // lead-time mark landed at least a tick ago and the observer refreshes
       // within about one, so the store is the reliable reading here and it
       // cannot go stale across listens.

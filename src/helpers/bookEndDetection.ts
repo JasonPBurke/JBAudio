@@ -31,10 +31,14 @@ export type BookEndInput = {
    * item spans the whole book, so `duration` is the book's duration.
    *
    * ⚠ Anything that is not exactly `'one-item'` is treated as `'multi-item'`,
-   * which then REQUIRES a usable chapter array and index. The caller is
-   * untyped `service.js`, so this direction is the one that fails closed: a
-   * forgotten field leaves the book never marked, rather than marked at the
-   * end of every track.
+   * which then REQUIRES a usable chapter array and index. This direction is
+   * the one that fails closed: a forgotten field leaves the book never
+   * marked, rather than marked at the end of every track.
+   *
+   * The caller (`setup/service.ts`) is type-checked as of ticket 12, which
+   * narrows how a bad value gets here but does not close the door: the
+   * values it forwards are a NATIVE BRIDGE PAYLOAD, and types are erased
+   * before any of them arrive. Keep failing closed.
    */
   queueShape: 'one-item' | 'multi-item';
   /**

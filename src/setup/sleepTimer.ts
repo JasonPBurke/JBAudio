@@ -642,7 +642,7 @@ export function getStatus(): SleepTimerStatus {
 
 /**
  * Hydrate the Zustand store from DB on service start.
- * Call once in service.js before registering event listeners.
+ * Call once in service.ts before registering event listeners.
  */
 export async function syncFromDB(): Promise<void> {
   const settings = await getTimerSettings();

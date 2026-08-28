@@ -18,7 +18,7 @@ import { useLibraryStore } from '@/store/library';
  * this the row freezes at its mount value while the Book plays on.
  *
  * `playbackIndex` and NOT `playbackProgress`: the latter is rewritten by
- * `setup/service.js` on every progress tick, which would re-render the caller
+ * `setup/service.ts` on every progress tick, which would re-render the caller
  * at 1 Hz. This changes only at a chapter turn — the cadence those screens had
  * before ticket 09.
  *

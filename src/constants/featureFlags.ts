@@ -6,7 +6,7 @@
  * multi-file code paths.
  *
  * Flip to false to restore the classic single-track behavior. While true,
- * the `isSingleFile` branches in src/setup/service.js are bypassed for
+ * the `isSingleFile` branches in src/setup/service.ts are bypassed for
  * playback (books still carry isSingleFile in the DB).
  */
 export const CLIPPED_CHAPTERS_SPIKE = true;

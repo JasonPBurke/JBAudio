@@ -128,9 +128,11 @@ describe('evaluateBookEnd — D5, marking once', () => {
 });
 
 /**
- * The only production caller is untyped `service.js`, so `tsc` cannot check
- * what reaches this function and Babel strips the types without looking at
- * them. Every input has to be assumed missing.
+ * The only production caller (`setup/service.ts`) is type-checked as of
+ * ticket 12, but that is not why these cases exist and does not retire them:
+ * Babel strips the types without looking at them, and the values forwarded
+ * here originate in an RNTP event payload crossing the native bridge. Every
+ * input still has to be assumed missing.
  */
 describe('evaluateBookEnd — undefined and unusable inputs', () => {
   it('does nothing when the position or duration is missing', () => {
