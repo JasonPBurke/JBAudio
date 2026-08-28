@@ -1,5 +1,6 @@
 import {
   getActiveBookId,
+  getActiveTrackIndex,
   getProgress,
   getQueue,
   seekTo,
@@ -22,6 +23,10 @@ import {
  *
  * The threshold compares playback position, so at 2× speed the window
  * passes in half the wall-clock time.
+ *
+ * At the FIRST chapter of a book, a within-threshold press restarts the book
+ * rather than doing nothing — on both queue shapes, and reported as
+ * 'restart' so the footprint names what actually happened.
  *
  * `onBeforeSkip` receives the resolved kind ('restart' | 'previous') and is
  * awaited BEFORE the seek/skip — footprint recording needs the pre-press
@@ -73,13 +78,29 @@ export async function skipToPreviousChapter(
   if (position > RESTART_CHAPTER_THRESHOLD_SECONDS) {
     await notifyBeforeSkip('restart');
     await seekTo(0);
-  } else {
-    await notifyBeforeSkip('previous');
-    try {
-      await skipToPrevious();
-    } catch {
-      // First queue item has no previous — restart the book instead.
-      await seekTo(0);
-    }
+    return;
   }
+
+  // At the first queue item there is no previous chapter, so the press
+  // restarts the book — the same thing the single-file branch above does at
+  // the first chapter.
+  //
+  // This has to be ASKED, not discovered from a failure: `skipToPrevious()`
+  // at index 0 RESOLVES having moved nothing. Native `previous()` is
+  // `exoPlayer.seekToPreviousMediaItem()`, documented as "does nothing if
+  // there is no previous item", and `MusicModule` resolves the promise
+  // unconditionally — there is no rejection to catch.
+  //
+  // `undefined` means the index could not be read, NOT index 0: treating it
+  // as 0 would turn a transient read failure into a spurious restart, so an
+  // unknown index takes the ordinary previous-chapter path.
+  const activeIndex = await getActiveTrackIndex();
+  if (activeIndex === 0) {
+    await notifyBeforeSkip('restart');
+    await seekTo(0);
+    return;
+  }
+
+  await notifyBeforeSkip('previous');
+  await skipToPrevious();
 }

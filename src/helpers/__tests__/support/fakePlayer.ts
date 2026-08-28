@@ -11,7 +11,13 @@
  *     the same clamping that made native `seekBy` stop at a chapter boundary
  *     (the reason `relativeSeek` exists at all).
  *  2. `skipToNext` / `skipToPrevious` / `skip` move the active item and reset
- *     the position to 0.
+ *     the position to 0 -- EXCEPT that `skipToNext` at the LAST item and
+ *     `skipToPrevious` at the FIRST resolve having moved nothing. They map to
+ *     ExoPlayer's `seekToNextMediaItem()` / `seekToPreviousMediaItem()`, both
+ *     documented as "does nothing if there is no next/previous item"
+ *     (`QueuedAudioPlayer.kt`), and `MusicModule.kt` resolves the promise
+ *     unconditionally -- so JS cannot tell from the call that nothing moved,
+ *     and a spy alone is satisfied by a press that went nowhere.
  *
  * Tests then assert on the landing spot — `player.at()` — which is exactly
  * what a user reports ("I ended up at the start of chapter 2").
@@ -58,6 +64,15 @@ export function createFakePlayer(options: FakePlayerOptions): FakePlayer {
     position = 0;
   };
 
+  // Native's next/previous are edge NO-OPS, not clamps: off either end of the
+  // queue they leave both the item and the position untouched, and still
+  // resolve. See the note on `skipToNext` / `skipToPrevious` above.
+  const step = (delta: number) => {
+    const next = index + delta;
+    if (next < 0 || next > durations.length - 1) return;
+    activate(next);
+  };
+
   const api = {
     getPlaybackState: jest.fn(async () => ({
       state: playing ? 'playing' : 'paused',
@@ -74,8 +89,8 @@ export function createFakePlayer(options: FakePlayerOptions): FakePlayer {
       // Native clamps into the active item — the whole reason this bug exists.
       position = Math.max(0, Math.min(target, durations[index]));
     }),
-    skipToNext: jest.fn(async () => activate(index + 1)),
-    skipToPrevious: jest.fn(async () => activate(index - 1)),
+    skipToNext: jest.fn(async () => step(1)),
+    skipToPrevious: jest.fn(async () => step(-1)),
     skip: jest.fn(async (target: number) => activate(target)),
     play: jest.fn(async () => {
       playing = true;

@@ -2,12 +2,19 @@ import TrackPlayer from 'react-native-track-player';
 import { skipToPreviousChapter } from '../chapterSkip';
 import { useLibraryStore } from '@/store/library';
 
+/*
+ * Call-level tests. The LANDING-SPOT tests for the ends of the queue live in
+ * `chapterSkip.queuePosition.test.ts`, against `support/fakePlayer.ts` — a
+ * `skipToPrevious` spy cannot see a press that resolved without moving.
+ */
+
 jest.mock('react-native-track-player', () => ({
   __esModule: true,
   default: {
     getQueue: jest.fn(),
     getProgress: jest.fn(),
     getActiveTrack: jest.fn(),
+    getActiveTrackIndex: jest.fn(),
     seekTo: jest.fn().mockResolvedValue(undefined),
     skipToPrevious: jest.fn().mockResolvedValue(undefined),
   },
@@ -20,6 +27,7 @@ jest.mock('@/store/library', () => ({
 const mockGetQueue = TrackPlayer.getQueue as jest.Mock;
 const mockGetProgress = TrackPlayer.getProgress as jest.Mock;
 const mockGetActiveTrack = TrackPlayer.getActiveTrack as jest.Mock;
+const mockGetActiveTrackIndex = TrackPlayer.getActiveTrackIndex as jest.Mock;
 const mockSeekTo = TrackPlayer.seekTo as jest.Mock;
 const mockSkipToPrevious = TrackPlayer.skipToPrevious as jest.Mock;
 const mockGetState = useLibraryStore.getState as jest.Mock;
@@ -37,6 +45,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockSkipToPrevious.mockResolvedValue(undefined);
   mockGetActiveTrack.mockResolvedValue({ bookId: 'book-1' });
+  // Mid-queue unless a test says otherwise: index 0 is its own branch.
+  mockGetActiveTrackIndex.mockResolvedValue(1);
   mockGetState.mockReturnValue({ books: { 'book-1': { chapters } } });
 });
 
@@ -118,13 +128,26 @@ describe('skipToPreviousChapter — multi-item queue (multi-file / clipped chapt
     expect(mockSeekTo).not.toHaveBeenCalled();
   });
 
-  it('falls back to restarting when skipToPrevious rejects (first queue item)', async () => {
+  it('restarts the book at the first queue item within the first 15s', async () => {
     mockGetProgress.mockResolvedValue({ position: 10, duration: 600 });
-    mockSkipToPrevious.mockRejectedValue(new Error('no previous track'));
+    mockGetActiveTrackIndex.mockResolvedValue(0);
 
     await skipToPreviousChapter();
 
     expect(mockSeekTo).toHaveBeenCalledWith(0);
+    expect(mockSkipToPrevious).not.toHaveBeenCalled();
+  });
+
+  it('takes the previous-chapter path when the queue index cannot be read', async () => {
+    // `undefined` is "unknown", not 0 — guessing 0 would turn a transient
+    // read failure into a restart the user never asked for.
+    mockGetProgress.mockResolvedValue({ position: 10, duration: 600 });
+    mockGetActiveTrackIndex.mockResolvedValue(undefined);
+
+    await skipToPreviousChapter();
+
+    expect(mockSkipToPrevious).toHaveBeenCalledTimes(1);
+    expect(mockSeekTo).not.toHaveBeenCalled();
   });
 });
 
@@ -157,6 +180,17 @@ describe('skipToPreviousChapter — onBeforeSkip callback', () => {
     await skipToPreviousChapter(onBeforeSkip);
 
     expect(onBeforeSkip).toHaveBeenCalledWith('previous');
+  });
+
+  it('reports "restart" at the first queue item within the threshold', async () => {
+    mockGetQueue.mockResolvedValue(queueOf(3));
+    mockGetActiveTrackIndex.mockResolvedValue(0);
+    mockGetProgress.mockResolvedValue({ position: 10, duration: 600 });
+
+    const onBeforeSkip = jest.fn().mockResolvedValue(undefined);
+    await skipToPreviousChapter(onBeforeSkip);
+
+    expect(onBeforeSkip).toHaveBeenCalledWith('restart');
   });
 
   it('reports "restart" beyond the threshold on a multi-item queue', async () => {
