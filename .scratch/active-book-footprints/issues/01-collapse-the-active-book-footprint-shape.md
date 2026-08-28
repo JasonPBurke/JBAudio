@@ -163,12 +163,12 @@ content survives in two places on the new file:
   now sits on that pair explicitly instead of over the whole file, where it
   would have been false for half the contents.
 
-**Shape.** One private `withActiveBook(bookId, record)` owns read → guard →
+**Shape.** One private `tryWithActiveBook(bookId, record)` owns read → guard →
 record → swallow. Public surface:
 
 | Function | Callers |
 |---|---|
-| `recordActiveBookFootprint(trigger, bookId?)` | sites 1 + 2 (`timer_activation`) |
+| `recordActiveBookFootprint(trigger, bookId?)` | sites 1 + 2 (`timer_activation`), and the chapter delegate below |
 | `recordActiveBookPlayFootprint()` | sites 3 + 4 (`play` + `stampLastPlayed`) |
 | `recordRemoteSeekFootprint(bookId?)` | service seek handlers (moved, body unchanged) |
 | `recordRemoteChapterChangeFootprint(bookId?, trigger?)` | service / `remoteNext` (now a one-line delegate) |

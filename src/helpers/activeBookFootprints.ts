@@ -32,14 +32,15 @@ import { FootprintTrigger } from '@/db/models/Footprint';
  */
 
 /**
- * The shape itself: resolve the Book, guard, run, never throw.
+ * The shape itself: resolve the Book, guard, run, never throw. The `try`
+ * prefix is the point — the swallow is load-bearing, not incidental.
  *
  * `bookId` is threaded through rather than always read: re-reading the active
  * Book costs a bridge round-trip and, worse, a Book switch racing the handler
  * would attribute the breadcrumb to the wrong Book. Callers that know the
  * Book pass it.
  */
-async function withActiveBook(
+async function tryWithActiveBook(
   bookId: string | undefined,
   record: (bookId: string) => Promise<void>,
 ): Promise<void> {
@@ -58,7 +59,7 @@ export async function recordActiveBookFootprint(
   trigger: FootprintTrigger,
   bookId?: string,
 ): Promise<void> {
-  await withActiveBook(bookId, (id) => recordFootprint(id, trigger));
+  await tryWithActiveBook(bookId, (id) => recordFootprint(id, trigger));
 }
 
 /**
@@ -68,14 +69,14 @@ export async function recordActiveBookFootprint(
  * footprint is written against, which is exactly what the caller lacks.
  */
 export async function recordActiveBookPlayFootprint(): Promise<void> {
-  await withActiveBook(undefined, async (id) => {
+  await tryWithActiveBook(undefined, async (id) => {
     await stampLastPlayed(id);
     await recordFootprint(id, 'play');
   });
 }
 
 /**
- * The remote seek press. Not `withActiveBook`: the position read is issued in
+ * The remote seek press. Not `tryWithActiveBook`: the position read is issued in
  * parallel with the Book read so the breadcrumb is captured with one round
  * trip of latency in front of the seek, not two.
  */
@@ -99,6 +100,12 @@ export async function recordRemoteSeekFootprint(
   }
 }
 
+/**
+ * A deliberate one-line delegate. It survives the extraction because it
+ * narrows the trigger to the two a chapter press can produce and defaults it,
+ * which is the whole of what its callers want; inlining it would push that
+ * narrowing out to three remote call sites.
+ */
 export async function recordRemoteChapterChangeFootprint(
   bookId?: string,
   trigger: Extract<
