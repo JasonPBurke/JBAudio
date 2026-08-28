@@ -176,21 +176,114 @@ replacement — every other file gets both rules from the later block, and the o
 ignored file falls through to the earlier block and gets the library ban alone.
 Nothing was blocked; the reasoning had simply stopped one step early.
 
-### The device pass — NOT RUN
+### The device pass — MULTI-ITEM SHAPE COMPLETE, one-item shape owed
 
-None of ticket 03's twelve rows were run on hardware. No device or emulator was
-driven in this session, and the checklist's entire premise is that a stale
-render is indistinguishable from a correct one on screen — so nothing here
-substitutes for it. **The full twelve rows on both runtime Queue shapes remain
-owed**, and ticket 03's `### Producing each shape on a device` section has the
-ffmpeg recipes for both (a ~90-minute chapterless MP3 seeked to 29:50 for the
-one-item shape; two ~60 s files for the multi-item shape).
+Run 2026-08-27 on a **Pixel 7 Pro emulator** (`emulator-5554`, Android 15 / API
+35) against a debug build of `b3e9d6a`. The build was made fresh for the pass:
+the APK already installed dated from 2026-08-17 and the native surface had moved
+since (two permissions dropped from the manifest, R8 config added to
+`build.gradle`, two autolinked native dependencies removed), so the old binary
+would not have been a reading of this tree.
 
-Carry ticket 09's `### Still owed` note into that pass as well: rows 5, 6, 7 and
-11 are the ones exposed to the mirror's one-render latency, plus row 11's
-off-boundary extra check (play a Book to the very end, let `PlaybackQueueEnded`
-reset the queue, confirm the FloatingPlayer and its "N h M m left" text both
-stay put rather than blanking).
+**Fixture:** `Boundary Multi` — eight 70-second MP3s in one folder, synthesised
+with ffmpeg. Multi-file, so `usesChapterQueue` short-circuits on
+`!isSingleFileBook`. **The shape was proven at runtime rather than assumed**:
+`dumpsys media_session` reported `queueTitle=null, size=8` during playback, and
+the in-app chapter list showed eight rows of `01:10`.
+
+⚠ Fixtures pushed with `adb push` are invisible to the app. `scanLibrary`
+enumerates through `enumerateAudioViaMediaStore`, and a pushed file is not
+registered with MediaStore. `adb shell content call --uri content://media
+--method scan_volume --arg external_primary` after pushing is what makes them
+scannable.
+
+**Method:** timed screenshot bursts (every 3–4 s) straddling each boundary, with
+the media session polled in the same loop, then the frames either side of each
+turn compared directly. Boundaries were located from the session's track
+metadata, not by eye. Where the observable was "nothing happens" the app's own
+`footprints` table was read out of the device DB via `run-as`, so absence is
+evidenced rather than assumed.
+
+⚠ Two probe traps worth knowing, both of which produced convincing wrong
+readings before they were caught. (1) The emulator carries **four stale
+Bluetooth media sessions** ahead of the app's in `dumpsys media_session`, all
+frozen at `ERROR(7)`; a probe must match on `package=com.fuzzylogic42.JBAudio`.
+(2) `PlaybackState.position` is a snapshot from the last `setPlaybackState`, not
+a live counter — it read `0ms` for 47 s of healthy playback. Use the footprint
+rows for real positions.
+
+| row | site | result | what was seen |
+|---|---|---|---|
+| 1 | chapterList | **PASS** | highlight moved Ch03 → Ch04, exactly one row; did not vanish, so the bookId gate held |
+| 2 | footprintList | **PASS** | no row appeared; confirmed in the DB — the row-2 window contained a real Ch05→Ch06 turn and holds **no** footprint |
+| 3 | player | **PASS** | chapter title Ch06 → Ch07; cover art and mesh gradient unchanged |
+| 4 | titleDetails | **PASS** | capsule advanced and "N m left" ticked at **every** turn (09m → 07m → 05m → 04m), holding constant between turns |
+| 5 | BookTimeRemaining | **PASS** | "left" text held across three boundaries with **no upward jump**; ticked down mid-chapter |
+| 6 | FloatingPlayer | **PASS** | title, artwork and glyph pixel-identical across the turn; no flicker, no `FadeIn` replay |
+| 7 | PlayerControls | **PASS** | Next pressed **1.1 s** after a turn advanced exactly one chapter (Ch02 → Ch03) |
+| 8 | PlayerProgressBar | **PASS** | bar snapped to the left edge, elapsed `01:05` → `00:00`, remaining → `−01:10` (the new chapter's full length) |
+| 9 | PlayerStateSync | n/a | renders `null`; no device observable by construction |
+| 10 | useCurrentChapterStable | **PASS** | rows 3 and 8 moved in the **same frame** — no split between title and bar |
+| 11 | useLastActiveTrack | **PASS** | played to the end; session went `PLAYING` → `NONE(0)` and metadata reset to Ch01, and the FloatingPlayer stayed mounted with its artwork, title and "left" text |
+| 12 | useLogTrackPlayerState | n/a | not mounted; call site still commented out |
+
+**Row 4 is the one that mattered.** Ticket 03 predicted it would fail and warned
+that a pass should be distrusted — but that warning was written for an unfixed
+tree, and this ticket fixed the row before the pass (see the section below). The
+observed behaviour is the fix's exact signature: the capsule updates **at
+boundaries and only at boundaries**, which is what an unsubscribed
+`getState()` read refreshed by `useRerenderOnChapterTurn` must look like, and
+which is also the pre-migration cadence restored rather than new freshness
+invented.
+
+**Row 7 needed two attempts, and the first one did not test the stated
+condition.** The first press was made on a misreading of the session's frozen
+`position` field and actually landed 61 s into the chapter. Repeated: the
+footprint proves the second attempt was pressed at Ch02 + **1.1 s**.
+
+**Row 7's last-chapter half is one-item behaviour, not multi-item.** Pressing
+Next on the final chapter did nothing, and that is correct here: the
+mark-finished-and-reset branch in `service.js` is gated on
+`treatAsSingleFile(book)`, so a multi-file book takes the `else` and
+`skipToNext()` no-ops at the end of the queue. Ticket 03's row 7 watch-for
+("does nothing at the last chapter when it should mark the Book finished and
+reset") therefore belongs to the one-item pass.
+
+**A defect was found and filed, unrelated to this migration.** That no-op Next
+press still wrote a `chapter_change` footprint, because `RemoteNext` records
+unconditionally before the branch that decides whether anything happens:
+`.scratch/remote-noop-footprint/issues/01-no-op-remote-next-records-a-chapter-change.md`.
+Pre-existing; found by the driver on the Footprints screen.
+
+**Also observed, and worth recording:** `SkipToNextButton`
+(`components/PlayerControls.tsx:352`) is exported but has **zero render sites**
+in `src/` — the notification is the only skip-forward surface. Ticket 03's row 7
+reasoned about the `useActiveTrack()` inside that component, and that hook never
+runs in the app at all, which makes the in-app half of row 7 vacuous in the same
+way row 12 is.
+
+### The one-item shape — STILL OWED, and it needs a Pro build
+
+The one-item queue could not be produced on this emulator. It requires a
+single-file Book whose chapters are auto-generated (the auto-chapter exclusion is
+the only lever that can be forced on demand — the heap-gate route cannot), and
+`autoChapterInterval` is `number | null` with the interval picker behind the Pro
+entitlement, which this bundle does not have. The other lever,
+`CLIPPED_CHAPTERS_SPIKE`, is a hard-coded `true` in `constants/featureFlags.ts`,
+not a runtime setting; flipping it would mean the pass was no longer running
+against this tree, so it was not touched.
+
+The fixture for it is built and already on the emulator: `Boundary Single`, one
+5400-second MP3 with **zero embedded chapters** (verified with `ffprobe`), which
+with the interval at 30 minutes yields boundaries at exactly 30:00 and 60:00 —
+seek to 29:50 and one arrives in ten seconds.
+
+⚠ Per ticket 03's own mechanism table, the one-item shape is the **weaker** half
+of the evidence: `PlaybackActiveTrackChanged` never fires at a boundary there, so
+ticket 09 deleted a re-render that was never occurring and every row is
+unaffected by construction. It still has to be *run* — to confirm the things that
+do move on that shape still move, and to settle row 7's last-chapter branch —
+but the falsifiable half is the multi-item one, and that half is complete.
 
 ### Row 4 was confirmed stale WITHOUT a device, and fixed
 

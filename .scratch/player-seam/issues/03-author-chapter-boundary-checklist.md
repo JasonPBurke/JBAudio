@@ -406,3 +406,22 @@ What to run instead, on the **multi-item** shape, is the positive observable:
 with title details open, the capsule under the play button advances and the
 "N h M m left" text ticks down as each chapter turns over. The other eleven rows
 are unchanged and unrun. See ticket 10's `## Answer`.
+
+⚠ **ROW 7 AMENDED 2026-08-27 BY TICKET 10's MULTI-ITEM PASS.** Two corrections
+before this row is run on the one-item shape.
+
+1. **The in-app half of row 7 is vacuous.** `SkipToNextButton`
+   (`components/PlayerControls.tsx:352`) is exported but has **zero render
+   sites** in `src/`, so the `useActiveTrack()` this row reasoned about never
+   runs in the app — the same situation as row 12. The notification / Android
+   Auto is the only skip-forward surface, handled by `Event.RemoteNext`
+   (`service.js:466`).
+2. **"Does nothing at the last chapter" is CORRECT on multi-item.** The
+   mark-finished-and-reset branch is gated on `treatAsSingleFile(book)`, so a
+   multi-file book takes the `else` and `skipToNext()` no-ops at the end of the
+   queue. This row's last-chapter watch-for is therefore a **one-item-shape**
+   test, and it is the one still owed.
+
+Also filed from this row: a no-op remote Next still writes a `chapter_change`
+footprint — `.scratch/remote-noop-footprint/issues/01-no-op-remote-next-records-a-chapter-change.md`.
+Pre-existing, unrelated to the migration.
