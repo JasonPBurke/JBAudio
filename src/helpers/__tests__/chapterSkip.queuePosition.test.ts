@@ -50,19 +50,6 @@ describe('skipToPreviousChapter — first queue item of a multi-item book', () =
     expect(mockPlayer.at()).toEqual({ index: 0, position: 0 });
   });
 
-  it('reports the press as a restart, so the footprint names what happened', async () => {
-    mockPlayer = createFakePlayer({
-      durations: CHAPTERS,
-      index: 0,
-      position: 10,
-    });
-    const onBeforeSkip = jest.fn().mockResolvedValue(undefined);
-
-    await skipToPreviousChapter(onBeforeSkip);
-
-    expect(onBeforeSkip).toHaveBeenCalledWith('restart');
-  });
-
   it('still restarts the chapter past 15s', async () => {
     mockPlayer = createFakePlayer({
       durations: CHAPTERS,

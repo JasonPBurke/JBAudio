@@ -5,7 +5,7 @@ Chapter of a multi-item Book restarts the Book, the way the same press already
 does on a one-item Book. Today it silently does nothing — and records a footprint
 saying it did something.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **Found:** 2026-08-27, on the driver's device, while running ticket 08's
 Remote-control device pass (`.scratch/player-seam/issues/08-...md`). Pre-existing;
@@ -147,3 +147,106 @@ genuinely clean, and ticking the box wrongly.
 - [ ] `tsc` 0, `eslint` 0, test count at or above the Player-seam baseline
 - [ ] Device-verified on a multi-file Book from **both** the in-app control and
       the notification
+
+---
+
+## Answer
+
+Fixed in `c1acfee`. `tsc` 0, `eslint` 0, jest **81 suites / 1012 tests** (baseline
+was 80 / 1006).
+
+### What changed
+
+`skipToPreviousChapter` now **asks** where it is instead of discovering it from a
+failure. The multi-item within-threshold branch reads `getActiveTrackIndex()`
+from the adapter and, at index 0, takes the same restart path the past-threshold
+branch takes:
+
+```ts
+const activeIndex = await getActiveTrackIndex();
+if (activeIndex === 0) {
+  await notifyBeforeSkip('restart');
+  await seekTo(0);
+  return;
+}
+
+await notifyBeforeSkip('previous');
+await skipToPrevious();
+```
+
+The dead `catch` and its false comment are gone. The three branches were also
+flattened to early `return`s so each one reads top-to-bottom.
+
+**The footprint needed no separate fix**, exactly as the ticket predicted: the
+press now resolves to `'restart'`, and `service.js:521` already maps
+`kind === 'restart'` to `chapter_restart`. No conditional write was added to the
+previous path.
+
+`undefined` is treated as unknown and takes the ordinary previous path. That
+leaves one **accepted residual**, called out in a code comment: an index that
+could not be read but was really 0 still records a `chapter_change` for a press
+that went nowhere. Guarding it is what the ticket forbids, and the window is a
+failed bridge read.
+
+### The fake was lying, in both directions
+
+`fakePlayer.ts` modelled `skipToNext` / `skipToPrevious` as **clamps** — at index
+0, `skipToPrevious()` reset the position to 0, i.e. the fake accidentally
+simulated the fix and would have hidden this bug forever. Native models them as
+**edge no-ops**: `QueuedAudioPlayer.kt` `previous()` is
+`exoPlayer.seekToPreviousMediaItem()` and `next()` is `seekToNextMediaItem()`,
+both documented "does nothing if there is no next/previous item", and
+`MusicModule.kt` resolves the promise unconditionally either way.
+
+Both directions were corrected, not just `previous`. The spec review flagged the
+`next` half as scope creep; it was **kept deliberately** — a harness that is
+accurate about one direction and wrong about the other, inside the same two-line
+helper, is the precise failure mode this fake exists to prevent.
+
+### Tests
+
+- `chapterSkip.queuePosition.test.ts` (new) — fake-backed, asserts the **landing
+  spot** at both ends of the queue. Its first test is red against the old source:
+  the press left the position at 10.
+- `chapterSkip.test.ts` — the dead-catch test is gone, replaced by a real
+  index-0 case plus an unknown-index (`undefined`) case, and by a
+  `'restart'`-label case in the callback block. Its RNTP mock gained
+  `getActiveTrackIndex`, defaulted to `1` in `beforeEach` so index 0 is always
+  opted into explicitly.
+
+### Code review
+
+Two-axis review run against `c1acfee`. **No hard standards violations**; ADR 0003
+(adapter-only RNTP imports) and the `helpers`-lane rules are respected. Three
+judgement calls raised, two accepted (header said "first Chapter" where the guard
+tests a **queue item** — CONTEXT.md keeps those separate; and a duplicated
+`'restart'`-label assertion across both test files, dropped from the landing-spot
+file). One declined: the repeated `notifyBeforeSkip('restart') + seekTo(0)` pair
+appears three times, but each occurrence carries a distinct guard and comment,
+and the early-`return` shape is worth more than the extraction. Spec axis found
+**nothing implemented wrongly**.
+
+## Device pass — PENDING
+
+Needs a **multi-file** Book (prove the shape at runtime with
+`adb shell dumpsys media_session` — queue size > 1, never assume it).
+
+| # | Where | Setup | Press | Expect |
+|---|-------|-------|-------|--------|
+| 1 | In-app | Chapter 1, position ~5 s | Skip-previous | Restarts to 0:00, **still chapter 1** |
+| 2 | Notification | Chapter 1, position ~5 s | Skip-previous | Restarts to 0:00, still chapter 1 |
+| 3 | Notification | Chapter 1, position ~5 s | Skip-previous, then open Footprints | One `chapter_restart`, **no** `chapter_change` |
+| 4 | In-app | Chapter 1, position ~40 s | Skip-previous | Restarts to 0:00 (unchanged behaviour) |
+| 5 | In-app | Chapter 3, position ~5 s | Skip-previous | Lands at start of chapter 2 |
+| 6 | Notification | Chapter 3, position ~5 s | Skip-previous | Lands at start of chapter 2 |
+| 7 | In-app | Chapter 3, position ~40 s | Skip-previous | Restarts chapter 3, stays on chapter 3 |
+| 8 | In-app | **One-item** Book, chapter 1, ~5 s | Skip-previous | Restarts the book — the untouched branch, regression check |
+
+Row 3 is the only place the footprint half is observable: the in-app
+`SkipToPreviousButton` (`PlayerControls.tsx:333`) passes no `onBeforeSkip` and so
+records nothing. Rows 5–7 are the regression rows; a failure there means the
+index read broke a path that was already correct.
+
+⚠ Once this is device-verified, `.scratch/remote-noop-footprint/issues/01-...md`
+is unblocked — its `RemotePrevious` "probably not affected" claim is true only
+after this ticket.

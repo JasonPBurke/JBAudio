@@ -24,9 +24,10 @@ import {
  * The threshold compares playback position, so at 2× speed the window
  * passes in half the wall-clock time.
  *
- * At the FIRST chapter of a book, a within-threshold press restarts the book
- * rather than doing nothing — on both queue shapes, and reported as
- * 'restart' so the footprint names what actually happened.
+ * At the START of a book — the first chapter of a single-file book, the first
+ * QUEUE ITEM of a multi-item one — a within-threshold press restarts the book
+ * rather than doing nothing, and reports 'restart' so the footprint names
+ * what actually happened.
  *
  * `onBeforeSkip` receives the resolved kind ('restart' | 'previous') and is
  * awaited BEFORE the seek/skip — footprint recording needs the pre-press
@@ -93,7 +94,11 @@ export async function skipToPreviousChapter(
   //
   // `undefined` means the index could not be read, NOT index 0: treating it
   // as 0 would turn a transient read failure into a spurious restart, so an
-  // unknown index takes the ordinary previous-chapter path.
+  // unknown index takes the ordinary previous-chapter path. That path is
+  // deliberately unguarded — after this fix it always acts, so a "did
+  // anything move?" check would be dead code — which leaves one accepted
+  // residual: an unreadable index that was really 0 still records a
+  // `chapter_change` for a press that went nowhere.
   const activeIndex = await getActiveTrackIndex();
   if (activeIndex === 0) {
     await notifyBeforeSkip('restart');
