@@ -136,17 +136,17 @@ genuinely clean, and ticking the box wrongly.
 
 ## Acceptance criteria
 
-- [ ] At the first queue item of a multi-item Book, within 15 s, the press
+- [x] At the first queue item of a multi-item Book, within 15 s, the press
       restarts the Book (Position 0, still item 1)
-- [ ] At any other queue item the press still goes to the previous Chapter
-- [ ] Past 15 s the press still restarts the current Chapter, at every index
-- [ ] The recorded footprint names the action that actually happened
-- [ ] The dead `catch` and its false comment are gone
-- [ ] `fakePlayer.ts` models `skipToPrevious()` at index 0 as resolve-and-no-op,
+- [x] At any other queue item the press still goes to the previous Chapter
+- [x] Past 15 s the press still restarts the current Chapter, at every index
+- [x] The recorded footprint names the action that actually happened
+- [x] The dead `catch` and its false comment are gone
+- [x] `fakePlayer.ts` models `skipToPrevious()` at index 0 as resolve-and-no-op,
       and the replaced test asserts the landing spot through it
-- [ ] `tsc` 0, `eslint` 0, test count at or above the Player-seam baseline
+- [x] `tsc` 0, `eslint` 0, test count at or above the Player-seam baseline
 - [ ] Device-verified on a multi-file Book from **both** the in-app control and
-      the notification
+      the notification — checklist below
 
 ---
 
