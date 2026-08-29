@@ -358,14 +358,6 @@ export function registerPlaybackService(factory: () => ServiceHandler): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Subscribe to a Player event. A passthrough, deliberately.
- *
- * Who may subscribe is a documented rule rather than a type constraint: the
- * Reanimated progress hook subscribes specifically to write shared values
- * without a React re-render, and any design that treats `subscribe` as a smell
- * to eliminate will fight that module and lose.
- */
-/**
  * RNTP's event/payload map plus the events OUR OWN PATCH emits.
  *
  * `remote-play-book` is emitted by the Android Auto browse path in the
@@ -382,6 +374,14 @@ export type AppEventPayloadByEvent = EventPayloadByEvent & {
   'remote-play-book': { bookId: string };
 };
 
+/**
+ * Subscribe to a Player event. A passthrough, deliberately.
+ *
+ * Who may subscribe is a documented rule rather than a type constraint: the
+ * Reanimated progress hook subscribes specifically to write shared values
+ * without a React re-render, and any design that treats `subscribe` as a smell
+ * to eliminate will fight that module and lose.
+ */
 export function subscribe<T extends keyof AppEventPayloadByEvent>(
   event: T,
   handler: AppEventPayloadByEvent[T] extends never
