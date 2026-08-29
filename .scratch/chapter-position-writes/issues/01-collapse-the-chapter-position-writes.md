@@ -447,6 +447,14 @@ identical to this ticket breaking site B or D, and is not.**
 Single-file Books are immune: they finish through `resetBookToStart`, which
 zeroes both halves, so a replay finds the store already at `0`.
 
+**2026-08-29 — this warning is now SPENT on this branch.** Ticket `02` has been
+fixed and its commits sit on top of this one, so `handleBookPlay` writes both
+halves and the contamination above cannot occur here any more. The device pass
+that ran on 2026-08-28 predates the fix, and its observations stand as recorded.
+A pass run from here should see the first chapter highlighted on that row; the
+OLD chapter appearing now means ticket 02 regressed, not that this warning is
+still live. The warning remains accurate for `main`, where site F is unfixed.
+
 **Avoid it for free:** force-kill and relaunch _before_ replaying a
 just-finished Book. The store has no `persist` middleware, so the entry is gone
 and `chapterList` falls back to the correct DB row. If a wrong highlight

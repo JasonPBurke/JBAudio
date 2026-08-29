@@ -11,10 +11,10 @@ green at 85 suites / 1050 tests. Outstanding: the device pass. See
 `## Answer — 2026-08-29`.
 
 **Blocked by:** `01-collapse-the-chapter-position-writes.md` — satisfied by
-stacking. The fix calls `setChapterIndex`, which exists on ticket 01's branch
-and NOT on `main`, so this work sits on
-`chapter-position-writes-02-store-index-on-restart`, branched off 01. It cannot
-merge to `main` before 01 does.
+merging. The fix calls `setChapterIndex`, which exists on ticket 01's branch and
+NOT on `main`, so this work now lives ON that branch
+(`chapter-position-writes-01-collapse-index-writes`), fast-forwarded there on
+2026-08-29. The two tickets ship together or not at all.
 
 **Found:** 2026-08-28, while resolving site F of
 `01-collapse-the-chapter-position-writes.md`. That ticket required F to be
@@ -339,6 +339,7 @@ should be highlighted.
 
 ⚠ Ticket 01's device pass (commit `5eb5ae4`) ran BEFORE this fix and was warned
 to expect the wrong highlight here. That warning is now stale for any pass run
-on this branch — a fresh run should see the first chapter highlighted, and
-seeing the old chapter means this fix regressed rather than that the warning
-still holds.
+on ticket 01's branch, and has been marked spent in `01`'s checklist — a fresh
+run should see the first chapter highlighted, and seeing the old chapter means
+this fix regressed rather than that the warning still holds. The warning is
+still accurate for `main`.
