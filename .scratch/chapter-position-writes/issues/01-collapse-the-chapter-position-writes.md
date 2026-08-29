@@ -431,3 +431,24 @@ sites, and the 1 Hz tick path firing `sleepTimer.onChapterChanged()` and
       highlight follows (site E via `resetBookToStart`)
 - [ ] Kill and relaunch after each of the above: the restored chapter matches
       what the list showed
+
+⚠ **One known non-regression can contaminate two of these rows.** Ticket `02`
+(site F) is pre-existing on `main` and untouched by this branch, but it fires on
+exactly the path a tester reaches next: **replaying a multi-file Book that was
+just finished, in the same app session.**
+
+At queue end `const { track } = event` is the LAST track index, so site B leaves
+both the store and the DB at the last chapter, and the Book is then marked
+Finished. Pressing play again takes `handleBookPlay`'s `restartFromZero` branch,
+which zeroes the DB row and writes no store entry — so the chapter list
+highlights the last chapter while playback starts at the first. **That looks
+identical to this ticket breaking site B or D, and is not.**
+
+Single-file Books are immune: they finish through `resetBookToStart`, which
+zeroes both halves, so a replay finds the store already at `0`.
+
+**Avoid it for free:** force-kill and relaunch *before* replaying a
+just-finished Book. The store has no `persist` middleware, so the entry is gone
+and `chapterList` falls back to the correct DB row. If a wrong highlight
+survives that relaunch, it IS a regression in this ticket and worth stopping
+for.
