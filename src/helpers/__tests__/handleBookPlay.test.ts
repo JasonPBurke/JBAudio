@@ -49,6 +49,29 @@ jest.mock('@/db/settingsQueries', () => ({
 }));
 
 /*
+ * A STATEFUL stand-in for the library store, seeded per test. The assertion
+ * this file needs on the restart path is the END STATE of the in-memory
+ * chapter index, not merely that a write happened — so the setter records into
+ * a plain map the tests read back.
+ *
+ * `getState` is a function on purpose: the factory is hoisted above these
+ * consts, so naming `mockSetPlaybackIndex` inside it can only be safe if it is
+ * dereferenced when the store is USED rather than when the factory runs. Same
+ * shape as `setChapterIndex.test.ts`.
+ */
+const storePlaybackIndex: Record<string, number> = {};
+
+const mockSetPlaybackIndex = jest.fn((bookId: string, index: number) => {
+  storePlaybackIndex[bookId] = index;
+});
+
+jest.mock('@/store/library', () => ({
+  useLibraryStore: {
+    getState: () => ({ setPlaybackIndex: mockSetPlaybackIndex }),
+  },
+}));
+
+/*
  * Two chapters with DIFFERENT urls, so `isSingleFileBook` is false and the
  * clipped-chapter gate is shut with it. That puts every case below in the
  * plain multi-file branch, where the resume position is readable straight off
@@ -73,6 +96,11 @@ let errorSpy: jest.SpyInstance;
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // `clearAllMocks` drops recorded calls but KEEPS implementations, so the
+  // recording setter survives; the map it writes into has to be emptied here.
+  for (const bookId of Object.keys(storePlaybackIndex)) {
+    delete storePlaybackIndex[bookId];
+  }
   errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   // Parked deep in the book, the way the service leaves a finished one.
   (getChapterProgressInDB as jest.Mock).mockResolvedValue({
@@ -258,5 +286,51 @@ describe('the Requested Book decides a switch from a resume', () => {
     // Still a real resume: the stored position is honoured.
     expect(TrackPlayer.skip).toHaveBeenCalledWith(1);
     expect(TrackPlayer.seekTo).toHaveBeenCalledWith(300);
+  });
+});
+
+/*
+ * Ticket 02 (`.scratch/chapter-position-writes/issues/02-*.md`). The restart
+ * zeroed the PERSISTED chapter index and left the in-memory one where the
+ * previous listen ended. `chapterList` resolves its highlight as
+ * `storeIndex ?? persistedIndex ?? -1` — the store is consulted FIRST — so a
+ * correct DB row does not rescue a stale store entry, and the list highlights
+ * the chapter the Book was just rewound away from.
+ *
+ * ⚠ NO PLAYER EVENT IS DELIVERED, on purpose. The window under test is the one
+ * BEFORE the first progress tick. On the happy path a tick corrects the store
+ * within about a second, but a queue that fails to load, or a pause before the
+ * first tick, leaves the drift for the rest of the session. Driving the queue
+ * here would exercise the correction and hide the bug.
+ */
+describe('the restart moves the in-memory chapter index too', () => {
+  it('leaves the store at the first chapter, not the previous listen\u2019s', async () => {
+    // Where the previous listen left it: deep in the book, never zeroed,
+    // because a Book is marked Finished at lead time and the reset that
+    // zeroes the store only runs when the queue actually ends.
+    storePlaybackIndex.b1 = 1;
+    (getBookById as jest.Mock).mockResolvedValue({
+      updateBookProgress: jest.fn().mockResolvedValue(undefined),
+    });
+
+    await play(finishedBook());
+
+    expect(storePlaybackIndex.b1).toBe(0);
+    expect(updateChapterIndexInDB).toHaveBeenCalledWith('b1', 0);
+  });
+
+  /*
+   * The store write inherits the demotion guard rather than running
+   * unconditionally: a restart that did not fire must not move the index it
+   * did not rewind.
+   */
+  it('leaves the in-memory index alone when the demotion does not land', async () => {
+    storePlaybackIndex.b1 = 1;
+    (getBookById as jest.Mock).mockResolvedValue(null);
+
+    await play(finishedBook());
+
+    expect(storePlaybackIndex.b1).toBe(1);
+    expect(mockSetPlaybackIndex).not.toHaveBeenCalled();
   });
 });

@@ -1,7 +1,6 @@
 import { resolveTrackArtwork } from '@/helpers/defaultArtwork';
 import {
   getChapterProgressInDB,
-  updateChapterIndexInDB,
   updateChapterProgressInDB,
 } from '@/db/chapterQueries';
 import { Book } from '@/types/Book';
@@ -27,6 +26,7 @@ import {
   buildClippedChapterTracks,
 } from '@/helpers/clippedChapters';
 import { applyPersistedPlaybackRate } from '@/helpers/applyPlaybackRate';
+import { setChapterIndex } from '@/helpers/setChapterIndex';
 import { BookProgressState } from '@/helpers/bookProgressState';
 
 // The enum itself lives in a dependency-free module so pure helpers can use
@@ -142,9 +142,23 @@ const handleBookPlayInner = async (
    * The zeroed position is written back BEFORE playback starts so the queue and
    * the database agree: the notification, the floating player and the next
    * resume all read the DB, and a later write would race the first progress tick.
+   *
+   * The INDEX goes through `setChapterIndex` because it lives in two places
+   * that must agree, and `chapterList` resolves its highlight as
+   * `storeIndex ?? persistedIndex ?? -1` — the store is consulted FIRST, so a
+   * stale in-memory entry beats the correct row this branch just wrote and
+   * highlights the chapter the Book was rewound away from. That is not a race
+   * with the first progress tick: the store half is synchronous and in-process,
+   * and the tick it would race has not happened, because `play()` is below.
+   * See `.scratch/chapter-position-writes/issues/02-*.md`.
+   *
+   * ⚠ The PROGRESS half stays a bare DB write. There is deliberately no
+   * `setChapterProgress` — store and DB progress are written on different
+   * cadences by design, and nothing reads store progress in a way that beats a
+   * DB row into a wrong result. Do not "finish the symmetry" here.
    */
   if (restartFromZero && book.bookId) {
-    await updateChapterIndexInDB(book.bookId, 0);
+    await setChapterIndex(book.bookId, 0);
     await updateChapterProgressInDB(book.bookId, 0);
   }
 
