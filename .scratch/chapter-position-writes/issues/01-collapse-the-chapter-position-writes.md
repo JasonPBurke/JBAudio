@@ -25,8 +25,8 @@ Do not re-widen it without reading that section.
 A Book's chapter index lives in **two places** that must agree:
 
 ```js
-setPlaybackIndex(bookId, index);              // Zustand — what the UI reads
-await updateChapterIndexInDB(bookId, index);  // WatermelonDB — what survives a restart
+setPlaybackIndex(bookId, index); // Zustand — what the UI reads
+await updateChapterIndexInDB(bookId, index); // WatermelonDB — what survives a restart
 ```
 
 Those two lines are open-coded at four sites, and **ticket 02 exists because one
@@ -52,12 +52,12 @@ axis and not a tidiness preference. (`BookDurationRow.tsx:42` reads
 
 Line numbers are as of `173f91e`; the handler names are the durable reference.
 
-| # | Site | Store | DB | Value |
-|---|------|-------|----|-------|
-| A | `handleProgressUpdated`, single-file branch — `:250`, `:253` | ✓ | ✓ | `currentChapterIndex` |
-| B | `Event.PlaybackQueueEnded`, multi-file branch — `:553`, `:556` | ✓ | ✓ | `track` |
-| D | `Event.PlaybackActiveTrackChanged`, multi-file — `:666`, `:668` | ✓ | ✓ | `event.index` |
-| E | `helpers/resetBookToStart.ts` — `:46`, `:49` | ✓ | ✓ | `0` |
+| #   | Site                                                            | Store | DB  | Value                 |
+| --- | --------------------------------------------------------------- | ----- | --- | --------------------- |
+| A   | `handleProgressUpdated`, single-file branch — `:250`, `:253`    | ✓     | ✓   | `currentChapterIndex` |
+| B   | `Event.PlaybackQueueEnded`, multi-file branch — `:553`, `:556`  | ✓     | ✓   | `track`               |
+| D   | `Event.PlaybackActiveTrackChanged`, multi-file — `:666`, `:668` | ✓     | ✓   | `event.index`         |
+| E   | `helpers/resetBookToStart.ts` — `:46`, `:49`                    | ✓     | ✓   | `0`                   |
 
 Site letters are kept from the original ticket so the ticket-02 review notes
 still resolve. **C is deliberately absent**: `PlaybackQueueEnded`'s fallback
@@ -67,13 +67,13 @@ ticket's scope it is simply not a site.
 
 ### A fifth site, index-axis but store-less
 
-| # | Site | Store | DB | Value |
-|---|------|-------|----|-------|
-| F | `helpers/handleBookPlay.ts:147` | ✗ | ✓ | `0` (only when `restartFromZero`) |
+| #   | Site                            | Store | DB  | Value                             |
+| --- | ------------------------------- | ----- | --- | --------------------------------- |
+| F   | `helpers/handleBookPlay.ts:147` | ✗     | ✓   | `0` (only when `restartFromZero`) |
 
 `handleBookPlay` writes `updateChapterIndexInDB` with **no store write at all**
 — it writes no store state anywhere in the file. Its comment says the zeroed
-position is written back *before* playback starts so the DB and queue agree, and
+position is written back _before_ playback starts so the DB and queue agree, and
 that a later write would race the first progress tick.
 
 **Decide F explicitly rather than by omission.** Two readings, and the ticket
@@ -144,7 +144,8 @@ helper-lane mocking pattern stops working.
 `service.js:55` destructures at module scope, once, at import time:
 
 ```js
-const { setPlaybackIndex, setPlaybackProgress } = useLibraryStore.getState();
+const { setPlaybackIndex, setPlaybackProgress } =
+  useLibraryStore.getState();
 ```
 
 **All three** `setPlaybackIndex` uses in the file — `:250` (A), `:553` (B) and
@@ -164,26 +165,26 @@ change" refactor acquires a surprise hunk mid-diff.
 
 ## Considered and rejected: the progress axis
 
-The original ticket claimed *"four values always move together"* — the index and
+The original ticket claimed _"four values always move together"_ — the index and
 the progress, each in store and DB. **That premise is false**, which is why this
 ticket no longer covers progress. The chapter-progress axis writes store and DB
-on *deliberately different cadences*:
+on _deliberately different cadences_:
 
-| Site | Store | DB |
-|---|---|---|
-| `handleProgressUpdated` single-file — `:230`, `:254` | every tick (1 Hz) | only on chapter change |
-| `handleProgressUpdated` multi-file — `:302` | every tick (1 Hz) | via `savePeriodicProgress`, ≤ every 30 s |
-| `savePeriodicProgress` — `:86` | — | throttled to 30 s |
-| `Event.PlaybackState` — `:621`, `:624` | — | on state change only |
-| `PlaybackQueueEnded` fallback — `:559`–`:560` | ✓ | ✓ |
-| `handleBookPlay.ts:148` | — | ✓ |
+| Site                                                 | Store             | DB                                       |
+| ---------------------------------------------------- | ----------------- | ---------------------------------------- |
+| `handleProgressUpdated` single-file — `:230`, `:254` | every tick (1 Hz) | only on chapter change                   |
+| `handleProgressUpdated` multi-file — `:302`          | every tick (1 Hz) | via `savePeriodicProgress`, ≤ every 30 s |
+| `savePeriodicProgress` — `:86`                       | —                 | throttled to 30 s                        |
+| `Event.PlaybackState` — `:621`, `:624`               | —                 | on state change only                     |
+| `PlaybackQueueEnded` fallback — `:559`–`:560`        | ✓                 | ✓                                        |
+| `handleBookPlay.ts:148`                              | —                 | ✓                                        |
 
 A `setChapterProgress(bookId, p)` doing a store+DB pair cannot absorb any of the
 first four without either destroying the 30 s throttle or absorbing the throttle
 into the helper — which is a behaviour change wearing a refactor's clothes.
 
 And there is no invariant to protect: unlike the index, nothing reads store
-progress in a way that beats a DB row into a *wrong* result. A ≤30 s-stale
+progress in a way that beats a DB row into a _wrong_ result. A ≤30 s-stale
 progress row is the design, and it has never produced a defect.
 
 So: `savePeriodicProgress` is **out**. `:302`, `:621`/`:624` and site C are
@@ -205,8 +206,8 @@ Ruled 2026-08-28, consistent with ticket 12's own branch plan.
 **Its own branch, off `main`, after 12 has merged.** Not a shared branch with
 12, and not commits appended to 12's branch.
 
-The reason is device-pass attribution. Both tickets claim *behaviour
-preservation* in the same playback-critical handlers, and both need a device
+The reason is device-pass attribution. Both tickets claim _behaviour
+preservation_ in the same playback-critical handlers, and both need a device
 pass. On a shared branch a Remote-control regression is unattributable — which
 is exactly the property ticket 12 buys by branching off candidate 01 rather than
 riding its branch.
@@ -285,7 +286,7 @@ means re-costing this ticket with both of those benefits withdrawn.
 
 ## Comments
 
-> *This was generated by AI during triage.*
+> _This was generated by AI during triage._
 
 **2026-08-28 — triaged, scoped down, moved to `ready-for-agent` blocked on 12.**
 
@@ -302,7 +303,7 @@ What did not:
   "four adjacent writes" shape found `service.js:302`, `service.js:621`/`:624`
   and `handleBookPlay.ts:147`–`148`.
 - Those extra sites falsify the ticket's opening premise. The progress axis is
-  *deliberately* desynced between store and DB, so it is not duplication and
+  _deliberately_ desynced between store and DB, so it is not duplication and
   cannot be collapsed without a cadence redesign. Moved to
   `## Considered and rejected`.
 - The original ticket's preferred design — "two functions, one axis each" — is
@@ -316,7 +317,6 @@ Net effect: roughly a third of the original scope carries essentially all of the
 value. The alternative considered and not taken was `wontfix` — one historical
 drift, no open defect, and a playback-critical file touched twice. Rejected
 because the index invariant is load-bearing and cheap to make explicit.
-
 
 ---
 
@@ -336,12 +336,12 @@ nothing else moved.
 
 ### Branching — a deviation, recorded
 
-The branch plan said *its own branch off `main`, after 12 has merged*. **12 has
+The branch plan said _its own branch off `main`, after 12 has merged_. **12 has
 not merged.** This branched off 12's tip instead.
 
 Branching off `main` would have reintroduced the CRLF `service.js` — the exact
 trap the sequencing exists to retire — and would have conflicted with 12 on
-nearly every hunk. Both of the plan's stated reasons therefore argued *against*
+nearly every hunk. Both of the plan's stated reasons therefore argued _against_
 `main` while 12 sits unmerged.
 
 The property the plan actually bought is **device-pass attribution**, and that
@@ -373,7 +373,7 @@ severity-reducing:
   `restartFromZero` is the path that makes that Book active, so the gate is
   open when it fires.
 
-Not fixed here, deliberately: this ticket claims *no behaviour change* and buys
+Not fixed here, deliberately: this ticket claims _no behaviour change_ and buys
 a device pass that says so. A new state write on the play path would spend that
 claim.
 
@@ -386,8 +386,8 @@ rewriting an unchanged index to WatermelonDB every second. The extraction sits
 
 ### One judgement call the ticket did not anticipate: DB write order
 
-At sites B and E the original order was *store progress → store index → DB
-progress → DB index*. A single `setChapterIndex` call cannot reproduce that,
+At sites B and E the original order was _store progress → store index → DB
+progress → DB index_. A single `setChapterIndex` call cannot reproduce that,
 because it owns one store write and one DB write.
 
 The order chosen keeps **both store writes synchronous and adjacent**, and lets
@@ -395,12 +395,12 @@ the two DB writes swap:
 
 ```ts
 setPlaybackProgress(bookId, 0);
-await setChapterIndex(bookId, 0);   // store half is sync, before it awaits
+await setChapterIndex(bookId, 0); // store half is sync, before it awaits
 await updateChapterProgressInDB(bookId, 0);
 ```
 
 The rejected alternative — awaiting the DB progress write first — would have
-delayed the *store index* write by a bridge round-trip, degrading the one
+delayed the _store index_ write by a bridge round-trip, degrading the one
 invariant this ticket exists to protect. The cost paid instead is that the two
 independent DB writes swap order, observable only if the process dies between
 them, which already left a half-written pair today. Site A needed no such
@@ -416,20 +416,20 @@ This ticket's device-observable claim is narrower than 12's: the four call
 sites, and the 1 Hz tick path firing `sleepTimer.onChapterChanged()` and
 `updateMetadataForTrack` no more often than before.
 
-- [ ] Single-file Book with chapters: chapter list highlight follows playback
+- [x] Single-file Book with chapters: chapter list highlight follows playback
       across a chapter boundary (site A)
-- [ ] Single-file Book: lock-screen / notification title changes on the
+- [x] Single-file Book: lock-screen / notification title changes on the
       boundary exactly once, not repeatedly (A's `updateMetadataForTrack`)
-- [ ] Sleep timer set to end-of-chapter on a single-file Book fires on the
+- [x] Sleep timer set to end-of-chapter on a single-file Book fires on the
       boundary, once (A's `sleepTimer.onChapterChanged()`)
-- [ ] Multi-file Book: chapter list highlight follows track changes (site D)
-- [ ] Multi-file Book: sleep-timer end-of-chapter still fires on track change
+- [x] Multi-file Book: chapter list highlight follows track changes (site D)
+- [x] Multi-file Book: sleep-timer end-of-chapter still fires on track change
       (D's `onChapterChanged()`)
-- [ ] Multi-file Book played to the true end: index and progress both persist,
+- [x] Multi-file Book played to the true end: index and progress both persist,
       and the highlight lands correctly (site B)
-- [ ] Single-file Book played to the true end: rewinds to chapter 1 and the
+- [x] Single-file Book played to the true end: rewinds to chapter 1 and the
       highlight follows (site E via `resetBookToStart`)
-- [ ] Kill and relaunch after each of the above: the restored chapter matches
+- [x] Kill and relaunch after each of the above: the restored chapter matches
       what the list showed
 
 ⚠ **One known non-regression can contaminate two of these rows.** Ticket `02`
@@ -447,7 +447,7 @@ identical to this ticket breaking site B or D, and is not.**
 Single-file Books are immune: they finish through `resetBookToStart`, which
 zeroes both halves, so a replay finds the store already at `0`.
 
-**Avoid it for free:** force-kill and relaunch *before* replaying a
+**Avoid it for free:** force-kill and relaunch _before_ replaying a
 just-finished Book. The store has no `persist` middleware, so the entry is gone
 and `chapterList` falls back to the correct DB row. If a wrong highlight
 survives that relaunch, it IS a regression in this ticket and worth stopping
