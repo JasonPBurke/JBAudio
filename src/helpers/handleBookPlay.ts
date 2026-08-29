@@ -144,18 +144,17 @@ const handleBookPlayInner = async (
    * resume all read the DB, and a later write would race the first progress tick.
    *
    * The INDEX goes through `setChapterIndex` because it lives in two places
-   * that must agree, and `chapterList` resolves its highlight as
-   * `storeIndex ?? persistedIndex ?? -1` — the store is consulted FIRST, so a
-   * stale in-memory entry beats the correct row this branch just wrote and
-   * highlights the chapter the Book was rewound away from. That is not a race
-   * with the first progress tick: the store half is synchronous and in-process,
-   * and the tick it would race has not happened, because `play()` is below.
+   * that must agree; why that pairing is an invariant rather than a tidiness
+   * preference is documented on that module, not restated here.
+   *
+   * The local fact it does not cover: writing the store half HERE is not the
+   * race the paragraph above warns about. That warning is about the DB write.
+   * The store half is synchronous and in-process, and the first progress tick
+   * it could race has not happened yet, because `play()` is below.
    * See `.scratch/chapter-position-writes/issues/02-*.md`.
    *
-   * ⚠ The PROGRESS half stays a bare DB write. There is deliberately no
-   * `setChapterProgress` — store and DB progress are written on different
-   * cadences by design, and nothing reads store progress in a way that beats a
-   * DB row into a wrong result. Do not "finish the symmetry" here.
+   * ⚠ The PROGRESS half stays a bare DB write — there is deliberately no
+   * `setChapterProgress`. Do not "finish the symmetry" here.
    */
   if (restartFromZero && book.bookId) {
     await setChapterIndex(book.bookId, 0);

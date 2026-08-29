@@ -49,7 +49,14 @@ jest.mock('@/db/settingsQueries', () => ({
 }));
 
 /*
- * A STATEFUL stand-in for the library store, seeded per test. The assertion
+ * `handleBookPlay` reaches the store through `setChapterIndex`, which imports
+ * the library store, which imports WatermelonDB's SQLite adapter —
+ * unresolvable in the node lane. So the mock is REQUIRED, not a preference,
+ * and it is file-wide because jest module mocks always are; the cases that
+ * never touch the store are unaffected by it. Same necessity as
+ * `remoteNext.test.ts`.
+ *
+ * A STATEFUL stand-in, seeded per test. The assertion
  * this file needs on the restart path is the END STATE of the in-memory
  * chapter index, not merely that a write happened — so the setter records into
  * a plain map the tests read back.
@@ -332,5 +339,46 @@ describe('the restart moves the in-memory chapter index too', () => {
 
     expect(storePlaybackIndex.b1).toBe(1);
     expect(mockSetPlaybackIndex).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * The brief's ordering criterion, which nothing else guarded: BOTH zeroing
+ * writes complete before playback starts. The queue, the notification and the
+ * floating player all read the persisted row, so a `play()` that overtook the
+ * zeroing would surface the finished position for a beat.
+ *
+ * ⚠ The `setTimeout` is load-bearing for the same reason it is in 'settles the
+ * demotion before zeroing the stored position' above: with instantly-resolving
+ * mocks the microtasks drain during the next `await` and a moved `play()`
+ * would still pass. The write has to span a macrotask for the order to mean
+ * anything.
+ *
+ * `mockImplementationOnce`, not `mockImplementation`: this file clears rather
+ * than resets between tests, so a persistent implementation installed here
+ * would outlive the test that wanted it.
+ */
+describe('the restart is fully persisted before playback starts', () => {
+  it('completes both zeroing writes before play()', async () => {
+    const order: string[] = [];
+    (getBookById as jest.Mock).mockResolvedValue({
+      updateBookProgress: jest.fn().mockResolvedValue(undefined),
+    });
+    (updateChapterIndexInDB as jest.Mock).mockImplementationOnce(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      order.push('zero index');
+    });
+    (updateChapterProgressInDB as jest.Mock).mockImplementationOnce(
+      async () => {
+        order.push('zero progress');
+      },
+    );
+    (TrackPlayer.play as jest.Mock).mockImplementationOnce(async () => {
+      order.push('play');
+    });
+
+    await play(finishedBook());
+
+    expect(order).toEqual(['zero index', 'zero progress', 'play']);
   });
 });

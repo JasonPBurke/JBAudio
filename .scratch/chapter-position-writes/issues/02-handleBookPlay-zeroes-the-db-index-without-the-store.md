@@ -6,11 +6,15 @@ the first player event arrives, `playbackIndex[bookId]` still holds the previous
 listen's chapter — and `chapterList` consults the store *first*, so it
 highlights the chapter the Book was just rewound away from.
 
-**Status:** ready-for-agent — see the Agent Brief at the bottom of this file.
+**Status:** ready-for-human — code complete, `tsc` 0, `eslint` clean, suite
+green at 85 suites / 1050 tests. Outstanding: the device pass. See
+`## Answer — 2026-08-29`.
 
-**Blocked by:** `01-collapse-the-chapter-position-writes.md` — the fix calls
-`setChapterIndex`, which exists only on ticket 01's branch and not on `main`.
-Do not start until 01 has landed.
+**Blocked by:** `01-collapse-the-chapter-position-writes.md` — satisfied by
+stacking. The fix calls `setChapterIndex`, which exists on ticket 01's branch
+and NOT on `main`, so this work sits on
+`chapter-position-writes-02-store-index-on-restart`, branched off 01. It cannot
+merge to `main` before 01 does.
 
 **Found:** 2026-08-28, while resolving site F of
 `01-collapse-the-chapter-position-writes.md`. That ticket required F to be
@@ -133,14 +137,14 @@ distinction. If the progress half is wanted, argue it separately.
 
 ## Acceptance criteria
 
-- [ ] A `helpers`-lane test that fails on today's `handleBookPlay` and passes
+- [x] A `helpers`-lane test that fails on today's `handleBookPlay` and passes
       after the fix, per the repro above
-- [ ] `restartFromZero` writes both halves of the chapter index via
+- [x] `restartFromZero` writes both halves of the chapter index via
       `setChapterIndex`
-- [ ] The DB write still happens **before** `play()` — the ordering the
+- [x] The DB write still happens **before** `play()` — the ordering the
       existing comment at `:143`–`:146` protects is not disturbed
-- [ ] The progress axis is untouched
-- [ ] Existing `handleBookPlay.test.ts` cases still pass unchanged
+- [x] The progress axis is untouched
+- [x] Existing `handleBookPlay.test.ts` cases still pass unchanged
 
 ## Comments
 
@@ -244,19 +248,19 @@ if the store write makes it inaccurate.
   the same reason: an unconsumed restart costs the user their whole listen.
 
 **Acceptance criteria:**
-- [ ] A test in the `helpers` lane that fails against today's play helper and
+- [x] A test in the `helpers` lane that fails against today's play helper and
       passes after the change: with a store seeded to a non-zero chapter index
       for the Book, taking the restart-from-zero path leaves **both** the store
       index and the persisted index at `0`, with no player event delivered.
-- [ ] The restart branch writes the chapter index via the shared
+- [x] The restart branch writes the chapter index via the shared
       `setChapterIndex` unit rather than the bare persisted write.
-- [ ] Both zeroing writes still complete before playback starts.
-- [ ] The chapter-progress axis is untouched — same call, same shape, no new
+- [x] Both zeroing writes still complete before playback starts.
+- [x] The chapter-progress axis is untouched — same call, same shape, no new
       shared unit for it.
-- [ ] Every existing test for the play helper passes unchanged, and the full
+- [x] Every existing test for the play helper passes unchanged, and the full
       suite is green. Do not update an existing expectation to accommodate the
       change; if one breaks, that is a finding to report, not to absorb.
-- [ ] `tsc` and `eslint` clean.
+- [x] `tsc` and `eslint` clean.
 
 **Device pass:** in one session, finish a Book by stopping during the credits
 (so the queue never ends), confirm it shows as Finished, then play it again and
@@ -277,3 +281,64 @@ confirms the fix rather than re-discovering the bug.
   with no persistence is what bounds this bug; adding persistence is a
   different, larger decision.
 - Changing book-end detection's lead-time marking, or making it zero the store.
+
+## Answer — 2026-08-29
+
+**Implemented.** Commit on `chapter-position-writes-02-store-index-on-restart`,
+stacked on ticket 01's branch. The restart branch calls `setChapterIndex`
+instead of `updateChapterIndexInDB`, making it that helper's fifth caller. The
+progress half is untouched.
+
+**Red before green, with the documented output.** The new test failed against
+the unchanged helper with `Expected: 0, Received: 1` — the same result as the
+2026-08-28 probe this ticket recorded — then passed after the one-line change.
+Suite went 1047 → 1050 tests at an unchanged 85 suites: three added, none
+edited. `tsc` 0, `eslint` 0.
+
+### Three tests, and why there are three rather than one
+
+1. **The red-green one.** Store seeded to the previous listen's chapter, no
+   player event delivered, both halves must read `0` afterwards.
+2. **The guard.** Demotion fails, so the restart does not fire, so the index
+   must not move. Without it, hoisting the write out of the
+   `restartFromZero` guard would pass every other test in the file — and that
+   guard is the one the existing comments are most emphatic about.
+3. **The ordering.** Added on the Spec review's finding that
+   "both zeroing writes complete before playback starts" was an acceptance
+   criterion with no test behind it. Verified by mutation: dropping the `await`
+   on `setChapterIndex` fails this test and only this test.
+
+### A deliberate divergence from the mocking idiom, recorded
+
+The Standards review flagged that this file asserts on the store and DB halves
+that `setChapterIndex` owns, where `remoteNext.test.ts` states the house rule:
+"Mocked at the HELPER, not at the store/DB writes underneath it."
+
+**Not adopted, and the reason is mechanical rather than aesthetic.** Mocking
+`@/helpers/setChapterIndex` here would stop the real helper reaching
+`updateChapterIndexInDB`, which breaks the pre-existing assertion
+`expect(updateChapterIndexInDB).toHaveBeenCalledWith('b1', 0)` in
+"restarts from zero when the flag is consumed". Fixing that would mean editing
+an existing expectation to accommodate this change — which this ticket's own
+acceptance criteria forbid outright. The idiom and the criterion are in direct
+conflict here; the criterion wins, and the cost is one test file that knows
+slightly more than the idiom prefers.
+
+The `@/store/library` mock is file-wide, which the Spec review noted. That is
+unavoidable — jest module mocks always are — and it is required rather than
+optional: the real store pulls WatermelonDB's SQLite adapter, which does not
+resolve in the `helpers` lane. `remoteNext.test.ts` stubs it for the same
+reason on a path that never reads it.
+
+### Outstanding: the device pass
+
+Not run — it needs a real device and a real Book. In one session: finish a Book
+by stopping during the credits so the queue never ends, confirm it reads as
+Finished, then play it again and open the chapter list. The first chapter
+should be highlighted.
+
+⚠ Ticket 01's device pass (commit `5eb5ae4`) ran BEFORE this fix and was warned
+to expect the wrong highlight here. That warning is now stale for any pass run
+on this branch — a fresh run should see the first chapter highlighted, and
+seeing the old chapter means this fix regressed rather than that the warning
+still holds.
