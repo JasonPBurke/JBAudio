@@ -62,12 +62,13 @@ export type PlayBookFromRowArgs = {
   book: Book | undefined;
   /**
    * Whether this press should be treated as "the Book is already the one in
-   * play". Becomes `handleBookPlay`'s `isActiveBook`, whose only job is to make
-   * a press on the Book already playing a no-op.
+   * play". Passed through unchanged as `handleBookPlay`'s `alreadyInPlay`,
+   * whose only job is to make a press on the Book already playing a no-op.
    *
-   * ⚠ Deliberately NOT named `isActiveBook`: two of the four callers do not
-   * pass the Active Book, and CONTEXT.md lists "active book" under _Avoid_ for
-   * the Requested one. The caller owns the question; see the header.
+   * ⚠ Deliberately NOT named `isActiveBook`, on either side of this boundary:
+   * two of the four callers do not pass the Active Book, and CONTEXT.md lists
+   * "active book" under _Avoid_ for the Requested one. The caller owns the
+   * question; see the header.
    */
   alreadyInPlay: boolean;
   /** The Requested Book, from the queue store. `handleBookPlay` compares against it. */
