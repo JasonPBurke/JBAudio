@@ -1,1 +1,5 @@
 * text=auto eol=lf
+# Windows batch files are read by cmd.exe, which mis-seeks on LF-only
+# files (goto/labels in particular). The Gradle wrapper is one.
+*.bat text eol=crlf
+*.cmd text eol=crlf
