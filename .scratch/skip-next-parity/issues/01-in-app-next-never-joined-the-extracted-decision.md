@@ -573,8 +573,12 @@ clean against the lane's nine traps.
 Three findings fixed in the same commit:
 
 1. **`PlayerControls.tsx` had been reformatted CRLF → LF wholesale**, turning
-   29/-37 lines of real change into a 1520-line diff. Restored to CRLF; the
-   file's diff is now 66 lines. It was the only CRLF file in the touched set.
+   29/-37 lines of real change into a 1520-line diff. It was the only CRLF
+   file in the touched set. Split rather than reverted, on the driver's call:
+   the behaviour commit keeps CRLF and stays 66 lines, and the normalization
+   to LF — which is what the repo's other 316 `src` files use — is its own
+   commit immediately after. Both reviewers flagged this as a commit-level
+   Divergent Change, not as a wrong end state.
 2. **Trap 3 in `docs/testing/jest-projects-and-rn-tests.md` was wrong, and
    nothing had caught it** — `jest.rn-setup.js`'s shared reanimated mock is
    lazy, so it had never been evaluated by any suite, and it does not work:
