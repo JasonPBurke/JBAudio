@@ -5,7 +5,20 @@ Book behind two named verbs. The other two halves — marking it `Finished` and
 the transport calls that follow — are still open-coded at each of the three
 sites, and after `02` two of them are near-line-for-line twins.
 
-**Status:** ready-for-agent
+**Status:** resolved — `helpers/markBookFinishedOnce.ts`, 2026-08-30. `tsc` 0
+errors, `eslint` 0 errors, full suite 87 suites / 1084 tests green.
+
+> **Implementation note — where the caller tests mock.** The Traps section
+> below says the existing finish tests must mock the NEW module. They do not,
+> and deliberately: its premise ("they assert against a call the code no longer
+> makes") does not hold here, because the verb still reaches `getBookById`,
+> which both suites already mock. Letting the real verb run keeps every
+> existing mark assertion meaningful instead of restating it as
+> "markBookFinishedOnce was called", and it is what makes the reject-the-write
+> acceptance test assertable from the CALL SITE, where the loss actually is —
+> the transports and the rewind below the mark. The trap's precedent
+> (`activeBookFootprints`) is different: the module underneath it does not
+> resolve in the node lane at all.
 
 **Found:** 2026-08-30, in the two-axis review of ticket `02`, as the Standards
 axis's strongest finding (Duplicated Code).

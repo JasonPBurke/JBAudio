@@ -377,7 +377,15 @@ describe('seekForward finishing a Book', () => {
   });
 
   describe('bookkeeping failure never costs the user the press', () => {
+    // The swallow now lives inside `markBookFinishedOnce`, which is why this
+    // branch no longer wraps its mark in `withoutBlockingThePress`. The
+    // assertions below are what makes that safe to rely on from here: a
+    // rejection must cost neither the three transport calls nor the rewind,
+    // all four of which sit BELOW the mark.
     it('survives a throw while marking the Book Finished', async () => {
+      const consoleError = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
       mockGetBookById.mockRejectedValue(new Error('db is gone'));
       mockGetQueue.mockResolvedValue(queueOf(3));
       mockGetActiveTrackIndex.mockResolvedValue(2);
@@ -388,6 +396,37 @@ describe('seekForward finishing a Book', () => {
       expect(mockSkip).toHaveBeenCalledWith(0);
       expect(mockSeekTo).toHaveBeenCalledWith(0);
       expect(mockStop).toHaveBeenCalledTimes(1);
+      expect(mockRewindChapterTracking).toHaveBeenCalledWith('book-1');
+      // The failure is now REPORTED as well as survived; the wrapper this
+      // replaced swallowed it silently.
+      expect(consoleError).toHaveBeenCalled();
+      consoleError.mockRestore();
+    });
+
+    // The other half of the same guarantee: the lookup can succeed and the
+    // WRITE still throw, which is the shape a concurrent scan's
+    // removeMissingFiles actually produces.
+    it('survives a throw from the write itself', async () => {
+      const consoleError = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      mockGetBookById.mockResolvedValue({
+        updateBookProgress: jest
+          .fn()
+          .mockRejectedValue(new Error('row destroyed')),
+      });
+      mockGetQueue.mockResolvedValue(queueOf(3));
+      mockGetActiveTrackIndex.mockResolvedValue(2);
+      mockGetProgress.mockResolvedValue({ position: 590, duration: 600 });
+
+      await expect(seekForward(30)).resolves.toBeUndefined();
+
+      expect(mockSkip).toHaveBeenCalledWith(0);
+      expect(mockSeekTo).toHaveBeenCalledWith(0);
+      expect(mockStop).toHaveBeenCalledTimes(1);
+      expect(mockRewindChapterTracking).toHaveBeenCalledWith('book-1');
+      expect(consoleError).toHaveBeenCalled();
+      consoleError.mockRestore();
     });
 
     it('survives a throw inside the rewind', async () => {

@@ -31,6 +31,7 @@ import {
 } from '@/helpers/remotePlayBook';
 import { ensurePlayerSetup } from '@/helpers/playerSetup';
 import { pressNext } from '@/helpers/nextPress';
+import { markBookFinishedOnce } from '@/helpers/markBookFinishedOnce';
 import { setChapterIndex } from '@/helpers/setChapterIndex';
 import {
   rewindChapterTracking,
@@ -597,22 +598,14 @@ export default module.exports = async function () {
     // Mark book as finished when queue ends — unless the lead-time check in
     // handleProgressUpdated already did it a minute ago. Re-marking here
     // would be harmless to the flag but would drag `finished_at` forward to
-    // the true end, which is the one timestamp D5 asks us to keep.
+    // the true end, which is the one timestamp D5 asks us to keep. The shared
+    // verb owns that guard, and it is guarded on the STORE, never on
+    // finishMarkedBookId — see its header, and the latch's comment above.
     //
-    // ⚠ Guarded on the STORE, never on finishMarkedBookId. This is the LAST
-    // chance to mark the book, and the latch is process-lifetime state that a
-    // previous listen can leave set — trusting it here would silently skip
-    // the mark and lose the ✓ on exactly the books whose ticks were
-    // undecidable. The store cannot go stale that way, and a lead-time mark
-    // happened a whole lead window ago, so it has certainly refreshed.
-    const alreadyFinished =
-      book?.bookProgressValue === BookProgressState.Finished;
-    if (!alreadyFinished) {
-      const bookModel = await getBookById(trackToUpdate.bookId);
-      if (bookModel) {
-        await bookModel.updateBookProgress(BookProgressState.Finished);
-      }
-    }
+    // ⚠ Position is load-bearing: AFTER the chapter-index writes and BEFORE
+    // the transport calls. Moving the mark earlier changes what a concurrent
+    // progress tick can observe.
+    await markBookFinishedOnce(trackToUpdate.bookId, book);
 
     // Reset to beginning and stop playback
     if (isSingleFile) {

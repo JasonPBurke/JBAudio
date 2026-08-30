@@ -10,12 +10,10 @@ import {
   stop,
   State,
 } from '@/player/trackPlayer';
-import { getBookById } from '@/db/bookQueries';
-import { BookProgressState } from '@/helpers/bookProgressState';
+import { markBookFinishedOnce } from '@/helpers/markBookFinishedOnce';
 import { rewindChapterTracking } from '@/helpers/chapterTracking';
 import { useLibraryStore } from '@/store/library';
 import { withoutBlockingThePress } from '@/helpers/withoutBlockingThePress';
-import type { Book } from '@/types/Book';
 
 /**
  * Relative seek with chapter/track-boundary crossing.
@@ -192,26 +190,15 @@ export async function seekForward(seconds: number): Promise<void> {
   if (target.kind === 'finished') {
     const activeBookId = await getActiveBookId();
     if (activeBookId) {
-      // Swallowed, like every other piece of bookkeeping behind a press: a
-      // database failure here must not escape before the skip, the seek and
-      // the stop below, costing the user the press they actually made.
-      await withoutBlockingThePress(async () => {
-        // Only the MARK is guarded, and it is guarded on the STORE — the same
-        // reading, for the same reason, as the finish branch in
-        // `helpers/nextPress.ts`: a jump that lands inside the book-end lead
-        // window arrives at a Book the 1 Hz tick has already marked, and
-        // re-marking rewrites `finished_at`. Three of the four sites that can
-        // mark a Book Finished already pay for this guard; a fourth that
-        // quietly skipped it is how a reader concludes the guard is optional.
-        const book: Book | undefined =
-          useLibraryStore.getState().books[activeBookId];
-        if (book?.bookProgressValue !== BookProgressState.Finished) {
-          const bookModel = await getBookById(activeBookId);
-          if (bookModel) {
-            await bookModel.updateBookProgress(BookProgressState.Finished);
-          }
-        }
-      });
+      // The shared verb owns both the guard and the swallow, so there is no
+      // `withoutBlockingThePress` around this one: a database failure here
+      // cannot escape before the skip, the seek and the stop below. The store
+      // read stays HERE because this helper only knows the Active Book's id —
+      // the other two finish branches already hold their Book.
+      await markBookFinishedOnce(
+        activeBookId,
+        useLibraryStore.getState().books[activeBookId],
+      );
     }
     if (shape.index !== 0) {
       await skip(0);

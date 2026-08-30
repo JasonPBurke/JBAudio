@@ -260,6 +260,40 @@ describe('handleNextPress — the last chapter of a single-file book', () => {
     expect(mockPlayer.isPlaying()).toBe(false);
   });
 
+  // The verb owns the swallow, so no caller can reach the mark without it.
+  // Asserted from HERE, and not only in the verb's own test, because what a
+  // press stands to lose is the seek, the stop and the rewind BELOW the mark:
+  // before the extraction this branch let the rejection escape, taking all
+  // three with it and surfacing as an unhandled rejection.
+  it('still runs the transports in order when the mark rejects', async () => {
+    const consoleError = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    // updateBookProgress is a raw WatermelonDB writer and throws if a
+    // concurrent scan destroyed the row underneath the press. It still pushes
+    // its marker first: `mockRejectedValue` would REPLACE the implementation,
+    // dropping 'markFinished' from the order and quietly turning this into a
+    // weaker assertion than the one above it.
+    updateBookProgress.mockImplementation(async () => {
+      mockOrder.push('markFinished');
+      throw new Error('row destroyed');
+    });
+    const rec = recorders();
+
+    await expect(pressAtEnd(rec)).resolves.toBeUndefined();
+
+    expect(mockOrder).toEqual([
+      'seek_footprint',
+      'markFinished',
+      'seekTo',
+      'stop',
+      'resetBookToStart',
+    ]);
+    expect(mockPlayer.at()).toEqual({ index: 0, position: 0 });
+    expect(consoleError).toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
   it('does not rewrite an already-set finished mark', async () => {
     const rec = recorders();
 

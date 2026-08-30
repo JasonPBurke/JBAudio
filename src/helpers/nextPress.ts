@@ -1,6 +1,5 @@
 import { seekTo, skipToNext, stop } from '@/player/trackPlayer';
-import { getBookById } from '@/db/bookQueries';
-import { BookProgressState } from '@/helpers/bookProgressState';
+import { markBookFinishedOnce } from '@/helpers/markBookFinishedOnce';
 import { resolveNextPress, type NextPressBook } from '@/helpers/chapterSkip';
 import {
   resetBookToStart,
@@ -112,18 +111,11 @@ export async function handleNextPress({
       // `pause()` would freeze it to resume later against a different Book.
       await withoutBlockingThePress(onBeforeLeaveBook);
 
-      // Only the MARK is guarded: a press inside the lead window must not
-      // rewrite an already-set `finished_at`. Guarded on the STORE, never on
-      // finishMarkedBookId — see the latch's comment in service.ts. A
-      // lead-time mark landed at least a tick ago and the observer refreshes
-      // within about one, so the store is the reliable reading here and it
-      // cannot go stale across listens.
-      if (book?.bookProgressValue !== BookProgressState.Finished) {
-        const bookModel = await getBookById(bookId);
-        if (bookModel) {
-          await bookModel.updateBookProgress(BookProgressState.Finished);
-        }
-      }
+      // The shared verb owns the guard AND the swallow — see its header for
+      // why the store is the reading and why a failure must not escape. The
+      // store entry is handed over rather than read there, so this function
+      // stays assertable without a store.
+      await markBookFinishedOnce(bookId, book);
       await seekTo(0);
       await stop();
 
