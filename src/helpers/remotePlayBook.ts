@@ -45,7 +45,7 @@ export async function handleRemotePlayBook(bookId: string): Promise<void> {
 
   bookSwitchInProgress = true;
   try {
-    // playing=true is unused here: isActiveBook=false bypasses handleBookPlay's guard
+    // playing=true is unused here: alreadyInPlay=false bypasses handleBookPlay's guard
     await handleBookPlay(
       book,
       true,

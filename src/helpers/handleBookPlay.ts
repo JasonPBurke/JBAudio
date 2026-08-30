@@ -46,7 +46,9 @@ export { BookProgressState };
  * reclassifies "broken" as "not there", and the caller's null-check reads like
  * a check for absence.
  */
-const demoteToStarted = async (bookId: string | undefined): Promise<boolean> => {
+const demoteToStarted = async (
+  bookId: string | undefined,
+): Promise<boolean> => {
   if (!bookId) return false;
   try {
     const bookModel = await getBookById(bookId);
@@ -62,12 +64,12 @@ const demoteToStarted = async (bookId: string | undefined): Promise<boolean> => 
 const handleBookPlayInner = async (
   book: Book | undefined,
   playing: boolean | undefined,
-  isActiveBook: boolean,
+  alreadyInPlay: boolean,
   requestedBookId: string | null,
   setRequestedBookId: (bookId: string) => void,
 ) => {
   if (!book) return;
-  if (isActiveBook && playing) return;
+  if (alreadyInPlay && playing) return;
   // No chapters means nothing to load (possible transiently mid-rescan);
   // bail rather than crash on chapters[0].url below.
   if (!book.chapters || book.chapters.length === 0) return;
@@ -121,7 +123,9 @@ const handleBookPlayInner = async (
   // this is now a book you are listening to.
   const needsDemotion =
     wasFinished || book.bookProgressValue === BookProgressState.NotStarted;
-  const demoted = needsDemotion ? await demoteToStarted(book.bookId) : false;
+  const demoted = needsDemotion
+    ? await demoteToStarted(book.bookId)
+    : false;
 
   const restartFromZero = wasFinished && demoted;
 
@@ -135,7 +139,10 @@ const handleBookPlayInner = async (
       : 0;
   // Clamp to the current chapter list — a rescan can shrink a book's chapter
   // count, leaving a stale DB index that would make skip() throw out-of-range.
-  const storedChapterIndex = Math.min(storedIndex, book.chapters.length - 1);
+  const storedChapterIndex = Math.min(
+    storedIndex,
+    book.chapters.length - 1,
+  );
   const storedChapterProgress = progressInfo?.progress ?? 0;
 
   /*
@@ -183,7 +190,9 @@ const handleBookPlayInner = async (
       // Single-file book: load only 1 track
       // Use chapter title/duration when valid chapter data exists
       const hasChapterData = hasValidChapterData(book.chapters);
-      const initialChapter = hasChapterData ? book.chapters[chapterIndex] : null;
+      const initialChapter = hasChapterData
+        ? book.chapters[chapterIndex]
+        : null;
 
       const track: Track = {
         url: book.chapters[0].url,
@@ -264,7 +273,7 @@ let playChain: Promise<void> = Promise.resolve();
 export const handleBookPlay = (
   book: Book | undefined,
   playing: boolean | undefined,
-  isActiveBook: boolean,
+  alreadyInPlay: boolean,
   requestedBookId: string | null,
   setRequestedBookId: (bookId: string) => void,
 ): Promise<void> => {
@@ -274,7 +283,7 @@ export const handleBookPlay = (
       handleBookPlayInner(
         book,
         playing,
-        isActiveBook,
+        alreadyInPlay,
         requestedBookId,
         setRequestedBookId,
       ),
