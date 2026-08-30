@@ -5,8 +5,9 @@
 by tickets 04–10 of `.scratch/player-seam/`: `src/player/trackPlayer.ts` is the
 sole importer of the library, and the lint rule of decision 4 reached its final
 form (no allow list) in ticket 10. Ticket 12 closed the last gap on 2026-08-28
-— see the amended note under `## Known incompleteness`. The ticket 03 chapter-boundary device pass
-that ticket 10 prescribes is still outstanding — see that ticket's `## Answer`.
+— see the amended note under `## Known incompleteness`. The ticket 03
+chapter-boundary device pass that ticket 10 prescribes ran on 2026-08-27, on
+both runtime Queue shapes — see ticket 10's `## Answer`.
 
 One module imports `react-native-track-player`. A lint rule enforces it. That
 module is an **adapter**: RNTP's vocabulary, RNTP's semantics, and no decisions
