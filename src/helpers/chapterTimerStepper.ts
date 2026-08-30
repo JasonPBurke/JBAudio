@@ -17,8 +17,29 @@
 /**
  * Resolve one stepper press. Returns the count the press lands on — equal to
  * `current` when the press is a no-op, which is what a call site checks before
- * writing anything. An out-of-range `current` (a value persisted by the old
- * unclamped modal) is stepped back into range rather than compounded.
+ * writing anything.
+ *
+ * An out-of-range `current` is clamped to the ceiling rather than stepped from,
+ * and in either direction. Two different things arrive here out of range, and
+ * the same answer is right for both:
+ *
+ * - `-1`, persisted by the old unclamped modal. Corruption; snapping heals it.
+ * - A count the user legitimately set that the playhead has since outgrown.
+ *   `maxChapters` shrinks as the book plays, and the count only decrements
+ *   alongside it while the timer is armed (`onChapterChanged` returns early on
+ *   `!timerActive`), so a configured-but-unarmed count drifts out of range on
+ *   its own.
+ *
+ * For the second case the clamp is the nearest reachable value, not a loss: the
+ * user asked for an end the book can no longer offer, and the ceiling is "as
+ * late as the book allows". Stepping down by one would answer with a second
+ * value the book still cannot honour. Ruled in issue `02` of
+ * `.scratch/sleep-timer-stepper/`, which also records why `−` must not get a
+ * different rule from `+`.
+ *
+ * Clamping is safe here because the ceiling is fresh: both surfaces recompute
+ * `maxChapters` on mount, and the modal's mount is its sheet-open. Contrast the
+ * database boundary below, where the ceiling is unknown.
  */
 export function stepChapterCount(
   current: number,
@@ -49,12 +70,17 @@ export function stepChapterCount(
  * being wrong is a timer the user can see is off and re-arm, against playback
  * silently stopping on a night they never set one.
  *
- * Only the lower bound is enforced. `maxChapters` is a runtime fact about the
- * book and the playhead, unknown at the write boundary and to every read site,
- * and in the UI it resolves asynchronously from 0 — clamping to it here would
- * flatten a legitimate count to zero on the first frame. The high side needs no
- * healing anyway: an over-count simply never fires, because the book ends
- * first.
+ * Only the lower bound is enforced *at this boundary*. `maxChapters` is a
+ * runtime fact about the book and the playhead, unknown at the write boundary
+ * and to every read site, and in the UI it resolves asynchronously from 0 —
+ * clamping to it here would flatten a legitimate count to zero on the first
+ * frame. That is a claim about this boundary alone: at the press site
+ * `stepChapterCount` clamps to the ceiling deliberately, because there the
+ * ceiling is known and fresh.
+ *
+ * The high side needs no healing anyway: an over-count never fires, because the
+ * book ends first — and `onPlaybackStopped` then clears `timer_chapters`
+ * outright, so the setting does not survive to the next book.
  */
 export function normalizeChapterCount(
   timerChapters: number | null,

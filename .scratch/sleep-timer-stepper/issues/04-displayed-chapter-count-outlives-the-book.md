@@ -1,0 +1,208 @@
+# 04 — The stepper displays a chapter count the Book can no longer reach
+
+**What's wrong:** The sleep timer's chapter stepper shows the *stored* count
+with no reference to how much Book is left. A count the playhead has outgrown
+renders as a confident "End of 6 Chapters" when two chapters remain, until the
+user presses something. Separately, the ceiling arrives asynchronously and the
+surfaces cannot tell "the ceiling is 0" from "the ceiling has not arrived yet",
+so both render — and clamp against — a placeholder.
+
+**Status:** ready-for-agent — see `## Agent Brief`
+
+**Blocked by:** 03
+
+**Category:** bug
+
+**Related:**
+- `02-stepper-collapses-a-legitimate-count-to-zero.md` — closed `wontfix`. `02`
+  argued the `−` press was destroying a legitimate count. The ruling was that the
+  press is correct and **the number was already wrong before it**. This ticket is
+  where that residue landed. ⚠ Read `02`'s `## Answer` first; it contains the
+  label semantics and the mount finding this ticket rests on.
+- `03-maxchapters-is-computed-twice-and-the-copies-disagree.md` — supplies the
+  `number | null` ceiling this ticket needs. **Sequence `03` first**: without its
+  `null`, "unknown" and "zero" are the same value and half of this is unbuildable.
+
+**Found:** 2026-08-30, during the triage of `02`.
+
+## The two states
+
+### 1. A stale count against a fresh ceiling
+
+`onChapterChanged` returns early on `!timerActive`
+(`src/setup/sleepTimer.ts:571`), so a chapter count **only decrements while the
+timer is armed**. Every stepper press writes `updateChapterTimer(next)` without
+arming, so a configured-but-unarmed count is ordinary and easy to produce.
+
+1. Open the sleep timer, step the count to 5 (label: "End of 6 Chapters"). Do
+   **not** tap the row to arm it.
+2. Keep listening. The count stays at 5; the Book advances.
+3. Reopen the sheet on chapter 8 of 10. The ceiling is freshly computed as 2.
+   The label still reads **"End of 6 Chapters"**.
+
+Six chapters do not exist. The label is stating something false, confidently,
+before the user has touched anything. The first `−` press corrects it — which is
+precisely what `02` mistook for the bug.
+
+⚠ **Not reachable while the timer is armed.** If the count is armed it
+decrements in lockstep with the ceiling, so it cannot drift. Any repro that arms
+the timer will fail to show this.
+
+### 2. The resolution window on sheet-open
+
+`SleepTimerOptions` mounts on sheet-open (`@gorhom/bottom-sheet` 5.2.8 gates
+children behind `mount`, false until `handlePresent` — see `02`'s Answer). Its
+effect fires two async paths back to back:
+
+```ts
+fetchSettings();      // one local WatermelonDB read
+updateMaxChapters();  // two to four native Player round-trips
+```
+
+Both `chaptersToEnd` and `maxChapters` start at `0`
+(`SleepTimerOptions.tsx:47-48`), and the DB read is overwhelmingly likely to
+land first. That opens a window where **the count is real and the ceiling is
+still the placeholder `0`**:
+
+| | `chaptersToEnd` | `maxChapters` | Label |
+|---|---|---|---|
+| first frames | 0 | 0 | "End of Chapter" |
+| after the DB read | 3 | 0 | "End of 4 Chapters" |
+| after the Player reads | 3 | 3 | "End of Book" |
+
+Two consequences:
+
+- **A visible flicker** through up to three labels as the sheet animates in, and
+  the `+` icon dims (`chaptersToEnd >= maxChapters`) then un-dims.
+- **A press inside that window is destructive.** `stepChapterCount(3, +1, 0)`
+  resolves to `0` and `stepChapters` persists it — a `+` press that collapses
+  the count to zero and writes it to the database. Unlike state 1, this is a
+  real loss, not a correction.
+
+⚠ **Reachability of the destructive press is unproven.** The window overlaps the
+sheet's entrance animation, so a finger may not be able to land inside it. It
+fails silently if it can. Establishing this is part of the ticket — a
+deliberately delayed ceiling (see the test note below) makes it observable
+without guessing.
+
+The settings screen has the same shape with a different placeholder — it seeds
+`maxChapters` to `20` (`timer.tsx:80`), so an early press there writes an
+over-count rather than a zero. `03` records that the `20` is an arbitrary seed
+from the screen's first commit, not a computed default.
+
+## Why one ticket and not two
+
+Both states are the same defect: **the surfaces treat the ceiling as a number
+when it is really "a number, or not known yet"**. State 1 is what the display
+does with a known ceiling it ignores; state 2 is what it does with an unknown
+ceiling it mistakes for zero. One fix — an explicit unknown, and a displayed
+count derived against it — closes both. Fixing either alone leaves the other,
+and fixing state 1 without the unknown would make state 2 *worse*, because
+clamping the display against a placeholder `0` flattens every count to "End of
+Chapter" for the duration of the window. That is the exact failure
+`normalizeChapterCount`'s docblock warns about.
+
+## Agent Brief
+
+> *This was generated by AI during triage.*
+
+**Category:** bug
+**Summary:** The chapter stepper must never display or act on a count the Book
+cannot reach, and must not treat an unresolved ceiling as a ceiling of zero.
+
+**Current behavior:**
+Both surfaces hold the stored chapter count and the remaining-chapter ceiling as
+two independent pieces of state, and the label and the `+` button's dimming read
+them directly. A stored count larger than the ceiling renders verbatim, naming
+more chapters than remain. The ceiling is seeded with a placeholder (`0` in the
+modal, `20` on the settings screen) and filled asynchronously, so during that
+window the surfaces render, dim, and resolve presses against a value that is not
+a fact about any Book.
+
+**Desired behavior:**
+Both surfaces derive a single *effective* count — the stored count bounded by the
+ceiling — and use it for everything the user can see or act on: the label, the
+`+`/`−` dimming, and the value a press steps from. A count the playhead has
+outgrown therefore displays as "End of Book" the moment the sheet opens, and a
+`−` press from it steps down by one in the ordinary way. The stored value is
+**not** rewritten on render; it is corrected by the first press, through the
+existing helper.
+
+While the ceiling is unknown, the stepper does not guess. It shows the stored
+count unbounded (never clamped against a placeholder), and both presses are
+no-ops, so nothing can be persisted against a ceiling that is not yet a fact.
+
+**Key interfaces:**
+- The ceiling state on both surfaces becomes `number | null`, fed by the shared
+  unit from `03`. `null` is "not known yet, or not knowable" — it must be
+  distinguishable from `0`, which means "this is the last chapter".
+- The effective count is a derived value, not new state. Deriving it in one
+  place per surface — or in a small shared helper alongside
+  `chapterTimerStepper` — keeps the label and the press on the same number,
+  which is the whole point.
+- `stepChapterCount` and `normalizeChapterCount` are **unchanged**. The clamp in
+  `stepChapterCount` stays as the belt-and-braces heal for a legacy `-1`; after
+  this change it should no longer be what corrects a stale count, because the
+  count reaching it is already bounded.
+- Press guards stay **in the handlers**, not on the buttons' `disabled` props.
+  `01` deleted those props deliberately; the dimmed-but-live button is what kept
+  the original defect invisible. Keep the icon-opacity dimming.
+
+**Acceptance criteria:**
+- [ ] With a stored count above the ceiling, both surfaces display "End of Book"
+      rather than a chapter count the Book cannot reach.
+- [ ] From that state, one `−` press steps to one below the ceiling and persists
+      it — no jump to `0` unless the ceiling *is* `0`.
+- [ ] With a ceiling of `0` (last chapter), the label reads "End of Chapter" and
+      both presses are no-ops.
+- [ ] While the ceiling is `null`, both presses are no-ops and nothing is
+      written to the database.
+- [ ] While the ceiling is `null`, the displayed count is the stored count,
+      unclamped — it must not collapse to "End of Chapter" and then recover.
+- [ ] Opening the sheet on a Book with a stored count shows at most one label
+      transition, not the three-step flicker in the table above.
+- [ ] The stored count is never rewritten except by a press.
+- [ ] `helpers`-lane tests cover the derivation: count below / equal to / above
+      the ceiling, ceiling `0`, and ceiling `null`. Add the shrinking-ceiling
+      characterization test `02` asked for — `current` above `ceiling`,
+      `delta = -1` — asserting `stepChapterCount` still clamps, so a later
+      refactor cannot quietly change the ruling `02` recorded.
+- [ ] `01`'s 24 existing tests pass **unchanged**.
+- [ ] `tsc` 0, `eslint` 0 errors, full suite green.
+
+**Out of scope:**
+- **Changing what `stepChapterCount` returns.** Ruled correct in `02`; this
+  ticket changes what is handed to it, not what it does.
+- ⚠ **Clamping at the database boundary.** `normalizeChapterCount` enforces only
+  the lower bound on purpose, and the reason — the ceiling is unknown to every
+  read and write site — is still true and is reinforced by this ticket.
+- ⚠ **The bedtime auto-arm path.** `setup/sleepTimer.ts` arms on
+  `timerChapters !== null`; the heal-to-`null`-not-`0` rule is load-bearing and
+  argued in `01`.
+- **Auto-correcting a stale count without a press** — on sheet open, on chapter
+  change, or on a timer. That is a write the user did not ask for, and it would
+  reintroduce the write-on-render shape `01` removed.
+- **The queue-shape question**, deferred repo-wide to `.scratch/queue-shape/`.
+- **`hasActiveBook` as a dead prop** on the settings card.
+
+## Notes
+
+- **Testing the resolution window.** The helpers lane cannot observe it — it is a
+  component race. `fakePlayer.ts` can be given a deliberately delayed ceiling to
+  make the window wide and observable, but the surfaces themselves cannot be
+  rendered under jest (trap 7 in `docs/testing/jest-projects-and-rn-tests.md` —
+  the `jest-expo` `transformIgnorePatterns` allowlist covers neither
+  `@gorhom/bottom-sheet` nor `pressto`, and widening it starts a cascade this
+  repo has already backed out of once). Test the derivation as a unit, per `01`'s
+  ratified answer, and verify the two call sites by inspection.
+- **Device pass.** JS-only; no native rebuild, no schema change, no device wipe.
+  Worth one pass, because every criterion here is about what is on screen:
+  - Configure a count of 5 without arming it, listen past three chapter
+    boundaries, reopen the sheet. Expect "End of Book", not "End of 6 Chapters".
+  - From there, one `−` press. Expect one step down, not a collapse.
+  - Open the sheet repeatedly on a Book with a stored count and watch for the
+    label flicker. This is the state-2 check and it is the one most likely to
+    regress silently.
+  - ⚠ Judge by the chapter row **inside** the sheet, never by the countdown pill
+    — they derive differently, which is its own filed defect
+    (`.scratch/sleep-timer-armed-flag/issues/01-derive-armed-state-from-timer-active.md`).
