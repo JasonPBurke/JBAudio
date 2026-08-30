@@ -2,6 +2,7 @@ import TrackPlayer, { State } from 'react-native-track-player';
 import { seekBack, seekForward } from '../relativeSeek';
 import { getBookById } from '@/db/bookQueries';
 import { recordFootprint, recordSeekFootprint } from '@/db/footprintQueries';
+import { rewindChapterTracking } from '@/helpers/chapterTracking';
 
 jest.mock('react-native-track-player', () => ({
   __esModule: true,
@@ -35,7 +36,7 @@ jest.mock('@/db/bookQueries', () => ({
   getBookById: jest.fn(),
 }));
 
-jest.mock('@/helpers/handleBookPlay', () => ({
+jest.mock('@/helpers/bookProgressState', () => ({
   BookProgressState: { NotStarted: 0, Started: 1, Finished: 2 },
 }));
 
@@ -54,6 +55,17 @@ jest.mock('@/db/footprintQueries', () => ({
   recordSeekFootprint: jest.fn(),
 }));
 
+// The rewind is asserted as a CALL, not by its four writes: those belong to
+// `resetBookToStart`'s own test, and the real module reaches WatermelonDB.
+// `callOrder` is what the finish-branch ordering tests read — the rewind is
+// bookkeeping behind a press and must land AFTER the transport calls.
+const callOrder: string[] = [];
+jest.mock('@/helpers/chapterTracking', () => ({
+  rewindChapterTracking: jest.fn(async () => {
+    callOrder.push('rewindChapterTracking');
+  }),
+}));
+
 const mockGetPlaybackState = TrackPlayer.getPlaybackState as jest.Mock;
 const mockGetProgress = TrackPlayer.getProgress as jest.Mock;
 const mockGetQueue = TrackPlayer.getQueue as jest.Mock;
@@ -64,6 +76,7 @@ const mockSkip = TrackPlayer.skip as jest.Mock;
 const mockPlay = TrackPlayer.play as jest.Mock;
 const mockPause = TrackPlayer.pause as jest.Mock;
 const mockGetBookById = getBookById as jest.Mock;
+const mockRewindChapterTracking = rewindChapterTracking as jest.Mock;
 
 // Queue items carry the chapter's duration (see buildClippedChapterTracks and
 // the multi-file branch of handleBookPlay); relativeSeek measures a jump with
@@ -76,7 +89,22 @@ const queueOf = (n: number, durations: number[] = []) =>
 
 beforeEach(() => {
   mockBooks = {};
+  callOrder.length = 0;
   jest.clearAllMocks();
+  // clearAllMocks strips implementations, not just calls — re-arm the ones
+  // that feed `callOrder`, or the ordering tests silently see an empty list.
+  mockRewindChapterTracking.mockImplementation(async () => {
+    callOrder.push('rewindChapterTracking');
+  });
+  mockSkip.mockImplementation(async () => {
+    callOrder.push('skip');
+  });
+  mockSeekTo.mockImplementation(async () => {
+    callOrder.push('seekTo');
+  });
+  mockPause.mockImplementation(async () => {
+    callOrder.push('pause');
+  });
   // Default: paused player so the play-state guard stays inert
   mockGetPlaybackState.mockResolvedValue({ state: State.Paused });
   mockGetActiveTrack.mockResolvedValue({ bookId: 'book-1' });
@@ -265,6 +293,111 @@ describe('seekForward', () => {
     await seekForward(30);
 
     expect(mockPlay).toHaveBeenCalledTimes(1);
+  });
+});
+
+/*
+ * Finishing a Book by jumping off the end must leave it in EXACTLY the state
+ * playing it to its true end leaves it in. This branch used to do only the
+ * player half — mark, seek, pause — and none of the persisted half, which is
+ * a fourth copy of the finish triple and a re-run of
+ * `.scratch/remote-noop-footprint/issues/02-*.md`: the chapter list resolves
+ * its highlight from the playback-index STORE and falls back to the DB row
+ * only when that selector is `undefined`, so a stale store entry beat a
+ * correct DB row and the list kept highlighting the last chapter of a Book
+ * sitting at 0.
+ *
+ * ⚠ The defect was invisible on most Books, and the reason is the trap here.
+ * A single-file Book with real chapter markers loads as a CLIPPED chapter
+ * queue, so `shape.index !== 0`, so this branch calls `skip(0)`, which fires
+ * `Event.PlaybackActiveTrackChanged`, whose multi-file branch writes
+ * `setChapterIndex(bookId, 0)`. Store and DB were zeroed correctly BY
+ * ACCIDENT, by a different handler. The rewind added here therefore has to be
+ * idempotent with that write rather than a second conflicting one — it writes
+ * the same zeroes — and the multi-item test below exists to keep it that way.
+ */
+describe('seekForward finishing a Book', () => {
+  const finishFrom = async (queueLength: number, index: number) => {
+    mockGetBookById.mockResolvedValue({
+      updateBookProgress: jest.fn().mockResolvedValue(undefined),
+    });
+    mockGetQueue.mockResolvedValue(queueOf(queueLength));
+    mockGetActiveTrackIndex.mockResolvedValue(index);
+    mockGetProgress.mockResolvedValue({ position: 590, duration: 600 });
+    await seekForward(30);
+  };
+
+  it('rewinds the Book on the legacy single-file path', async () => {
+    await finishFrom(1, 0);
+
+    expect(mockRewindChapterTracking).toHaveBeenCalledWith('book-1');
+  });
+
+  it('rewinds the Book exactly once on the clipped/multi-item path', async () => {
+    // Not double-written: this branch issues ONE rewind, and the write
+    // `ActiveTrackChanged` makes off the `skip(0)` is the same zero.
+    await finishFrom(3, 2);
+
+    expect(mockSkip).toHaveBeenCalledWith(0);
+    expect(mockRewindChapterTracking).toHaveBeenCalledTimes(1);
+    expect(mockRewindChapterTracking).toHaveBeenCalledWith('book-1');
+  });
+
+  it('rewinds AFTER the transport calls, never before them', async () => {
+    // Order is load-bearing in both directions. A 1 Hz progress tick can land
+    // on any await here: after the seek the Book really is at 0, so the worst
+    // such a tick can write is the zeroes we are about to write anyway.
+    // Rewinding FIRST would leave the tracker at chapter 0 while the position
+    // is still in the last chapter, and that tick would put the stale index
+    // straight back.
+    await finishFrom(3, 2);
+
+    expect(callOrder).toEqual([
+      'skip',
+      'seekTo',
+      'pause',
+      'rewindChapterTracking',
+    ]);
+  });
+
+  it('does not rewind when the player cannot name an active Book', async () => {
+    mockGetActiveTrack.mockResolvedValue(undefined);
+
+    await finishFrom(1, 0);
+
+    expect(mockRewindChapterTracking).not.toHaveBeenCalled();
+    expect(mockSeekTo).toHaveBeenCalledWith(0);
+    expect(mockPause).toHaveBeenCalledTimes(1);
+  });
+
+  describe('bookkeeping failure never costs the user the press', () => {
+    it('survives a throw while marking the Book Finished', async () => {
+      mockGetBookById.mockRejectedValue(new Error('db is gone'));
+      mockGetQueue.mockResolvedValue(queueOf(3));
+      mockGetActiveTrackIndex.mockResolvedValue(2);
+      mockGetProgress.mockResolvedValue({ position: 590, duration: 600 });
+
+      await expect(seekForward(30)).resolves.toBeUndefined();
+
+      expect(mockSkip).toHaveBeenCalledWith(0);
+      expect(mockSeekTo).toHaveBeenCalledWith(0);
+      expect(mockPause).toHaveBeenCalledTimes(1);
+    });
+
+    it('survives a throw inside the rewind', async () => {
+      mockRewindChapterTracking.mockRejectedValue(new Error('db is gone'));
+      mockGetBookById.mockResolvedValue({
+        updateBookProgress: jest.fn().mockResolvedValue(undefined),
+      });
+      mockGetQueue.mockResolvedValue(queueOf(1));
+      mockGetActiveTrackIndex.mockResolvedValue(0);
+      mockGetProgress.mockResolvedValue({ position: 3590, duration: 3600 });
+
+      await expect(seekForward(30)).resolves.toBeUndefined();
+
+      expect(mockSeekTo).toHaveBeenCalledWith(0);
+      expect(mockPause).toHaveBeenCalledTimes(1);
+    });
   });
 });
 

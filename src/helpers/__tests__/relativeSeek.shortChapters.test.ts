@@ -57,7 +57,7 @@ jest.mock('@/db/bookQueries', () => ({
     updateBookProgress: mockUpdateBookProgress,
   })),
 }));
-jest.mock('@/helpers/handleBookPlay', () => ({
+jest.mock('@/helpers/bookProgressState', () => ({
   BookProgressState: { NotStarted: 0, Started: 1, Finished: 2 },
 }));
 // The finish branch's already-Finished guard reads the library store, which
@@ -65,6 +65,12 @@ jest.mock('@/helpers/handleBookPlay', () => ({
 // Book here is Finished, so an empty map leaves the branch as it was.
 jest.mock('@/store/library', () => ({
   useLibraryStore: { getState: () => ({ books: {} }) },
+}));
+// Same reason: the finish branch's Book rewind reaches the store and the
+// chapter tables. What it writes is `resetBookToStart`'s own test's business;
+// these tests assert where playback LANDS, so the rewind is stubbed out.
+jest.mock('@/helpers/chapterTracking', () => ({
+  rewindChapterTracking: jest.fn(async () => {}),
 }));
 
 // 14s intro, 13s copyright, 10m10s chapter one.

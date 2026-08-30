@@ -11,8 +11,10 @@ import {
   State,
 } from '@/player/trackPlayer';
 import { getBookById } from '@/db/bookQueries';
-import { BookProgressState } from '@/helpers/handleBookPlay';
+import { BookProgressState } from '@/helpers/bookProgressState';
+import { rewindChapterTracking } from '@/helpers/chapterTracking';
 import { useLibraryStore } from '@/store/library';
+import { withoutBlockingThePress } from '@/helpers/withoutBlockingThePress';
 import type { Book } from '@/types/Book';
 
 /**
@@ -190,21 +192,26 @@ export async function seekForward(seconds: number): Promise<void> {
   if (target.kind === 'finished') {
     const activeBookId = await getActiveBookId();
     if (activeBookId) {
-      // Only the MARK is guarded, and it is guarded on the STORE — the same
-      // reading, for the same reason, as the finish branch in
-      // `helpers/nextPress.ts`: a jump that lands inside the book-end lead
-      // window arrives at a Book the 1 Hz tick has already marked, and
-      // re-marking rewrites `finished_at`. Three of the four sites that can
-      // mark a Book Finished already pay for this guard; a fourth that
-      // quietly skipped it is how a reader concludes the guard is optional.
-      const book: Book | undefined =
-        useLibraryStore.getState().books[activeBookId];
-      if (book?.bookProgressValue !== BookProgressState.Finished) {
-        const bookModel = await getBookById(activeBookId);
-        if (bookModel) {
-          await bookModel.updateBookProgress(BookProgressState.Finished);
+      // Swallowed, like every other piece of bookkeeping behind a press: a
+      // database failure here must not escape before the skip, the seek and
+      // the pause below, costing the user the press they actually made.
+      await withoutBlockingThePress(async () => {
+        // Only the MARK is guarded, and it is guarded on the STORE — the same
+        // reading, for the same reason, as the finish branch in
+        // `helpers/nextPress.ts`: a jump that lands inside the book-end lead
+        // window arrives at a Book the 1 Hz tick has already marked, and
+        // re-marking rewrites `finished_at`. Three of the four sites that can
+        // mark a Book Finished already pay for this guard; a fourth that
+        // quietly skipped it is how a reader concludes the guard is optional.
+        const book: Book | undefined =
+          useLibraryStore.getState().books[activeBookId];
+        if (book?.bookProgressValue !== BookProgressState.Finished) {
+          const bookModel = await getBookById(activeBookId);
+          if (bookModel) {
+            await bookModel.updateBookProgress(BookProgressState.Finished);
+          }
         }
-      }
+      });
     }
     if (shape.index !== 0) {
       await skip(0);
@@ -212,6 +219,32 @@ export async function seekForward(seconds: number): Promise<void> {
     await seekTo(0);
     // Intentional pause — skip the play-state guard
     await pause();
+
+    // The same rewind `Event.PlaybackQueueEnded` and `RemoteNext`'s finish
+    // branch perform. All three FINISH a Book and must leave it in the same
+    // state; this one used to do the player half and none of the persisted
+    // half, which left the stored chapter index — and the chapter-change
+    // detector — pointing at the final chapter of a Book sitting at 0.
+    //
+    // ⚠ Correct for BOTH queue shapes, and idempotent with the multi-item
+    // path rather than a second, conflicting write. On a clipped/multi-file
+    // queue the `skip(0)` above fires `Event.PlaybackActiveTrackChanged`,
+    // whose multi-file branch already writes `setChapterIndex(bookId, 0)` —
+    // this writes the same zero. That accidental correctness is precisely why
+    // the defect only ever showed on legacy single-file Books, and why the
+    // rewind cannot be conditioned on the shape: the single-item queue has no
+    // track change to ride on.
+    //
+    // Last, and deliberately so, for the two reasons `nextPress` states: the
+    // press has already been served, so a failure inside the rewind must not
+    // cost the seek or the pause; and a 1 Hz progress tick can land on any
+    // await above, where after the seek the worst it can write is the same
+    // zeroes. Rewinding FIRST would leave the tracker at chapter 0 while the
+    // position is still in the last chapter, and that tick would write the
+    // stale index straight back.
+    if (activeBookId) {
+      await withoutBlockingThePress(() => rewindChapterTracking(activeBookId));
+    }
     return;
   }
 

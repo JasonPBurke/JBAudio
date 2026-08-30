@@ -7,6 +7,7 @@ import {
   type SingleFileChapterTracking,
 } from '@/helpers/resetBookToStart';
 import { treatAsSingleFile } from '@/helpers/clippedChapters';
+import { withoutBlockingThePress } from '@/helpers/withoutBlockingThePress';
 import { singleFileChapterTracking } from '@/helpers/chapterTracking';
 import {
   recordActiveBookChapterChangeFootprint,
@@ -74,20 +75,6 @@ export type NextPress = {
    * in the app, so it is written before the finished-mark too.
    */
   onBeforeLeaveBook: () => Promise<void> | void;
-};
-
-/**
- * Bookkeeping around a press — footprints going in, the reset coming out —
- * must never block the press itself.
- */
-const withoutBlockingThePress = async (
-  work: () => Promise<void> | void,
-) => {
-  try {
-    await work();
-  } catch {
-    // Non-fatal — playback must proceed even if the bookkeeping fails.
-  }
 };
 
 export async function handleNextPress({

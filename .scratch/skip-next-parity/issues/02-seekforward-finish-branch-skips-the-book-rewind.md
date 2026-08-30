@@ -12,7 +12,7 @@ The `Finished` guard moved to ticket `01`. What remains is one self-healing UI
 glitch and one off-by-one sleep-timer decrement, both on legacy single-file
 Books only.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **Found:** 2026-08-30, during the triage grilling of ticket `01` in this
 directory. Ticket `01`'s acceptance criteria asked for `relativeSeek`'s finish
@@ -264,6 +264,128 @@ legitimate fallback if `01` slips.
   a one-item queue, so the legacy single-file finish path is assertable without
   a device; the device pass is for the stale highlight, which is a UI symptom no
   unit test observes directly.
+
+## Implementation
+
+Landed 2026-08-30, on top of ticket `01`. ~50 lines net, one function changed
+and one three-line module extracted. Every acceptance criterion is covered by a
+test in the 2-second `helpers` lane.
+
+### What changed
+
+`seekForward`'s `'finished'` branch in `helpers/relativeSeek.ts`:
+
+1. **The rewind.** `await rewindChapterTracking(activeBookId)` — the narrowed
+   verb `01` extracted — now runs after the pause, so the branch performs the
+   persisted half it was skipping. That kills the fourth copy of the finish
+   triple: all three finish paths (`PlaybackQueueEnded`, `pressNext`'s finish
+   branch, and this one) now reach `resetBookToStart` through one of two named
+   verbs, and none of them writes the five values itself.
+2. **The failure isolation.** Both the mark and the rewind are wrapped in
+   `withoutBlockingThePress`, so a database throw can no longer escape ahead of
+   the `skip`/`seekTo`/`pause` and cost the user the press.
+3. **`withoutBlockingThePress` moved** out of `nextPress.ts`, where it was
+   private, into `helpers/withoutBlockingThePress.ts`. Copying it would have
+   been a second instance of the exact duplication this ticket exists to
+   remove; `nextPress.ts` now imports it and is otherwise unchanged.
+
+⚠ **Point 3 is a deliberate deviation from `## Scope`'s "No new modules", and
+is recorded rather than hidden.** The same paragraph asks the isolation to
+*"reus[e] the swallow the remote path has"*, and the two instructions cannot
+both be honoured while the swallow is private to `nextPress.ts`. Reuse won: a
+ticket whose entire thesis is that a fourth copy of a shape is a defect cannot
+close by making a second copy of a smaller one. The move is behaviour-
+preserving — identical body, one new import line in `nextPress.ts`.
+
+One further one-line change outside the finish branch: `relativeSeek.ts` now
+imports `BookProgressState` from `helpers/bookProgressState` rather than
+`helpers/handleBookPlay`. That is what the dedicated module's own header asks
+for — it exists *"so pure helpers (and their jest tests) can compare against it
+without dragging in handleBookPlay.ts, which imports the Player adapter and the
+database"* — and `relativeSeek` is exactly such a helper. Both test files
+stubbed `handleBookPlay` solely to work around it.
+
+The already-`Finished` guard was already in place from ticket `01` and was left
+alone, as the Agent Brief instructs.
+
+### Both queue shapes — the question the ticket refused to let be assumed
+
+**The shared rewind is correct for a multi-file Book, and is idempotent with
+the `ActiveTrackChanged` write rather than a second conflicting one.** Traced
+value by value against `resetBookToStart`'s five writes:
+
+| Write | Legacy single-file | Clipped / multi-file |
+| --- | --- | --- |
+| `setPlaybackProgress(id, 0)` | correct — Book is at 0 | correct — same |
+| `setChapterIndex(id, 0)` (store + DB) | the write that was missing | the **same zero** `ActiveTrackChanged` writes off the `skip(0)` |
+| `updateChapterProgressInDB(id, 0)` | correct | correct |
+| `tracking = { 0, bookId }` | the write that was missing | inert — the progress handler's single-file branch never runs for this shape, and adopting the Book cannot manufacture a change (a later Book switch resets `bookId`, giving `previousChapterIndex === -1`) |
+
+So the rewind is unconditional rather than shape-gated: the multi-item path was
+correct only *by accident*, and the single-item path has no track change to
+ride on.
+
+⚠ **The right-hand column is established by TRACING, not by a test, and the
+distinction matters.** `relativeSeek.test.ts` pins that this branch issues
+**exactly one** rewind, so a future "optimize away the redundant write" has to
+argue with a red test — but the *combined* write is unassertable in the
+`helpers` lane, because the other half of it lives in `setup/service.ts`, which
+has no test lane at all (the same gap that forced `handleNextPress`'s
+dependencies to be injected). Anyone revisiting the multi-file column should
+re-trace `treatAsSingleFile` (`helpers/clippedChapters.ts`) and the single-file
+branch of the progress handler rather than trust this table.
+
+### Ordering
+
+The rewind is last, and a test asserts the exact sequence
+`skip → seekTo → pause → rewindChapterTracking`. Same two reasons `nextPress`
+gives, both of which apply verbatim here: the press has already been served, so
+bookkeeping must not cost it; and a 1 Hz progress tick can land on any await,
+where after the seek the worst it can write is the zeroes we are about to
+write, whereas rewinding first would leave the tracker at chapter 0 with the
+position still in the last chapter and let that tick write the stale index
+straight back.
+
+### Tests
+
+`helpers/__tests__/relativeSeek.test.ts` — a `seekForward finishing a Book`
+describe with six cases: the rewind on each queue shape, the once-only
+assertion, the call ordering, the no-active-Book case, and two that throw
+(from the mark, and from the rewind) and assert the transport calls still
+happen. The pre-existing `the 30-second jumps never record a footprint`
+describe already covered the first acceptance criterion and still passes
+unchanged — the finish branch records nothing.
+
+⚠ **One trap, worth carrying forward.** Importing `chapterTracking` into
+`relativeSeek.ts` pulled WatermelonDB's SQLite adapter transitively into
+`relativeSeek.shortChapters.test.ts`, which had no reason to mock it and died
+with a *resolver* error — the whole suite, not one test. Adding an import to a
+leaf helper means checking every existing suite that touches it.
+
+### Review
+
+Reviewed on both axes (Standards + Spec) against `b2be47d` before the commit.
+No correctness finding on either axis. Three points were raised and each is
+answered above or below: the "no new modules" deviation (answered in
+`## Implementation`), the traced-not-tested multi-file column (⚠ note added
+above), and one Duplicated Code smell that is real and **not** fixed here —
+`seekForward`'s finish branch is now a near-line-for-line twin of
+`nextPress.ts`'s `case 'finish'`, mark and transport halves included, with
+comments that name each other. Only the rewind half was unified. Extracting the
+mark (`markBookFinishedOnce`) is the obvious next move but is a new module and
+a real design decision — the two sites obtain the Book differently, one from a
+store lookup and one from an injected value — so it is filed as ticket `03`
+rather than smuggled in here.
+
+### Not done
+
+**The device pass.** Everything in `## Acceptance criteria` is covered by unit
+tests, but the stale-highlight symptom is a UI observation no unit test sees,
+and reproducing it needs a Book satisfying Gate 1 (a chapterless MP3) and a run
+satisfying Gate 2 (played, not scrubbed, into the final chapter). A first
+attempt on 2026-08-30 already failed on Gate 2. Filed as outstanding rather
+than silently claimed.
+
 
 ## Comments
 
