@@ -6,12 +6,26 @@ import {
   resetBookToStart,
   type SingleFileChapterTracking,
 } from '@/helpers/resetBookToStart';
+import { treatAsSingleFile } from '@/helpers/clippedChapters';
+import { singleFileChapterTracking } from '@/helpers/chapterTracking';
+import {
+  recordActiveBookChapterChangeFootprint,
+  recordActiveBookSeekFootprint,
+} from '@/helpers/activeBookFootprints';
+import type { Book } from '@/types/Book';
 
 /**
- * Handles Event.RemoteNext — the skip-forward button on the notification
- * player and Android Auto. There is no in-app skip-forward surface:
- * `SkipToNextButton` is exported from PlayerControls.tsx but has zero render
- * sites, so this is the only path a user reaches.
+ * The skip-forward press, for every surface that can make one: the
+ * notification player and Android Auto (`Event.RemoteNext`) and the in-app
+ * `SkipToNextButton`. Named for the question it answers rather than the
+ * caller that used to be its only one — the button carried a fourth,
+ * hand-rolled copy of this decision until it was routed through here.
+ *
+ * Two functions, deliberately: `pressNext` at the bottom is the WIRING both
+ * surfaces share (queue-shape verdict, tracker, footprint recorders) and is
+ * what a press site calls; `handleNextPress` is the press itself with those
+ * dependencies INJECTED, which is what makes the ordering property below
+ * assertable without a player or a database.
  *
  * Extracted from the playback service for the same reason
  * `handleRemotePlayPause` was: `setup/service.ts` has no test lane, and the
@@ -33,21 +47,21 @@ import {
  * Both recorder callbacks run before their action and neither may block it:
  * a footprint failure must never cost the user their press.
  */
-export type RemoteNextPress = {
+export type NextPress = {
   bookId: string;
   /** The library-store entry for `bookId`, if it has one. */
   book: (NextPressBook & { bookProgressValue?: number }) | undefined;
   /**
-   * Whether this Book loads as ONE queue item. The playback service holds
-   * that verdict (it folds in the clipped-chapters memory gate), so it is
-   * passed in rather than re-derived here — a clipped Book is single-file in
-   * the DB and a chapter queue at runtime.
+   * Whether this Book loads as ONE queue item. The verdict folds in the
+   * clipped-chapters memory gate (`treatAsSingleFile`), so it is passed in
+   * rather than re-derived here — a clipped Book is single-file in the DB and
+   * a chapter queue at runtime.
    */
   treatAsSingleFile: boolean;
   /**
-   * The playback service's module-scope chapter-change detector, handed over
-   * so the finish branch can rewind it through the shared reset. Passed in
-   * because the progress handler in `setup/service.ts` owns it.
+   * The shared chapter-change detector, handed over so the finish branch can
+   * rewind it through the shared reset. Passed in rather than imported so the
+   * finish branch's rewind is assertable with a tracker the test controls.
    */
   chapterTracking: SingleFileChapterTracking;
   /** Records a `chapter_change` footprint. Awaited before the seek/skip. */
@@ -76,14 +90,14 @@ const withoutBlockingThePress = async (
   }
 };
 
-export async function handleRemoteNextPress({
+export async function handleNextPress({
   bookId,
   book,
   treatAsSingleFile,
   chapterTracking,
   onBeforeChapterChange,
   onBeforeLeaveBook,
-}: RemoteNextPress): Promise<void> {
+}: NextPress): Promise<void> {
   const action = await resolveNextPress(book, treatAsSingleFile);
 
   switch (action.kind) {
@@ -142,4 +156,38 @@ export async function handleRemoteNextPress({
       );
       return;
   }
+}
+
+/**
+ * A skip-forward press from a surface that knows which Book is loaded.
+ *
+ * The composition root: it holds the four wiring decisions that must be the
+ * SAME on every surface, so that a press behaves identically whether it came
+ * from the app, the notification or Android Auto.
+ *
+ *  - the queue-shape verdict comes from the one shared `treatAsSingleFile`;
+ *  - the tracker is the one shared instance, so the finish branch rewinds the
+ *    same object the progress handler advances each tick;
+ *  - both branches that MOVE record a footprint — the press type decides,
+ *    not the surface (see `activeBookFootprints`'s header). The last-queue-item
+ *    branch moves nothing and so records nothing;
+ *  - the leave-the-Book breadcrumb is a `seek`, not a `chapter_change`: no
+ *    chapter changed, and the rewind that follows destroys the position it
+ *    points at.
+ *
+ * `book` is the library store's entry, which is legitimately `undefined` on
+ * the cold-start path where the service runs before the store is populated.
+ */
+export async function pressNext(
+  bookId: string,
+  book: Book | undefined,
+): Promise<void> {
+  await handleNextPress({
+    bookId,
+    book,
+    treatAsSingleFile: treatAsSingleFile(book),
+    chapterTracking: singleFileChapterTracking,
+    onBeforeChapterChange: () => recordActiveBookChapterChangeFootprint(bookId),
+    onBeforeLeaveBook: () => recordActiveBookSeekFootprint(bookId),
+  });
 }

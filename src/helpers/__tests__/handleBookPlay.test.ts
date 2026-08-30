@@ -54,7 +54,7 @@ jest.mock('@/db/settingsQueries', () => ({
  * unresolvable in the node lane. So the mock is REQUIRED, not a preference,
  * and it is file-wide because jest module mocks always are; the cases that
  * never touch the store are unaffected by it. Same necessity as
- * `remoteNext.test.ts`.
+ * `nextPress.test.ts`.
  *
  * A STATEFUL stand-in, seeded per test. The assertion
  * this file needs on the restart path is the END STATE of the in-memory

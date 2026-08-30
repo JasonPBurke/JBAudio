@@ -83,6 +83,37 @@ export function shouldUseClippedChapters(
 }
 
 /**
+ * Whether this Book loads as ONE queue item, so positions are absolute and
+ * chapters are seek offsets inside a single track.
+ *
+ * The one place every press site asks that question. It is NOT
+ * `book.isSingleFile` on its own and it is NOT `queue.length === 1`: a
+ * single-file Book that clears the memory gate above is loaded as one clipped
+ * queue item PER CHAPTER, so it is single-file in the DB and a chapter queue
+ * at runtime. Splitting the verdict across sites is what let the in-app
+ * skip-next button reach a different answer from the notification press for
+ * the same Book.
+ *
+ * It lives here, beside the gate it folds in, rather than in the playback
+ * service that used to own it: `setup/service.ts` is a leaf module — nothing
+ * in `src/` imports it — so a component asking this question could not reach
+ * the service's copy. There is no state to reach either; this is a pure
+ * function of the Book, which is a requirement `shouldUseClippedChapters`
+ * documents for itself.
+ *
+ * ⚠ This is a WAYPOINT, not a ruling. `.scratch/queue-shape/spec.md` owns the
+ * question of how queue shape should really be resolved and is expected to
+ * supersede this helper; deduplicating the existing answer here changes no
+ * verdict, and when that spec lands it updates one helper instead of chasing
+ * each call site separately.
+ */
+export function treatAsSingleFile(book: Book | undefined): boolean {
+  return (
+    (book?.isSingleFile ?? false) && !shouldUseClippedChapters(book?.chapters)
+  );
+}
+
+/**
  * Builds one Track per chapter, all pointing at the same file, each playing
  * only its chapter's time window. `clipStartMs`/`clipEndMs` are consumed by
  * the patched native Track → MediaItem.ClippingConfiguration. The last

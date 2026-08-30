@@ -1,4 +1,10 @@
-import { handleRemoteNextPress } from '../remoteNext';
+import { handleNextPress, pressNext } from '../nextPress';
+import { singleFileChapterTracking } from '@/helpers/chapterTracking';
+import {
+  recordActiveBookChapterChangeFootprint,
+  recordActiveBookSeekFootprint,
+} from '@/helpers/activeBookFootprints';
+import type { Book } from '@/types/Book';
 import { createFakePlayer, type FakePlayer } from './support/fakePlayer';
 import { getBookById } from '@/db/bookQueries';
 import { resetBookToStart } from '@/helpers/resetBookToStart';
@@ -55,6 +61,19 @@ jest.mock('@/db/bookQueries', () => ({
   getBookById: jest.fn(),
 }));
 
+// Mocked at the HELPER, not at `@/db/footprintQueries` underneath it: the
+// recorders reach WatermelonDB's SQLite adapter, which does not resolve in
+// the node lane, and what `pressNext` owes them is "called, with this Book,
+// before the transport call" — their own test owns what they write.
+jest.mock('@/helpers/activeBookFootprints', () => ({
+  recordActiveBookChapterChangeFootprint: jest.fn(async () => {
+    mockOrder.push('chapter_change');
+  }),
+  recordActiveBookSeekFootprint: jest.fn(async () => {
+    mockOrder.push('seek_footprint');
+  }),
+}));
+
 // Mocked at the HELPER, not at the store/DB writes underneath it: what this
 // handler owes the finish branch is "the shared reset ran, with the tracker
 // it was handed", and resetBookToStart's own test owns the four writes.
@@ -102,7 +121,7 @@ beforeEach(() => {
   mockGetBookById.mockResolvedValue({ updateBookProgress });
 });
 
-describe('handleRemoteNextPress — a press that moves', () => {
+describe('handleNextPress — a press that moves', () => {
   it('records the footprint BEFORE skipping to the next queue item', async () => {
     mockPlayer = createFakePlayer({
       durations: [600, 600, 600],
@@ -111,7 +130,7 @@ describe('handleRemoteNextPress — a press that moves', () => {
     });
     const rec = recorders();
 
-    await handleRemoteNextPress({
+    await handleNextPress({
       bookId: 'book-1',
       book: undefined,
       treatAsSingleFile: false,
@@ -132,7 +151,7 @@ describe('handleRemoteNextPress — a press that moves', () => {
     });
     const rec = recorders();
 
-    await handleRemoteNextPress({
+    await handleNextPress({
       bookId: 'book-1',
       book: { chapters: SINGLE_FILE_CHAPTERS },
       treatAsSingleFile: true,
@@ -153,7 +172,7 @@ describe('handleRemoteNextPress — a press that moves', () => {
     const rec = recorders();
     rec.onBeforeChapterChange.mockRejectedValue(new Error('db down'));
 
-    await handleRemoteNextPress({
+    await handleNextPress({
       bookId: 'book-1',
       book: undefined,
       treatAsSingleFile: false,
@@ -165,7 +184,7 @@ describe('handleRemoteNextPress — a press that moves', () => {
   });
 });
 
-describe('handleRemoteNextPress — a press that moves nothing', () => {
+describe('handleNextPress — a press that moves nothing', () => {
   it('records nothing and leaves playback alone at the last queue item', async () => {
     mockPlayer = createFakePlayer({
       durations: [600, 600, 600],
@@ -175,7 +194,7 @@ describe('handleRemoteNextPress — a press that moves nothing', () => {
     });
     const rec = recorders();
 
-    await handleRemoteNextPress({
+    await handleNextPress({
       bookId: 'book-1',
       book: undefined,
       treatAsSingleFile: false,
@@ -192,7 +211,7 @@ describe('handleRemoteNextPress — a press that moves nothing', () => {
   });
 });
 
-describe('handleRemoteNextPress — the last chapter of a single-file book', () => {
+describe('handleNextPress — the last chapter of a single-file book', () => {
   const pressAtEnd = async (
     rec: ReturnType<typeof recorders>,
     bookProgressValue?: number,
@@ -204,7 +223,7 @@ describe('handleRemoteNextPress — the last chapter of a single-file book', () 
       playing: true,
     });
 
-    await handleRemoteNextPress({
+    await handleNextPress({
       bookId: 'book-1',
       book: { chapters: SINGLE_FILE_CHAPTERS, bookProgressValue },
       treatAsSingleFile: true,
@@ -250,7 +269,7 @@ describe('handleRemoteNextPress — the last chapter of a single-file book', () 
   });
 });
 
-describe('handleRemoteNextPress — the shared reset', () => {
+describe('handleNextPress — the shared reset', () => {
   it('rewinds the chapter index as well as playback when the press finishes the Book', async () => {
     mockPlayer = createFakePlayer({
       durations: [1800],
@@ -259,7 +278,7 @@ describe('handleRemoteNextPress — the shared reset', () => {
       playing: true,
     });
 
-    await handleRemoteNextPress({
+    await handleNextPress({
       bookId: 'book-1',
       book: { chapters: SINGLE_FILE_CHAPTERS },
       treatAsSingleFile: true,
@@ -281,7 +300,7 @@ describe('handleRemoteNextPress — the shared reset', () => {
     });
     mockResetBookToStart.mockRejectedValueOnce(new Error('db down'));
 
-    await handleRemoteNextPress({
+    await handleNextPress({
       bookId: 'book-1',
       book: { chapters: SINGLE_FILE_CHAPTERS },
       treatAsSingleFile: true,
@@ -302,7 +321,7 @@ describe('handleRemoteNextPress — the shared reset', () => {
       position: 30,
     });
 
-    await handleRemoteNextPress({
+    await handleNextPress({
       bookId: 'book-1',
       book: { chapters: SINGLE_FILE_CHAPTERS },
       treatAsSingleFile: true,
@@ -321,7 +340,7 @@ describe('handleRemoteNextPress — the shared reset', () => {
       playing: true,
     });
 
-    await handleRemoteNextPress({
+    await handleNextPress({
       bookId: 'book-1',
       book: undefined,
       treatAsSingleFile: false,
@@ -330,5 +349,147 @@ describe('handleRemoteNextPress — the shared reset', () => {
     });
 
     expect(mockResetBookToStart).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * `pressNext` — the wiring, which is the half the in-app button was missing.
+ *
+ * These tests are deliberately NOT about the branch logic above; they are
+ * about the four things that have to be the same on every surface, because
+ * a difference in any of them is exactly how the button drifted:
+ *
+ *  - the queue-shape verdict comes from the shared `treatAsSingleFile`, so
+ *    the real helper is used here rather than mocked. The two Books below
+ *    differ ONLY in `isAutoGenerated`, which is what the clipped-chapters
+ *    gate turns on — same chapter list, opposite queue shapes;
+ *  - the tracker is the shared instance, asserted by identity;
+ *  - a moving press records, through the same recorders the service uses;
+ *  - a press at the queue edge records nothing.
+ */
+const mockRecordChapterChange =
+  recordActiveBookChapterChangeFootprint as jest.Mock;
+const mockRecordSeek = recordActiveBookSeekFootprint as jest.Mock;
+
+/**
+ * A legacy single-file Book: single file, but auto-generated chapters, which
+ * the clipped-chapters gate excludes — so it loads as ONE queue item and its
+ * chapters are absolute seek offsets.
+ */
+const legacySingleFileBook = (): Book =>
+  ({
+    bookId: 'book-1',
+    isSingleFile: true,
+    chapters: SINGLE_FILE_CHAPTERS.map((ch) => ({
+      ...ch,
+      isAutoGenerated: true,
+    })),
+  }) as unknown as Book;
+
+/**
+ * The same Book with real chapter marks: the gate clips it into one queue
+ * item PER CHAPTER, so it is single-file in the DB and a chapter queue at
+ * runtime. This is the case the button's `queue.length === 1` got wrong.
+ */
+const clippedSingleFileBook = (): Book =>
+  ({
+    bookId: 'book-1',
+    isSingleFile: true,
+    chapters: SINGLE_FILE_CHAPTERS,
+  }) as unknown as Book;
+
+describe('pressNext — the wiring both surfaces share', () => {
+  it('seeks to the next chapter for a legacy single-file book', async () => {
+    mockPlayer = createFakePlayer({
+      durations: [1800],
+      index: 0,
+      position: 30,
+      playing: true,
+    });
+
+    await pressNext('book-1', legacySingleFileBook());
+
+    expect(mockOrder).toEqual(['chapter_change', 'seekTo']);
+    expect(mockRecordChapterChange).toHaveBeenCalledWith('book-1');
+    expect(mockPlayer.at()).toEqual({ index: 0, position: 600 });
+  });
+
+  it('skips a queue item for a CLIPPED single-file book — the shared verdict, not the chapter list', async () => {
+    mockPlayer = createFakePlayer({
+      durations: [600, 600, 600],
+      index: 0,
+      position: 30,
+      playing: true,
+    });
+
+    await pressNext('book-1', clippedSingleFileBook());
+
+    expect(mockOrder).toEqual(['chapter_change', 'skipToNext']);
+    expect(mockPlayer.at()).toEqual({ index: 1, position: 0 });
+  });
+
+  it('records nothing and moves nothing at the last queue item', async () => {
+    mockPlayer = createFakePlayer({
+      durations: [600, 600, 600],
+      index: 2,
+      position: 14,
+      playing: true,
+    });
+
+    await pressNext('book-1', clippedSingleFileBook());
+
+    expect(mockOrder).toEqual([]);
+    expect(mockRecordChapterChange).not.toHaveBeenCalled();
+    expect(mockRecordSeek).not.toHaveBeenCalled();
+    expect(mockPlayer.at()).toEqual({ index: 2, position: 14 });
+  });
+
+  it('finishes the book through the SHARED tracker on the last chapter', async () => {
+    mockPlayer = createFakePlayer({
+      durations: [1800],
+      index: 0,
+      position: 1250,
+      playing: true,
+    });
+
+    await pressNext('book-1', legacySingleFileBook());
+
+    expect(mockOrder).toEqual([
+      'seek_footprint',
+      'markFinished',
+      'seekTo',
+      'pause',
+      'resetBookToStart',
+    ]);
+    // Identity, not shape: a fresh tracker would leave `lastChapterIndex` at
+    // the final chapter, and the first progress tick after the user presses
+    // play again would read that as a chapter change.
+    expect(mockResetBookToStart).toHaveBeenCalledWith(
+      'book-1',
+      singleFileChapterTracking,
+    );
+  });
+
+  it('does not re-mark a book the store already reports Finished', async () => {
+    mockPlayer = createFakePlayer({
+      durations: [1800],
+      index: 0,
+      position: 1250,
+      playing: true,
+    });
+    const book = {
+      ...legacySingleFileBook(),
+      bookProgressValue: BookProgressState.Finished,
+    };
+
+    await pressNext('book-1', book);
+
+    expect(mockOrder).not.toContain('markFinished');
+    expect(mockOrder).toEqual([
+      'seek_footprint',
+      'seekTo',
+      'pause',
+      'resetBookToStart',
+    ]);
   });
 });

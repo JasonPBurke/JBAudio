@@ -119,6 +119,17 @@ for some Books it is an offset into the whole Book, for others into one Chapter 
 through?" and "how far into this item?" are different questions.
 _Avoid_: progress (which is the user-facing fraction), offset, time
 
+**Footprint**:
+A spot in a Book the user may want to get back to, recorded so they can return to it after
+playback has moved on. Left when a listening session starts, when a scrub or a chapter skip
+leaves a spot behind, and when a sleep timer is armed — that last one because arming a timer
+anticipates the user losing track of where they were rather than deliberately leaving it.
+⚠ Which presses leave one is a property of **the press**, not of the surface it arrived from: the
+same press records identically whether it came from the app, the notification or Android Auto.
+The 30-second jumps deliberately leave none — they move around within the spot the user is
+already at instead of creating one worth returning to.
+_Avoid_: bookmark (which is user-made and permanent), history entry, breadcrumb, checkpoint
+
 **Queue**:
 What the Player has actually been handed to play. It is built from a Book but is not the same
 shape as one: a single-file Book may become one item or many, and the same Book can differ

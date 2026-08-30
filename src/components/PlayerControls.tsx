@@ -14,15 +14,7 @@ import {
   ViewStyle,
   Pressable,
 } from 'react-native';
-import {
-  getProgress,
-  getQueue,
-  pause,
-  play,
-  seekBy,
-  seekTo,
-  skipToNext,
-} from '@/player/trackPlayer';
+import { pause, play, seekBy } from '@/player/trackPlayer';
 import {
   Play,
   Pause,
@@ -53,9 +45,10 @@ import PlaybackSpeedOptions from '../modals/PlaybackSpeedOptions';
 import { formatRate, resolveSpeedTap } from '@/helpers/playbackRate';
 import CountdownTimer from './CountdownTimer';
 import AnimatedZZZ from './animations/AnimatedZZZ';
-import { getBookById } from '@/db/bookQueries';
-import { recordActiveBookPlayFootprint } from '@/helpers/activeBookFootprints';
-import { BookProgressState } from '@/helpers/handleBookPlay';
+import {
+  recordActiveBookPlayFootprint,
+  recordPreviousPressFootprint,
+} from '@/helpers/activeBookFootprints';
 import database from '@/db';
 import { useObserveSettings } from '@/hooks/useObserveSettings';
 import {
@@ -67,9 +60,9 @@ import { useSleepTimer } from '@/hooks/useSleepTimer';
 import * as sleepTimer from '@/setup/sleepTimer';
 import { useBookById } from '@/store/library';
 import { useSettingsStore } from '@/store/settingsStore';
-import { getNextChapterStartSeconds } from '@/helpers/singleFileBook';
 import { seekBack, seekForward } from '@/helpers/relativeSeek';
 import { skipToPreviousChapter } from '@/helpers/chapterSkip';
+import { pressNext } from '@/helpers/nextPress';
 
 type PlayerControlsProps = {
   style?: ViewStyle;
@@ -321,11 +314,21 @@ export function SeekForwardButton({
 }
 
 export function SkipToPreviousButton({ iconSize = 30 }: PlayerButtonProps) {
+  const activeBookId = useActiveBookId();
+
   const handlePress = async () => {
     // Shared with the RemotePrevious handler in setup/service.ts: >15s into
     // a chapter restarts it, within the first 15s goes to the previous
     // chapter — notification, Android Auto and in-app behave identically.
-    await skipToPreviousChapter();
+    //
+    // The footprint is the second half of "identically", and it is the same
+    // call the service makes: the PRESS TYPE decides whether a breadcrumb is
+    // written, not which surface the press arrived from. The label has to
+    // come from the resolved kind, because a restart and a chapter change
+    // are the same press until `skipToPreviousChapter` decides.
+    await skipToPreviousChapter((kind) =>
+      recordPreviousPressFootprint(activeBookId, kind),
+    );
   };
 
   return (
@@ -345,29 +348,18 @@ export function SkipToNextButton({ iconSize = 30 }: PlayerButtonProps) {
   const book = useBookById(activeBookId ?? '');
 
   const handlePress = async () => {
-    const queue = await getQueue();
-    const isSingleFile = queue.length === 1;
+    // Nothing loaded, so there is no press to make. Event.RemoteNext falls
+    // back to a bare skipToNext() here instead, because a remote press can
+    // arrive on the cold-start path before any Book is active; a button the
+    // user can see cannot be in that state.
+    if (!activeBookId) return;
 
-    if (isSingleFile && book?.chapters && book.chapters.length > 1) {
-      const { position } = await getProgress();
-      const nextStart = getNextChapterStartSeconds(book.chapters, position);
-
-      if (nextStart !== null) {
-        await seekTo(nextStart);
-      } else {
-        // At last chapter: mark finished, reset and stop
-        if (activeBookId) {
-          const bookModel = await getBookById(activeBookId);
-          if (bookModel) {
-            await bookModel.updateBookProgress(BookProgressState.Finished);
-          }
-        }
-        await seekTo(0);
-        await pause();
-      }
-    } else {
-      await skipToNext();
-    }
+    // The whole press — the chapter/skip/finish/none decision, the footprint
+    // that has to be written BEFORE the transport call, the already-Finished
+    // guard and the rewind — lives in helpers/nextPress.ts, which is also
+    // what Event.RemoteNext calls. This button used to carry its own copy,
+    // and that copy had drifted in five ways by the time it was noticed.
+    await pressNext(activeBookId, book);
   };
 
   return (

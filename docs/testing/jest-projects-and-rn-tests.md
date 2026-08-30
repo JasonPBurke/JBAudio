@@ -130,6 +130,21 @@ native half throws *"Native part of Worklets doesn't seem to be initialized"* �
 can run. `jest.rn-setup.js` does `jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'))`,
 which replaces the module wholesale and never reaches worklets.
 
+⚠ **And that shared mock does NOT actually work — nothing had tested it.** A `jest.mock` factory is
+lazy: it runs only when a suite really imports the module. Until 2026-08-30 no suite imported
+reanimated, so the factory above had never been evaluated. The first suite that did
+(`components/__tests__/PlayerControls.rn.test.tsx`) died inside it: on the installed versions,
+`react-native-reanimated/mock` itself re-enters the real `react-native-reanimated/src/index`, which
+imports `initializers`, which imports `react-native-worklets` — the exact native half the mock was
+supposed to avoid. The trace names `mock.ts` as the *caller*, which reads like your test's fault.
+
+Until someone repairs the shared mock, **a suite that imports reanimated must carry its own stub**,
+in-file, ahead of the import. Keep it to the APIs that suite touches — `PlayerControls.rn.test.tsx`
+stubs `default` (`View` + `createAnimatedComponent`), `useSharedValue`, `useAnimatedStyle`,
+`withTiming` and `withSequence` in about ten lines. This is a deliberate exception to the "every
+mock lives in `jest.rn-setup.js`" habit, and it stays an exception: the setup file's job is native
+modules with no JS implementation, not routing around a broken vendor mock.
+
 **4. The React Compiler runs in your tests.** `babel.config.js` applies `babel-plugin-react-compiler`
 unconditionally, so components under test are memoized. **Do not write render-count assertions.**
 The `'use no memo'` directive on `BookDurationRow` is the precedent for when a component genuinely
@@ -203,8 +218,11 @@ and the process hangs. Locally that is a warning you can ignore; on CI it is a t
 failing test to point at**. Five modules under `src/` import Sentry, so any suite that touches one
 of them trips it. A suite that wants to assert on a report reads the mock through `jest.mocked`.
 
-Not yet mocked, because nothing has needed them yet: the `NativeMediaInfo` turbomodule (`specs/`),
-`SafCueReaderModule`, TrackPlayer, FastImage, WatermelonDB. For WatermelonDB, prefer `LokiJSAdapter`
+Not yet mocked here, because nothing has needed them *globally* yet: the `NativeMediaInfo`
+turbomodule (`specs/`), `SafCueReaderModule`, TrackPlayer, FastImage, WatermelonDB. Two suites now
+mock TrackPlayer in-file — `trackPlayer.rn.test.tsx` at `react-native-track-player` (the hooks are
+named exports the `fakePlayer` default-export fake cannot reach) and `PlayerControls.rn.test.tsx`
+at `@/player/trackPlayer` (the adapter, which is all a component may import — ADR 0003). For WatermelonDB, prefer `LokiJSAdapter`
 — a real in-memory database — over a mock.
 
 ## Worked example

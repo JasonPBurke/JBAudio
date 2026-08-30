@@ -5,6 +5,7 @@ import {
 } from '@/db/footprintQueries';
 import { stampLastPlayed } from '@/db/bookQueries';
 import { FootprintTrigger } from '@/db/models/Footprint';
+import type { PreviousPressKind } from '@/helpers/singleFileBook';
 
 /**
  * Footprint recording for presses that only know the ACTIVE BOOK — the one
@@ -25,7 +26,7 @@ import { FootprintTrigger } from '@/db/models/Footprint';
  * recorded alongside — several callers have already written DB state by the
  * time they get here.
  *
- * The remote seek/chapter helpers must additionally be AWAITED BEFORE the
+ * The seek/chapter helpers must additionally be AWAITED BEFORE the
  * seek/skip is issued, so the breadcrumb captures the pre-press position
  * (`recordSeekFootprint` reads the current track index for chapter-queue
  * books, `recordFootprint` reads the current position).
@@ -76,11 +77,13 @@ export async function recordActiveBookPlayFootprint(): Promise<void> {
 }
 
 /**
- * The remote seek press. Not `tryWithActiveBook`: the position read is issued in
+ * The seek press — the notification/Android Auto seek-bar drag, and the
+ * breadcrumb a press that leaves the Book entirely writes. Not
+ * `tryWithActiveBook`: the position read is issued in
  * parallel with the Book read so the breadcrumb is captured with one round
  * trip of latency in front of the seek, not two.
  */
-export async function recordRemoteSeekFootprint(
+export async function recordActiveBookSeekFootprint(
   bookId?: string,
 ): Promise<void> {
   try {
@@ -104,9 +107,9 @@ export async function recordRemoteSeekFootprint(
  * A deliberate one-line delegate. It survives the extraction because it
  * narrows the trigger to the two a chapter press can produce and defaults it,
  * which is the whole of what its callers want; inlining it would push that
- * narrowing out to three remote call sites.
+ * narrowing out to every chapter-press call site.
  */
-export async function recordRemoteChapterChangeFootprint(
+export async function recordActiveBookChapterChangeFootprint(
   bookId?: string,
   trigger: Extract<
     FootprintTrigger,
@@ -114,4 +117,32 @@ export async function recordRemoteChapterChangeFootprint(
   > = 'chapter_change',
 ): Promise<void> {
   await recordActiveBookFootprint(trigger, bookId);
+}
+
+/**
+ * The footprint for a resolved skip-PREVIOUS press, labeled by which action
+ * the press turned out to be.
+ *
+ * Shared by the two press sites — `Event.RemotePrevious` in the playback
+ * service and the in-app `SkipToPreviousButton` — because the label is the
+ * part that can drift: a restart and a chapter change are the same press
+ * until `skipToPreviousChapter` resolves it, and a surface that guessed
+ * would write a breadcrumb naming something that did not happen. Both
+ * surfaces record, per the rule in this module's header: the PRESS TYPE
+ * decides whether a footprint is written, not which surface it arrived from.
+ *
+ * `bookId` is nullable so both callers can hand over whatever their own
+ * Active-Book read produced — `null` from the player, `undefined` from the
+ * store hook — without each spelling out the same conversion. An absent id
+ * records nothing, exactly like the guard in `tryWithActiveBook`.
+ */
+export async function recordPreviousPressFootprint(
+  bookId: string | null | undefined,
+  kind: PreviousPressKind,
+): Promise<void> {
+  if (!bookId) return;
+  await recordActiveBookChapterChangeFootprint(
+    bookId,
+    kind === 'restart' ? 'chapter_restart' : 'chapter_change',
+  );
 }

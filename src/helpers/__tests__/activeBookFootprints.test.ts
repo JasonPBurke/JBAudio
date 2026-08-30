@@ -2,8 +2,9 @@ import TrackPlayer from 'react-native-track-player';
 import {
   recordActiveBookFootprint,
   recordActiveBookPlayFootprint,
-  recordRemoteSeekFootprint,
-  recordRemoteChapterChangeFootprint,
+  recordActiveBookSeekFootprint,
+  recordActiveBookChapterChangeFootprint,
+  recordPreviousPressFootprint,
 } from '../activeBookFootprints';
 import {
   recordFootprint,
@@ -133,9 +134,9 @@ describe('recordActiveBookPlayFootprint', () => {
   });
 });
 
-describe('recordRemoteSeekFootprint', () => {
+describe('recordActiveBookSeekFootprint', () => {
   it('records a seek footprint with the pre-seek position in ms', async () => {
-    await recordRemoteSeekFootprint();
+    await recordActiveBookSeekFootprint();
 
     expect(mockRecordSeekFootprint).toHaveBeenCalledTimes(1);
     expect(mockRecordSeekFootprint).toHaveBeenCalledWith('book-1', 12345);
@@ -144,7 +145,7 @@ describe('recordRemoteSeekFootprint', () => {
   it('records nothing when there is no active track', async () => {
     mockGetActiveTrack.mockResolvedValue(undefined);
 
-    await recordRemoteSeekFootprint();
+    await recordActiveBookSeekFootprint();
 
     expect(mockRecordSeekFootprint).not.toHaveBeenCalled();
   });
@@ -152,7 +153,7 @@ describe('recordRemoteSeekFootprint', () => {
   it('records nothing when the active track has no bookId', async () => {
     mockGetActiveTrack.mockResolvedValue({ url: 'file://x.mp3' });
 
-    await recordRemoteSeekFootprint();
+    await recordActiveBookSeekFootprint();
 
     expect(mockRecordSeekFootprint).not.toHaveBeenCalled();
   });
@@ -160,20 +161,20 @@ describe('recordRemoteSeekFootprint', () => {
   it('resolves without throwing when recording fails', async () => {
     mockRecordSeekFootprint.mockRejectedValue(new Error('db down'));
 
-    await expect(recordRemoteSeekFootprint()).resolves.toBeUndefined();
+    await expect(recordActiveBookSeekFootprint()).resolves.toBeUndefined();
   });
 
   it('resolves without throwing when TrackPlayer calls fail', async () => {
     mockGetProgress.mockRejectedValue(new Error('no player'));
 
-    await expect(recordRemoteSeekFootprint()).resolves.toBeUndefined();
+    await expect(recordActiveBookSeekFootprint()).resolves.toBeUndefined();
     expect(mockRecordSeekFootprint).not.toHaveBeenCalled();
   });
 });
 
-describe('recordRemoteChapterChangeFootprint', () => {
+describe('recordActiveBookChapterChangeFootprint', () => {
   it('records a chapter_change footprint for the given bookId', async () => {
-    await recordRemoteChapterChangeFootprint('book-2');
+    await recordActiveBookChapterChangeFootprint('book-2');
 
     expect(mockRecordFootprint).toHaveBeenCalledTimes(1);
     expect(mockRecordFootprint).toHaveBeenCalledWith(
@@ -185,7 +186,7 @@ describe('recordRemoteChapterChangeFootprint', () => {
   });
 
   it('records a chapter_restart footprint when that trigger is passed', async () => {
-    await recordRemoteChapterChangeFootprint('book-2', 'chapter_restart');
+    await recordActiveBookChapterChangeFootprint('book-2', 'chapter_restart');
 
     expect(mockRecordFootprint).toHaveBeenCalledWith(
       'book-2',
@@ -194,7 +195,7 @@ describe('recordRemoteChapterChangeFootprint', () => {
   });
 
   it('falls back to the active track when no bookId is given', async () => {
-    await recordRemoteChapterChangeFootprint();
+    await recordActiveBookChapterChangeFootprint();
 
     expect(mockRecordFootprint).toHaveBeenCalledWith(
       'book-1',
@@ -205,7 +206,7 @@ describe('recordRemoteChapterChangeFootprint', () => {
   it('records nothing when no bookId can be resolved', async () => {
     mockGetActiveTrack.mockResolvedValue(undefined);
 
-    await recordRemoteChapterChangeFootprint();
+    await recordActiveBookChapterChangeFootprint();
 
     expect(mockRecordFootprint).not.toHaveBeenCalled();
   });
@@ -214,17 +215,52 @@ describe('recordRemoteChapterChangeFootprint', () => {
     mockRecordFootprint.mockRejectedValue(new Error('db down'));
 
     await expect(
-      recordRemoteChapterChangeFootprint('book-1'),
+      recordActiveBookChapterChangeFootprint('book-1'),
     ).resolves.toBeUndefined();
   });
 });
 
-describe('recordRemoteSeekFootprint — explicit bookId', () => {
+describe('recordActiveBookSeekFootprint — explicit bookId', () => {
   it('uses the bookId it was given rather than re-reading the active track', async () => {
-    await recordRemoteSeekFootprint('book-9');
+    await recordActiveBookSeekFootprint('book-9');
 
     expect(mockRecordSeekFootprint).toHaveBeenCalledWith('book-9', 12345);
     // A Book switch racing the handler must not steal the breadcrumb.
     expect(mockGetActiveTrack).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * The skip-previous label, which is the part that can drift between the two
+ * press sites: a restart and a chapter change are the same press until
+ * `skipToPreviousChapter` resolves it, so both surfaces take the resolved
+ * kind and neither maps it itself.
+ */
+describe('recordPreviousPressFootprint', () => {
+  it('labels a resolved previous-chapter press `chapter_change`', async () => {
+    await recordPreviousPressFootprint('book-1', 'previous');
+
+    expect(mockRecordFootprint).toHaveBeenCalledWith(
+      'book-1',
+      'chapter_change',
+    );
+  });
+
+  it('labels a resolved restart press `chapter_restart`', async () => {
+    await recordPreviousPressFootprint('book-1', 'restart');
+
+    expect(mockRecordFootprint).toHaveBeenCalledWith(
+      'book-1',
+      'chapter_restart',
+    );
+  });
+
+  // The playback service reads `string | null` from the player and the button
+  // reads `string | undefined` from the store; neither converts, and an
+  // unreadable Active Book records nothing rather than guessing one.
+  it.each([null, undefined])('records nothing for %p', async (bookId) => {
+    await recordPreviousPressFootprint(bookId, 'previous');
+
+    expect(mockRecordFootprint).not.toHaveBeenCalled();
   });
 });

@@ -12,6 +12,8 @@ import {
 } from '@/player/trackPlayer';
 import { getBookById } from '@/db/bookQueries';
 import { BookProgressState } from '@/helpers/handleBookPlay';
+import { useLibraryStore } from '@/store/library';
+import type { Book } from '@/types/Book';
 
 /**
  * Relative seek with chapter/track-boundary crossing.
@@ -188,9 +190,20 @@ export async function seekForward(seconds: number): Promise<void> {
   if (target.kind === 'finished') {
     const activeBookId = await getActiveBookId();
     if (activeBookId) {
-      const bookModel = await getBookById(activeBookId);
-      if (bookModel) {
-        await bookModel.updateBookProgress(BookProgressState.Finished);
+      // Only the MARK is guarded, and it is guarded on the STORE — the same
+      // reading, for the same reason, as the finish branch in
+      // `helpers/nextPress.ts`: a jump that lands inside the book-end lead
+      // window arrives at a Book the 1 Hz tick has already marked, and
+      // re-marking rewrites `finished_at`. Three of the four sites that can
+      // mark a Book Finished already pay for this guard; a fourth that
+      // quietly skipped it is how a reader concludes the guard is optional.
+      const book: Book | undefined =
+        useLibraryStore.getState().books[activeBookId];
+      if (book?.bookProgressValue !== BookProgressState.Finished) {
+        const bookModel = await getBookById(activeBookId);
+        if (bookModel) {
+          await bookModel.updateBookProgress(BookProgressState.Finished);
+        }
       }
     }
     if (shape.index !== 0) {

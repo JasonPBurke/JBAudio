@@ -1,6 +1,7 @@
 import TrackPlayer, { State } from 'react-native-track-player';
 import { seekBack, seekForward } from '../relativeSeek';
 import { getBookById } from '@/db/bookQueries';
+import { recordFootprint, recordSeekFootprint } from '@/db/footprintQueries';
 
 jest.mock('react-native-track-player', () => ({
   __esModule: true,
@@ -38,6 +39,21 @@ jest.mock('@/helpers/handleBookPlay', () => ({
   BookProgressState: { NotStarted: 0, Started: 1, Finished: 2 },
 }));
 
+// The library store reaches WatermelonDB's SQLite adapter, which does not
+// resolve in the node lane. Only the finish branch reads it — for the
+// already-Finished guard — so the stub is a books map the tests fill.
+let mockBooks: Record<string, { bookProgressValue?: number }>;
+jest.mock('@/store/library', () => ({
+  useLibraryStore: { getState: () => ({ books: mockBooks }) },
+}));
+
+// Nothing in this module may write a footprint; see the regression describe
+// at the bottom of this file for why that is asserted rather than assumed.
+jest.mock('@/db/footprintQueries', () => ({
+  recordFootprint: jest.fn(),
+  recordSeekFootprint: jest.fn(),
+}));
+
 const mockGetPlaybackState = TrackPlayer.getPlaybackState as jest.Mock;
 const mockGetProgress = TrackPlayer.getProgress as jest.Mock;
 const mockGetQueue = TrackPlayer.getQueue as jest.Mock;
@@ -59,6 +75,7 @@ const queueOf = (n: number, durations: number[] = []) =>
   }));
 
 beforeEach(() => {
+  mockBooks = {};
   jest.clearAllMocks();
   // Default: paused player so the play-state guard stays inert
   mockGetPlaybackState.mockResolvedValue({ state: State.Paused });
@@ -190,6 +207,41 @@ describe('seekForward', () => {
     expect(mockPause).toHaveBeenCalledTimes(1);
   });
 
+  it('does not re-mark a book the store already reports Finished', async () => {
+    // D5's invariant: three of the four sites that can mark a Book Finished
+    // guard the mark on the stored progress value, so a press inside the
+    // book-end lead window cannot rewrite an already-set `finished_at`. This
+    // was the fourth. The seek and the pause still happen — the guard is on
+    // the MARK only.
+    const updateBookProgress = jest.fn().mockResolvedValue(undefined);
+    mockGetBookById.mockResolvedValue({ updateBookProgress });
+    mockBooks = { 'book-1': { bookProgressValue: 2 } };
+    mockGetQueue.mockResolvedValue(queueOf(3));
+    mockGetActiveTrackIndex.mockResolvedValue(2);
+    mockGetProgress.mockResolvedValue({ position: 590, duration: 600 });
+
+    await seekForward(30);
+
+    expect(updateBookProgress).not.toHaveBeenCalled();
+    expect(mockGetBookById).not.toHaveBeenCalled();
+    expect(mockSkip).toHaveBeenCalledWith(0);
+    expect(mockSeekTo).toHaveBeenCalledWith(0);
+    expect(mockPause).toHaveBeenCalledTimes(1);
+  });
+
+  it('still marks a book the store reports as merely Started', async () => {
+    const updateBookProgress = jest.fn().mockResolvedValue(undefined);
+    mockGetBookById.mockResolvedValue({ updateBookProgress });
+    mockBooks = { 'book-1': { bookProgressValue: 1 } };
+    mockGetQueue.mockResolvedValue(queueOf(3));
+    mockGetActiveTrackIndex.mockResolvedValue(2);
+    mockGetProgress.mockResolvedValue({ position: 590, duration: 600 });
+
+    await seekForward(30);
+
+    expect(updateBookProgress).toHaveBeenCalledWith(2);
+  });
+
   it('does not force play after the intentional finish-pause', async () => {
     mockGetQueue.mockResolvedValue(queueOf(3));
     mockGetActiveTrackIndex.mockResolvedValue(2);
@@ -213,5 +265,66 @@ describe('seekForward', () => {
     await seekForward(30);
 
     expect(mockPlay).toHaveBeenCalledTimes(1);
+  });
+});
+
+/*
+ * The 30-second jumps record NOTHING, and that is deliberate.
+ *
+ * Both surfaces route through this module — the in-app SeekBack/SeekForward
+ * buttons call `seekBack`/`seekForward` directly, and
+ * `Event.RemoteJumpBackward`/`Forward` call the same two functions rather
+ * than native seekBy — so one assertion here covers both. That symmetry is
+ * the point: the footprint rule is that the PRESS TYPE decides, and a jump
+ * is not a departure the user would ever want to come back to.
+ *
+ * `Event.RemoteSeek` is a different press — the notification's seek-BAR drag
+ * — and it does record, mirroring the in-app scrub. Do not "fix" the jumps
+ * into recording by analogy with it.
+ *
+ * These assert against the DB writers, not against a helper: any route into
+ * footprint recording, including `activeBookFootprints`, lands on one of
+ * these two calls.
+ */
+describe('the 30-second jumps never record a footprint', () => {
+  const noFootprints = () => {
+    expect(recordFootprint).not.toHaveBeenCalled();
+    expect(recordSeekFootprint).not.toHaveBeenCalled();
+  };
+
+  it('records nothing on a jump inside the current track', async () => {
+    mockGetQueue.mockResolvedValue(queueOf(3));
+    mockGetActiveTrackIndex.mockResolvedValue(1);
+    mockGetProgress.mockResolvedValue({ position: 100, duration: 600 });
+
+    await seekForward(30);
+    await seekBack(30);
+
+    noFootprints();
+  });
+
+  it('records nothing on a jump that crosses a chapter boundary', async () => {
+    mockGetQueue.mockResolvedValue(queueOf(3));
+    mockGetActiveTrackIndex.mockResolvedValue(1);
+    mockGetProgress.mockResolvedValue({ position: 590, duration: 600 });
+
+    await seekForward(30);
+
+    expect(mockSkip).toHaveBeenCalledWith(2);
+    noFootprints();
+  });
+
+  it('records nothing on a jump that finishes the book', async () => {
+    mockGetBookById.mockResolvedValue({
+      updateBookProgress: jest.fn().mockResolvedValue(undefined),
+    });
+    mockGetQueue.mockResolvedValue(queueOf(3));
+    mockGetActiveTrackIndex.mockResolvedValue(2);
+    mockGetProgress.mockResolvedValue({ position: 590, duration: 600 });
+
+    await seekForward(30);
+
+    expect(mockPause).toHaveBeenCalledTimes(1);
+    noFootprints();
   });
 });

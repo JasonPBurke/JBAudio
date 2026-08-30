@@ -30,12 +30,14 @@ import {
   isBookSwitchInProgress,
 } from '@/helpers/remotePlayBook';
 import { ensurePlayerSetup } from '@/helpers/playerSetup';
-import { handleRemoteNextPress } from '@/helpers/remoteNext';
-import { resetBookToStart } from '@/helpers/resetBookToStart';
+import { pressNext } from '@/helpers/nextPress';
 import { setChapterIndex } from '@/helpers/setChapterIndex';
-import type { SingleFileChapterTracking } from '@/helpers/resetBookToStart';
+import {
+  rewindChapterTracking,
+  singleFileChapterTracking,
+} from '@/helpers/chapterTracking';
 import { restoreLastActiveBook } from '@/helpers/restoreLastActiveBook';
-import { shouldUseClippedChapters } from '@/helpers/clippedChapters';
+import { treatAsSingleFile } from '@/helpers/clippedChapters';
 import {
   findChapterIndexByPosition,
   calculateProgressWithinChapter,
@@ -50,8 +52,8 @@ import { seekBack, seekForward } from '@/helpers/relativeSeek';
 import { skipToPreviousChapter } from '@/helpers/chapterSkip';
 import {
   recordActiveBookPlayFootprint,
-  recordRemoteSeekFootprint,
-  recordRemoteChapterChangeFootprint,
+  recordActiveBookSeekFootprint,
+  recordPreviousPressFootprint,
 } from '@/helpers/activeBookFootprints';
 import type { Book } from '@/types/Book';
 import * as sleepTimer from '@/setup/sleepTimer';
@@ -85,16 +87,6 @@ const { setPlaybackProgress } = useLibraryStore.getState();
 function getBookFromStore(bookId: string): Book | undefined {
   return useLibraryStore.getState().books[bookId];
 }
-
-const treatAsSingleFile = (book: Book | undefined) =>
-  (book?.isSingleFile ?? false) &&
-  !shouldUseClippedChapters(book?.chapters);
-
-// Single-file book chapter tracking state (module-scope)
-let singleFileChapterState: SingleFileChapterTracking = {
-  lastChapterIndex: -1,
-  bookId: null,
-};
 
 // Periodic progress save interval (defense in depth for force-close scenarios)
 const PROGRESS_SAVE_INTERVAL = 30000; // 30 seconds
@@ -279,20 +271,20 @@ async function handleProgressUpdated({
 
     // Check if chapter changed
     if (
-      singleFileChapterState.bookId !== bookId ||
-      singleFileChapterState.lastChapterIndex !== currentChapterIndex
+      singleFileChapterTracking.bookId !== bookId ||
+      singleFileChapterTracking.lastChapterIndex !== currentChapterIndex
     ) {
       const previousChapterIndex =
-        singleFileChapterState.bookId === bookId
-          ? singleFileChapterState.lastChapterIndex
+        singleFileChapterTracking.bookId === bookId
+          ? singleFileChapterTracking.lastChapterIndex
           : -1;
       const wasChapterChange =
         previousChapterIndex !== -1 &&
         previousChapterIndex !== currentChapterIndex;
 
       // Update state
-      singleFileChapterState.bookId = bookId;
-      singleFileChapterState.lastChapterIndex = currentChapterIndex;
+      singleFileChapterTracking.bookId = bookId;
+      singleFileChapterTracking.lastChapterIndex = currentChapterIndex;
 
       // Store then DB, as one unit — see helpers/setChapterIndex. This is
       // guarded by the chapter-change check above, which is what stops the
@@ -487,7 +479,7 @@ export default module.exports = async function () {
   subscribe(Event.RemoteSeek, async ({ position }) => {
     // Notification / AA seek-bar drag: mirror the in-app seek bar's
     // footprint. Awaited first so it captures the pre-seek position.
-    await recordRemoteSeekFootprint();
+    await recordActiveBookSeekFootprint();
     seekTo(position);
   });
   // seekBack/seekForward (not native seekBy, which clamps within the current
@@ -508,20 +500,12 @@ export default module.exports = async function () {
       return;
     }
 
-    // The press itself lives in helpers/remoteNext.ts, where it can be
-    // tested: the footprint must be written BEFORE the seek/skip and ONLY on
-    // a branch that moves, and neither property is visible from a "was it
-    // recorded?" assertion. See
-    // .scratch/remote-noop-footprint/issues/01-*.md.
-    const book = getBookFromStore(bookId);
-    await handleRemoteNextPress({
-      bookId,
-      book,
-      treatAsSingleFile: treatAsSingleFile(book),
-      chapterTracking: singleFileChapterState,
-      onBeforeChapterChange: () => recordRemoteChapterChangeFootprint(bookId),
-      onBeforeLeaveBook: () => recordRemoteSeekFootprint(bookId),
-    });
+    // The press itself lives in helpers/nextPress.ts, where it can be
+    // tested and where the in-app SkipToNextButton reaches the same code:
+    // the footprint must be written BEFORE the seek/skip and ONLY on a branch
+    // that moves, and neither property is visible from a "was it recorded?"
+    // assertion. See .scratch/remote-noop-footprint/issues/01-*.md.
+    await pressNext(bookId, getBookFromStore(bookId));
   });
   subscribe(Event.RemotePrevious, async () => {
     const bookId = await getActiveBookId();
@@ -530,14 +514,9 @@ export default module.exports = async function () {
     // restarts it, within the first 15s goes to the previous chapter. The
     // callback mirrors RemoteNext's footprint (awaited pre-seek), labeled
     // by which action the press resolved to.
-    await skipToPreviousChapter(async (kind) => {
-      if (bookId) {
-        await recordRemoteChapterChangeFootprint(
-          bookId,
-          kind === 'restart' ? 'chapter_restart' : 'chapter_change',
-        );
-      }
-    });
+    await skipToPreviousChapter((kind) =>
+      recordPreviousPressFootprint(bookId, kind),
+    );
   });
   // ⚠ NOT an Event member. Native emits this custom string from the
   // Android Auto browse path — our own patch, not RNTP. It type-checks
@@ -596,7 +575,7 @@ export default module.exports = async function () {
       // RemoteNext's finish branch — the two paths that finish a Book have
       // to leave it in the same state, and they did not while each kept its
       // own copy of this reset.
-      await resetBookToStart(trackToUpdate.bookId, singleFileChapterState);
+      await rewindChapterTracking(trackToUpdate.bookId);
     } else if (!isSingleFile && book) {
       // Multi-file book: use track index as chapter index.
       // `setChapterIndex` writes its store half synchronously before it

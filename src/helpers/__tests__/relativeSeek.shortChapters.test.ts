@@ -60,6 +60,12 @@ jest.mock('@/db/bookQueries', () => ({
 jest.mock('@/helpers/handleBookPlay', () => ({
   BookProgressState: { NotStarted: 0, Started: 1, Finished: 2 },
 }));
+// The finish branch's already-Finished guard reads the library store, which
+// reaches WatermelonDB's SQLite adapter — unresolvable in the node lane. No
+// Book here is Finished, so an empty map leaves the branch as it was.
+jest.mock('@/store/library', () => ({
+  useLibraryStore: { getState: () => ({ books: {} }) },
+}));
 
 // 14s intro, 13s copyright, 10m10s chapter one.
 const SHORT_INTRO_BOOK = [14, 13, 610];
