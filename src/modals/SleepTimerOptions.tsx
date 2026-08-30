@@ -18,19 +18,12 @@ import {
 import UserSettings from '@/db/models/Settings';
 import { useDatabase } from '@nozbe/watermelondb/hooks';
 import { useEffect } from 'react';
-import {
-  getActiveBookId,
-  getActiveTrackIndex,
-  getProgress,
-  getQueue,
-} from '@/player/trackPlayer';
 import { useRouter } from 'expo-router';
-import { useLibraryStore } from '@/store/library';
-import { findChapterIndexByPosition } from '@/helpers/singleFileBook';
 import {
   normalizeChapterCount,
   stepChapterCount,
 } from '@/helpers/chapterTimerStepper';
+import { remainingChapterCount } from '@/helpers/remainingChapterCount';
 import * as sleepTimer from '@/setup/sleepTimer';
 
 const SleepTimerOptions = ({
@@ -116,36 +109,18 @@ const SleepTimerOptions = ({
     });
 
     const updateMaxChapters = async () => {
-      // Clipped single-file books have one queue item per chapter, so they
-      // take the multi-file (else) path; this branch is legacy-only.
-      const queue = await getQueue();
-      const isSingleFile = queue.length === 1;
-
-      if (isSingleFile) {
-        // Single-file book: get chapter count from library store
-        const activeBookId = await getActiveBookId();
-        if (activeBookId) {
-          const book = useLibraryStore.getState().books[activeBookId];
-          if (book?.chapters && book.chapters.length > 1) {
-            const { position } = await getProgress();
-            const currentChapterIndex = findChapterIndexByPosition(
-              book.chapters,
-              position,
-            );
-            setMaxChapters(book.chapters.length - 1 - currentChapterIndex);
-            return;
-          }
-        }
-        setMaxChapters(0);
-      } else {
-        // Multi-file book: use queue length
-        const currentTrackIndex = await getActiveTrackIndex();
-        if (currentTrackIndex === undefined) {
-          setMaxChapters(0);
-        } else {
-          setMaxChapters(queue.length - 1 - currentTrackIndex);
-        }
-      }
+      // `null` means the ceiling is not known. This sheet answers it with 0 —
+      // the same answer it has always given — which dims `+` and holds the
+      // label at "End of Chapter" until a real ceiling arrives.
+      //
+      // One of the two ways to get `null` is unreachable here: the player
+      // screen cannot be opened with no Book loaded, and this sheet is a child
+      // of that screen. The other — a Player read that threw with a Book
+      // loaded — is real, and 0 is the honest answer to it: this sheet mounts
+      // on open and unmounts on dismiss (@gorhom/bottom-sheet gates its
+      // children behind `mount`), so a transient failure heals the next time
+      // the sheet is opened rather than persisting for the screen's lifetime.
+      setMaxChapters((await remainingChapterCount()) ?? 0);
     };
 
     fetchSettings();

@@ -12,6 +12,11 @@
  * The range is [0, maxChapters]. 0 means "end of the current chapter";
  * maxChapters is the number of chapter boundaries left in the book, so it is
  * "end of the book" and it shrinks as the book plays.
+ *
+ * This file stays PURE. The ceiling itself is a runtime fact about the Book and
+ * the playhead, and it is computed in `remainingChapterCount.ts` — the other
+ * half of the pair, and the one that reads the Player. Both surfaces call it;
+ * neither re-derives it.
  */
 
 /**

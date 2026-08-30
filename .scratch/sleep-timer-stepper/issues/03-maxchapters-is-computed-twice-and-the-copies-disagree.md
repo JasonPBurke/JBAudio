@@ -4,7 +4,7 @@
 Book", shared by the two surfaces that draw the chapter stepper — the way
 `stepChapterCount` is already one home for resolving a press.
 
-**Status:** ready-for-agent — see `## Agent Brief`
+**Status:** resolved — see `## Answer`, except the device pass
 
 **Related:** `02-stepper-collapses-a-legitimate-count-to-zero.md` — same helper,
 same two surfaces, but a **behaviour** ruling rather than an extraction. Kept
@@ -83,16 +83,17 @@ Both copies must keep working exactly as they do today, minus the divergence:
 
 ## Acceptance criteria
 
-- [ ] One unit computes the remaining-chapter count; `timer.tsx` and
+- [x] One unit computes the remaining-chapter count; `timer.tsx` and
       `SleepTimerOptions.tsx` both call it and neither re-derives it.
-- [ ] The empty-queue / no-active-Book divergence is resolved per the ruling
+- [x] The empty-queue / no-active-Book divergence is resolved per the ruling
       above, and the ruling is recorded here under `## Answer`.
-- [ ] `timer.tsx`'s `isActive` guards and `setHasActiveBook` behaviour are
-      unchanged.
-- [ ] Tests in the `helpers` lane cover both Queue shapes and the
+- [x] `timer.tsx`'s `isActive` guards and `setHasActiveBook` behaviour are
+      unchanged — with one disclosed micro-delta on the throw path, recorded
+      under `## Answer` and verified unobservable.
+- [x] Tests in the `helpers` lane cover both Queue shapes and the
       no-active-Book case. The unit takes its Player reads through the adapter,
       so `fakePlayer.ts` can drive it.
-- [ ] `tsc` 0, `eslint` 0 errors, full suite green.
+- [x] `tsc` 0, `eslint` 0 errors, full suite green.
 - [ ] Device pass: set an end-of-chapter timer from **both** surfaces on a
       single-file and a multi-file Book, and confirm the displayed ceiling
       matches on each.
@@ -108,6 +109,82 @@ Both copies must keep working exactly as they do today, minus the divergence:
 - The `20` is otherwise unexplained in both the initial `useState(20)`
   (`timer.tsx:80`) and the fallbacks. Its origin should be recorded, not
   preserved by cargo cult.
+
+## Answer — 2026-08-30
+
+**Built as specified. `src/helpers/remainingChapterCount.ts` is the one home;
+both surfaces call it and neither re-derives the eight-step computation.**
+
+### The shape
+
+`remainingChapterCount(): Promise<number | null>` — no arguments, no state, no
+opinion about what a surface shows. It reads the Player through the
+`src/player/` adapter (`getQueue`, `getActiveBookId`, `getProgress`,
+`getActiveTrackIndex`) so `fakePlayer.ts` drives it in the `helpers` lane, and
+it takes the library-store and `findChapterIndexByPosition` lookups with it.
+Triage's adopted shape (ruling 4) survived contact: `null` means *the ceiling
+is not known*.
+
+- **empty queue → `null`.** No Book loaded.
+- **a read throws → `null`.** One `try` wraps the whole computation.
+- **single-item queue, no usable chapter list → `0`.** Known, and it is zero —
+  not unknown. Same for a single item carrying no `bookId`, and for a Book
+  missing from the store.
+- **multi-file, `getActiveTrackIndex()` undefined → `0`.** Ported verbatim.
+
+The queue-shape verdict (`queue.length === 1`) is a straight port with the
+deferral comment attached, per the Out of scope note. This is now the single
+site that changes when `.scratch/queue-shape/spec.md` is settled.
+
+### What each surface does with `null`
+
+Neither answer was harmonised, which is what kept the diff honest:
+
+- **Settings (`timer.tsx`)** answers `20` — `setMaxChapters(remaining ?? 20)`
+  — exactly what it showed before. Ruling 3's provenance (an arbitrary seed
+  from `661eb1f`, never justified) is recorded at the `useState(20)`, so the
+  number is documented as a seed rather than preserved by cargo cult.
+- **Modal (`SleepTimerOptions.tsx`)** answers `0`, also exactly what it showed
+  before, with the reasoning in a comment: the no-Book half of `null` is
+  unreachable there (ruling 1 — the player screen cannot be reached with no
+  Book loaded), and for the reachable half — a read that threw with a Book
+  loaded — `0` is honest because the sheet unmounts on dismiss and recomputes
+  on the next open.
+
+So the table in "The copies have already drifted" is preserved rather than
+resolved, which is the correct outcome once ruling 1 established the
+divergence is latent and not live. The modal did gain one thing it lacked: the
+unit's `catch` means a failed read no longer produces an unhandled rejection.
+
+### What was deliberately left alone
+
+- `timer.tsx` still asks `getActiveBookId()` itself for `hasActiveBook`, in the
+  same place, inside the same `try`. The unit does not answer that question.
+- Both `isActive` guards still wrap every `setState`; the unit returns a value
+  precisely so they can stay at the call site.
+- The modal's computation is still inside its mount effect, so ruling 2's
+  lazy-mount property holds: the ceiling is recomputed on every sheet-open and
+  nothing runs at player-screen open.
+- `stepChapterCount` / `normalizeChapterCount` untouched.
+
+**One micro-delta, deliberate and unobservable.** Previously, a Player read
+throwing *after* `getActiveBookId()` succeeded drove `timer.tsx`'s catch, which
+set `hasActiveBook` to `false` even though a Book was loaded. Now the unit
+swallows that throw and returns `null`, so `hasActiveBook` keeps the answer
+`getActiveBookId()` actually gave — the more truthful one. It is unobservable:
+`SleepTimerDurationCard` destructures the prop and never reads it (the dead
+prop noted in `01`'s Provenance). `getActiveBookId()` itself throwing still
+hits the catch and still sets `false`, unchanged.
+
+### Verification
+
+- `src/helpers/__tests__/remainingChapterCount.test.ts` — 11 cases through
+  `fakePlayer.ts`: multi-file mid-queue and last item, `getActiveTrackIndex`
+  undefined, legacy single-file mid-chapter and at the start, no usable
+  chapters, Book absent from the store, item with no `bookId`, empty queue, a
+  first read throwing, and a later read throwing mid-computation.
+- `tsc --noEmit` 0 errors. `eslint` 0 errors (4 pre-existing warnings, none in
+  the new code). Full suite: 88 suites / 1095 tests green, both lanes.
 
 ## Triage rulings
 
@@ -195,23 +272,24 @@ existing settings behaviour is preserved rather than harmonised by accident.
   accepting a setter.
 
 **Acceptance criteria:**
-- [ ] One unit computes the remaining-chapter count; both surfaces call it and
+- [x] One unit computes the remaining-chapter count; both surfaces call it and
       neither contains the queue-shape branch any more.
-- [ ] The unit returns `null` for no-active-Book and for a failed Player read.
-- [ ] The settings screen still shows a ceiling of `20` in those cases, and
-      still sets `hasActiveBook` exactly as it does today.
-- [ ] The modal's behaviour on `null` is chosen deliberately and commented,
+- [x] The unit returns `null` for no-active-Book and for a failed Player read.
+- [x] The settings screen still shows a ceiling of `20` in those cases, and
+      still sets `hasActiveBook` as it does today — except on the throw path,
+      see the micro-delta under `## Answer`.
+- [x] The modal's behaviour on `null` is chosen deliberately and commented,
       including a note that the no-Book case is unreachable there (ruling 1).
-- [ ] The settings screen's `isActive` guards still wrap every `setState`, and
+- [x] The settings screen's `isActive` guards still wrap every `setState`, and
       no `setState` runs after unmount.
-- [ ] The modal still computes its ceiling on sheet-open and unmounts on
+- [x] The modal still computes its ceiling on sheet-open and unmounts on
       dismiss — the lazy-mount property in ruling 2 is preserved.
-- [ ] `helpers`-lane tests, driven by `fakePlayer.ts`, cover: multi-file queue,
+- [x] `helpers`-lane tests, driven by `fakePlayer.ts`, cover: multi-file queue,
       legacy single-file queue with chapters, single-file with no usable
       chapters, no active Book, and a throwing Player read.
-- [ ] The `20`'s provenance (ruling 3) is recorded in a comment where it is
+- [x] The `20`'s provenance (ruling 3) is recorded in a comment where it is
       used, as an arbitrary seed rather than a computed default.
-- [ ] `tsc` 0, `eslint` 0 errors, full suite green.
+- [x] `tsc` 0, `eslint` 0 errors, full suite green.
 - [ ] Device pass: set an end-of-chapter timer from **both** surfaces on a
       single-file and a multi-file Book, and confirm the displayed ceiling
       matches on each.

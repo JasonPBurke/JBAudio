@@ -41,10 +41,7 @@ import * as sleepTimer from '@/setup/sleepTimer';
 import RNDateTimePicker from '@react-native-community/datetimepicker';
 import {
   getActiveBookId,
-  getActiveTrackIndex,
   getPlaybackState,
-  getProgress,
-  getQueue,
   State,
 } from '@/player/trackPlayer';
 import {
@@ -56,9 +53,8 @@ import { useRequiresPro } from '@/hooks/useRequiresPro';
 import { ProBadge } from '@/components/ProBadge';
 import ProFeaturePopup from '@/modals/ProFeaturePopup';
 import SleepTimerDurationCard from '@/components/settings/SleepTimerDurationCard';
-import { useLibraryStore } from '@/store/library';
 import { useSettingsStore } from '@/store/settingsStore';
-import { findChapterIndexByPosition } from '@/helpers/singleFileBook';
+import { remainingChapterCount } from '@/helpers/remainingChapterCount';
 
 const TimerSettingsScreen = () => {
   const { colors: themeColors } = useTheme();
@@ -77,6 +73,11 @@ const TimerSettingsScreen = () => {
   const [timerDuration, setTimerDuration] = useState<number | null>(null);
   const [timerChapters, setTimerChapters] = useState<number | null>(null);
   const [customTimer, setCustomTimer] = useState({ hours: 0, minutes: 0 });
+  // 20 is an arbitrary seed, not a computed default. It has been this
+  // screen's initial ceiling since the screen was written (`661eb1f`,
+  // 2026-02-07) and was never justified anywhere; it survives as the answer
+  // this surface gives when the real ceiling is not known, and nothing else
+  // depends on the number itself.
   const [maxChapters, setMaxChapters] = useState(20);
   const [hasActiveBook, setHasActiveBook] = useState(false);
   const [shakeInfoVisible, setShakeInfoVisible] = useState(false);
@@ -169,49 +170,24 @@ const TimerSettingsScreen = () => {
           // the same answer. Checked across all five track-construction
           // shapes (handleBookPlay x2, restoreLastActiveBook x2,
           // clippedChapters x1), not assumed.
+          //
+          // Asked here rather than of `remainingChapterCount`: it is a
+          // different question, and the ceiling unit deliberately does not
+          // answer it.
           const activeBookId = await getActiveBookId();
           if (isActive) {
             setHasActiveBook(activeBookId !== null);
           }
-          // Clipped single-file books have one queue item per chapter, so
-          // they take the multi-file (else) path; this branch is legacy-only.
-          const queue = await getQueue();
-          const isSingleFile = queue.length === 1;
-
-          if (isSingleFile) {
-            if (activeBookId) {
-              const book = useLibraryStore.getState().books[activeBookId];
-              if (book?.chapters && book.chapters.length > 1) {
-                const { position } = await getProgress();
-                const currentChapterIndex = findChapterIndexByPosition(
-                  book.chapters,
-                  position,
-                );
-                if (isActive) {
-                  setMaxChapters(
-                    book.chapters.length - 1 - currentChapterIndex,
-                  );
-                }
-              } else if (isActive) {
-                setMaxChapters(0);
-              }
-            } else if (isActive) {
-              setMaxChapters(0);
-            }
-          } else if (queue.length > 1) {
-            const currentTrackIndex = await getActiveTrackIndex();
-            if (isActive) {
-              if (currentTrackIndex !== undefined) {
-                setMaxChapters(queue.length - 1 - currentTrackIndex);
-              } else {
-                setMaxChapters(0);
-              }
-            }
-          } else if (isActive) {
-            setMaxChapters(20);
+          // `null` means the ceiling is not known — no Book loaded, or a
+          // Player read that failed. This surface answers that with its seed,
+          // which is what it has always shown with no Book loaded.
+          const remaining = await remainingChapterCount();
+          if (isActive) {
+            setMaxChapters(remaining ?? 20);
           }
         } catch {
-          // No track playing — use fallback
+          // The Book read itself failed. Same seed as above, same reason: the
+          // ceiling is not known, and 20 is this surface's answer to that.
           if (isActive) {
             setMaxChapters(20);
             setHasActiveBook(false);
