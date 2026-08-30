@@ -7,8 +7,10 @@ expression changes.
 
 **Blocked by:** 08 (resolved)
 
-**Status:** ready-for-human — code complete, `tsc` 0, suite green. The only
-outstanding criterion is the Remote-control device pass, which no agent can run.
+**Status:** resolved — code complete, `tsc` 0, suite green. The
+Remote-control device pass, the last outstanding criterion and the one no agent
+could run, was completed on device 2026-08-28 (commit `42fc3a5`): all eleven
+rows, on both runtime Queue shapes, no row failed.
 
 ## Why it was excluded from the migration
 
@@ -212,7 +214,7 @@ demanded a logic change — and the response is to stop rather than push through
 - [x] `queueShape` is typed with the union `helpers/bookEndDetection.ts` exports
 - [x] The strict rule held: no runtime expression changed, apart from the two
       `?? undefined` coercions proven equivalent above
-- [ ] A full **Remote control** device pass — ticket 08's checklist, on both
+- [x] A full **Remote control** device pass — ticket 08's checklist, on both
       runtime Queue shapes
 
 **Test count:** this file has zero tests and gains none. The "at or above
@@ -364,11 +366,12 @@ an `EMPTY_PROGRESS_TRACK_CACHE` const, and `ProgressUpdatedEvent` could be
 exported from `trackPlayer.ts` instead of indexed out of
 `AppEventPayloadByEvent` at the call site. Both are candidate-02 material.
 
-### What remains
+### Device pass — complete
 
-The **Remote-control device pass**, ticket 08's checklist, on both runtime
-Queue shapes. Per the branch plan, a regression here has exactly one possible
-cause, and the response is to not merge this branch:
+The **Remote-control device pass**, ticket 08's checklist, run on both runtime
+Queue shapes and recorded 2026-08-28 by commit `42fc3a5`. Per the branch plan a
+regression here had exactly one possible cause, and the response would have
+been to not merge this branch. No row failed:
 
 - [x] Notification transport: play, pause, next, previous
 - [x] Lock screen controls

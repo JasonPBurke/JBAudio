@@ -145,7 +145,7 @@ genuinely clean, and ticking the box wrongly.
 - [x] `fakePlayer.ts` models `skipToPrevious()` at index 0 as resolve-and-no-op,
       and the replaced test asserts the landing spot through it
 - [x] `tsc` 0, `eslint` 0, test count at or above the Player-seam baseline
-- [ ] Device-verified on a multi-file Book from **both** the in-app control and
+- [x] Device-verified on a multi-file Book from **both** the in-app control and
       the notification — checklist below
 
 ---
