@@ -190,11 +190,10 @@ export async function seekForward(seconds: number): Promise<void> {
   if (target.kind === 'finished') {
     const activeBookId = await getActiveBookId();
     if (activeBookId) {
-      // The shared verb owns both the guard and the swallow, so there is no
-      // `withoutBlockingThePress` around this one: a database failure here
-      // cannot escape before the skip, the seek and the stop below. The store
-      // read stays HERE because this helper only knows the Active Book's id —
-      // the other two finish branches already hold their Book.
+      // No `withoutBlockingThePress` around this one: the verb owns the
+      // swallow, so a database failure cannot escape before the skip, the
+      // seek and the stop below. The store read stays HERE because this
+      // helper only knows the Active Book's id.
       await markBookFinishedOnce(
         activeBookId,
         useLibraryStore.getState().books[activeBookId],

@@ -1,5 +1,19 @@
 import { getBookById } from '@/db/bookQueries';
 import { BookProgressState } from '@/helpers/bookProgressState';
+import type { Book } from '@/types/Book';
+
+/**
+ * The one field the guard reads — the widest parameter that satisfies all
+ * three callers, and no wider.
+ *
+ * Derived from `Book` rather than re-spelled as `{ bookProgressValue?: number }`
+ * so the field has ONE declaration: renaming it on the domain type breaks this
+ * and `NextPress`'s `book` at compile time instead of leaving two structural
+ * types quietly describing a field that no longer exists. `Partial`, because
+ * `Book` requires the field while two of the three callers may hold an entry
+ * that predates it — see the cold-start note on the guard below.
+ */
+export type BookProgressReading = Partial<Pick<Book, 'bookProgressValue'>>;
 
 /**
  * Marks a Book `Finished` — once, and without ever throwing.
@@ -53,7 +67,7 @@ import { BookProgressState } from '@/helpers/bookProgressState';
  */
 export async function markBookFinishedOnce(
   bookId: string,
-  book: { bookProgressValue?: number } | undefined,
+  book: BookProgressReading | undefined,
 ): Promise<void> {
   // An absent entry is legitimate on the cold-start path, where the playback
   // service runs before the library store is populated. Absent means "not

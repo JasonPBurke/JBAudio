@@ -1,5 +1,8 @@
 import { seekTo, skipToNext, stop } from '@/player/trackPlayer';
-import { markBookFinishedOnce } from '@/helpers/markBookFinishedOnce';
+import {
+  markBookFinishedOnce,
+  type BookProgressReading,
+} from '@/helpers/markBookFinishedOnce';
 import { resolveNextPress, type NextPressBook } from '@/helpers/chapterSkip';
 import {
   resetBookToStart,
@@ -49,8 +52,12 @@ import type { Book } from '@/types/Book';
  */
 export type NextPress = {
   bookId: string;
-  /** The library-store entry for `bookId`, if it has one. */
-  book: (NextPressBook & { bookProgressValue?: number }) | undefined;
+  /**
+   * The library-store entry for `bookId`, if it has one. The progress half is
+   * the shared reading `markBookFinishedOnce` guards on, not a second
+   * structural spelling of the same field.
+   */
+  book: (NextPressBook & BookProgressReading) | undefined;
   /**
    * Whether this Book loads as ONE queue item. The verdict folds in the
    * clipped-chapters memory gate (`treatAsSingleFile`), so it is passed in
@@ -111,10 +118,9 @@ export async function handleNextPress({
       // `pause()` would freeze it to resume later against a different Book.
       await withoutBlockingThePress(onBeforeLeaveBook);
 
-      // The shared verb owns the guard AND the swallow — see its header for
-      // why the store is the reading and why a failure must not escape. The
-      // store entry is handed over rather than read there, so this function
-      // stays assertable without a store.
+      // Guard and swallow both live in the verb; the store entry is handed
+      // over rather than read there, which is what keeps this function
+      // assertable without a store.
       await markBookFinishedOnce(bookId, book);
       await seekTo(0);
       await stop();

@@ -596,11 +596,8 @@ export default module.exports = async function () {
     }
 
     // Mark book as finished when queue ends — unless the lead-time check in
-    // handleProgressUpdated already did it a minute ago. Re-marking here
-    // would be harmless to the flag but would drag `finished_at` forward to
-    // the true end, which is the one timestamp D5 asks us to keep. The shared
-    // verb owns that guard, and it is guarded on the STORE, never on
-    // finishMarkedBookId — see its header, and the latch's comment above.
+    // handleProgressUpdated already did it a minute ago. The verb owns that
+    // guard; D5's `finished_at` is what it protects.
     //
     // ⚠ Position is load-bearing: AFTER the chapter-index writes and BEFORE
     // the transport calls. Moving the mark earlier changes what a concurrent
