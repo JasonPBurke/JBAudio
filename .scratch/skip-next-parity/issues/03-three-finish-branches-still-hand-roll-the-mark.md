@@ -246,20 +246,49 @@ passes it in; the other two already hold a Book.
   mark becomes redundant once the verb owns the swallow, and should go. The
   wrapper stays where it guards the chapter-tracking rewind.
 
-**Acceptance criteria:**
-- [ ] Exactly one place in the codebase performs a store-guarded
+**Acceptance criteria:** *(all verified 2026-08-30 against `c28c096`)*
+- [x] Exactly one place in the codebase performs a store-guarded
       `Finished` mark; the three finish branches call it.
-- [ ] The verb swallows and logs a throw from the underlying write. A test
+      → `markBookFinishedOnce.ts:80` is the only store-guarded mark left. The
+      one other `updateBookProgress(Finished)` in `src/` is `service.ts:203`,
+      the progress-tick marker, which is LATCH-guarded and out of scope. The
+      three callers: `nextPress.ts:124`, `relativeSeek.ts:197`,
+      `service.ts:605`.
+- [x] The verb swallows and logs a throw from the underlying write. A test
       forces the write to reject and asserts the caller's transport calls still
       run in their normal order.
-- [ ] A test asserts the guard: a Book whose store entry is already `Finished`
+      → Swallow+log at `markBookFinishedOnce.ts:82-85`. Caller-level rejection
+      tests at BOTH press sites: `nextPress.test.ts` *"still runs the
+      transports in order when the mark rejects"* asserts the full order
+      `seek_footprint → markFinished → seekTo → stop → resetBookToStart`;
+      `relativeSeek.test.ts` *"survives a throw while marking the Book
+      Finished"* and *"survives a throw from the write itself"* cover the
+      lookup-throws and the write-throws shapes, each asserting
+      `skip(0)`/`seekTo(0)`/`stop()` and the rewind still run.
+- [x] A test asserts the guard: a Book whose store entry is already `Finished`
       is not re-marked.
-- [ ] A test asserts an `undefined` Book still marks.
-- [ ] The existing ordering assertions on both press finish branches still pass
+      → `markBookFinishedOnce.test.ts` *"does NOT re-mark a Book whose store
+      entry is already Finished"* (asserts `getBookById` is never even
+      reached). The pre-existing call-site guard tests in `nextPress.test.ts`
+      and `relativeSeek.test.ts` still pass unchanged.
+- [x] A test asserts an `undefined` Book still marks.
+      → `markBookFinishedOnce.test.ts` *"marks a Book that has no store
+      entry"*, plus *"marks a Book with no progress value at all"* for the
+      cold-start entry that exists but predates the field.
+- [x] The existing ordering assertions on both press finish branches still pass
       — leave-the-Book footprint first, chapter-tracking rewind LAST.
-- [ ] The progress-tick marker is unchanged: still latch-guarded, still latching
+      → Unchanged and green: `nextPress.test.ts` *"records the breadcrumb
+      BEFORE the reset destroys the position"* and `relativeSeek.test.ts`
+      *"rewinds AFTER the transport calls, never before them"*.
+- [x] The progress-tick marker is unchanged: still latch-guarded, still latching
       only after the write lands, still its own `try/catch`.
-- [ ] `npm run lint` and `tsc` stay at zero errors.
+      → `git diff 88705be...HEAD -- src/setup/service.ts` touches only the new
+      import and the queue-ended block; `applyBookEndDecision`
+      (`service.ts:186-213`) has no diff hunk.
+- [x] `npm run lint` and `tsc` stay at zero errors.
+      → `tsc --noEmit` 0 errors; `npm run lint` 0 errors / 34 warnings, the
+      same 34 as the pre-change baseline and none in a touched file. Full
+      suite 87 suites / 1084 tests green across both jest lanes.
 
 **Out of scope:**
 - The transport calls. `pause`/`stop` is ticket `04` and lands first; the
