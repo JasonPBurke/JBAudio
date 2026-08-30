@@ -47,6 +47,10 @@ jest.mock('react-native-track-player', () => ({
       mockOrder.push('pause');
       return mockPlayer.api.pause(...a);
     },
+    stop: (...a: unknown[]) => {
+      mockOrder.push('stop');
+      return mockPlayer.api.stop(...a);
+    },
   },
 }));
 
@@ -243,9 +247,14 @@ describe('handleNextPress — the last chapter of a single-file book', () => {
       'seek_footprint',
       'markFinished',
       'seekTo',
-      'pause',
+      'stop',
       'resetBookToStart',
     ]);
+    // `stop`, never `pause`: the two calls sound identical but route to
+    // opposite sleep-timer handlers, and a finished Book must clear an armed
+    // timer the way `Event.PlaybackQueueEnded` already does.
+    expect(mockPlayer.api.stop).toHaveBeenCalledTimes(1);
+    expect(mockPlayer.api.pause).not.toHaveBeenCalled();
     expect(rec.onBeforeChapterChange).not.toHaveBeenCalled();
     expect(mockPlayer.at()).toEqual({ index: 0, position: 0 });
     expect(mockPlayer.isPlaying()).toBe(false);
@@ -262,7 +271,7 @@ describe('handleNextPress — the last chapter of a single-file book', () => {
     expect(mockOrder).toEqual([
       'seek_footprint',
       'seekTo',
-      'pause',
+      'stop',
       'resetBookToStart',
     ]);
     expect(mockPlayer.at()).toEqual({ index: 0, position: 0 });
@@ -458,7 +467,7 @@ describe('pressNext — the wiring both surfaces share', () => {
       'seek_footprint',
       'markFinished',
       'seekTo',
-      'pause',
+      'stop',
       'resetBookToStart',
     ]);
     // Identity, not shape: a fresh tracker would leave `lastChapterIndex` at
@@ -488,7 +497,7 @@ describe('pressNext — the wiring both surfaces share', () => {
     expect(mockOrder).toEqual([
       'seek_footprint',
       'seekTo',
-      'pause',
+      'stop',
       'resetBookToStart',
     ]);
   });

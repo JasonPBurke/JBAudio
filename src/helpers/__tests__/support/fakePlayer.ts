@@ -98,6 +98,11 @@ export function createFakePlayer(options: FakePlayerOptions): FakePlayer {
     pause: jest.fn(async () => {
       playing = false;
     }),
+    // Native `stop()` also releases the loaded media; nothing the finish
+    // branches assert can see that, so the fake models only the halt.
+    stop: jest.fn(async () => {
+      playing = false;
+    }),
   };
 
   return {

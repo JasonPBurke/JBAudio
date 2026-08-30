@@ -37,6 +37,7 @@ jest.mock('react-native-track-player', () => ({
     skip: (...a: unknown[]) => mockPlayer.api.skip(...a),
     play: (...a: unknown[]) => mockPlayer.api.play(...a),
     pause: (...a: unknown[]) => mockPlayer.api.pause(...a),
+    stop: (...a: unknown[]) => mockPlayer.api.stop(...a),
   },
   State: {
     None: 'none',

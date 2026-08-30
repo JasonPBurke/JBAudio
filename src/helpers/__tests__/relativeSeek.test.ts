@@ -18,6 +18,7 @@ jest.mock('react-native-track-player', () => ({
     skip: jest.fn().mockResolvedValue(undefined),
     play: jest.fn().mockResolvedValue(undefined),
     pause: jest.fn().mockResolvedValue(undefined),
+    stop: jest.fn().mockResolvedValue(undefined),
   },
   State: {
     None: 'none',
@@ -75,6 +76,7 @@ const mockSeekTo = TrackPlayer.seekTo as jest.Mock;
 const mockSkip = TrackPlayer.skip as jest.Mock;
 const mockPlay = TrackPlayer.play as jest.Mock;
 const mockPause = TrackPlayer.pause as jest.Mock;
+const mockStop = TrackPlayer.stop as jest.Mock;
 const mockGetBookById = getBookById as jest.Mock;
 const mockRewindChapterTracking = rewindChapterTracking as jest.Mock;
 
@@ -104,6 +106,9 @@ beforeEach(() => {
   });
   mockPause.mockImplementation(async () => {
     callOrder.push('pause');
+  });
+  mockStop.mockImplementation(async () => {
+    callOrder.push('stop');
   });
   // Default: paused player so the play-state guard stays inert
   mockGetPlaybackState.mockResolvedValue({ state: State.Paused });
@@ -217,7 +222,7 @@ describe('seekForward', () => {
     expect(updateBookProgress).toHaveBeenCalledWith(2); // Finished
     expect(mockSkip).toHaveBeenCalledWith(0);
     expect(mockSeekTo).toHaveBeenCalledWith(0);
-    expect(mockPause).toHaveBeenCalledTimes(1);
+    expect(mockStop).toHaveBeenCalledTimes(1);
   });
 
   it('marks finished without skip() for a single-item queue', async () => {
@@ -232,7 +237,7 @@ describe('seekForward', () => {
     expect(updateBookProgress).toHaveBeenCalledWith(2);
     expect(mockSkip).not.toHaveBeenCalled();
     expect(mockSeekTo).toHaveBeenCalledWith(0);
-    expect(mockPause).toHaveBeenCalledTimes(1);
+    expect(mockStop).toHaveBeenCalledTimes(1);
   });
 
   it('does not re-mark a book the store already reports Finished', async () => {
@@ -254,7 +259,7 @@ describe('seekForward', () => {
     expect(mockGetBookById).not.toHaveBeenCalled();
     expect(mockSkip).toHaveBeenCalledWith(0);
     expect(mockSeekTo).toHaveBeenCalledWith(0);
-    expect(mockPause).toHaveBeenCalledTimes(1);
+    expect(mockStop).toHaveBeenCalledTimes(1);
   });
 
   it('still marks a book the store reports as merely Started', async () => {
@@ -270,7 +275,7 @@ describe('seekForward', () => {
     expect(updateBookProgress).toHaveBeenCalledWith(2);
   });
 
-  it('does not force play after the intentional finish-pause', async () => {
+  it('does not force play after the intentional finish-stop', async () => {
     mockGetQueue.mockResolvedValue(queueOf(3));
     mockGetActiveTrackIndex.mockResolvedValue(2);
     mockGetProgress.mockResolvedValue({ position: 590, duration: 600 });
@@ -278,7 +283,8 @@ describe('seekForward', () => {
 
     await seekForward(30);
 
-    expect(mockPause).toHaveBeenCalledTimes(1);
+    expect(mockStop).toHaveBeenCalledTimes(1);
+    expect(mockPause).not.toHaveBeenCalled();
     expect(mockPlay).not.toHaveBeenCalled();
   });
 
@@ -355,7 +361,7 @@ describe('seekForward finishing a Book', () => {
     expect(callOrder).toEqual([
       'skip',
       'seekTo',
-      'pause',
+      'stop',
       'rewindChapterTracking',
     ]);
   });
@@ -367,7 +373,7 @@ describe('seekForward finishing a Book', () => {
 
     expect(mockRewindChapterTracking).not.toHaveBeenCalled();
     expect(mockSeekTo).toHaveBeenCalledWith(0);
-    expect(mockPause).toHaveBeenCalledTimes(1);
+    expect(mockStop).toHaveBeenCalledTimes(1);
   });
 
   describe('bookkeeping failure never costs the user the press', () => {
@@ -381,7 +387,7 @@ describe('seekForward finishing a Book', () => {
 
       expect(mockSkip).toHaveBeenCalledWith(0);
       expect(mockSeekTo).toHaveBeenCalledWith(0);
-      expect(mockPause).toHaveBeenCalledTimes(1);
+      expect(mockStop).toHaveBeenCalledTimes(1);
     });
 
     it('survives a throw inside the rewind', async () => {
@@ -396,7 +402,7 @@ describe('seekForward finishing a Book', () => {
       await expect(seekForward(30)).resolves.toBeUndefined();
 
       expect(mockSeekTo).toHaveBeenCalledWith(0);
-      expect(mockPause).toHaveBeenCalledTimes(1);
+      expect(mockStop).toHaveBeenCalledTimes(1);
     });
   });
 });
@@ -457,7 +463,7 @@ describe('the 30-second jumps never record a footprint', () => {
 
     await seekForward(30);
 
-    expect(mockPause).toHaveBeenCalledTimes(1);
+    expect(mockStop).toHaveBeenCalledTimes(1);
     noFootprints();
   });
 });

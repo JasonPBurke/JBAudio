@@ -1,4 +1,4 @@
-import { pause, seekTo, skipToNext } from '@/player/trackPlayer';
+import { seekTo, skipToNext, stop } from '@/player/trackPlayer';
 import { getBookById } from '@/db/bookQueries';
 import { BookProgressState } from '@/helpers/bookProgressState';
 import { resolveNextPress, type NextPressBook } from '@/helpers/chapterSkip';
@@ -103,10 +103,13 @@ export async function handleNextPress({
       return;
 
     case 'finish':
-      // Last chapter of a single-file Book: mark finished, reset and pause.
+      // Last chapter of a single-file Book: mark finished, reset and stop.
       // The stop is deliberate — unlike the 1 Hz lead-time mark, this is a
       // user press asking to leave the last chapter, and there is nowhere
-      // left to play.
+      // left to play. It is also what `Event.PlaybackQueueEnded` does, and
+      // all three finish paths must leave one state: `stop()` reaches the
+      // sleep timer's STOPPED handler, which clears an armed timer, where
+      // `pause()` would freeze it to resume later against a different Book.
       await withoutBlockingThePress(onBeforeLeaveBook);
 
       // Only the MARK is guarded: a press inside the lead window must not
@@ -122,7 +125,7 @@ export async function handleNextPress({
         }
       }
       await seekTo(0);
-      await pause();
+      await stop();
 
       // The same rewind `Event.PlaybackQueueEnded` performs — the two paths
       // both finish a Book and must leave it in the same state. Omitting it
@@ -131,7 +134,7 @@ export async function handleNextPress({
       //
       // Last, and deliberately so, for two reasons. It is bookkeeping
       // behind a press that has already been served, so a DB failure inside
-      // it must not cost the user the seek or the pause they asked for —
+      // it must not cost the user the seek or the stop they asked for —
       // hence the same swallow the recorders get. And
       // a 1 Hz progress tick can still land on either await above: after the
       // seek the Book really is at 0, so the worst that tick can do is write

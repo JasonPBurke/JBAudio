@@ -4,10 +4,10 @@ import {
   getPlaybackState,
   getProgress,
   getQueue,
-  pause,
   play,
   seekTo,
   skip,
+  stop,
   State,
 } from '@/player/trackPlayer';
 import { getBookById } from '@/db/bookQueries';
@@ -194,7 +194,7 @@ export async function seekForward(seconds: number): Promise<void> {
     if (activeBookId) {
       // Swallowed, like every other piece of bookkeeping behind a press: a
       // database failure here must not escape before the skip, the seek and
-      // the pause below, costing the user the press they actually made.
+      // the stop below, costing the user the press they actually made.
       await withoutBlockingThePress(async () => {
         // Only the MARK is guarded, and it is guarded on the STORE — the same
         // reading, for the same reason, as the finish branch in
@@ -217,8 +217,12 @@ export async function seekForward(seconds: number): Promise<void> {
       await skip(0);
     }
     await seekTo(0);
-    // Intentional pause — skip the play-state guard
-    await pause();
+    // Intentional stop — skip the play-state guard. `stop()`, not `pause()`,
+    // for the reason the other two finish paths use it: it is what
+    // `Event.PlaybackQueueEnded` does, and it routes to the sleep timer's
+    // STOPPED handler, which clears an armed timer instead of freezing one
+    // that would later resume against whatever Book is played next.
+    await stop();
 
     // The same rewind `Event.PlaybackQueueEnded` and `RemoteNext`'s finish
     // branch perform. All three FINISH a Book and must leave it in the same
@@ -237,7 +241,7 @@ export async function seekForward(seconds: number): Promise<void> {
     //
     // Last, and deliberately so, for the two reasons `nextPress` states: the
     // press has already been served, so a failure inside the rewind must not
-    // cost the seek or the pause; and a 1 Hz progress tick can land on any
+    // cost the seek or the stop; and a 1 Hz progress tick can land on any
     // await above, where after the seek the worst it can write is the same
     // zeroes. Rewinding FIRST would leave the tracker at chapter 0 while the
     // position is still in the last chapter, and that tick would write the
