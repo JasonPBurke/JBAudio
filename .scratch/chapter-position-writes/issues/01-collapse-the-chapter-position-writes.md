@@ -4,8 +4,9 @@
 store-write-then-DB-write pair. One home under `src/helpers/`, the way
 `resetBookToStart` is now one home for the zero-valued case.
 
-**Status:** ready-for-human — code complete, `tsc` 0, `eslint` clean, suite
-green at 85 suites / 1047 tests. Outstanding: the device pass below.
+**Status:** resolved — code complete, `tsc` 0, `eslint` clean, suite
+green at 85 suites / 1047 tests. Device pass complete (2026-08-28) — see
+`### Device pass` below.
 
 **Blocked by:** `.scratch/player-seam/issues/12-convert-playback-service-to-typescript.md`
 — see `## Sequencing`.
@@ -410,7 +411,7 @@ preserved.
 `resetBookToStart.test.ts` passes **unchanged**, which is the evidence that E's
 externally visible behaviour did not move.
 
-### Device pass — outstanding
+### Device pass — complete
 
 This ticket's device-observable claim is narrower than 12's: the four call
 sites, and the 1 Hz tick path firing `sleepTimer.onChapterChanged()` and
