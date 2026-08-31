@@ -8,6 +8,7 @@ import {
   updateChapterProgressInDB,
 } from '@/db/chapterQueries';
 import { Book } from '@/types/Book';
+import { oneChapterBookChapters } from './support/queueShapeFixtures';
 
 jest.mock('react-native-track-player', () => ({
   __esModule: true,
@@ -380,5 +381,69 @@ describe('the restart is fully persisted before playback starts', () => {
     await play(finishedBook());
 
     expect(order).toEqual(['zero index', 'zero progress', 'play']);
+  });
+});
+
+/*
+ * The builder half of stage 1's one behavioural delta.
+ *
+ * A Book with exactly ONE chapter — a single audio file with no chapter
+ * metadata — used to fall through to the MULTI-FILE arm, because the builders
+ * asked `isSingleFileBook`, whose `chapters.length > 1` says a one-chapter
+ * Book is not one file. `queueShapeOf` says what it is: one Queue item.
+ *
+ * ⚠ The queue LENGTH is 1 either way, which is why this went unnoticed. What
+ * changes is the arm that builds it, and with it the track's label: the
+ * one-item arm shows chapter metadata only when there is chapter data to show
+ * (`hasValidChapterData`), and a single chapter is not that — so the
+ * notification is labelled with the Book's own title instead of the chapter's,
+ * and the file's duration is left for the Player to resolve. Both are
+ * foreseen and correct for a Queue item that spans the whole Book.
+ */
+describe('a one-chapter book builds a ONE-ITEM queue', () => {
+  const oneChapterBook = (): Book =>
+    ({
+      bookId: 'b1',
+      bookTitle: 'Dune',
+      author: 'Frank Herbert',
+      bookProgressValue: BookProgressState.Started,
+      // The shape-carrying fields come from the shared fixture, which is where
+      // the trap about hand-rolled chapter rows is recorded; only the title
+      // this test is about is added here.
+      chapters: oneChapterBookChapters().map((chapter) => ({
+        ...chapter,
+        chapterTitle: 'Track 01',
+      })),
+    }) as unknown as Book;
+
+  beforeEach(() => {
+    (getChapterProgressInDB as jest.Mock).mockResolvedValue({
+      chapterIndex: 0,
+      progress: 300,
+    });
+  });
+
+  it('loads one track and never skips, because there is nowhere to skip to', async () => {
+    await play(oneChapterBook());
+
+    expect(TrackPlayer.add).toHaveBeenCalledTimes(1);
+    expect((TrackPlayer.add as jest.Mock).mock.calls[0][0]).toHaveLength(1);
+    expect(TrackPlayer.skip).not.toHaveBeenCalled();
+  });
+
+  it('labels the item with the Book title, having no chapter data to show', async () => {
+    await play(oneChapterBook());
+
+    expect((TrackPlayer.add as jest.Mock).mock.calls[0][0][0]).toMatchObject({
+      url: '/book.mp3',
+      title: 'Dune',
+      duration: undefined,
+    });
+  });
+
+  it('resumes at the absolute position, the chapter start being zero', async () => {
+    await play(oneChapterBook());
+
+    expect(TrackPlayer.seekTo).toHaveBeenCalledWith(300);
   });
 });

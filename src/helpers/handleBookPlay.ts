@@ -17,7 +17,6 @@ import {
 import { updateLastActiveBook } from '@/db/settingsQueries';
 import { awaitPlayerReady } from '@/helpers/awaitPlayerReady';
 import {
-  isSingleFileBook,
   calculateAbsolutePosition,
   hasValidChapterData,
 } from '@/helpers/singleFileBook';
@@ -25,6 +24,7 @@ import {
   shouldUseClippedChapters,
   buildClippedChapterTracks,
 } from '@/helpers/clippedChapters';
+import { queueShapeOf } from '@/helpers/queueShape';
 import { applyPersistedPlaybackRate } from '@/helpers/applyPlaybackRate';
 import { setChapterIndex } from '@/helpers/setChapterIndex';
 import { BookProgressState } from '@/helpers/bookProgressState';
@@ -173,22 +173,22 @@ const handleBookPlayInner = async (
 
   const isChangingBook = book.bookId !== requestedBookId;
 
-  const singleFile = isSingleFileBook(book.chapters);
-  // SPIKE (Bug B): clipped per-chapter queue — behaves like a multi-file book
+  // A queue builder is one of the three callers that needs a VERDICT rather
+  // than a coordinate — `queueShapeOf`'s header says why, and why that forces
+  // it to be pure.
+  const oneItemQueue = queueShapeOf(book.chapters) === 'one-item';
+  // WHICH multi-item Queue, not WHETHER: the verdict has already folded this
+  // gate in, so a Book that clips is already 'multi-item'.
   const useClipped = shouldUseClippedChapters(book.chapters);
 
   if (isChangingBook) {
     await reset();
 
-    if (useClipped) {
-      await add(buildClippedChapterTracks(book));
-      if (chapterIndex > 0) await skip(chapterIndex);
-      // DB progress for single-file books is already chapter-relative, and
-      // positions inside a clipped window are chapter-relative too.
-      await seekTo(chapterProgress);
-    } else if (singleFile) {
-      // Single-file book: load only 1 track
-      // Use chapter title/duration when valid chapter data exists
+    if (oneItemQueue) {
+      // One Queue item spanning the whole Book: load only 1 track.
+      // Use chapter title/duration when valid chapter data exists — a Book
+      // with a single chapter has none to show, so it is labelled with the
+      // Book's own title and lets the Player resolve the file's duration.
       const hasChapterData = hasValidChapterData(book.chapters);
       const initialChapter = hasChapterData
         ? book.chapters[chapterIndex]
@@ -212,8 +212,14 @@ const handleBookPlayInner = async (
         chapterProgress,
       );
       await seekTo(absolutePosition);
+    } else if (useClipped) {
+      await add(buildClippedChapterTracks(book));
+      if (chapterIndex > 0) await skip(chapterIndex);
+      // The DB already stores a Chapter Position, and positions inside a
+      // clipped window are chapter-relative too — so no conversion here.
+      await seekTo(chapterProgress);
     } else {
-      // Multi-file book: load N tracks (one per chapter)
+      // One item per Chapter, one file each: load N tracks
       const tracks: Track[] = book.chapters.map((chapter) => ({
         url: chapter.url,
         title: chapter.chapterTitle,
@@ -241,11 +247,9 @@ const handleBookPlayInner = async (
     }
   } else {
     // Same book - just seek to the correct position
-    if (useClipped) {
-      await skip(chapterIndex);
-      await seekTo(chapterProgress);
-    } else if (singleFile) {
-      // Single-file book: seek to absolute position
+    if (oneItemQueue) {
+      // One Queue item: the position is absolute, so there is nothing to skip
+      // to and the chapter is a seek offset inside the single track.
       const absolutePosition = calculateAbsolutePosition(
         book.chapters,
         chapterIndex,
@@ -253,7 +257,8 @@ const handleBookPlayInner = async (
       );
       await seekTo(absolutePosition);
     } else {
-      // Multi-file book: skip to chapter and seek
+      // One item per chapter, clipped or one file each: skip to the chapter's
+      // item, where the position is chapter-relative.
       await skip(chapterIndex);
       await seekTo(chapterProgress);
     }

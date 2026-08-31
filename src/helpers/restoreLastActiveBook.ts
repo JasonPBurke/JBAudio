@@ -13,10 +13,10 @@ import { getChapterProgressInDB } from '@/db/chapterQueries';
 import { resolveTrackArtwork } from '@/helpers/defaultArtwork';
 import { useQueueStore } from '@/store/queue';
 import {
-  isSingleFileBook,
   calculateAbsolutePosition,
   hasValidChapterData,
 } from '@/helpers/singleFileBook';
+import { queueShapeOf } from '@/helpers/queueShape';
 import {
   shouldUseClippedChapters,
   buildClippedChapterTracks,
@@ -50,23 +50,17 @@ export async function restoreLastActiveBook(): Promise<void> {
   if (!queue.length || queue[0]?.bookId !== lastActiveBookId) {
     await reset();
 
-    const singleFile = isSingleFileBook(chapters);
+    // A queue builder is one of the three callers that needs a VERDICT rather
+    // than a coordinate — see `queueShapeOf`'s header, and `handleBookPlay`,
+    // which builds the same three shapes for a play press.
+    const oneItemQueue = queueShapeOf(chapters) === 'one-item';
     const progressInfo = await getChapterProgressInDB(bookInfo.bookId);
 
-    if (shouldUseClippedChapters(chapters)) {
-      // SPIKE (Bug B): clipped per-chapter queue — restore like a multi-file book
-      await add(
-        buildClippedChapterTracks({ ...bookInfo, chapters } as unknown as Book),
-      );
-      const clampedIndex = Math.min(
-        progressInfo?.chapterIndex || 0,
-        chapters.length - 1,
-      );
-      if (clampedIndex > 0) await skip(clampedIndex);
-      await seekTo(progressInfo?.progress || 0);
-    } else if (singleFile) {
-      // Single-file book: load only 1 track
-      // Use chapter title/duration when valid chapter data exists
+    if (oneItemQueue) {
+      // One Queue item spanning the whole Book: load only 1 track.
+      // Use chapter title/duration when valid chapter data exists — a Book
+      // with a single chapter has none to show, so it is labelled with the
+      // Book's own title and lets the Player resolve the file's duration.
       const hasChapterData = hasValidChapterData(chapters);
       const chapterIndex = progressInfo?.chapterIndex || 0;
       const validChapterIndex = Math.min(chapterIndex, chapters.length - 1);
@@ -133,8 +127,21 @@ export async function restoreLastActiveBook(): Promise<void> {
           level: 'info',
         });
       }
+    } else if (shouldUseClippedChapters(chapters)) {
+      // WHICH multi-item Queue, not WHETHER: the verdict has already folded
+      // this gate in, so a Book that clips is already 'multi-item'.
+      // SPIKE (Bug B): clipped per-chapter queue — restore like a multi-file book
+      await add(
+        buildClippedChapterTracks({ ...bookInfo, chapters } as unknown as Book),
+      );
+      const clampedIndex = Math.min(
+        progressInfo?.chapterIndex || 0,
+        chapters.length - 1,
+      );
+      if (clampedIndex > 0) await skip(clampedIndex);
+      await seekTo(progressInfo?.progress || 0);
     } else {
-      // Multi-file book: load N tracks (one per chapter)
+      // One item per Chapter, one file each: load N tracks
       const tracks: Track[] = chapters.map((chapter) => ({
         url: chapter.url,
         title: chapter.chapterTitle,

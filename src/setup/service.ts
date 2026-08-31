@@ -9,7 +9,6 @@ import {
   play,
   seekBy,
   seekTo,
-  skip,
   skipToNext,
   State,
   stop,
@@ -38,8 +37,8 @@ import {
   singleFileChapterTracking,
 } from '@/helpers/chapterTracking';
 import { restoreLastActiveBook } from '@/helpers/restoreLastActiveBook';
-import { treatAsSingleFile } from '@/helpers/clippedChapters';
 import { queueShapeOf } from '@/helpers/queueShape';
+import { rewindPlayerToBookStart } from '@/helpers/rewindPlayerToBookStart';
 import {
   findChapterIndexByPosition,
   calculateProgressWithinChapter,
@@ -65,11 +64,12 @@ const { setPlaybackProgress } = useLibraryStore.getState();
 
 // SPIKE (Bug B): with clipped per-chapter queues, single-file books flow
 // through the multi-file code paths below (queue index == chapter index,
-// positions are chapter-relative inside each clipped window), so the
-// isSingleFile special-casing must be bypassed for them. Books that the
-// memory gate excludes from clipping (oversized sample tables — see
-// shouldUseClippedChapters) load as ONE legacy track and need the
-// single-file handling, exactly like when the spike is off.
+// positions are chapter-relative inside each clipped window). That bypass is
+// no longer spelled out at each branch: `queueShapeOf` folds the memory gate
+// in and answers 'multi-item' for a clipped Book, so every branch below asks
+// the one question. Books the gate excludes from clipping (oversized sample
+// tables — see shouldUseClippedChapters) load as ONE legacy track and answer
+// 'one-item', exactly like when the spike is off.
 /**
  * The library store's entry for a book, or `undefined` when it has none.
  *
@@ -242,22 +242,33 @@ async function handleProgressUpdated({
     progressTrackCache = { index: track, bookId, url: trackUrl };
   }
 
-  // Get book data from library store - use isSingleFile from DB to avoid queue race condition
   const book = getBookFromStore(bookId);
 
-  // Use isSingleFile from database (set at scan time) instead of queue.length
-  // This eliminates the race condition where queue isn't ready after app restart
-  const isSingleFile = treatAsSingleFile(book);
+  // ⚠ A READ CONSUMER HOLDING A VERDICT IS A STAGE-1 ARRANGEMENT. ADR 0004
+  // demotes `queueShapeOf` to three callers — the two queue builders and
+  // `evaluateBookEnd` — and hands everyone else a position translator that
+  // returns both coordinates so no consumer branches on shape at all. This
+  // site and its two siblings below still branch; they are what the
+  // translator absorbs. See `.scratch/queue-shape/spec.md`, decision 3.
+  //
+  // Asked of the BOOK's own chapters — not of `queue.length`, and no longer of
+  // the persisted scan-time flag. The comment this replaces defended that flag
+  // as race-immune ("the queue isn't ready after app restart"), but that
+  // argument was against the QUEUE READ, not for the flag: the library store
+  // hydrates a Book's chapters in the same conversion that reads the flag, so
+  // the derived verdict is race-immune for exactly the same reason — and it
+  // cannot go stale against a rescan the way a persisted boolean can.
+  const oneItemQueue = queueShapeOf(book?.chapters) === 'one-item';
 
   // Which of the two RUNTIME QUEUE SHAPES this tick is in, set by whichever
   // branch below runs and consumed by the shared end-detection call after
-  // them. The branch IS the shape: this one is the book loaded as a single
-  // queue item, so `duration` spans the whole book. Everything else — real
-  // multi-file books, clipped per-chapter queues, and single-chapter books —
-  // is one item per chapter with a chapter-relative `duration`.
+  // them. The branch IS the shape: this one is the Book loaded as a single
+  // queue item, so `duration` spans the whole Book. Everything else — one file
+  // per Chapter, clipped per-chapter queues, and one-Chapter Books — is one
+  // item per Chapter with a chapter-relative `duration`.
   let queueShape: BookEndInput['queueShape'] = 'multi-item';
 
-  if (isSingleFile && book && book.chapters && book.chapters.length > 1) {
+  if (oneItemQueue && book && book.chapters && book.chapters.length > 1) {
     const chapters = book.chapters;
     const currentChapterIndex = findChapterIndexByPosition(
       chapters,
@@ -341,7 +352,7 @@ async function handleProgressUpdated({
     // early stop is gone on purpose — playing to the true end plays all of
     // it. See D3 in the ticket.
   } else {
-    // Multi-file book OR single-chapter book - just update progress normally
+    // One item per Chapter, or a Book with only one - update progress normally
     setPlaybackProgress(bookId, position);
     // Periodic save here too — without it, multi-file books persist progress
     // only on pause/stop/track-change, so a process kill mid-chapter loses
@@ -566,20 +577,26 @@ export default module.exports = async function () {
     const trackToUpdate = await getTrack(track);
     if (!trackToUpdate?.bookId) return;
 
-    // Get book data from library store - use isSingleFile from DB to avoid queue race condition
     const book = getBookFromStore(trackToUpdate.bookId);
 
-    // Use isSingleFile from database (set at scan time) instead of queue.length
-    const isSingleFile = treatAsSingleFile(book);
+    // The shape of the Queue that just ended — see the note in
+    // `handleProgressUpdated` for why this is derived from the Book's chapters
+    // rather than read off the persisted scan-time flag.
+    const queueShape = queueShapeOf(book?.chapters);
 
-    if (isSingleFile && book && book.chapters && book.chapters.length > 1) {
-      // Single-file book with chapters: reset to beginning. Shared with
+    if (
+      queueShape === 'one-item' &&
+      book &&
+      book.chapters &&
+      book.chapters.length > 1
+    ) {
+      // A one-item Queue with real Chapters: reset to the first one. Shared with
       // RemoteNext's finish branch — the two paths that finish a Book have
       // to leave it in the same state, and they did not while each kept its
       // own copy of this reset.
       await rewindChapterTracking(trackToUpdate.bookId);
-    } else if (!isSingleFile && book) {
-      // Multi-file book: use track index as chapter index.
+    } else if (queueShape !== 'one-item' && book) {
+      // One item per Chapter: the queue index IS the chapter index.
       // `setChapterIndex` writes its store half synchronously before it
       // awaits, so both in-memory writes still land in this one block. That
       // costs the two independent DB writes their old order — index now
@@ -591,7 +608,9 @@ export default module.exports = async function () {
 
       await updateChapterProgressInDB(trackToUpdate.bookId, position);
     } else {
-      // Single chapter book or book not in Zustand: just reset progress
+      // A Book with one Chapter, or one absent from Zustand: just reset
+      // progress. A one-item Queue lands here too when it has nothing to
+      // rewind THROUGH — which is the arm a one-chapter Book takes.
       setPlaybackProgress(trackToUpdate.bookId, 0);
       await updateChapterProgressInDB(trackToUpdate.bookId, 0);
     }
@@ -605,12 +624,12 @@ export default module.exports = async function () {
     // progress tick can observe.
     await markBookFinishedOnce(trackToUpdate.bookId, book);
 
-    // Reset to beginning and stop playback
-    if (isSingleFile) {
-      await seekTo(0);
-    } else {
-      await skip(0);
-    }
+    // Reset to beginning and stop playback. Which transport does that is the
+    // one place the Queue's shape is observable at the end of a Book, and it
+    // is deliberately NOT guarded by a chapter count the way the branches
+    // above are: a Book with exactly one chapter is one Queue item, and the
+    // seek is the honest call on a Queue that has nothing to skip to.
+    await rewindPlayerToBookStart(queueShape);
     await stop();
   });
 
@@ -625,27 +644,27 @@ export default module.exports = async function () {
 
       const { position } = await getProgress();
 
-      // Get book data from library store - use isSingleFile from DB to avoid queue race condition
       const book = getBookFromStore(bookId);
 
-      // Use isSingleFile from database (set at scan time) instead of queue.length
-      // This eliminates the race condition where queue isn't ready after app restart
-      const isSingleFile = treatAsSingleFile(book);
+      // Same verdict, same reason — see `handleProgressUpdated`.
+      const oneItemQueue = queueShapeOf(book?.chapters) === 'one-item';
 
       if (
-        isSingleFile &&
+        oneItemQueue &&
         book &&
         book.chapters &&
         book.chapters.length > 1
       ) {
-        // Single-file book with chapters: save progress within chapter
+        // A one-item Queue with real Chapters: the Player reports a Book
+        // Position, so convert before storing the Chapter Position.
         const progressWithinChapter = calculateProgressWithinChapter(
           book.chapters,
           position,
         );
         await updateChapterProgressInDB(bookId, progressWithinChapter);
       } else if (book) {
-        // Multi-file book OR single-chapter book: save progress directly
+        // One item per Chapter, or a Book with only one: the Player's
+        // Position already IS the Chapter Position.
         await updateChapterProgressInDB(bookId, position);
       }
       // If book not in Zustand yet, skip saving to avoid corruption
