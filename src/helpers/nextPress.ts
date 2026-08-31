@@ -8,7 +8,7 @@ import {
   resetBookToStart,
   type SingleFileChapterTracking,
 } from '@/helpers/resetBookToStart';
-import { treatAsSingleFile } from '@/helpers/clippedChapters';
+import { queueShapeOf } from '@/helpers/queueShape';
 import { withoutBlockingThePress } from '@/helpers/withoutBlockingThePress';
 import { singleFileChapterTracking } from '@/helpers/chapterTracking';
 import {
@@ -59,12 +59,12 @@ export type NextPress = {
    */
   book: (NextPressBook & BookProgressReading) | undefined;
   /**
-   * Whether this Book loads as ONE queue item. The verdict folds in the
-   * clipped-chapters memory gate (`treatAsSingleFile`), so it is passed in
-   * rather than re-derived here — a clipped Book is single-file in the DB and
-   * a chapter queue at runtime.
+   * Whether this Book loads as ONE queue item — `queueShapeOf`'s verdict,
+   * which folds in the clipped-chapters memory gate. Passed in rather than
+   * re-derived here: a clipped Book is stored as one file but is a chapter
+   * queue at runtime, so only the Queue shape answers this.
    */
-  treatAsSingleFile: boolean;
+  oneItemQueue: boolean;
   /**
    * The shared chapter-change detector, handed over so the finish branch can
    * rewind it through the shared reset. Passed in rather than imported so the
@@ -86,12 +86,12 @@ export type NextPress = {
 export async function handleNextPress({
   bookId,
   book,
-  treatAsSingleFile,
+  oneItemQueue,
   chapterTracking,
   onBeforeChapterChange,
   onBeforeLeaveBook,
 }: NextPress): Promise<void> {
-  const action = await resolveNextPress(book, treatAsSingleFile);
+  const action = await resolveNextPress(book, oneItemQueue);
 
   switch (action.kind) {
     // The press moves nothing, so there is nothing to leave a breadcrumb to.
@@ -153,7 +153,7 @@ export async function handleNextPress({
  * SAME on every surface, so that a press behaves identically whether it came
  * from the app, the notification or Android Auto.
  *
- *  - the queue-shape verdict comes from the one shared `treatAsSingleFile`;
+ *  - the queue-shape verdict comes from the one shared `queueShapeOf`;
  *  - the tracker is the one shared instance, so the finish branch rewinds the
  *    same object the progress handler advances each tick;
  *  - both branches that MOVE record a footprint — the press type decides,
@@ -173,7 +173,7 @@ export async function pressNext(
   await handleNextPress({
     bookId,
     book,
-    treatAsSingleFile: treatAsSingleFile(book),
+    oneItemQueue: queueShapeOf(book?.chapters) === 'one-item',
     chapterTracking: singleFileChapterTracking,
     onBeforeChapterChange: () => recordActiveBookChapterChangeFootprint(bookId),
     onBeforeLeaveBook: () => recordActiveBookSeekFootprint(bookId),

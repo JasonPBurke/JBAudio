@@ -1,6 +1,6 @@
 import { Book } from '@/types/Book';
 import { BookProgressState } from '@/helpers/handleBookPlay';
-import { shouldUseClippedChapters } from '@/helpers/clippedChapters';
+import { queueShapeOf } from '@/helpers/queueShape';
 import { formatSecondsToHoursMinutes } from '@/helpers/miscellaneous';
 
 export type BookProgressInfo = {
@@ -63,7 +63,7 @@ export function computeBookProgress(
 
   let totalPlayed: number;
 
-  if (book.isSingleFile && !shouldUseClippedChapters(chapters)) {
+  if (queueShapeOf(chapters) === 'one-item') {
     // Legacy single-file books: chapterProgress is relative to the current
     // chapter's start. Add the chapter's startMs offset to get the absolute
     // position in the file.

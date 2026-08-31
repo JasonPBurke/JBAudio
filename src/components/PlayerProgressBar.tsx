@@ -18,7 +18,7 @@ import { useBookById } from '@/store/library';
 import { useActiveBookId } from '@/store/playerState';
 import { useAppStateStore } from '@/store/appState';
 import { useSettingsStore } from '@/store/settingsStore';
-import { shouldUseClippedChapters } from '@/helpers/clippedChapters';
+import { queueShapeOf } from '@/helpers/queueShape';
 import { recordSeekFootprint } from '@/db/footprintQueries';
 
 // Pre-defined styles to avoid inline object creation
@@ -73,13 +73,17 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
   // subscription instead of one per consumer.
   const currentChapter = useCurrentChapter();
 
-  // Under the clipped-chapters spike each chapter is its own queue item, so
-  // the native position is ALREADY chapter-relative — the chapter's absolute
-  // startMs must not be subtracted (that pinned the bar at 0 and made seeks
-  // land outside the clip window).
+  // On a MULTI-ITEM Queue each chapter is its own queue item, so the native
+  // position is ALREADY chapter-relative — the chapter's absolute startMs must
+  // not be subtracted (that pinned the bar at 0 and made seeks land outside
+  // the clip window). Only a ONE-ITEM Queue reports absolute positions.
+  //
+  // This used to name the clipped-chapters gate directly, which is a narrower
+  // question than the one being asked: the gate is only one of the ways a
+  // Queue comes out multi-item.
   const activeBookId = useActiveBookId();
   const book = useBookById(activeBookId ?? '');
-  const isChapterRelative = shouldUseClippedChapters(book?.chapters);
+  const isChapterRelative = queueShapeOf(book?.chapters) === 'multi-item';
 
   // Use shared values instead of refs for chapter info (worklet-compatible)
   const chapterStart = useSharedValue(0);

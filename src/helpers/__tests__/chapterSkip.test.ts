@@ -1,6 +1,10 @@
 import TrackPlayer from 'react-native-track-player';
 import { skipToPreviousChapter } from '../chapterSkip';
 import { useLibraryStore } from '@/store/library';
+import {
+  oneItemChapters,
+  multiItemChapters,
+} from './support/queueShapeFixtures';
 
 /*
  * Call-level tests. The LANDING-SPOT tests for the ends of the queue live in
@@ -24,7 +28,6 @@ jest.mock('@/store/library', () => ({
   useLibraryStore: { getState: jest.fn() },
 }));
 
-const mockGetQueue = TrackPlayer.getQueue as jest.Mock;
 const mockGetProgress = TrackPlayer.getProgress as jest.Mock;
 const mockGetActiveTrack = TrackPlayer.getActiveTrack as jest.Mock;
 const mockGetActiveTrackIndex = TrackPlayer.getActiveTrackIndex as jest.Mock;
@@ -32,14 +35,20 @@ const mockSeekTo = TrackPlayer.seekTo as jest.Mock;
 const mockSkipToPrevious = TrackPlayer.skipToPrevious as jest.Mock;
 const mockGetState = useLibraryStore.getState as jest.Mock;
 
-const queueOf = (n: number) => Array.from({ length: n }, (_, i) => ({ id: i }));
+/*
+ * ⚠ THE QUEUE SHAPE COMES FROM THE BOOK'S CHAPTER ROWS, not from a queue
+ * length. These tests used to signal it with `getQueue` returning one item or
+ * three, so their chapter rows only ever needed `startMs`; the helper now asks
+ * `queueShapeOf`. See `support/queueShapeFixtures.ts` for why a row carrying
+ * only `startMs` is not shape-neutral. No assertion changed.
+ */
 
-// Chapters at 0:00, 10:00, 20:00
-const chapters = [
-  { startMs: 0 },
-  { startMs: 600_000 },
-  { startMs: 1_200_000 },
-];
+// Chapters at 0:00, 10:00, 20:00.
+const oneItem = oneItemChapters([0, 600_000, 1_200_000]);
+const multiItem = multiItemChapters(3);
+
+const load = (chapters: unknown[]) =>
+  mockGetState.mockReturnValue({ books: { 'book-1': { chapters } } });
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -47,12 +56,12 @@ beforeEach(() => {
   mockGetActiveTrack.mockResolvedValue({ bookId: 'book-1' });
   // Mid-queue unless a test says otherwise: index 0 is its own branch.
   mockGetActiveTrackIndex.mockResolvedValue(1);
-  mockGetState.mockReturnValue({ books: { 'book-1': { chapters } } });
+  load(oneItem);
 });
 
-describe('skipToPreviousChapter — single-item queue (legacy single-file book)', () => {
+describe('skipToPreviousChapter — one-item queue (legacy single-file book)', () => {
   beforeEach(() => {
-    mockGetQueue.mockResolvedValue(queueOf(1));
+    load(oneItem);
   });
 
   it('restarts the current chapter when more than 15s in', async () => {
@@ -75,8 +84,28 @@ describe('skipToPreviousChapter — single-item queue (legacy single-file book)'
     expect(mockSkipToPrevious).not.toHaveBeenCalled();
   });
 
+});
+
+/*
+ * With no chapter rows to read, `queueShapeOf` FAILS CLOSED to 'multi-item'
+ * (`bookEndDetection`'s rule, reused verbatim) rather than guessing one-item.
+ * These cases used to reach the one-item branch via `queue.length === 1` and
+ * always restarted; they now reach the multi-item branch, so BOTH of its arms
+ * have to land in the same place for that to be a zero-delta move:
+ *
+ *  - past the threshold, it restarts outright;
+ *  - under it, the first-queue-item check restarts instead of skipping.
+ *
+ * The second is the one that carries the whole argument, because it is the arm
+ * that could diverge. It cannot in practice: a Queue with one item has the
+ * active index 0, so the check that guards it is always true. The third test
+ * pins exactly that, rather than leaving the claim in a comment — an index of
+ * 1 alongside a one-item Queue is a state the player cannot be in, so it is
+ * not worth pinning, but the reachable state is.
+ */
+describe('skipToPreviousChapter — no usable chapter list', () => {
   it('restarts the track when the book has no chapter data', async () => {
-    mockGetState.mockReturnValue({ books: { 'book-1': { chapters: [] } } });
+    load([]);
     mockGetProgress.mockResolvedValue({ position: 500, duration: 3600 });
 
     await skipToPreviousChapter();
@@ -94,11 +123,26 @@ describe('skipToPreviousChapter — single-item queue (legacy single-file book)'
     expect(mockSeekTo).toHaveBeenCalledWith(0);
     expect(mockSkipToPrevious).not.toHaveBeenCalled();
   });
+
+  it('restarts UNDER the threshold too, because a one-item queue is at index 0', async () => {
+    mockGetState.mockReturnValue({ books: {} });
+    mockGetProgress.mockResolvedValue({ position: 10, duration: 3600 });
+    mockGetActiveTrackIndex.mockResolvedValue(0);
+
+    const onBeforeSkip = jest.fn().mockResolvedValue(undefined);
+    await skipToPreviousChapter(onBeforeSkip);
+
+    expect(mockSeekTo).toHaveBeenCalledWith(0);
+    expect(mockSkipToPrevious).not.toHaveBeenCalled();
+    // Same footprint the one-item branch used to write, not a 'previous' for
+    // a press that moved nothing.
+    expect(onBeforeSkip).toHaveBeenCalledWith('restart');
+  });
 });
 
 describe('skipToPreviousChapter — multi-item queue (multi-file / clipped chapters)', () => {
   beforeEach(() => {
-    mockGetQueue.mockResolvedValue(queueOf(3));
+    load(multiItem);
   });
 
   it('restarts the current item when more than 15s in (position is chapter-relative)', async () => {
@@ -153,7 +197,7 @@ describe('skipToPreviousChapter — multi-item queue (multi-file / clipped chapt
 
 describe('skipToPreviousChapter — onBeforeSkip callback', () => {
   it('reports "restart" and is awaited before the seek (single-item queue)', async () => {
-    mockGetQueue.mockResolvedValue(queueOf(1));
+    load(oneItem);
     // 16s into chapter 2
     mockGetProgress.mockResolvedValue({ position: 616, duration: 3600 });
 
@@ -172,7 +216,7 @@ describe('skipToPreviousChapter — onBeforeSkip callback', () => {
   });
 
   it('reports "previous" for a press within the threshold (single-item queue)', async () => {
-    mockGetQueue.mockResolvedValue(queueOf(1));
+    load(oneItem);
     // 10s into chapter 2
     mockGetProgress.mockResolvedValue({ position: 610, duration: 3600 });
 
@@ -183,7 +227,7 @@ describe('skipToPreviousChapter — onBeforeSkip callback', () => {
   });
 
   it('reports "restart" at the first queue item within the threshold', async () => {
-    mockGetQueue.mockResolvedValue(queueOf(3));
+    load(multiItem);
     mockGetActiveTrackIndex.mockResolvedValue(0);
     mockGetProgress.mockResolvedValue({ position: 10, duration: 600 });
 
@@ -194,7 +238,7 @@ describe('skipToPreviousChapter — onBeforeSkip callback', () => {
   });
 
   it('reports "restart" beyond the threshold on a multi-item queue', async () => {
-    mockGetQueue.mockResolvedValue(queueOf(3));
+    load(multiItem);
     mockGetProgress.mockResolvedValue({ position: 42, duration: 600 });
 
     const onBeforeSkip = jest.fn().mockResolvedValue(undefined);
@@ -204,7 +248,7 @@ describe('skipToPreviousChapter — onBeforeSkip callback', () => {
   });
 
   it('reports "previous" within the threshold on a multi-item queue, before the skip', async () => {
-    mockGetQueue.mockResolvedValue(queueOf(3));
+    load(multiItem);
     mockGetProgress.mockResolvedValue({ position: 10, duration: 600 });
 
     const calls: string[] = [];
@@ -221,7 +265,7 @@ describe('skipToPreviousChapter — onBeforeSkip callback', () => {
   });
 
   it('still performs the seek when the callback rejects', async () => {
-    mockGetQueue.mockResolvedValue(queueOf(3));
+    load(multiItem);
     mockGetProgress.mockResolvedValue({ position: 42, duration: 600 });
 
     const onBeforeSkip = jest.fn().mockRejectedValue(new Error('db down'));

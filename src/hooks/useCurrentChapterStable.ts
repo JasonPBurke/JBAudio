@@ -17,10 +17,8 @@ import { useBookById, useLibraryStore } from '@/store/library';
 import { useAppStateStore } from '@/store/appState';
 import { useActiveBookId } from '@/store/playerState';
 import { Chapter } from '@/types/Book';
-import {
-  usesChapterQueue,
-  resolveCurrentChapterIndex,
-} from '@/helpers/chapterPlayback';
+import { resolveCurrentChapterIndex } from '@/helpers/chapterPlayback';
+import { queueShapeOf } from '@/helpers/queueShape';
 
 /**
  * Context for sharing a single useCurrentChapterStable subscription across
@@ -65,7 +63,9 @@ export const useCurrentChapterStable = () => {
   const book = useBookById(bookId);
   const chapters = book?.chapters;
 
-  const chapterQueue = useMemo(() => usesChapterQueue(chapters), [chapters]);
+  // No `useMemo`: `queueShapeOf` memoises on the chapters array reference
+  // itself, so a second wrapper would cache the same answer twice.
+  const chapterQueue = queueShapeOf(chapters) === 'multi-item';
 
   // --- Chapter-queue mode: index straight from the store ---
   const storeIndex = useLibraryStore(

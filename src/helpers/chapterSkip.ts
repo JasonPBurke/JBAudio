@@ -12,6 +12,7 @@ import {
   getPreviousPressTarget,
   PreviousPressKind,
 } from '@/helpers/singleFileBook';
+import { queueShapeOf } from '@/helpers/queueShape';
 import { Chapter } from '@/types/Book';
 
 /**
@@ -47,8 +48,17 @@ const RESTART_CHAPTER_THRESHOLD_SECONDS = 15;
 export async function skipToPreviousChapter(
   onBeforeSkip?: (kind: PreviousPressKind) => void | Promise<void>,
 ): Promise<void> {
-  const queue = await getQueue();
-  const { position } = await getProgress();
+  // The shape comes from the BOOK, not from `queue.length`. A Queue read
+  // answers about whichever Book happens to be loaded — which disagrees with
+  // the Book this press is about for the length of every Book switch — and it
+  // marshals the whole track list across the bridge to learn one boolean.
+  const [activeBookId, { position }] = await Promise.all([
+    getActiveBookId(),
+    getProgress(),
+  ]);
+  const book = activeBookId
+    ? useLibraryStore.getState().books[activeBookId]
+    : undefined;
 
   const notifyBeforeSkip = async (kind: PreviousPressKind) => {
     if (!onBeforeSkip) return;
@@ -59,13 +69,8 @@ export async function skipToPreviousChapter(
     }
   };
 
-  if (queue.length === 1) {
+  if (queueShapeOf(book?.chapters) === 'one-item') {
     // Legacy single-file book: one track, chapters are absolute seek offsets.
-    const activeBookId = await getActiveBookId();
-    const book = activeBookId
-      ? useLibraryStore.getState().books[activeBookId]
-      : undefined;
-
     if (book?.chapters && book.chapters.length > 1) {
       const { targetSeconds, kind } = getPreviousPressTarget(
         book.chapters,
@@ -156,18 +161,21 @@ export type NextPressAction =
 export type NextPressBook = { chapters?: Chapter[] } | undefined;
 
 /**
- * `treatAsSingleFile` is passed in rather than derived here: whether a
- * single-file Book loads as ONE queue item or one item per chapter is the
- * clipped-chapters memory gate's call (see `shouldUseClippedChapters`), and
- * the playback service already holds that verdict. A clipped Book is
- * single-file in the DB and a chapter queue at runtime — the Queue decides,
- * and its chapter list must not.
+ * `oneItemQueue` is passed in rather than derived here: the Queue shape
+ * verdict is `queueShapeOf`'s (`helpers/queueShape.ts`) and the caller — the
+ * composition root in `nextPress.ts` — already holds it.
+ *
+ * ⚠ NAMED FOR THE QUEUE, NOT FOR THE BOOK ON DISK. It used to be
+ * `treatAsSingleFile`, which CONTEXT.md's **Queue shape** entry lists under
+ * _Avoid_ for exactly the confusion it caused here: a Book stored as one file
+ * that clears the clipped-chapters memory gate is single-file in the DB and a
+ * CHAPTER QUEUE at runtime, so the two words are not the same question.
  */
 export async function resolveNextPress(
   book: NextPressBook,
-  treatAsSingleFile: boolean,
+  oneItemQueue: boolean,
 ): Promise<NextPressAction> {
-  if (treatAsSingleFile && book?.chapters && book.chapters.length > 1) {
+  if (oneItemQueue && book?.chapters && book.chapters.length > 1) {
     const { position } = await getProgress();
     const nextStart = getNextChapterStartSeconds(book.chapters, position);
     return nextStart !== null

@@ -39,6 +39,7 @@ import {
 } from '@/helpers/chapterTracking';
 import { restoreLastActiveBook } from '@/helpers/restoreLastActiveBook';
 import { treatAsSingleFile } from '@/helpers/clippedChapters';
+import { queueShapeOf } from '@/helpers/queueShape';
 import {
   findChapterIndexByPosition,
   calculateProgressWithinChapter,
@@ -681,10 +682,15 @@ export default module.exports = async function () {
       const trackAtIndex = await getTrack(event.index);
       if (!trackAtIndex?.bookId) return;
 
-      // Skip chapter index updates for single-file books - handled in PlaybackProgressUpdated
-      const queue = await getQueue();
-      const isSingleFile = queue.length === 1;
-      if (isSingleFile) return;
+      // Skip chapter index updates for single-file books - handled in
+      // PlaybackProgressUpdated.
+      //
+      // Asked of the BOOK, not of `queue.length`: a Queue read answers about
+      // whichever Book happens to be loaded, which is the Book this event is
+      // about only once the switch it announces has settled — and it marshals
+      // the whole track list across the bridge to learn one boolean.
+      const trackBook = getBookFromStore(trackAtIndex.bookId);
+      if (queueShapeOf(trackBook?.chapters) === 'one-item') return;
 
       // Multi-file book: store then DB, as one unit — see
       // helpers/setChapterIndex.

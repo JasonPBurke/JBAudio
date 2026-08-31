@@ -15,7 +15,7 @@ import { useBookById, useLibraryStore } from '@/store/library';
 import { useActiveBookId } from '@/store/playerState';
 import { useTheme } from '@/hooks/useTheme';
 import { withOpacity, ensureReadable } from '@/helpers/colorUtils';
-import { usesChapterQueue } from '@/helpers/chapterPlayback';
+import { queueShapeOf } from '@/helpers/queueShape';
 import { Chapter } from '@/types/Book';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { FlashList } from '@shopify/flash-list';
@@ -87,7 +87,7 @@ const ChapterListScreen = () => {
         // Silently fail if footprint recording fails
       }
 
-      if (usesChapterQueue(book.chapters)) {
+      if (queueShapeOf(book.chapters) === 'multi-item') {
         // Multi-file and clipped single-file books: one queue item per chapter
         await skip(chapterIndex);
       } else {

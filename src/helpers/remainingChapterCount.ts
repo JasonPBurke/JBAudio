@@ -2,17 +2,17 @@ import {
   getActiveBookId,
   getActiveTrackIndex,
   getProgress,
-  getQueue,
 } from '@/player/trackPlayer';
 import { useLibraryStore } from '@/store/library';
 import { findChapterIndexByPosition } from '@/helpers/singleFileBook';
+import { queueShapeOf } from '@/helpers/queueShape';
 
 /**
  * How many chapter boundaries are left in the Active Book — the ceiling the
  * sleep timer's chapter stepper steps against.
  *
- * One home for a computation that used to run twice, verbatim down to the
- * queue-shape comment below: once in `src/app/(settings)/timer.tsx` and once in
+ * One home for a computation that used to run twice, verbatim down to its
+ * queue-shape comment: once in `src/app/(settings)/timer.tsx` and once in
  * `src/modals/SleepTimerOptions.tsx`. The copies had already drifted at their
  * edges — with no Book loaded the settings screen answered 20 and the modal
  * answered 0 — which is the same defect `stepChapterCount` closed one layer up,
@@ -43,42 +43,41 @@ import { findChapterIndexByPosition } from '@/helpers/singleFileBook';
  */
 export async function remainingChapterCount(): Promise<number | null> {
   try {
-    // Clipped single-file books have one queue item per chapter, so they take
-    // the multi-file (else) path; the single-item branch is legacy-only.
-    //
-    // ⚠ `queue.length === 1` is one of five competing queue-shape mechanisms
-    // in this app, deferred repo-wide to `.scratch/queue-shape/spec.md`; ADR
-    // 0003 refuses to answer it inside the adapter. This is a straight port of
-    // what both copies did, no verdict changed — and this is now the single
-    // site that changes when queue-shape is settled.
-    const queue = await getQueue();
+    const activeBookId = await getActiveBookId();
+    if (!activeBookId) return null;
 
-    if (queue.length === 0) return null;
+    const chapters =
+      useLibraryStore.getState().books[activeBookId]?.chapters;
 
-    if (queue.length === 1) {
-      const activeBookId = await getActiveBookId();
-      if (activeBookId) {
-        const book = useLibraryStore.getState().books[activeBookId];
-        if (book?.chapters && book.chapters.length > 1) {
-          const { position } = await getProgress();
-          const currentChapterIndex = findChapterIndexByPosition(
-            book.chapters,
-            position,
-          );
-          return book.chapters.length - 1 - currentChapterIndex;
-        }
-      }
-      // A single-file Book with no usable chapter list has no boundary left to
-      // stop at — the count is known, and it is 0, not unknown.
-      return 0;
+    // An Active Book whose chapter list is not visible has no boundary left to
+    // stop at — the count is known, and it is 0, not unknown. `null` above is
+    // reserved for its own question: is a Book loaded at all?
+    if (!chapters || chapters.length === 0) return 0;
+
+    // ⚠ ASKED OF THE BOOK, NOT OF `queue.length`. A Queue read answers about
+    // whichever Book happens to be loaded, and it marshals the whole track
+    // list across the bridge — hundreds of items on a clipped Book — to learn
+    // one boolean. `queueShapeOf` is the app's one Queue-shape verdict; see
+    // `helpers/queueShape.ts` and `.scratch/queue-shape/spec.md`.
+    if (queueShapeOf(chapters) === 'one-item') {
+      // One Queue item, absolute positions: the boundaries left are the
+      // chapters after the one the playhead is in.
+      const { position } = await getProgress();
+      return (
+        chapters.length - 1 - findChapterIndexByPosition(chapters, position)
+      );
     }
 
+    // One Queue item per chapter, so the chapter count and the Queue length
+    // are the same number — both builders map chapters in order and neither
+    // filters nor sorts.
+    //
     // Named for the Queue, not for RNTP's "track" — CONTEXT.md lists that
     // under Chapter's _Avoid_. The adapter keeps RNTP's name; above it, the
     // index is a position in the Queue.
     const activeQueueIndex = await getActiveTrackIndex();
     if (activeQueueIndex === undefined) return 0;
-    return queue.length - 1 - activeQueueIndex;
+    return chapters.length - 1 - activeQueueIndex;
   } catch {
     return null;
   }

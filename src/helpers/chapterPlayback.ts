@@ -1,5 +1,6 @@
 import type { Book, Chapter } from '@/types/Book';
 import { shouldUseClippedChapters } from '@/helpers/clippedChapters';
+import { queueShapeOf } from '@/helpers/queueShape';
 import {
   isSingleFileBook,
   findChapterIndexByPosition,
@@ -30,6 +31,11 @@ type ChapterLike = Pick<
 
 /**
  * True when the queue index is the chapter index (chapter-queue mode).
+ *
+ * ⚠ SUPERSEDED by `queueShapeOf`, and kept only until its last external
+ * caller is gone (ticket `04`). Nothing in this module asks it any more —
+ * both consumers below ask the verdict — so a change here no longer moves
+ * this file's own behaviour.
  */
 export function usesChapterQueue(
   chapters: readonly ChapterLike[] | undefined,
@@ -49,7 +55,7 @@ export function resolveCurrentChapterIndex(
 ): number | undefined {
   if (!chapters || chapters.length === 0) return undefined;
 
-  if (usesChapterQueue(chapters)) {
+  if (queueShapeOf(chapters) === 'multi-item') {
     if (typeof queueIndex !== 'number' || queueIndex < 0) return undefined;
     return Math.min(queueIndex, chapters.length - 1);
   }
@@ -70,7 +76,11 @@ export function calculateRemainingBookTime(
 ): number {
   const chapters = book.chapters;
 
-  if (!chapters || chapters.length === 0 || !usesChapterQueue(chapters)) {
+  if (
+    !chapters ||
+    chapters.length === 0 ||
+    queueShapeOf(chapters) === 'one-item'
+  ) {
     return Math.max(0, book.bookDuration - positionSeconds);
   }
 

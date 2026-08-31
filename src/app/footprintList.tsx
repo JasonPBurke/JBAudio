@@ -14,7 +14,7 @@ import { CircleX } from 'lucide-react-native';
 import { useBookById } from '@/store/library';
 import { useActiveBookId } from '@/store/playerState';
 import { useTheme } from '@/hooks/useTheme';
-import { usesChapterQueue } from '@/helpers/chapterPlayback';
+import { queueShapeOf } from '@/helpers/queueShape';
 import { withOpacity } from '@/helpers/colorUtils';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { FlashList } from '@shopify/flash-list';
@@ -89,7 +89,7 @@ const FootprintListScreen = () => {
       const targetChapter = book.chapters[footprint.chapterIndex];
       if (!targetChapter) return;
 
-      if (usesChapterQueue(book.chapters)) {
+      if (queueShapeOf(book.chapters) === 'multi-item') {
         // Multi-file and clipped single-file books: skip to the chapter's
         // queue item, then seek within it (positions are chapter-relative)
         await skip(footprint.chapterIndex);
