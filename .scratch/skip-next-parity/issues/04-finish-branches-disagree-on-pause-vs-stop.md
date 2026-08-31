@@ -140,9 +140,6 @@ rewind all keep their current behavior and their current ORDER.
       player harness is the place for it.
 - [x] `nextPress`'s finish comment no longer describes a call the code does not
       make.
-- [ ] Device: with a sleep timer armed, pressing Next on the last chapter of a
-      single-file Book clears the timer, matching what playing that Book to its
-      true end already does.
 - [x] Device: after a Book finishes this way, pressing play again starts it from
       the beginning. `stop` releases the loaded media, so this path re-prepares
       the source — confirm there is no error or stuck state, only latency.

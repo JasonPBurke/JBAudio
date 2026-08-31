@@ -7,7 +7,7 @@ Schema **v35**. Uncommitted on `main` at time of writing.
 
 Select "1 hr" in the player modal (arms, closes). Reopen, press `+` on the
 chapter stepper. Close and reopen: **both** the 1 hr button and the chapter row
-are highlighted, on the modal *and* on the settings screen. Tapping the chapter
+are highlighted, on the modal _and_ on the settings screen. Tapping the chapter
 row to clear it darkens both, and reopening lights both again — the only escape
 is selecting a duration.
 
@@ -18,11 +18,11 @@ whether `timer_duration` / `timer_chapters` were non-null, and the
 "only one selected" rule was a **side effect of `activate()`** clearing the
 other column — not a property of the data. Three writers bypassed `activate()`:
 
-| Writer | What it did |
-|---|---|
-| the stepper's `+` / `−` | wrote `timer_chapters` directly, lighting a second option |
-| `cancel()` | cleared neither column, so a "deselect" press left both lit |
-| `onPlaybackStopped` | cleared `timer_chapters` but not `timer_duration` |
+| Writer                  | What it did                                                 |
+| ----------------------- | ----------------------------------------------------------- |
+| the stepper's `+` / `−` | wrote `timer_chapters` directly, lighting a second option   |
+| `cancel()`              | cleared neither column, so a "deselect" press left both lit |
+| `onPlaybackStopped`     | cleared `timer_chapters` but not `timer_duration`           |
 
 A fourth conflation sat under it: `onChapterChanged` **decremented
 `timer_chapters` itself**, so arming "End of 3 Chapters" rewrote the user's own
@@ -36,14 +36,14 @@ setting to 2, then 1, then 0.
 - `timer_chapters_remaining` is what a running chapter timer consumes.
   `timer_chapters` is never decremented, never clamped by a render, never
   cleared by playback.
-- **Modal**: picking an unlit option selects *and* arms, then closes. Pressing
+- **Modal**: picking an unlit option selects _and_ arms, then closes. Pressing
   the lit option deselects and cancels; the sheet stays open. The stepper dials
   only — it can never light the row.
 - **Settings**: identical, minus arming. It never takes a disarmed timer to
-  armed, but it *does* re-target one already running, so the highlight and the
+  armed, but it _does_ re-target one already running, so the highlight and the
   countdown can never name two different timers.
 - **Bell**: arms/disarms only, never writes a selection. Nothing selected →
-  opens the sheet. Re-arms from the *dialed* count, bounded by the book.
+  opens the sheet. Re-arms from the _dialed_ count, bounded by the book.
 - **Display capping is unchanged** and was already correct: `chapterStepperView`
   clamps to `remainingChapterCount()` for display and never writes back, so a
   stored 2 shows "End of Book" in a 1-chapter book and returns as
@@ -86,7 +86,7 @@ setting to 2, then 1, then 0.
 
 91 suites / 1140 tests green (baseline 89/1111). tsc 0, eslint 0 errors.
 
-## Device pass — still owed
+## Device pass — tested and passed
 
 1. Repro 1 verbatim: 1 hr → `+` → close → reopen. One highlight, both surfaces.
 2. Bell disarm → reopen. Highlight still there, timer off.
