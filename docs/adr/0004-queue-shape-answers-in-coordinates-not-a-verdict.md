@@ -2,9 +2,13 @@
 
 **Status:** accepted (driver, 2026-08-31), from the grilling of
 `.scratch/queue-shape/brief.md` on 2026-08-31 and scoped in
-`.scratch/queue-shape/spec.md`, which is driver-approved in full. **Not yet
-implemented** — the tickets under `.scratch/queue-shape/issues/` build it in two
-stages, the verdict first and the translator second.
+`.scratch/queue-shape/spec.md`, which is driver-approved in full. The tickets under
+`.scratch/queue-shape/issues/` build it in two stages, the verdict first and the
+translator second. **Stage 1 has begun** — ticket `01` landed `queueShapeOf` in
+`src/helpers/queueShape.ts` on 2026-08-31, beside the nine mechanisms it will
+replace. **The translator — ruling 1's primary export — is not built yet**
+(ticket `07`), so this ADR rules on a design before the code exists, which is the
+point: rulings 2 and 3 are constraints on what gets written.
 
 The module that owns Queue shape exports a **position translator** as its primary
 function. The shape verdict — `queueShapeOf(chapters)` — is a secondary export with
@@ -72,7 +76,8 @@ for both — which settles the contract.
 Every consumer is asking for one of two coordinates: **Book Position** ("how far
 through?") or **Chapter Position** ("which Chapter, and how far into it?"). The
 shape question is nothing but the conversion between them. A module that answers
-the shape question hands each of its ~13 consumers a fact they must then act on;
+the shape question hands each of its ~13 read consumers a fact they must then act
+on;
 a module that answers in coordinates hands them the thing they wanted, and
 **no consumer branches on shape again**.
 
@@ -91,11 +96,12 @@ the popular name on the unpopular export.
 
 **Rejected: the verdict as the sole export, with the conversion staying at the
 call sites.** This is the review's design and the brief's central sketch. It is
-rung 3 for all sixteen consumers. It fixes the *duplication* — one predicate
+rung 3 for all sixteen — the ~13 read consumers plus the three that keep the
+verdict. It fixes the *duplication* — one predicate
 instead of nine — and leaves the *branch* at every site, which is the part that
 regenerates. It also cannot fix the two live footprint bugs that the coordinate
-contract fixes for free (`getCurrentChapterInfo:54` refusing to answer for a
-one-item Book; `recordSeekFootprint:174` recording at chapter 0 for an unreadable
+contract fixes for free (`getCurrentChapterInfo:54` refusing to answer on a
+one-item Queue; `recordSeekFootprint:175` recording at chapter 0 for an unreadable
 index — see the spec's decision 8), because both are errors in *how a site
 branches*, and a shared predicate leaves each site branching.
 
@@ -133,7 +139,7 @@ for the whole record when there is no Book or no chapters. **`null` means "I cou
 not tell", never "the answer is zero".** This is a house rule stated four times
 already — `remainingChapterCount()` returns `null` for not-known; `evaluateBookEnd()`
 returns `'none'` rather than `'clear'` for an undecidable tick; `resolveNextPress()`
-treats an unreadable index as "act", not as index 0; `service.ts:677` documents that
+treats an unreadable index as "act", not as index 0; `service.ts:676` documents that
 fabricating `0` for an unreadable index "would corrupt chapter index". It is being
 extended here, not invented.
 
@@ -185,11 +191,31 @@ admits what it is.**
 
 ## Not decided here
 
-**The module does no IO and never reads the Player.** That is
-[ADR 0003](0003-only-the-rntp-adapter-imports-rntp.md)'s decision 2 — the IO half
-must not decide, and the deciding half must not do IO — applied one layer up, not a
-new ruling. ADR 0003's `## Known incompleteness` names this module as the answer
-to the queue-shape question it deliberately left open; this is that answer.
+**That the module does no IO and never reads the Player is
+[ADR 0003](0003-only-the-rntp-adapter-imports-rntp.md)'s decision 2, applied one
+layer up.** It is cited, not re-argued, and not re-decided here. ADR 0003's `## Known incompleteness` leaves the queue-shape question
+open on purpose — it rules only that the answer "belongs above the adapter, never
+on it", and points at `.scratch/queue-shape/spec.md` rather than at any module.
+This is that answer, and it honours the constraint by doing no IO at all.
+
+## Where the rule lives
+
+- **The verdict**: `src/helpers/queueShape.ts`, shipped by ticket `01`. Its three
+  callers are named in the spec's `## Solution`; a fourth is the reopen condition
+  below, not a routine addition.
+- **The translator**: not yet written — ticket
+  `.scratch/queue-shape/issues/07-add-position-translator.md`, which carries
+  rulings 1 and 3 as acceptance criteria. **This ADR deliberately gives it no
+  identifier.** Naming the primary export before it exists would put a name in the
+  one place that cannot be refactored, and ADR 0003's own lesson is that a module
+  should be named for the question it answers — which is ticket `07`'s call to
+  make, once the signature is real. Ruling 3's contract is what the name has to
+  live up to.
+- **The nouns**: `CONTEXT.md` defines **Position**, **Book Position**, **Chapter
+  Position** and **Queue shape** separately. The rulings are unreadable without
+  them, and the glossary split is what made the missing noun visible.
+- **The enforcement**: none, deliberately — see the spec's decision 7, which
+  records the lint rule that was considered and the grounds for rejecting it.
 
 ## When this is wrong
 
@@ -208,12 +234,12 @@ Three conditions, each of which should reopen exactly one ruling:
   encoding the bug. When that defect is fixed, a two-word union stops being a
   complete description. The fail-closed rule keeps it *safe*; it does not keep it
   *honest*.
-- **Ruling 3 is wrong if the nulls do not survive the call sites.** The contract
-  buys nothing if consumers write `?? 0` immediately on receipt — that only moves
-  the fabricated zero one layer out and pays two functions for it. The test is
-  whether the destructive consumers act on `null` differently from the cosmetic
-  ones. If, after migration, every site collapses `null` the same way, delete the
-  variant and the ceremony with it.
+- **Ruling 3 is wrong if the nulls do not survive the call sites.** The argument
+  above is that severity differs per consumer; the observable test is whether the
+  consumers actually behave differently. If, after tickets `08`–`09`'s migration, every
+  site collapses `null` the same way, the fabricated zero has simply moved one
+  layer out and two functions were bought for nothing — delete the variant and the
+  ceremony with it.
 
 Note what is **not** on this list: "the translator turned out to be more code than
 a shared predicate." It is, by design.

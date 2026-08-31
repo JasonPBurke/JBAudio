@@ -68,10 +68,42 @@ Structural choices worth recording:
   genuine kill condition: if every migrated consumer collapses `null` identically, the
   best-effort variant has bought nothing and should go.
 
-Every file:line pointer in the ADR was checked against the tree at `f40f82d` rather than
-copied from the spec on trust: `bookProgressUtils.ts:66,77`, `scanLibrary.ts:532`
-(`duration: 0` confirmed at :538), `handleBookPlay.ts:217`, `bookEndDetection.ts:43`,
-`service.ts:677`, `PlayerProgressBar.tsx:82`, `footprintQueries.ts:54,174`. All resolve.
+Every file:line pointer in the ADR was checked against the tree rather than copied from
+the spec on trust — but the **first** check ran against `f40f82d`, two commits behind the
+tree the ADR shipped on, and it inherited two numbers from the spec without re-deriving
+them. The two-axis `mattpocock-skills:code-review` run caught both:
+
+- `service.ts:677` → **`:676`**. The spec's number points at the guard; the comment the
+  ADR quotes ("would corrupt chapter index") is the line above it.
+- `recordSeekFootprint:174` → **`:175`**. `:174` is the `getActiveTrackIndex()` read;
+  `:175` is the `?? 0` the ADR is actually indicting.
+
+Corrected, along with three findings that were not pointer rot:
+
+- **The status line claimed "Not yet implemented" and was already false.** Ticket `01`
+  landed `src/helpers/queueShape.ts` in this commit's own parent (`2d25e47`) from a
+  concurrent session. Now records that stage 1 has begun and that the translator — the
+  ruling the ADR exists to defend — is still unbuilt.
+- **"a one-item Book"** was a category error in the ADR that establishes the vocabulary:
+  `CONTEXT.md` defines Queue shape as *"a property of the **Queue**, not of the Book"*.
+  Now "on a one-item Queue".
+- **The ADR 0003 citation overstated it.** 0003 names no module — it rules only that the
+  answer *"belongs above the adapter, never on it"* and points at the spec. Reworded, and
+  the `## Not decided here` section now leads with the citation rather than with a
+  one-line restatement of the rule, per this ticket's fourth criterion.
+
+Two further review findings were **accepted as house-format gaps**: all three prior ADRs
+carry `## Where the rule lives` and this one did not, and the review noted that the ADR's
+subject — the primary export — is never given an identifier to grep for. Both are fixed by
+one new section, which states plainly that the translator is deliberately unnamed until
+ticket `07` builds it: naming the primary export before its signature exists would put a
+guess in the one place a refactor cannot correct.
+
+Not changed, with reasons: ruling 3 rejects an options flag (`{ approximate: true }`) that
+the spec does not mention — an added rejection, not a contradicted one, and the ticket asks
+for a rejected alternative per ruling. And 0002/0003's `## The general lesson` section is
+absent because its content — nine mechanisms is what a missing noun looks like — is the
+subject of `## What was actually wrong`, not a coda to it.
 
 ⚠ The spec's `## Ticket breakdown` numbers the ADR `05` and the translator `06`; the
 issue files number them `06` and `07`. The issue files are what exist. No renumbering was
