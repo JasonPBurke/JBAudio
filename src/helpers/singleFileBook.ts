@@ -71,29 +71,6 @@ export function calculateProgressWithinChapter(
 }
 
 /**
- * Gets the end position (in seconds) of a chapter.
- * For the last chapter, returns the book duration.
- * For other chapters, returns the start of the next chapter.
- */
-export function getChapterEndPosition(
-  chapters: Chapter[],
-  chapterIndex: number,
-  bookDurationSeconds: number
-): number {
-  if (!chapters || chapters.length === 0) return bookDurationSeconds;
-
-  const clampedIndex = Math.min(chapterIndex, chapters.length - 1);
-
-  if (clampedIndex >= chapters.length - 1) {
-    // Last chapter - end is book duration
-    return bookDurationSeconds;
-  }
-
-  // End is start of next chapter
-  return (chapters[clampedIndex + 1].startMs || 0) / 1000;
-}
-
-/**
  * Returns the start position (in seconds) of the next chapter, or null if at the last chapter.
  * Used by both in-app and lock screen skip-next buttons for single-file books.
  */
