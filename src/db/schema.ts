@@ -14,7 +14,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
 // migration cannot backfill a value (see the v33 block in migrations.ts).
 // src/db/seriesProvenance.ts is the single place that null is resolved.
 export default appSchema({
-  version: 34,
+  version: 35,
   tables: [
     tableSchema({
       name: 'authors',
@@ -198,6 +198,34 @@ export default appSchema({
         // FROZEN (this = remaining ms, sleep_time null). See sleepTimer.ts.
         {
           name: 'timer_frozen_remaining',
+          type: 'number',
+          isOptional: true,
+        },
+        // WHICH sleep timer the user has chosen: 'duration' | 'chapter' |
+        // 'none'. The single source of the highlight on both surfaces.
+        //
+        // Before this column, "selected" was inferred from whether
+        // timer_duration / timer_chapters were non-null, and "only one
+        // selected" was upheld only inside activate(). Three writers bypassed
+        // it and lit two options at once. One field cannot be in two states.
+        //
+        // isOptional, so pre-v35 rows read null; resolveTimerMode() in
+        // helpers/sleepTimerSelection.ts is the one place that decides what
+        // null means. 'none' is stored explicitly for a deliberate deselect,
+        // because null already means "written before this column existed".
+        {
+          name: 'timer_mode',
+          type: 'string',
+          isOptional: true,
+        },
+        // Chapters left before a RUNNING chapter timer fires.
+        //
+        // Split from timer_chapters, which is now purely what the user dialed.
+        // onChapterChanged used to decrement timer_chapters itself, so arming
+        // "End of 3 Chapters" rewrote the user's own setting down to 0 as the
+        // book played, and the modal afterwards named a choice nobody made.
+        {
+          name: 'timer_chapters_remaining',
           type: 'number',
           isOptional: true,
         },

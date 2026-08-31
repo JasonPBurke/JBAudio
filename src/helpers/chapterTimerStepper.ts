@@ -93,3 +93,97 @@ export function normalizeChapterCount(
   if (timerChapters === null || timerChapters < 0) return null;
   return timerChapters;
 }
+
+/**
+ * Everything the chapter stepper draws and acts on, derived from the two facts
+ * it holds: the stored count, and the ceiling.
+ */
+export type ChapterStepperView = {
+  /**
+   * The count to display and to step FROM — the stored count bounded by the
+   * ceiling. Not written back: the stored count is corrected by a press, never
+   * by a render.
+   */
+  count: number;
+  /** The row's text. Empty while the stored count has not been read yet. */
+  label: string;
+  canStepUp: boolean;
+  canStepDown: boolean;
+};
+
+/**
+ * Derive the stepper's whole visible state from the stored count and the
+ * ceiling, so the label, the button dimming and the press all read the same
+ * number. They used to read the two raw values independently, in four places
+ * across two components, and drifted apart in two ways:
+ *
+ * - **A count the book can no longer reach rendered verbatim.** `maxChapters`
+ *   shrinks as the book plays but the stored count only decrements while the
+ *   timer is ARMED (`onChapterChanged` returns early on `!timerActive`), so a
+ *   configured-but-unarmed count outlives the chapters it named — and the row
+ *   said "End of 6 Chapters" with two chapters left, confidently, until the
+ *   user pressed something. Bounding it here is what makes the first `−` press
+ *   an ordinary step rather than the correction issue `02` mistook for a bug.
+ * - **An unresolved ceiling was indistinguishable from a ceiling of zero.**
+ *   Both surfaces seeded `maxChapters` with a placeholder and filled it from
+ *   async Player reads, so they rendered, dimmed and resolved presses against a
+ *   number that was not yet a fact about any book.
+ *
+ * `null` means NOT KNOWN, and the two nulls are different questions:
+ *
+ * - `maxChapters === null` — the ceiling has not arrived, or cannot be known
+ *   (`remainingChapterCount` returns `null` for no Book and for a Player read
+ *   that threw). The stored count is shown UNCLAMPED: clamping against a guess
+ *   is what would flatten a legitimate count to "End of Chapter" and then
+ *   recover, which is the failure `normalizeChapterCount`'s docblock warns
+ *   about. Both presses are dead, so nothing can be persisted against a
+ *   ceiling that is not a fact.
+ * - `storedCount === null` — the row has nothing truthful to say yet. Only the
+ *   player modal passes this, and it passes it until BOTH its reads have come
+ *   back: the settings read that supplies the count, and the ceiling read that
+ *   bounds it. The label is empty rather than "End of Chapter", because
+ *   asserting a value and correcting it a beat later is the flicker, not the
+ *   fix. Note the asymmetry with the case above — a ceiling that resolved to
+ *   "not known" still shows the count; a ceiling that has not resolved does
+ *   not, because it is about to.
+ *
+ * Pure, and paired with `stepChapterCount` on purpose: this decides what the
+ * press steps from, that one decides where it lands.
+ */
+export function chapterStepperView(
+  storedCount: number | null,
+  maxChapters: number | null,
+): ChapterStepperView {
+  if (storedCount === null) {
+    return { count: 0, label: '', canStepUp: false, canStepDown: false };
+  }
+
+  if (maxChapters === null) {
+    const count = Math.max(storedCount, 0);
+    return {
+      count,
+      label: chapterCountLabel(count),
+      canStepUp: false,
+      canStepDown: false,
+    };
+  }
+
+  const ceiling = Math.max(maxChapters, 0);
+  const count = Math.min(Math.max(storedCount, 0), ceiling);
+  return {
+    // "End of Book" needs a ceiling above zero: on the last chapter the
+    // ceiling IS zero, and "End of Chapter" is already the end of the book.
+    label: count === ceiling && ceiling > 0 ? 'End of Book' : chapterCountLabel(count),
+    count,
+    canStepUp: count < ceiling,
+    canStepDown: count > 0,
+  };
+}
+
+/**
+ * The count as the row says it. 0 is "the chapter being played", so the row
+ * names one more chapter than the count.
+ */
+function chapterCountLabel(count: number): string {
+  return count > 0 ? `End of ${count + 1} Chapters` : 'End of Chapter';
+}

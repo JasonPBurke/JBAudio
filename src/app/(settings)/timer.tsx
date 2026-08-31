@@ -33,9 +33,7 @@ import {
   getBedtimeSettings,
   setBedtimeSettings,
   setBedtimeModeEnabled,
-  updateTimerDuration,
   updateCustomTimer,
-  updateChapterTimer,
 } from '@/db/settingsQueries';
 import * as sleepTimer from '@/setup/sleepTimer';
 import RNDateTimePicker from '@react-native-community/datetimepicker';
@@ -55,6 +53,12 @@ import ProFeaturePopup from '@/modals/ProFeaturePopup';
 import SleepTimerDurationCard from '@/components/settings/SleepTimerDurationCard';
 import { useSettingsStore } from '@/store/settingsStore';
 import { remainingChapterCount } from '@/helpers/remainingChapterCount';
+import {
+  resolveTimerGesture,
+  type TimerGesture,
+  type TimerSelection,
+} from '@/helpers/sleepTimerSelection';
+import { applyTimerCommand } from '@/setup/applyTimerCommand';
 
 const TimerSettingsScreen = () => {
   const { colors: themeColors } = useTheme();
@@ -72,13 +76,20 @@ const TimerSettingsScreen = () => {
   const [hasTimerConfigured, setHasTimerConfigured] = useState(false);
   const [timerDuration, setTimerDuration] = useState<number | null>(null);
   const [timerChapters, setTimerChapters] = useState<number | null>(null);
+  // The SELECTION, and whether a timer happens to be running. This screen only
+  // ever writes the first; the second is read so that changing a selection can
+  // re-target a timer already counting down, rather than leaving the highlight
+  // and the countdown naming two different timers.
+  const [timerMode, setTimerMode] = useState<TimerSelection>(null);
+  const [timerActive, setTimerActive] = useState(false);
   const [customTimer, setCustomTimer] = useState({ hours: 0, minutes: 0 });
-  // 20 is an arbitrary seed, not a computed default. It has been this
-  // screen's initial ceiling since the screen was written (`661eb1f`,
-  // 2026-02-07) and was never justified anywhere; it survives as the answer
-  // this surface gives when the real ceiling is not known, and nothing else
-  // depends on the number itself.
-  const [maxChapters, setMaxChapters] = useState(20);
+  // `null` means the ceiling is not known — not yet resolved, no Book
+  // loaded, or a Player read that failed — and the stepper renders and
+  // presses accordingly rather than guessing. It replaces a seed of 20 that
+  // had been this screen's initial ceiling since it was written (`661eb1f`,
+  // 2026-02-07) and was never a fact about any Book: an early press against
+  // it wrote an over-count the Book could not honour.
+  const [maxChapters, setMaxChapters] = useState<number | null>(null);
   const [hasActiveBook, setHasActiveBook] = useState(false);
   const [shakeInfoVisible, setShakeInfoVisible] = useState(false);
   const enabledValue = useSharedValue(0);
@@ -145,10 +156,9 @@ const TimerSettingsScreen = () => {
           }
 
           if (isActive) {
-            const hasTimer =
-              timerSettings.timerDuration !== null ||
-              timerSettings.timerChapters !== null;
-            setHasTimerConfigured(hasTimer);
+            setHasTimerConfigured(timerSettings.timerMode !== null);
+            setTimerMode(timerSettings.timerMode);
+            setTimerActive(timerSettings.timerActive === true);
             setTimerDuration(timerSettings.timerDuration);
             setTimerChapters(timerSettings.timerChapters);
             if (timerSettings.customTimer !== null) {
@@ -179,17 +189,16 @@ const TimerSettingsScreen = () => {
             setHasActiveBook(activeBookId !== null);
           }
           // `null` means the ceiling is not known — no Book loaded, or a
-          // Player read that failed. This surface answers that with its seed,
-          // which is what it has always shown with no Book loaded.
+          // Player read that failed — and it is carried through to the card
+          // rather than answered with a number here.
           const remaining = await remainingChapterCount();
           if (isActive) {
-            setMaxChapters(remaining ?? 20);
+            setMaxChapters(remaining);
           }
         } catch {
-          // The Book read itself failed. Same seed as above, same reason: the
-          // ceiling is not known, and 20 is this surface's answer to that.
+          // The Book read itself failed, so the ceiling is not known either.
           if (isActive) {
-            setMaxChapters(20);
+            setMaxChapters(null);
             setHasActiveBook(false);
           }
         }
@@ -222,58 +231,63 @@ const TimerSettingsScreen = () => {
     }, []),
   );
 
-  const handlePresetSelect = async (durationMinutes: number) => {
-    const totalMs = durationMinutes * 60000;
-    if (timerDuration === totalMs) {
-      // Deselect
-      await updateTimerDuration(null);
-      setTimerDuration(null);
-      setHasTimerConfigured(false);
-    } else {
-      // Select preset, clear chapters
-      await updateTimerDuration(totalMs);
-      await updateChapterTimer(null);
-      setTimerDuration(totalMs);
-      setTimerChapters(null);
-      setHasTimerConfigured(true);
-    }
-  };
+  /**
+   * Every press on the timer card goes through here, resolved by the same
+   * function the player modal uses. The only difference is the surface flag:
+   * 'settings' never takes a disarmed timer to armed. It DOES re-target one
+   * that is already running, so this screen can never leave the highlight and
+   * the countdown stating two different timers.
+   */
+  const press = async (gesture: TimerGesture) => {
+    const command = resolveTimerGesture(
+      {
+        mode: timerMode,
+        durationMs: timerDuration,
+        chapters: timerChapters,
+        active: timerActive,
+      },
+      gesture,
+      'settings',
+    );
 
-  const handleChapterChange = async (chapters: number | null) => {
-    if (chapters === null) {
-      // Deactivate chapter timer
-      await updateChapterTimer(null);
-      setTimerChapters(null);
-      setHasTimerConfigured(timerDuration !== null);
-    } else {
-      // Activate/update chapter timer, clear duration
-      await updateChapterTimer(chapters);
-      await updateTimerDuration(null);
-      setTimerChapters(chapters);
-      setTimerDuration(null);
-      setHasTimerConfigured(true);
+    const action = await applyTimerCommand(command);
+
+    if (command.patch.mode !== undefined) {
+      setTimerMode(command.patch.mode);
+      setHasTimerConfigured(command.patch.mode !== null);
     }
+    if (command.patch.durationMs !== undefined) {
+      setTimerDuration(command.patch.durationMs);
+    }
+    if (command.patch.chapters !== undefined) {
+      setTimerChapters(command.patch.chapters);
+    }
+    if (action.kind === 'arm') setTimerActive(true);
+    if (action.kind === 'cancel') setTimerActive(false);
   };
 
   const handleCustomTimerConfirm = async (value: {
     hours: number;
     minutes: number;
   }) => {
-    const totalMs = value.hours * 3600000 + value.minutes * 60000;
-    if (totalMs === 0) {
-      await updateTimerDuration(null);
+    const totalMinutes = value.hours * 60 + value.minutes;
+    if (totalMinutes === 0) {
+      // Zero clears the custom VALUE. It deselects only if the custom timer is
+      // what is currently selected — resolving it as a press on the lit option
+      // unconditionally would select and arm a zero-length duration timer
+      // whenever something else was selected.
+      if (timerMode === 'duration' && timerDuration !== null) {
+        await press({ kind: 'pickDuration', durationMs: timerDuration });
+      }
       await updateCustomTimer(null, null);
-      setTimerDuration(null);
       setCustomTimer({ hours: 0, minutes: 0 });
-      setHasTimerConfigured(timerChapters !== null);
     } else {
-      await updateTimerDuration(totalMs);
       await updateCustomTimer(value.hours, value.minutes);
-      await updateChapterTimer(null);
-      setTimerDuration(totalMs);
+      await press({
+        kind: 'pickDuration',
+        durationMs: totalMinutes * 60000,
+      });
       setCustomTimer(value);
-      setTimerChapters(null);
-      setHasTimerConfigured(true);
     }
   };
 
@@ -305,19 +319,30 @@ const TimerSettingsScreen = () => {
       if (isWithinBedtimeWindow(bedtimeStart, bedtimeEnd)) {
         const playerState = await getPlaybackState();
         if (playerState.state === State.Playing) {
-          const { timerDuration, timerChapters } = await getTimerSettings();
+          const settings = await getTimerSettings();
           // Arm via activate() rather than raw DB writes: it updates the
           // service's in-memory cache (no longer refreshed by per-tick DB
           // polling), schedules the Doze backup timer, and syncs the store.
-          if (timerDuration !== null) {
+          //
+          // Branches on the SELECTION. It used to test timerDuration first and
+          // fall through to timerChapters, which is the same duration-first
+          // inference that lived in four places and drifted.
+          if (
+            settings.timerMode === 'duration' &&
+            settings.timerDuration !== null
+          ) {
             await sleepTimer.activate({
               kind: 'duration',
-              durationMs: timerDuration,
+              durationMs: settings.timerDuration,
             });
-          } else if (timerChapters !== null) {
+          } else if (settings.timerMode === 'chapter') {
+            // The DIALED count, bounded by this book.
+            const ceiling = await remainingChapterCount();
+            const dialed = settings.timerChapters ?? 0;
             await sleepTimer.activate({
               kind: 'chapter',
-              chaptersRemaining: timerChapters,
+              chaptersRemaining:
+                ceiling === null ? dialed : Math.min(dialed, Math.max(ceiling, 0)),
             });
           }
         }
@@ -397,11 +422,11 @@ const TimerSettingsScreen = () => {
           </View>
         </SettingsCard>
         <SleepTimerDurationCard
+          timerMode={timerMode}
           timerDuration={timerDuration}
           timerChapters={timerChapters}
           customTimer={customTimer}
-          onPresetSelect={handlePresetSelect}
-          onChapterChange={handleChapterChange}
+          onGesture={press}
           onCustomTimerConfirm={handleCustomTimerConfirm}
           maxChapters={maxChapters}
           hasActiveBook={hasActiveBook}

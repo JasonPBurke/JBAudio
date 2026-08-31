@@ -16,7 +16,11 @@
 type FakeDisk = {
   timerDuration: number | null;
   timerActive: boolean;
+  /** The DIALED count — the user's choice. Never decremented by playback. */
   timerChapters: number | null;
+  /** What a RUNNING chapter timer consumes. Split from the dialed count in v35. */
+  chaptersRemaining: number | null;
+  timerMode: 'duration' | 'chapter' | null;
   sleepTime: number | null;
   frozenRemainingMs: number | null;
   fadeoutDuration: number | null;
@@ -32,6 +36,8 @@ g.__fakeDisk = {
   timerDuration: null,
   timerActive: false,
   timerChapters: null,
+  chaptersRemaining: null,
+  timerMode: null,
   sleepTime: null,
   frozenRemainingMs: null,
   fadeoutDuration: 0,
@@ -75,6 +81,12 @@ jest.mock('@/db/settingsQueries', () => {
     }),
     updateChapterTimer: jest.fn(async (v: number | null) => {
       disk.timerChapters = v;
+    }),
+    updateChapterRemaining: jest.fn(async (v: number | null) => {
+      disk.chaptersRemaining = v;
+    }),
+    updateTimerMode: jest.fn(async (v: 'duration' | 'chapter' | null) => {
+      disk.timerMode = v;
     }),
   };
 });
@@ -161,6 +173,8 @@ beforeEach(() => {
     timerDuration: null,
     timerActive: false,
     timerChapters: null,
+    chaptersRemaining: null,
+    timerMode: null,
     sleepTime: null,
     fadeoutDuration: 0,
     bedtimeModeEnabled: false,

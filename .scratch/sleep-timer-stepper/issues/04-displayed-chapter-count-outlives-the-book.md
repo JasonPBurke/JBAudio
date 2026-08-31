@@ -7,7 +7,7 @@ user presses something. Separately, the ceiling arrives asynchronously and the
 surfaces cannot tell "the ceiling is 0" from "the ceiling has not arrived yet",
 so both render — and clamp against — a placeholder.
 
-**Status:** ready-for-agent — see `## Agent Brief`
+**Status:** resolved — see `## Answer`, except the device pass
 
 **Blocked by:** 03
 
@@ -149,26 +149,26 @@ no-ops, so nothing can be persisted against a ceiling that is not yet a fact.
   the original defect invisible. Keep the icon-opacity dimming.
 
 **Acceptance criteria:**
-- [ ] With a stored count above the ceiling, both surfaces display "End of Book"
+- [x] With a stored count above the ceiling, both surfaces display "End of Book"
       rather than a chapter count the Book cannot reach.
-- [ ] From that state, one `−` press steps to one below the ceiling and persists
+- [x] From that state, one `−` press steps to one below the ceiling and persists
       it — no jump to `0` unless the ceiling *is* `0`.
-- [ ] With a ceiling of `0` (last chapter), the label reads "End of Chapter" and
+- [x] With a ceiling of `0` (last chapter), the label reads "End of Chapter" and
       both presses are no-ops.
-- [ ] While the ceiling is `null`, both presses are no-ops and nothing is
+- [x] While the ceiling is `null`, both presses are no-ops and nothing is
       written to the database.
-- [ ] While the ceiling is `null`, the displayed count is the stored count,
+- [x] While the ceiling is `null`, the displayed count is the stored count,
       unclamped — it must not collapse to "End of Chapter" and then recover.
-- [ ] Opening the sheet on a Book with a stored count shows at most one label
+- [x] Opening the sheet on a Book with a stored count shows at most one label
       transition, not the three-step flicker in the table above.
-- [ ] The stored count is never rewritten except by a press.
-- [ ] `helpers`-lane tests cover the derivation: count below / equal to / above
+- [x] The stored count is never rewritten except by a press.
+- [x] `helpers`-lane tests cover the derivation: count below / equal to / above
       the ceiling, ceiling `0`, and ceiling `null`. Add the shrinking-ceiling
       characterization test `02` asked for — `current` above `ceiling`,
       `delta = -1` — asserting `stepChapterCount` still clamps, so a later
       refactor cannot quietly change the ruling `02` recorded.
-- [ ] `01`'s 24 existing tests pass **unchanged**.
-- [ ] `tsc` 0, `eslint` 0 errors, full suite green.
+- [x] `01`'s 24 existing tests pass **unchanged**.
+- [x] `tsc` 0, `eslint` 0 errors, full suite green.
 
 **Out of scope:**
 - **Changing what `stepChapterCount` returns.** Ruled correct in `02`; this
@@ -184,6 +184,99 @@ no-ops, so nothing can be persisted against a ceiling that is not yet a fact.
   reintroduce the write-on-render shape `01` removed.
 - **The queue-shape question**, deferred repo-wide to `.scratch/queue-shape/`.
 - **`hasActiveBook` as a dead prop** on the settings card.
+
+## Answer — 2026-08-30
+
+**Built as specified. `chapterStepperView()` in `chapterTimerStepper.ts` is the one
+derivation; both surfaces read their label, their dimming and their press from it,
+and neither holds a placeholder ceiling any more.**
+
+### The shape
+
+```ts
+chapterStepperView(
+  storedCount: number | null,
+  maxChapters: number | null,
+): { count; label; canStepUp; canStepDown }
+```
+
+Pure, and it lives beside `stepChapterCount` on purpose: this decides what a press
+steps FROM, that one decides where it lands. `count` is the stored count bounded by
+the ceiling — derived, never written back — so the label and the press are the same
+number by construction rather than by two components agreeing.
+
+**Three states, and the two `null`s are different questions.**
+
+| ceiling | count shown | label | presses |
+| --- | --- | --- | --- |
+| known `c` | `min(stored, c)` | `End of Book` at `c > 0`, else the count | live within `[0, c]` |
+| `null` — resolved, not knowable | `stored`, **unclamped** | never "End of Book" | dead |
+| — | `null` — nothing landed yet | empty | dead |
+
+The asymmetry in the last two rows is deliberate and is what closes state 2: a
+ceiling that resolved to "not known" still shows the count, because that is all the
+truth there is; a ceiling that has **not resolved** shows nothing, because it is
+about to.
+
+### What each surface changed
+
+- **`SleepTimerOptions.tsx`** — ceiling `0` seed gone, `useState<number | null>(null)`.
+  It also tracks `ceilingResolved`, because `maxChapters === null` alone cannot
+  separate "the reads have not come back" from "they came back empty". The row is
+  blank until both its reads land (`ready`), which costs the width of the sheet's
+  entrance animation and buys the bounded label being the FIRST thing drawn.
+  Arming (`activate({ kind: 'chapter' })`) now passes `stepper.count`, so tapping the
+  row arms what the label promises rather than a count the book cannot honour — a
+  press-initiated write, and the same press corrects the stored value through
+  `updateChapterTimer`. Arming is refused while the row is blank; cancelling is not.
+- **`timer.tsx`** — the `20` seed is **gone**, not moved: `useState<number | null>(null)`,
+  `setMaxChapters(remaining)`, and the catch sets `null`. Ruling 3 of `03` said the
+  number had no origin to preserve, and with an explicit unknown it has no job left.
+- **`SleepTimerDurationCard.tsx`** — `maxChapters: number | null`, its local
+  `chapterLabel` ternary deleted in favour of `stepper.label`, dimming off
+  `canStepUp`/`canStepDown`. Press guards stayed **in the handler**; the buttons'
+  `disabled` props are still absent, per `01`.
+
+### The one behaviour change worth stating plainly
+
+**With no Book loaded, the settings stepper can no longer be stepped up.** The
+ceiling is `null` there, and a `null` ceiling makes both presses no-ops — which is
+the ticket's own criterion, and the honest consequence of deleting a seed that was
+never a fact about a Book. The row can still be TAPPED to arm "End of Chapter"; only
+the `+`/`−` are dead. Previously a user could step to 19 against a ceiling of 20 that
+described nothing.
+
+### Verification
+
+- `src/helpers/__tests__/chapterTimerStepper.stepperView.test.ts` — 14 cases:
+  below / equal to / above the ceiling, ceiling `0` with a stale count, ceiling
+  `null`, count `null`, and negative inputs at both ends.
+- Two characterization cases appended to `chapterTimerStepper.test.ts` pinning `02`'s
+  ruling: `stepChapterCount(6, -1, 2) === 2`. The clamp is now belt-and-braces —
+  nothing out of range reaches it from either surface — so the test is what stops a
+  later refactor quietly reversing the ruling on the way past.
+- `01`'s existing tests unchanged and passing. `tsc --noEmit` 0 errors, `eslint`
+  0 errors (3 pre-existing warnings, none in the new code), full suite
+  **89 suites / 1111 tests** green in both lanes (baseline 88 / 1095).
+
+### Review
+
+Two-axis review (Standards + Spec) run against the working tree. Standards: no hard
+violations; one naming judgement call — the new test file was renamed to
+`chapterTimerStepper.stepperView.test.ts` to match this directory's dot convention
+(`chapterSkip.next.test.ts`). Spec: two findings, both acted on —
+
+1. **The label still stepped through two states** in the stale-count case (blank →
+   stored count → bounded count), because the DB read lands well before the Player
+   reads. Fixed by the `ready` gate above; the first label the user sees is now the
+   final one, per "displays as 'End of Book' the moment the sheet opens".
+2. **The arming tap was unguarded** while the ceiling was unresolved. Pre-existing
+   rather than introduced — it armed the raw stored count before this change too —
+   but it became reachable against a blank row, so the arm branch now returns early
+   when the row is not ready. Cancelling is deliberately left alone.
+
+**Device pass still PENDING** — the three checks under `## Notes`, judged by the
+chapter row inside the sheet and never by the countdown pill.
 
 ## Notes
 

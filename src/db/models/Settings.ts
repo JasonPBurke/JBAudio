@@ -19,6 +19,10 @@ export default class Settings extends Model {
   @field('custom_timer') customTimer!: number | null;
   @field('timer_chapters') timerChapters!: number | null;
   @field('timer_frozen_remaining') timerFrozenRemaining!: number | null;
+  /** Which option is highlighted. Read through `resolveTimerMode`, never raw. */
+  @field('timer_mode') timerMode!: string | null;
+  /** Chapters left before a running chapter timer fires. Not the dialed count. */
+  @field('timer_chapters_remaining') timerChaptersRemaining!: number | null;
   @text('last_active_book') lastActiveBook!: string | null;
   @text('current_book_artwork_uri') currentBookArtworkUri!: string | null;
   @field('timer_active') timerActive!: boolean;

@@ -51,13 +51,15 @@ import {
 } from '@/helpers/activeBookFootprints';
 import database from '@/db';
 import { useObserveSettings } from '@/hooks/useObserveSettings';
+import { resolveTimerGesture } from '@/helpers/sleepTimerSelection';
+import { applyTimerCommand } from '@/setup/applyTimerCommand';
+import { remainingChapterCount } from '@/helpers/remainingChapterCount';
 import {
   useActiveBookId,
   useIsPlayerPlaying,
   usePlayerStateStore,
 } from '@/store/playerState';
 import { useSleepTimer } from '@/hooks/useSleepTimer';
-import * as sleepTimer from '@/setup/sleepTimer';
 import { useBookById } from '@/store/library';
 import { useSettingsStore } from '@/store/settingsStore';
 import { seekBack, seekForward } from '@/helpers/relativeSeek';
@@ -558,8 +560,12 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
 
   // Store takes precedence for live updates; DB observation is the fallback for initial state
   const uiActive = storeActive || settings?.timerActive === true;
+  // The countdown pill shows what is LEFT, so it reads the remaining count and
+  // never the dialed one. Reading `timerChapters` here is what put "ch 2" over
+  // the bell the moment the stepper was touched, while a duration timer was the
+  // thing actually running.
   const uiChapters: number | null =
-    storeChapters ?? settings?.timerChapters ?? null;
+    storeChapters ?? settings?.chaptersRemaining ?? null;
   const uiSleepTime: number | null =
     storeEndTimeMs ?? settings?.sleepTime ?? null;
   const timerDuration: number | null = settings?.timerDuration ?? null;
@@ -611,19 +617,23 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
   }, [mountSheet]);
 
   const handlePress = useCallback(async () => {
-    if (uiActive) {
-      await sleepTimer.cancel();
-    } else if (timerDuration !== null) {
-      await sleepTimer.activate({
-        kind: 'duration',
+    // The bell ARMS. It never writes a selection, which is what makes
+    // "disarm from the icon and the highlight stays" true — the command below
+    // carries an empty patch by construction.
+    const command = resolveTimerGesture(
+      {
+        mode: settings?.timerMode ?? null,
         durationMs: timerDuration,
-      });
-    } else if (uiChapters !== null) {
-      await sleepTimer.activate({
-        kind: 'chapter',
-        chaptersRemaining: uiChapters,
-      });
-    } else {
+        chapters: settings?.timerChapters ?? null,
+        active: uiActive,
+      },
+      // Bounded by the book so a chapter count the current book has outgrown
+      // arms at the latest end it can still offer, rather than never firing.
+      { kind: 'bell', ceiling: await remainingChapterCount() },
+      'modal',
+    );
+
+    if ((await applyTimerCommand(command)).kind === 'openOptions') {
       handlePresentModalPress();
     }
 
@@ -635,7 +645,8 @@ export function SleepTimer({ iconSize = 30 }: PlayerButtonProps) {
   }, [
     uiActive,
     timerDuration,
-    uiChapters,
+    settings?.timerMode,
+    settings?.timerChapters,
     handlePresentModalPress,
     rotation,
   ]);

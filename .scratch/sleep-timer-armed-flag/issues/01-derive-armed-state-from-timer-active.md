@@ -4,7 +4,16 @@
 when no timer is running. It derives "armed" from `timer_active`, the way
 `PlayerControls` already does, instead of from "a value is configured".
 
-**Status:** ready-for-agent
+**Status:** resolved
+
+**Resolved 2026-08-30** by the selection-model work in
+`.scratch/sleep-timer-selection/spec.md` — not by the fix described below, and
+the difference matters. This ticket proposed reading `timer_active` at the
+sheet. What actually landed is that "armed" and "selected" became two different
+fields: `timer_mode` is the highlight, `timer_active` is the running timer, and
+the sheet reads the first for the highlight and never infers either from the
+value columns. Deriving the highlight from `timer_active` would have been wrong
+under the confirmed spec — disarming from the bell must LEAVE the highlight.
 
 ## The problem
 

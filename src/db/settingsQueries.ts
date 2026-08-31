@@ -14,6 +14,10 @@ import {
 } from '@/db/seriesOrphanPrune';
 import { deleteArtworkFiles } from '@/helpers/artworkFiles';
 import { normalizeChapterCount } from '@/helpers/chapterTimerStepper';
+import {
+  resolveTimerMode,
+  type TimerSelection,
+} from '@/helpers/sleepTimerSelection';
 import * as RNFS from '@dr.pogodin/react-native-fs';
 
 export async function ensureSettingsRecord(): Promise<void> {
@@ -102,6 +106,34 @@ export async function updateChapterTimer(timerChapters: number | null) {
   const healed = normalizeChapterCount(timerChapters);
   return updateSetting((record) => {
     record.timerChapters = healed;
+  });
+}
+
+/**
+ * The single write site for the SELECTION.
+ *
+ * `null` is stored as the explicit string 'none' rather than as a null column,
+ * because a null column already means "written before v35" and
+ * `resolveTimerMode` reads that case duration-first. Writing null here would
+ * make a deliberate deselect indistinguishable from a legacy row and silently
+ * re-light whichever option still held a dialed value.
+ */
+export async function updateTimerMode(mode: TimerSelection) {
+  return updateSetting((record) => {
+    record.timerMode = mode ?? 'none';
+  });
+}
+
+/**
+ * Chapters left before a RUNNING chapter timer fires.
+ *
+ * Deliberately NOT `updateChapterTimer`: that one writes the count the user
+ * dialed, which only a stepper press may change. Confusing the two is what let
+ * a playing book rewrite the user's setting.
+ */
+export async function updateChapterRemaining(remaining: number | null) {
+  return updateSetting((record) => {
+    record.timerChaptersRemaining = remaining;
   });
 }
 
@@ -217,6 +249,16 @@ export async function getTimerSettings() {
       // count reads as an ARMED chapter timer to setup/sleepTimer.ts, which
       // arms bedtime mode on `!== null` and fires when it is not `> 0`.
       timerChapters: normalizeChapterCount(settings.timerChapters),
+      // Resolved here so no caller ever branches on the raw column. Null means
+      // "written before v35", not "no timer chosen" — see resolveTimerMode.
+      timerMode: resolveTimerMode(
+        settings.timerMode,
+        settings.timerDuration,
+        normalizeChapterCount(settings.timerChapters),
+      ),
+      chaptersRemaining: normalizeChapterCount(
+        settings.timerChaptersRemaining,
+      ),
       sleepTime: settings.sleepTime,
       frozenRemainingMs: settings.timerFrozenRemaining,
       fadeoutDuration: settings.timerFadeoutDuration,
@@ -230,6 +272,8 @@ export async function getTimerSettings() {
     timerDuration: null,
     timerActive: false,
     timerChapters: null,
+    timerMode: null as TimerSelection,
+    chaptersRemaining: null,
     sleepTime: null,
     frozenRemainingMs: null,
     fadeoutDuration: null,

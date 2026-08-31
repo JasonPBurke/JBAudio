@@ -10,21 +10,23 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/hooks/useTheme';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { RefObject } from 'react';
-import {
-  updateTimerDuration,
-  updateCustomTimer,
-  updateChapterTimer,
-} from '@/db/settingsQueries';
+import { updateCustomTimer } from '@/db/settingsQueries';
 import UserSettings from '@/db/models/Settings';
 import { useDatabase } from '@nozbe/watermelondb/hooks';
 import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import {
+  chapterStepperView,
   normalizeChapterCount,
-  stepChapterCount,
 } from '@/helpers/chapterTimerStepper';
 import { remainingChapterCount } from '@/helpers/remainingChapterCount';
-import * as sleepTimer from '@/setup/sleepTimer';
+import {
+  resolveTimerGesture,
+  resolveTimerMode,
+  type TimerGesture,
+  type TimerSelection,
+} from '@/helpers/sleepTimerSelection';
+import { applyTimerCommand } from '@/setup/applyTimerCommand';
 
 const SleepTimerOptions = ({
   bottomSheetModalRef,
@@ -33,12 +35,23 @@ const SleepTimerOptions = ({
 }) => {
   const [showSlider, setShowSlider] = useState(false);
   const [customTimer, setCustomTimer] = useState({ hours: 0, minutes: 0 });
-  const [activeTimerDuration, setActiveTimerDuration] = useState<
-    number | null
-  >(null);
-  const [chapterTimerActive, setChapterTimerActive] = useState(false);
-  const [chaptersToEnd, setChaptersToEnd] = useState<number>(0);
-  const [maxChapters, setMaxChapters] = useState(0);
+  // WHICH option is highlighted, and the value it was dialed to. Two separate
+  // questions, and conflating them is the bug this screen had: the highlight
+  // used to be inferred from whether the value columns were non-null, so
+  // dialing a chapter count lit the chapter row while a duration was selected.
+  const [timerMode, setTimerMode] = useState<TimerSelection>(null);
+  const [timerDuration, setTimerDuration] = useState<number | null>(null);
+  const [timerActive, setTimerActive] = useState(false);
+  // Both start as `null` for "not known yet", and neither is seeded with a
+  // placeholder. The count arrives from a local DB read, the ceiling from
+  // async Player reads, and until each lands the stepper must not assert a
+  // value it will have to correct a frame later.
+  const [chaptersToEnd, setChaptersToEnd] = useState<number | null>(null);
+  const [maxChapters, setMaxChapters] = useState<number | null>(null);
+  // Distinguishes "the ceiling read has not come back" from "it came back
+  // and could not know" — `maxChapters` is `null` for both, and the row must
+  // say nothing in the first case and show the stored count in the second.
+  const [ceilingResolved, setCeilingResolved] = useState(false);
   const { bottom } = useSafeAreaInsets();
   const router = useRouter();
   const { colors: themeColors, activeColorScheme } = useTheme();
@@ -65,14 +78,25 @@ const SleepTimerOptions = ({
       const settings = await settingsCollection.query().fetch();
       if (settings.length > 0) {
         const healedChapters = normalizeChapterCount(settings[0].timerChapters);
-        setActiveTimerDuration(settings[0].timerDuration);
-        setChapterTimerActive(healedChapters !== null);
+        setTimerMode(
+          resolveTimerMode(
+            settings[0].timerMode,
+            settings[0].timerDuration,
+            healedChapters,
+          ),
+        );
+        setTimerDuration(settings[0].timerDuration);
+        setTimerActive(settings[0].timerActive === true);
         setChaptersToEnd(healedChapters ?? 0);
         if (settings[0].customTimer !== null) {
           const hours = Math.floor(settings[0].customTimer / 60);
           const minutes = settings[0].customTimer % 60;
           setCustomTimer({ hours, minutes });
         }
+      } else {
+        // No settings row: the count is now known, and it is zero. Leaving it
+        // unknown would hold the row's label empty for the sheet's lifetime.
+        setChaptersToEnd(0);
       }
     };
 
@@ -83,7 +107,7 @@ const SleepTimerOptions = ({
 
     const subscription = observeSettings.subscribe((settings) => {
       if (settings.length > 0) {
-        const timerDuration = settings[0].timerDuration;
+        const durationValue = settings[0].timerDuration;
         const customTimerValue = settings[0].customTimer;
         // Healed before it reaches state: a negative count read back raw is
         // what let the modal display an armed chapter timer holding one.
@@ -91,9 +115,15 @@ const SleepTimerOptions = ({
           settings[0].timerChapters,
         );
 
-        setActiveTimerDuration(timerDuration);
-
-        setChapterTimerActive(timerChaptersValue !== null);
+        setTimerDuration(durationValue);
+        setTimerActive(settings[0].timerActive === true);
+        setTimerMode(
+          resolveTimerMode(
+            settings[0].timerMode,
+            durationValue,
+            timerChaptersValue,
+          ),
+        );
         if (timerChaptersValue !== null) {
           setChaptersToEnd(timerChaptersValue);
         }
@@ -109,18 +139,21 @@ const SleepTimerOptions = ({
     });
 
     const updateMaxChapters = async () => {
-      // `null` means the ceiling is not known. This sheet answers it with 0 —
-      // the same answer it has always given — which dims `+` and holds the
-      // label at "End of Chapter" until a real ceiling arrives.
+      // `null` is carried through rather than answered with a number. It used
+      // to become 0 here, which the stepper could not tell from a real ceiling
+      // of 0, so every count flattened to "End of Chapter" for the width of
+      // these reads and a press inside that window wrote a zero to the DB.
       //
       // One of the two ways to get `null` is unreachable here: the player
       // screen cannot be opened with no Book loaded, and this sheet is a child
       // of that screen. The other — a Player read that threw with a Book
-      // loaded — is real, and 0 is the honest answer to it: this sheet mounts
-      // on open and unmounts on dismiss (@gorhom/bottom-sheet gates its
-      // children behind `mount`), so a transient failure heals the next time
-      // the sheet is opened rather than persisting for the screen's lifetime.
-      setMaxChapters((await remainingChapterCount()) ?? 0);
+      // loaded — is real, and the sheet then shows the stored count with both
+      // presses dead until the next open recomputes: it mounts on open and
+      // unmounts on dismiss (@gorhom/bottom-sheet gates its children behind
+      // `mount`), so a transient failure does not persist for the screen's
+      // lifetime.
+      setMaxChapters(await remainingChapterCount());
+      setCeilingResolved(true);
     };
 
     fetchSettings();
@@ -128,88 +161,120 @@ const SleepTimerOptions = ({
     return () => subscription.unsubscribe();
   }, [db]);
 
-  // Both handlers resolve the press through stepChapterCount and write
-  // nothing when it lands where it started, so the DB can never hold a count
-  // this stepper refuses to display. Guarding here rather than restoring the
-  // buttons' `disabled` props is deliberate: the dimmed-but-live button is
-  // what kept this invisible, and it is also how the settings card guards.
+  // The row says nothing until both facts have landed. The settings read is
+  // one local DB query and the ceiling is two to four native Player
+  // round-trips, so the count reliably arrives first — and showing it, then
+  // bounding it a beat later when the ceiling lands, is the flicker this
+  // ticket is about rather than a fix for it. Silence costs the width of the
+  // sheet's entrance animation; a wrong number costs the user's trust in it.
+  const ready = chaptersToEnd !== null && ceilingResolved;
+
+  // One derivation feeds the label, the dimming and the press, so the number
+  // the row names is the number a press steps from.
+  const stepper = chapterStepperView(ready ? chaptersToEnd : null, maxChapters);
+
+  // Every highlight on this sheet reads `timerMode` and nothing else. That is
+  // the whole fix: one field cannot say two options are chosen, so no press
+  // anywhere can light a second one.
+  const durationSelected = (presetMs: number) =>
+    timerMode === 'duration' && timerDuration === presetMs;
+  const chapterSelected = timerMode === 'chapter';
+  const customMs =
+    customTimer.hours * 60 * 60 * 1000 + customTimer.minutes * 60 * 1000;
+  const customSelected = customMs > 0 && durationSelected(customMs);
+
+  /**
+   * Every press on this sheet goes through here: one decision function, one
+   * writer. The modal used to persist from four different handlers and only one
+   * of them enforced "a single option is selected", which is precisely how two
+   * ended up highlighted.
+   */
+  const press = async (gesture: TimerGesture) => {
+    const command = resolveTimerGesture(
+      {
+        mode: timerMode,
+        durationMs: timerDuration,
+        chapters: ready ? chaptersToEnd : null,
+        active: timerActive,
+      },
+      gesture,
+      // The modal arms on selection; the settings screen does not. This flag is
+      // the ONLY sanctioned difference between the two surfaces.
+      'modal',
+    );
+
+    const action = await applyTimerCommand(command);
+
+    // Optimistic local echo. The observer above will confirm it, but the sheet
+    // is dismissed on the next line and a one-frame stale highlight on the way
+    // out is exactly the flicker this component keeps trying to avoid.
+    if (command.patch.mode !== undefined) setTimerMode(command.patch.mode);
+    if (command.patch.durationMs !== undefined) {
+      setTimerDuration(command.patch.durationMs);
+    }
+    if (command.patch.chapters !== undefined) {
+      setChaptersToEnd(command.patch.chapters);
+    }
+    if (action.kind === 'arm') setTimerActive(true);
+    if (action.kind === 'cancel') setTimerActive(false);
+
+    // Closes on ARM only. A press that deselects has removed the user's timer,
+    // and dismissing on it would read as confirmation of setting one.
+    if (action.kind === 'arm') {
+      setTimeout(() => bottomSheetModalRef.current?.close(), 250);
+    }
+  };
+
   const stepChapters = (delta: number) => {
-    const next = stepChapterCount(chaptersToEnd, delta, maxChapters);
-    if (next === chaptersToEnd) return;
-    updateChapterTimer(next);
-    setChaptersToEnd(next);
+    // Dead until both facts have arrived. Stepping from an unread count, or
+    // against a ceiling that is still a guess, writes a number the user never
+    // asked for.
+    if (!ready || maxChapters === null) return;
+    press({
+      kind: 'stepChapter',
+      delta,
+      displayedCount: stepper.count,
+      maxChapters,
+    });
   };
 
   const handleChapterPlus = () => stepChapters(1);
 
   const handleChapterMinus = () => stepChapters(-1);
 
-  const handlePresetPress = async (duration: number) => {
-    //! convert to milliseconds before saving for timer calculation
-    const totalMilliseconds = duration * 60 * 1000;
-
-    if (activeTimerDuration === totalMilliseconds) {
-      //! deactivate timer
-      await sleepTimer.cancel();
-      await updateTimerDuration(null);
-      setActiveTimerDuration(null);
-    } else {
-      //! activate timer
-      await sleepTimer.activate({ kind: 'duration', durationMs: totalMilliseconds });
-      setChapterTimerActive(false);
-      setActiveTimerDuration(totalMilliseconds);
-      setTimeout(() => {
-        bottomSheetModalRef.current?.close();
-      }, 250);
-    }
-  };
+  const handlePresetPress = (minutes: number) =>
+    press({ kind: 'pickDuration', durationMs: minutes * 60 * 1000 });
 
   const handleCustomTimerConfirm = async (value: {
     hours: number;
     minutes: number;
   }) => {
-    //! convert to milliseconds before saving for timer calculation
-    const totalMilliseconds =
-      value.hours * 60 * 60 * 1000 + value.minutes * 60 * 1000;
-    if (totalMilliseconds === 0) {
-      //! deactivate timer
-      await sleepTimer.cancel();
-      await updateTimerDuration(null);
+    const totalMinutes = value.hours * 60 + value.minutes;
+    if (totalMinutes === 0) {
+      // Zero clears the custom VALUE. It deselects only if the custom timer is
+      // what is currently selected — resolving it as a press on the lit option
+      // unconditionally would select and arm a zero-length duration timer
+      // whenever something else was selected.
+      if (timerMode === 'duration' && timerDuration !== null) {
+        await press({ kind: 'pickDuration', durationMs: timerDuration });
+      }
       await updateCustomTimer(null, null);
-      await updateChapterTimer(null);
-      setActiveTimerDuration(null);
     } else {
-      //! activate timer
-      await sleepTimer.activate({ kind: 'duration', durationMs: totalMilliseconds });
       await updateCustomTimer(value.hours, value.minutes);
-      setChapterTimerActive(false);
-      setActiveTimerDuration(totalMilliseconds);
-      setTimeout(() => {
-        bottomSheetModalRef.current?.close();
-      }, 250);
+      await press({ kind: 'pickDuration', durationMs: totalMinutes * 60 * 1000 });
     }
     setCustomTimer(value);
     setShowSlider(false);
   };
 
-  const handleChapterTimerPress = async () => {
-    if (chapterTimerActive) {
-      //! deactivate timer
-      await sleepTimer.cancel();
-      setActiveTimerDuration(null);
-    } else {
-      //! activate timer
-      await sleepTimer.activate({ kind: 'chapter', chaptersRemaining: chaptersToEnd });
-      setActiveTimerDuration(null);
-      setTimeout(() => {
-        bottomSheetModalRef.current?.close();
-      }, 250);
-    }
-    setChapterTimerActive((prev) => !prev);
+  const handleChapterTimerPress = () => {
+    // Nothing to arm while the row is still blank: a press on a label that
+    // names no number is a write the user cannot have intended. Deselecting
+    // stays available either way, and `pickChapter` resolves to that whenever
+    // the row is already lit.
+    if (!ready && timerMode !== 'chapter') return;
+    press({ kind: 'pickChapter', count: stepper.count });
   };
-
-  // console.log('maxChapters', maxChapters);
-  // console.log('chaptersToEnd', chaptersToEnd);
 
   return (
     <View style={[styles.container, { marginBottom: bottom }]}>
@@ -237,14 +302,14 @@ const SleepTimerOptions = ({
             style={[
               styles.button,
               //! check in milliseconds
-              activeTimerDuration === 15 * 60 * 1000 && styles.activeButton,
+              durationSelected(15 * 60 * 1000) && styles.activeButton,
               {
                 backgroundColor:
-                  activeTimerDuration === 15 * 60 * 1000
+                  durationSelected(15 * 60 * 1000)
                     ? getActiveButtonBackground()
                     : themeColors.background,
                 borderColor:
-                  activeTimerDuration === 15 * 60 * 1000
+                  durationSelected(15 * 60 * 1000)
                     ? themeColors.primary
                     : themeColors.textMuted,
               },
@@ -256,7 +321,7 @@ const SleepTimerOptions = ({
                 styles.buttonText,
                 {
                   color:
-                    activeTimerDuration === 15 * 60 * 1000
+                    durationSelected(15 * 60 * 1000)
                       ? getActiveButtonTextColor()
                       : themeColors.textMuted,
                 },
@@ -269,14 +334,14 @@ const SleepTimerOptions = ({
             style={[
               styles.button,
               //! check in milliseconds
-              activeTimerDuration === 30 * 60 * 1000 && styles.activeButton,
+              durationSelected(30 * 60 * 1000) && styles.activeButton,
               {
                 backgroundColor:
-                  activeTimerDuration === 30 * 60 * 1000
+                  durationSelected(30 * 60 * 1000)
                     ? getActiveButtonBackground()
                     : themeColors.background,
                 borderColor:
-                  activeTimerDuration === 30 * 60 * 1000
+                  durationSelected(30 * 60 * 1000)
                     ? themeColors.primary
                     : themeColors.textMuted,
               },
@@ -288,7 +353,7 @@ const SleepTimerOptions = ({
                 styles.buttonText,
                 {
                   color:
-                    activeTimerDuration === 30 * 60 * 1000
+                    durationSelected(30 * 60 * 1000)
                       ? getActiveButtonTextColor()
                       : themeColors.textMuted,
                 },
@@ -301,14 +366,14 @@ const SleepTimerOptions = ({
             style={[
               styles.button,
               //! check in milliseconds
-              activeTimerDuration === 45 * 60 * 1000 && styles.activeButton,
+              durationSelected(45 * 60 * 1000) && styles.activeButton,
               {
                 backgroundColor:
-                  activeTimerDuration === 45 * 60 * 1000
+                  durationSelected(45 * 60 * 1000)
                     ? getActiveButtonBackground()
                     : themeColors.background,
                 borderColor:
-                  activeTimerDuration === 45 * 60 * 1000
+                  durationSelected(45 * 60 * 1000)
                     ? themeColors.primary
                     : themeColors.textMuted,
               },
@@ -320,7 +385,7 @@ const SleepTimerOptions = ({
                 styles.buttonText,
                 {
                   color:
-                    activeTimerDuration === 45 * 60 * 1000
+                    durationSelected(45 * 60 * 1000)
                       ? getActiveButtonTextColor()
                       : themeColors.textMuted,
                 },
@@ -336,14 +401,14 @@ const SleepTimerOptions = ({
             style={[
               styles.button,
               //! check in milliseconds
-              activeTimerDuration === 60 * 60 * 1000 && styles.activeButton,
+              durationSelected(60 * 60 * 1000) && styles.activeButton,
               {
                 backgroundColor:
-                  activeTimerDuration === 60 * 60 * 1000
+                  durationSelected(60 * 60 * 1000)
                     ? getActiveButtonBackground()
                     : themeColors.background,
                 borderColor:
-                  activeTimerDuration === 60 * 60 * 1000
+                  durationSelected(60 * 60 * 1000)
                     ? themeColors.primary
                     : themeColors.textMuted,
               },
@@ -355,7 +420,7 @@ const SleepTimerOptions = ({
                 styles.buttonText,
                 {
                   color:
-                    activeTimerDuration === 60 * 60 * 1000
+                    durationSelected(60 * 60 * 1000)
                       ? getActiveButtonTextColor()
                       : themeColors.textMuted,
                 },
@@ -368,14 +433,14 @@ const SleepTimerOptions = ({
             style={[
               styles.button,
               //! check in milliseconds
-              activeTimerDuration === 90 * 60 * 1000 && styles.activeButton,
+              durationSelected(90 * 60 * 1000) && styles.activeButton,
               {
                 backgroundColor:
-                  activeTimerDuration === 90 * 60 * 1000
+                  durationSelected(90 * 60 * 1000)
                     ? getActiveButtonBackground()
                     : themeColors.background,
                 borderColor:
-                  activeTimerDuration === 90 * 60 * 1000
+                  durationSelected(90 * 60 * 1000)
                     ? themeColors.primary
                     : themeColors.textMuted,
               },
@@ -387,7 +452,7 @@ const SleepTimerOptions = ({
                 styles.buttonText,
                 {
                   color:
-                    activeTimerDuration === 90 * 60 * 1000
+                    durationSelected(90 * 60 * 1000)
                       ? getActiveButtonTextColor()
                       : themeColors.textMuted,
                 },
@@ -400,15 +465,15 @@ const SleepTimerOptions = ({
             style={[
               styles.button,
               //! check in milliseconds
-              activeTimerDuration === 120 * 60 * 1000 &&
+              durationSelected(120 * 60 * 1000) &&
                 styles.activeButton,
               {
                 backgroundColor:
-                  activeTimerDuration === 120 * 60 * 1000
+                  durationSelected(120 * 60 * 1000)
                     ? getActiveButtonBackground()
                     : themeColors.background,
                 borderColor:
-                  activeTimerDuration === 120 * 60 * 1000
+                  durationSelected(120 * 60 * 1000)
                     ? themeColors.primary
                     : themeColors.textMuted,
               },
@@ -420,7 +485,7 @@ const SleepTimerOptions = ({
                 styles.buttonText,
                 {
                   color:
-                    activeTimerDuration === 120 * 60 * 1000
+                    durationSelected(120 * 60 * 1000)
                       ? getActiveButtonTextColor()
                       : themeColors.textMuted,
                 },
@@ -437,12 +502,12 @@ const SleepTimerOptions = ({
             style={[
               styles.button,
               styles.chapterEndButton,
-              chapterTimerActive && styles.activeButton,
+              chapterSelected && styles.activeButton,
               {
-                backgroundColor: chapterTimerActive
+                backgroundColor: chapterSelected
                   ? getActiveButtonBackground()
                   : themeColors.background,
-                borderColor: chapterTimerActive
+                borderColor: chapterSelected
                   ? themeColors.primary
                   : themeColors.textMuted,
               },
@@ -451,7 +516,7 @@ const SleepTimerOptions = ({
             <TouchableOpacity
               style={{
                 padding: 10,
-                paddingEnd: chaptersToEnd > 0 ? 0 : 10,
+                paddingEnd: stepper.count > 0 ? 0 : 10,
                 borderRadius: 4,
               }}
               onPress={handleChapterMinus}
@@ -459,14 +524,14 @@ const SleepTimerOptions = ({
               <CircleMinus
                 size={28}
                 color={
-                  chaptersToEnd === 0
+                  !stepper.canStepDown
                     ? withOpacity(
-                        chapterTimerActive
+                        chapterSelected
                           ? getActiveButtonTextColor()
                           : themeColors.textMuted,
                         0.43,
                       )
-                    : chapterTimerActive
+                    : chapterSelected
                       ? getActiveButtonTextColor()
                       : themeColors.textMuted
                 }
@@ -478,22 +543,18 @@ const SleepTimerOptions = ({
               style={[
                 styles.buttonText,
                 {
-                  color: chapterTimerActive
+                  color: chapterSelected
                     ? getActiveButtonTextColor()
                     : themeColors.textMuted,
                 },
               ]}
             >
-              {chaptersToEnd === maxChapters && maxChapters > 0
-                ? 'End of Book'
-                : chaptersToEnd > 0
-                  ? `End of ${chaptersToEnd + 1} Chapters`
-                  : 'End of Chapter'}
+              {stepper.label}
             </Text>
             <TouchableOpacity
               style={{
                 padding: 10,
-                paddingStart: chaptersToEnd > 0 ? 0 : 10,
+                paddingStart: stepper.count > 0 ? 0 : 10,
                 borderRadius: 4,
               }}
               onPress={handleChapterPlus}
@@ -501,14 +562,14 @@ const SleepTimerOptions = ({
               <CirclePlus
                 size={28}
                 color={
-                  chaptersToEnd >= maxChapters
+                  !stepper.canStepUp
                     ? withOpacity(
-                        chapterTimerActive
+                        chapterSelected
                           ? getActiveButtonTextColor()
                           : themeColors.textMuted,
                         0.43,
                       )
-                    : chapterTimerActive
+                    : chapterSelected
                       ? getActiveButtonTextColor()
                       : themeColors.textMuted
                 }
@@ -520,25 +581,16 @@ const SleepTimerOptions = ({
           <TouchableOpacity
             style={[
               styles.customButton,
-              activeTimerDuration ===
-                customTimer.hours * 60 * 60 * 1000 +
-                  customTimer.minutes * 60 * 1000 &&
-              (customTimer.hours !== 0 || customTimer.minutes !== 0)
+              customSelected
                 ? styles.activeButton
                 : null,
               {
                 backgroundColor:
-                  activeTimerDuration ===
-                    customTimer.hours * 60 * 60 * 1000 +
-                      customTimer.minutes * 60 * 1000 &&
-                  (customTimer.hours !== 0 || customTimer.minutes !== 0)
+                  customSelected
                     ? getActiveButtonBackground()
                     : themeColors.background,
                 borderColor:
-                  activeTimerDuration ===
-                    customTimer.hours * 60 * 60 * 1000 +
-                      customTimer.minutes * 60 * 1000 &&
-                  (customTimer.hours !== 0 || customTimer.minutes !== 0)
+                  customSelected
                     ? themeColors.primary
                     : themeColors.textMuted,
               },
@@ -567,10 +619,7 @@ const SleepTimerOptions = ({
                 styles.buttonText,
                 {
                   color:
-                    activeTimerDuration ===
-                      customTimer.hours * 60 * 60 * 1000 +
-                        customTimer.minutes * 60 * 1000 &&
-                    (customTimer.hours !== 0 || customTimer.minutes !== 0)
+                    customSelected
                       ? getActiveButtonTextColor()
                       : themeColors.textMuted,
                 },
@@ -584,10 +633,7 @@ const SleepTimerOptions = ({
                   styles.buttonText,
                   {
                     color:
-                      activeTimerDuration ===
-                        customTimer.hours * 60 * 60 * 1000 +
-                          customTimer.minutes * 60 * 1000 &&
-                      (customTimer.hours !== 0 || customTimer.minutes !== 0)
+                      customSelected
                         ? getActiveButtonTextColor()
                         : themeColors.textMuted,
                   },

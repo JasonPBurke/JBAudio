@@ -7,9 +7,13 @@ import * as Haptics from 'expo-haptics';
 import SettingsCard from '@/components/settings/SettingsCard';
 import { colorTokens } from '@/constants/tokens';
 import {
+  chapterStepperView,
   normalizeChapterCount,
-  stepChapterCount,
 } from '@/helpers/chapterTimerStepper';
+import type {
+  TimerGesture,
+  TimerSelection,
+} from '@/helpers/sleepTimerSelection';
 import { withOpacity } from '@/helpers/colorUtils';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -27,22 +31,33 @@ const PRESETS = [
 ];
 
 type SleepTimerDurationCardProps = {
+  /** Which option is highlighted. The ONLY thing that decides a highlight. */
+  timerMode: TimerSelection;
+  /** The dialed duration. Highlights a preset only together with `timerMode`. */
   timerDuration: number | null;
+  /** The dialed chapter count. Never the remaining one. */
   timerChapters: number | null;
   customTimer: { hours: number; minutes: number };
-  onPresetSelect: (durationMinutes: number) => void;
-  onChapterChange: (chapters: number | null) => void;
+  /**
+   * Emits the press as a gesture rather than as a decision. The card used to
+   * take `onPresetSelect` / `onChapterChange`, which meant it had already
+   * decided what a press meant — and it decided differently from the player
+   * modal, so the two surfaces enforced "one option selected" separately and
+   * drifted. Both now hand the gesture to `resolveTimerGesture`.
+   */
+  onGesture: (gesture: TimerGesture) => void;
   onCustomTimerConfirm: (value: { hours: number; minutes: number }) => void;
-  maxChapters: number;
+  /** `null` while the ceiling is not known — see `chapterStepperView`. */
+  maxChapters: number | null;
   hasActiveBook: boolean;
 };
 
 const SleepTimerDurationCard = ({
+  timerMode,
   timerDuration,
   timerChapters,
   customTimer,
-  onPresetSelect,
-  onChapterChange,
+  onGesture,
   onCustomTimerConfirm,
   maxChapters,
   hasActiveBook,
@@ -63,31 +78,39 @@ const SleepTimerDurationCard = ({
   };
 
   const healedChapters = normalizeChapterCount(timerChapters);
-  const chapterTimerActive = healedChapters !== null;
+  // Reads the selection, NOT whether a count happens to be stored. A dialed
+  // count with a duration selected must leave this row dark — that inference
+  // is what lit two options at once.
+  const chapterTimerActive = timerMode === 'chapter';
   const chaptersToEnd = healedChapters ?? 0;
+
+  // One derivation feeds the label, the dimming and the press, so the number
+  // the row names is the number a press steps from — and a count the Book has
+  // outgrown is bounded before it is shown, not after it is pressed.
+  const stepper = chapterStepperView(chaptersToEnd, maxChapters);
 
   // Shared with the player's SleepTimerOptions modal so a press at a bound
   // means the same thing on both surfaces.
   const stepChapters = (delta: number) => {
-    const next = stepChapterCount(chaptersToEnd, delta, maxChapters);
-    if (next === chaptersToEnd) return;
-    onChapterChange(next);
+    // Dead while the ceiling is unknown: a press then resolves against a
+    // guess and persists it.
+    if (maxChapters === null) return;
+    onGesture({
+      kind: 'stepChapter',
+      delta,
+      displayedCount: stepper.count,
+      maxChapters,
+    });
   };
 
   const customMs =
     customTimer.hours * 3600000 + customTimer.minutes * 60000;
   const isCustomActive =
+    timerMode === 'duration' &&
     timerDuration !== null &&
     timerDuration === customMs &&
     customMs > 0 &&
     !PRESET_DURATIONS_MS.has(timerDuration);
-
-  const chapterLabel =
-    chaptersToEnd === maxChapters && maxChapters > 0
-      ? 'End of Book'
-      : chaptersToEnd > 0
-        ? `End of ${chaptersToEnd + 1} Chapters`
-        : 'End of Chapter';
 
   return (
     <SettingsCard title='Sleep Timer' icon={Timer}>
@@ -95,7 +118,7 @@ const SleepTimerDurationCard = ({
       <View style={styles.presetGrid}>
         {PRESETS.map(({ minutes, label }) => {
           const ms = minutes * 60000;
-          const isActive = timerDuration === ms;
+          const isActive = timerMode === 'duration' && timerDuration === ms;
           return (
             <Pressable
               key={minutes}
@@ -110,7 +133,9 @@ const SleepTimerDurationCard = ({
                     : themeColors.textMuted,
                 },
               ]}
-              onPress={() => onPresetSelect(minutes)}
+              onPress={() =>
+                onGesture({ kind: 'pickDuration', durationMs: ms })
+              }
             >
               <Text
                 style={[
@@ -151,13 +176,13 @@ const SleepTimerDurationCard = ({
             borderWidth: chapterTimerActive ? 1 : 0,
           },
         ]}
-        onPress={() => {
-          if (chapterTimerActive) {
-            onChapterChange(null);
-          } else {
-            onChapterChange(0);
-          }
-        }}
+        // One gesture for both directions: `resolveTimerGesture` answers a
+        // press on the lit row with a deselect, so the card does not need to
+        // know which case it is in — and cannot get it wrong differently from
+        // the modal.
+        onPress={() =>
+          onGesture({ kind: 'pickChapter', count: stepper.count })
+        }
       >
         <Pressable
           style={styles.stepperButton}
@@ -167,7 +192,7 @@ const SleepTimerDurationCard = ({
           <CircleMinus
             size={26}
             color={
-              chaptersToEnd === 0
+              !stepper.canStepDown
                 ? withOpacity(
                     chapterTimerActive
                       ? getActiveButtonTextColor()
@@ -193,7 +218,7 @@ const SleepTimerDurationCard = ({
             },
           ]}
         >
-          {chapterLabel}
+          {stepper.label}
         </Text>
 
         <Pressable
@@ -204,7 +229,7 @@ const SleepTimerDurationCard = ({
           <CirclePlus
             size={26}
             color={
-              chaptersToEnd >= maxChapters
+              !stepper.canStepUp
                 ? withOpacity(
                     chapterTimerActive
                       ? getActiveButtonTextColor()
@@ -250,7 +275,10 @@ const SleepTimerDurationCard = ({
             setShowPicker(true);
           } else {
             // Toggle: tap to select/deselect, long-press to edit
-            onPresetSelect(totalCustomMinutes);
+            onGesture({
+              kind: 'pickDuration',
+              durationMs: totalCustomMinutes * 60000,
+            });
           }
         }}
         onLongPress={() => {

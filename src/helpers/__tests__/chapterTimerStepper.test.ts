@@ -97,3 +97,22 @@ describe('normalizeChapterCount', () => {
     expect(normalizeChapterCount(-4)).toBeNull();
   });
 });
+
+describe('the shrinking-ceiling ruling, pinned', () => {
+  // Characterization, not a new rule. Issue `02` argued that a `−` press on a
+  // count the book had outgrown should step down by one; the ruling was that
+  // clamping to the ceiling is correct in BOTH directions, because the nearest
+  // reachable value is the only honest answer to "an end the book can no
+  // longer offer". Issue `04` then changed what is HANDED to this function —
+  // `chapterStepperView` bounds the count first, so a stale count no longer
+  // reaches here from either surface — and this test exists so that change
+  // cannot quietly turn into a change of the ruling itself.
+  it('clamps a `-` press from above the ceiling rather than stepping', () => {
+    expect(stepChapterCount(6, -1, 2)).toBe(2);
+    expect(stepChapterCount(6, 1, 2)).toBe(2);
+  });
+
+  it('clamps to zero when the book has no boundary left', () => {
+    expect(stepChapterCount(6, -1, 0)).toBe(0);
+  });
+});

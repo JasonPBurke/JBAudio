@@ -8,6 +8,48 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      // Sleep timer: give the SELECTION its own field, and stop the countdown
+      // eating the user's setting.
+      //
+      // `timer_mode` is which option is highlighted. It used to be inferred
+      // from whether timer_duration / timer_chapters were non-null, with the
+      // "only one at a time" rule living inside activate() rather than in the
+      // data — so the chapter stepper, cancel() and onPlaybackStopped all broke
+      // it without touching that function, and two options lit at once.
+      //
+      // `timer_chapters_remaining` is what a RUNNING chapter timer consumes.
+      // onChapterChanged decremented timer_chapters itself, so the stored
+      // choice was rewritten as the book played.
+      //
+      // Both isOptional, per the standing rule in this file: addColumns cannot
+      // backfill, so a non-optional string column would land '' on every
+      // existing row — a value the TimerSelection union says cannot exist.
+      //
+      // NO SQL BACKFILL, and the derivation is not lost by leaving it out.
+      // Pre-v35 rows read timer_mode = null, and resolveTimerMode() in
+      // helpers/sleepTimerSelection.ts resolves null duration-first — which is
+      // exactly what those devices already do, because every inference site
+      // tested timerDuration before timerChapters. Devices currently carrying
+      // the double-highlight bug (both columns non-null) therefore keep the
+      // timer they already had. Deciding this on read rather than in raw SQL
+      // follows db/seriesProvenance.ts, for the same reason: unsafeExecuteSql
+      // fails silently in release.
+      toVersion: 35,
+      steps: [
+        addColumns({
+          table: 'settings',
+          columns: [
+            { name: 'timer_mode', type: 'string', isOptional: true },
+            {
+              name: 'timer_chapters_remaining',
+              type: 'number',
+              isOptional: true,
+            },
+          ],
+        }),
+      ],
+    },
+    {
       // Sleep timer: persist the FROZEN half of a duration timer.
       //
       // Before this, pausing froze the countdown only in module-scope JS state

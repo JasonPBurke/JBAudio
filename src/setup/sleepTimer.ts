@@ -11,8 +11,7 @@ import {
   getTimerSettings,
   updateSleepTime,
   updateTimerActive,
-  updateChapterTimer,
-  updateTimerDuration,
+  updateChapterRemaining,
   updateFrozenRemaining,
 } from '@/db/settingsQueries';
 import { isWithinBedtimeWindow } from '@/helpers/bedtimeUtils';
@@ -83,7 +82,10 @@ let cachedTimer = {
   bedtimeStart: null as number | null,
   bedtimeEnd: null as number | null,
   timerDuration: null as number | null,
-  timerChapters: null as number | null,
+  // Chapters left before firing — the RUNNING count. Never the dialed one:
+  // `settings.timerChapters` is the user's choice and this module may not
+  // change it.
+  chaptersRemaining: null as number | null,
 };
 
 // In-memory mirror of the persisted frozen remaining ms (duration timer while
@@ -106,7 +108,7 @@ let backupTimerId: ReturnType<typeof setTimeout> | null = null;
 let backupTimerTarget = 0;
 
 // Snapshot of the most recent activation, used to re-arm on shake-reset
-// (post-expiry chapter mode loses timerChapters from DB once decremented to 0,
+// (post-expiry chapter mode loses its remaining count from DB once decremented
 // so we keep an in-memory copy of the original mode here).
 let lastActivatedMode: TimerMode | null = null;
 
@@ -239,7 +241,7 @@ export async function activate(mode: TimerMode): Promise<void> {
       cachedTimer.sleepTime = endTimeMs;
       cachedTimer.timerActive = true;
       cachedTimer.timerDuration = mode.durationMs;
-      cachedTimer.timerChapters = null;
+      cachedTimer.chaptersRemaining = null;
       frozenRemainingMs = null;
       _setStore({
         isActive: true,
@@ -257,7 +259,7 @@ export async function activate(mode: TimerMode): Promise<void> {
       cachedTimer.sleepTime = null;
       cachedTimer.timerActive = true;
       cachedTimer.timerDuration = mode.durationMs;
-      cachedTimer.timerChapters = null;
+      cachedTimer.chaptersRemaining = null;
       _setStore({
         isActive: true,
         mode: 'duration',
@@ -270,12 +272,15 @@ export async function activate(mode: TimerMode): Promise<void> {
       await updateFrozenRemaining(mode.durationMs);
     }
     await updateTimerActive(true);
-    await updateTimerDuration(mode.durationMs);
-    await updateChapterTimer(null);
+    // Writes NO selection. `timer_mode` and the dialed values belong to the
+    // user and are written where the user presses; this function only arms.
+    // It used to clear `timer_chapters` here, which was the sole enforcement of
+    // "one option selected" — a rule three other writers then broke.
+    await updateChapterRemaining(null);
   } else {
     // chapter mode
     cachedTimer.timerActive = true;
-    cachedTimer.timerChapters = mode.chaptersRemaining;
+    cachedTimer.chaptersRemaining = mode.chaptersRemaining;
     cachedTimer.sleepTime = null;
     frozenRemainingMs = null;
     _setStore({
@@ -287,10 +292,12 @@ export async function activate(mode: TimerMode): Promise<void> {
       isFading: false,
     });
     await updateTimerActive(true);
-    await updateTimerDuration(null);
     await updateSleepTime(null);
     await updateFrozenRemaining(null);
-    await updateChapterTimer(mode.chaptersRemaining);
+    // The count to COUNT DOWN, clamped by the caller to what this book can
+    // deliver. The dialed `timer_chapters` is untouched, so a choice the
+    // current book is too short for returns intact in a longer one.
+    await updateChapterRemaining(mode.chaptersRemaining);
   }
 
   // Re-assert after the awaits above: a progress tick interleaving with the
@@ -353,7 +360,7 @@ export async function onProgressTick(_position: number): Promise<void> {
     cachedTimer.bedtimeStart = timerSettings.bedtimeStart;
     cachedTimer.bedtimeEnd = timerSettings.bedtimeEnd;
     cachedTimer.timerDuration = timerSettings.timerDuration;
-    cachedTimer.timerChapters = timerSettings.timerChapters;
+    cachedTimer.chaptersRemaining = timerSettings.chaptersRemaining;
     cachedTimer.lastRefreshedAt = nowTs;
   }
 
@@ -517,7 +524,7 @@ export async function onPlaybackResumed(): Promise<void> {
   if (willActivateBedtime) {
     await recordActiveBookFootprint('timer_activation');
 
-    if (settings.timerDuration !== null) {
+    if (settings.timerMode === 'duration' && settings.timerDuration !== null) {
       // Bedtime activation: we know we're playing, so compute endTimeMs directly
       const bedtimeSleepTime = Date.now() + settings.timerDuration;
       cachedTimer.sleepTime = bedtimeSleepTime;
@@ -534,18 +541,24 @@ export async function onPlaybackResumed(): Promise<void> {
       await updateTimerActive(true);
       await updateSleepTime(bedtimeSleepTime);
       scheduleBackupTimer(bedtimeSleepTime);
-    } else if (settings.timerChapters !== null) {
+    } else if (settings.timerMode === 'chapter') {
+      // Arms the DIALED count, not whatever a previous run left in the
+      // remaining column. Bedtime honours a chapter selection now; before the
+      // selection had its own field this branch was effectively unreachable,
+      // because onPlaybackStopped nulled `timer_chapters` every night.
+      const dialed = settings.timerChapters ?? 0;
       cachedTimer.timerActive = true;
-      cachedTimer.timerChapters = settings.timerChapters;
+      cachedTimer.chaptersRemaining = dialed;
       _setStore({
         isActive: true,
         mode: 'chapter',
         endTimeMs: null,
         frozenRemainingMs: null,
-        remainingChapters: settings.timerChapters,
+        remainingChapters: dialed,
         isFading: false,
       });
       await updateTimerActive(true);
+      await updateChapterRemaining(dialed);
     }
   }
 }
@@ -557,7 +570,10 @@ export async function onPlaybackStopped(): Promise<void> {
   cancelBackupTimer();
   frozenRemainingMs = null;
   await updateFrozenRemaining(null);
-  await updateChapterTimer(null);
+  // Clears the RUNNING count only. It used to null `timer_chapters`, which
+  // silently discarded the user's chapter selection every time playback
+  // stopped — while a duration selection survived, an asymmetry nothing stated.
+  await updateChapterRemaining(null);
   await updateTimerActive(false);
   _clearStore();
 }
@@ -567,15 +583,15 @@ export async function onPlaybackStopped(): Promise<void> {
  * Decrements or fires the chapter timer.
  */
 export async function onChapterChanged(): Promise<void> {
-  const { timerChapters, timerActive } = await getTimerSettings();
-  if (!timerActive || timerChapters === null) return;
+  const { chaptersRemaining, timerActive } = await getTimerSettings();
+  if (!timerActive || chaptersRemaining === null) return;
 
-  if (timerChapters > 0) {
-    const newCount = timerChapters - 1;
-    await updateChapterTimer(newCount);
+  if (chaptersRemaining > 0) {
+    const newCount = chaptersRemaining - 1;
+    await updateChapterRemaining(newCount);
     _setStore({ remainingChapters: newCount });
   } else {
-    // timerChapters === 0: fire
+    // chaptersRemaining === 0: fire
     await pause();
     await setVolume(1);
     await updateTimerActive(false);
@@ -654,7 +670,7 @@ export async function syncFromDB(): Promise<void> {
   cachedTimer.bedtimeStart = settings.bedtimeStart;
   cachedTimer.bedtimeEnd = settings.bedtimeEnd;
   cachedTimer.timerDuration = settings.timerDuration;
-  cachedTimer.timerChapters = settings.timerChapters;
+  cachedTimer.chaptersRemaining = settings.chaptersRemaining;
   cachedTimer.lastRefreshedAt = Date.now();
 
   frozenRemainingMs = settings.frozenRemainingMs;
@@ -682,13 +698,13 @@ export async function syncFromDB(): Promise<void> {
       remainingChapters: null,
       isFading: false,
     });
-  } else if (settings.timerChapters !== null) {
+  } else if (settings.chaptersRemaining !== null) {
     _setStore({
       isActive: true,
       mode: 'chapter',
       endTimeMs: null,
       frozenRemainingMs: null,
-      remainingChapters: settings.timerChapters,
+      remainingChapters: settings.chaptersRemaining,
       isFading: false,
     });
   }
