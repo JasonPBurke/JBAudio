@@ -120,8 +120,9 @@ _Avoid_: progress (which is the user-facing fraction), offset, time
 
 **Book Position**:
 How far into the whole Book playback has reached. Answers *"how far through?"* — the question a
-progress bar over a Book, a time-remaining figure or a resume point is asking. Derived, never
-reported: it is the same number as Position only when the Queue is one item.
+progress bar over a Book, a time-remaining figure or a resume point is asking. Not a second thing
+the Player reports: when the Queue is one item it is the same number as Position, and otherwise it
+has to be worked out.
 _Avoid_: absolute position, global position, elapsed, position (unqualified)
 
 **Chapter Position**:
@@ -142,16 +143,14 @@ _Avoid_: bookmark (which is user-made and permanent), history entry, breadcrumb,
 
 **Queue**:
 What the Player has actually been handed to play. It is built from a Book but is not the same
-shape as one: a single-file Book may become one item or many, and the same Book can differ
-between devices.
+shape as one — see **Queue shape**.
 _Avoid_: playlist (which is a hand-made Series), tracklist
 
 **Queue shape**:
 Whether a Queue is one item for the whole Book, or one item per Chapter. A property of the
 **Queue**, not of the Book — the same Book can be handed over either way, and can differ between
 devices.
-_Avoid_: book shape, file layout, single-file / multi-file (which describe the Book on disk, not
-what the Player was handed)
+_Avoid_: book shape, file layout, single-file (which describes the Book on disk, not the Queue)
 
 **Remote control**:
 The surfaces outside the app that can command the Player without its UI: the notification, the lock

@@ -24,16 +24,49 @@ module names.
 
 **Blocked by:** None — can start immediately. Independent of all code tickets.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] **Position** narrowed to the Player's reading within the current Queue item; its
+- [x] **Position** narrowed to the Player's reading within the current Queue item; its
       hazard warning removed
-- [ ] **Book Position** added — how far into the whole Book; answers "how far through?"
-- [ ] **Chapter Position** added — which Chapter, and how far into it; answers "how far into
+- [x] **Book Position** added — how far into the whole Book; answers "how far through?"
+- [x] **Chapter Position** added — which Chapter, and how far into it; answers "how far into
       this one?"
-- [ ] **Queue shape** added — one item or one per Chapter, described as a property of the
+- [x] **Queue shape** added — one item or one per Chapter, described as a property of the
       **Queue** rather than of the Book, since the same Book can differ between devices
-- [ ] Each entry carries an `_Avoid_` line in the existing house style
-- [ ] Nothing about the device memory gate enters the glossary — it answers a *cause*, not a
+- [x] Each entry carries an `_Avoid_` line in the existing house style
+- [x] Nothing about the device memory gate enters the glossary — it answers a *cause*, not a
       what
-- [ ] No implementation detail anywhere in the additions
+- [x] No implementation detail anywhere in the additions
+
+## Answer
+
+Done in `CONTEXT.md`. **Position** is narrowed to the Player's reading within the current
+Queue item and its `⚠` is gone; **Book Position**, **Chapter Position** and **Queue shape**
+are added, each with an `_Avoid_` line. The Position trio sits together in "Playback and
+progress"; **Queue shape** sits immediately after **Queue**, which is where a property of
+the Queue belongs.
+
+All seven boxes verified. Nothing about the device memory gate entered the file
+(`grep` for heap/memory/clipped over `CONTEXT.md` returns nothing), and none of the four
+entries names a file, module or function — stricter than the neighbouring **Active Book**
+and **Requested Book**, which do, in breach of the preamble. That breach is pre-existing
+and was left alone.
+
+Two-axis review (Standards + Spec) run against the first commit. Spec axis: no missing
+requirement, no scope creep. Both axes independently ranked the same finding first — the
+new **Queue shape** entry restated the **Queue** entry's own second half, so two adjacent
+entries answered one question. **Queue** now points at **Queue shape** and the fact has one
+owner. The Spec axis also caught that "Derived, never reported" was false on half the
+shapes: on a one-item Queue, Book Position *is* the raw reading, as the spec's own taxonomy
+table says. Reworded to "not a second thing the Player reports". Both fixes are in.
+
+Terminology check: `Queue shape` matches the capitalisation already used by
+`docs/adr/0004-queue-shape-answers-in-coordinates-not-a-verdict.md`.
+
+⚠ The glossary is now **ahead of the code**: **Book Position**'s `_Avoid_` line proscribes
+"absolute position", which is still the live name in `calculateAbsolutePosition` and the
+`absolutePosition` locals in `helpers/restoreLastActiveBook.ts` and
+`helpers/handleBookPlay.ts`. Ticket `11` retires that pair; until it lands, the drift is
+expected rather than a defect.
+
+Commits: `74e7352` (the split), plus the review follow-up.
