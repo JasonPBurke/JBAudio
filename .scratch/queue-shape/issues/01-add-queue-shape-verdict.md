@@ -46,59 +46,107 @@ Book. The new verdict uses the correct threshold, so a one-chapter Book answers
 
 ---
 
-## Threshold audit (decision 2's audit obligation)
+## Answer
 
-**Ruling: neither threshold is changed. `isSingleFileBook` and `hasValidChapterData` both
-keep `length > 1`.** `queueShapeOf` composes its own `length > 0` predicate instead of
-editing theirs, which is what makes this ticket an expand-half with no behavioural delta.
+`queueShapeOf` lives in `src/helpers/queueShape.ts`, with unit tests in
+`src/helpers/__tests__/queueShape.test.ts` (helpers lane, 13 tests). It has no callers —
+this is the expand half. `getChapterEndPosition` is deleted. `tsc` 0, eslint 0 errors, full
+suite green (92 suites / 1153 tests, both projects).
 
-### `isSingleFileBook()` — `chapters.length <= 1 → false`
+Two shapes of input the ticket did not name, both decided by
+`bookEndDetection`'s fail-closed rule (anything not exactly `'one-item'` is multi-item):
+**undefined chapters** and an **empty array** both answer `'multi-item'`, so a Book with no
+usable chapter data is left unhandled downstream rather than confidently mishandled. Pinned
+by tests.
 
-| Caller | Effect on a ONE-chapter Book today | `> 1` load-bearing? |
-| ------ | ---------------------------------- | ------------------- |
-| `clippedChapters.ts:73` (`shouldUseClippedChapters`) | gate returns `false` | **Jointly** — see below |
-| `restoreLastActiveBook.ts:53` | falls to the multi-file branch, which maps 1 chapter → 1 track | No, but see the title delta |
-| `handleBookPlay.ts:176` | same | No, but see the title delta |
-| `chapterPlayback.ts:37` (`usesChapterQueue`) | returns `true` | No — zero delta, see below |
+The projection type is **shared, not copied**: `clippedChapters.ts` now exports its
+`GateChapter` and `queueShape.ts` aliases it. A second, drifting copy of that projection is
+exactly how a Book slips past the memory gate in one module while the queue builders reject
+it. (`chapterPlayback.ts`'s `ChapterLike` is a third copy of the same four fields; it dies
+with that module in `04`.)
 
-### `hasValidChapterData()` — `chapters.length <= 1 → false`
+### Threshold audit (decision 2's audit obligation)
 
-| Caller | Effect on a ONE-chapter Book today | `> 1` load-bearing? |
-| ------ | ---------------------------------- | ------------------- |
-| `clippedChapters.ts:74` (`shouldUseClippedChapters`) | gate returns `false` | **Jointly** — see below |
-| `restoreLastActiveBook.ts:70` | unreachable — already inside the `singleFile` branch, which requires `> 1` | No, redundant |
-| `handleBookPlay.ts:192` | unreachable for the same reason | No, redundant |
+**Ruling: neither threshold changes. `isSingleFileBook` and `hasValidChapterData` both keep
+`length > 1`.** `queueShapeOf` composes its own `length > 0` predicate instead of editing
+theirs, which is what keeps this ticket free of behavioural delta.
+
+#### `isSingleFileBook()` — `chapters.length <= 1 → false`
+
+| Caller | A ONE-chapter Book today | `> 1` load-bearing? |
+| ------ | ------------------------ | ------------------- |
+| `clippedChapters.ts:73` (`shouldUseClippedChapters`) | gate returns `false` | **Jointly** — finding 1 |
+| `restoreLastActiveBook.ts:53` | falls to the multi-file branch, which maps 1 chapter → 1 track | No — but see finding 3 |
+| `handleBookPlay.ts:176` | same | No — but see finding 3 |
+| `chapterPlayback.ts:37` (`usesChapterQueue`) | returns `true` | No — finding 2 |
+
+#### `hasValidChapterData()` — `chapters.length <= 1 → false`
+
+| Caller | A ONE-chapter Book today | `> 1` load-bearing? |
+| ------ | ------------------------ | ------------------- |
+| `clippedChapters.ts:74` (`shouldUseClippedChapters`) | gate returns `false` | **Jointly** — finding 1 |
+| `restoreLastActiveBook.ts:70` | unreachable — already inside the `else if (singleFile)` branch, which needs `> 1` | No, redundant |
+| `handleBookPlay.ts:192` | unreachable, same reason | No, redundant |
 | `service.ts:299` | unreachable — inside `book.chapters.length > 1` at `service.ts:259` | No, redundant |
 
-### The three findings
+#### Finding 1 — the two thresholds are load-bearing only TOGETHER
 
-1. **The two thresholds are load-bearing only TOGETHER, inside
-   `shouldUseClippedChapters`.** Flipping either one alone changes nothing there, because
-   the other still rejects a one-chapter Book. Flipping *both* to `> 0` would make a
-   one-chapter Book with a non-zero `startMs`, non-auto chapters and a small sample table
-   **clippable** — i.e. a one-item Book would start loading as a one-item *clipped* queue.
-   That is a real runtime change with no ticket behind it. This is exactly the failure the
-   spec's ⚠ warns about: changing one threshold without checking the other is how the
-   original off-by-one arrived.
+Inside `shouldUseClippedChapters`, flipping either one alone changes nothing, because the
+other still rejects a one-chapter Book. Flipping **both** to `> 0` would make a one-chapter
+Book with a non-zero `startMs`, non-auto chapters and a small sample table **clippable** —
+a one-item Book would start loading as a clipped queue. That is a real runtime change with
+no ticket behind it, and it is exactly the failure the spec's ⚠ warns about: changing one
+threshold without checking the other is how the original off-by-one arrived.
 
-2. **`usesChapterQueue`'s `true` on a one-chapter Book costs nothing today**, which is why
-   the contradiction with `treatAsSingleFile` has never bitten. Traced through both
-   consumers: `resolveCurrentChapterIndex` clamps to `Math.min(queueIndex, 0) === 0`, and
-   `calculateRemainingBookTime`'s chapter-queue branch sums zero prior chapters, so
-   `totalPlayed === positionSeconds` — arithmetically identical to the legacy branch. The
-   contradiction is latent, not active.
+#### Finding 2 — `usesChapterQueue`'s `true` on a one-chapter Book costs nothing, at all SEVEN call sites
 
-3. **A one-chapter Book takes the multi-file branch in both queue builders, and that branch
-   differs cosmetically.** It sets the track title from `chapter.chapterTitle` and the
-   artist from `chapter.author`; the single-file branch sets the title to `book.bookTitle`
-   whenever `hasValidChapterData` is false. So when ticket `03` routes these two sites
-   through the verdict, a one-chapter Book moves onto the single-file branch and its
-   **notification title changes** from the chapter title to the Book title. That is the
-   correct display for a Book whose one "chapter" is the whole file, but it is a visible
-   change and belongs on `03`'s device rows, not filed as a regression.
+⚠ **This finding was first recorded having traced only two of them.** The two-axis review
+caught it; the trace below is the complete one. The gap mattered — two of the untraced five
+are footprint writes, which is the direction the spec calls destructive.
 
-### Ticket `03` inherits
+| Site | Today (chapter-queue path) | After the flip (one-item path) | Delta |
+| ---- | -------------------------- | ------------------------------ | ----- |
+| `chapterPlayback.ts:52` `resolveCurrentChapterIndex` | `Math.min(queueIndex, 0)` → `0` | `findChapterIndexByPosition` → `0` | none |
+| `chapterPlayback.ts:73` `calculateRemainingBookTime` | sum loop runs zero times, `totalPlayed === position` | `bookDuration - position` | none |
+| `db/footprintQueries.ts:75` `getCurrentChapterInfo` | `{ trackIndex, position }` | `{ 0, position - startMs }` | none |
+| `db/footprintQueries.ts:158` `recordSeekFootprint` | `chapterIndex = trackIndex ?? 0` | index derived from position → `0` | none — and it **drops the `?? 0` fabrication** |
+| `hooks/useCurrentChapterStable.ts:68` | index from `playbackIndex` / `getActiveTrackIndex()` → `0` | derived from progress → `0` | none |
+| `app/chapterList.tsx:90` | `skip(0)` | `seekTo(startMs / 1000)` = `seekTo(0)` | none — both land at 0:00 |
+| `app/footprintList.tsx:92` | `skip(0)` then `seekTo(pos)` | `seekTo((0 + pos) / 1000)` | none |
 
-- Do not touch either threshold. Route callers onto `queueShapeOf` instead and let the two
-  old predicates die with their callers.
-- Carry finding 3 onto `03` as an expected, observable delta.
+⚠ **Every row is zero-delta for the SAME reason, and it is an assumption, not seven
+independent proofs:** a one-chapter Book has `startMs: 0` and queue index `0`, so the two
+coordinate systems coincide. That is the spec's own explanation of why the off-by-one has
+never bitten, load-bearing in seven places at once. A one-chapter Book with a **non-zero**
+`startMs` — shape D's degenerate case, which the scanner can produce — breaks every row in
+the table. It is not reachable today because `buildChaptersFromMetadata` gives a
+single-chapter file `startMs: 0`, but nothing enforces that.
+
+#### Finding 3 — a one-chapter Book changes notification title in `03`
+
+Both queue builders currently send a one-chapter Book down the **multi-file** branch, which
+titles the track from `chapter.chapterTitle` and sets the artist from `chapter.author`. The
+single-file branch titles it `initialChapter?.chapterTitle ?? book.bookTitle`, and
+`hasValidChapterData` is `false` for one chapter, so it resolves to the **Book title**.
+
+So when `03` routes the builders through the verdict, a one-chapter Book's **notification
+title changes from the chapter title to the Book title**. That is the correct display for a
+Book whose one "chapter" is the whole file, but it is observable and belongs on `03`'s
+device rows — not filed later as a regression.
+
+### What the later tickets inherit
+
+- **`02`** (zero-delta consumers): the five sites in finding 2's table are confirmed
+  zero-delta. Do not "fix" `footprintQueries:158`'s `?? 0` separately — routing it through
+  the verdict removes it.
+- **`03`** (one-chapter flip): carry finding 3 as an expected, observable delta.
+- **`04`** (remove old mechanisms): do not touch either threshold; let both predicates die
+  with their callers, and fold `chapterPlayback.ts`'s `ChapterLike` into the shared
+  `GateChapter`.
+- **Out of scope, worth filing:** finding 2's caveat — a one-chapter Book with a non-zero
+  `startMs` would break all seven sites — is a second face of the shape-D defect the spec
+  already sends to its own ticket.
+
+⚠ **The spec's `## Ticket breakdown` numbering is stale** relative to the files in
+`issues/`: it lists five stage-1 tickets where there are now six, so its `03`/`04`/`05` do
+not mean what the filenames mean. Trust the filenames.
