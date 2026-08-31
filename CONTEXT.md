@@ -114,10 +114,20 @@ after the question it answers** — being learned the hard way.
 _Avoid_: active book, selected book, queued book
 
 **Position**:
-Where playback has reached. ⚠ What it is measured against depends on how the queue was built —
-for some Books it is an offset into the whole Book, for others into one Chapter — so "how far
-through?" and "how far into this item?" are different questions.
+Where playback has reached within the current Queue item. The Player's own reading, and the only
+one it reports.
 _Avoid_: progress (which is the user-facing fraction), offset, time
+
+**Book Position**:
+How far into the whole Book playback has reached. Answers *"how far through?"* — the question a
+progress bar over a Book, a time-remaining figure or a resume point is asking. Derived, never
+reported: it is the same number as Position only when the Queue is one item.
+_Avoid_: absolute position, global position, elapsed, position (unqualified)
+
+**Chapter Position**:
+Which Chapter is being heard, and how far into that Chapter. Answers *"how far into this one?"* —
+two answers, not one, because how far in means nothing without saying which Chapter it is in.
+_Avoid_: relative position, chapter progress, offset in chapter, position (unqualified)
 
 **Footprint**:
 A spot in a Book the user may want to get back to, recorded so they can return to it after
@@ -135,6 +145,13 @@ What the Player has actually been handed to play. It is built from a Book but is
 shape as one: a single-file Book may become one item or many, and the same Book can differ
 between devices.
 _Avoid_: playlist (which is a hand-made Series), tracklist
+
+**Queue shape**:
+Whether a Queue is one item for the whole Book, or one item per Chapter. A property of the
+**Queue**, not of the Book — the same Book can be handed over either way, and can differ between
+devices.
+_Avoid_: book shape, file layout, single-file / multi-file (which describe the Book on disk, not
+what the Player was handed)
 
 **Remote control**:
 The surfaces outside the app that can command the Player without its UI: the notification, the lock
