@@ -2,7 +2,7 @@ import TrackPlayer, { State } from 'react-native-track-player';
 
 import { playBookFromRow, PlayBookFromRowArgs } from '../playBookFromRow';
 import { handleBookPlay } from '@/helpers/handleBookPlay';
-import { recordFootprint } from '@/db/footprintQueries';
+import { recordFootprint } from '@/helpers/activeBookFootprints';
 import { awaitPlayerReady } from '@/helpers/awaitPlayerReady';
 import { Book } from '@/types/Book';
 
@@ -23,7 +23,10 @@ jest.mock('@/helpers/handleBookPlay', () => ({
   handleBookPlay: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock('@/db/footprintQueries', () => ({
+// The recorder, not the DB writer: what this file pins is WHICH presses
+// record, and the Chapter Position the breadcrumb lands on is
+// `activeBookFootprints`' own test's subject.
+jest.mock('@/helpers/activeBookFootprints', () => ({
   recordFootprint: jest.fn().mockResolvedValue(undefined),
 }));
 

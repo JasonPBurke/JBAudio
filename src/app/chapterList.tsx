@@ -23,7 +23,7 @@ import {
 import { Chapter } from '@/types/Book';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { FlashList } from '@shopify/flash-list';
-import { recordFootprint } from '@/db/footprintQueries';
+import { recordFootprint } from '@/helpers/activeBookFootprints';
 import { stampLastPlayed } from '@/db/bookQueries';
 
 const ChapterListScreen = () => {

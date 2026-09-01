@@ -165,12 +165,32 @@ adapter, never on it — putting the app's most-contested decision inside the on
 module whose justification is that it makes none would be self-defeating. See
 `.scratch/queue-shape/spec.md`.
 
-**Persistence still asks the Player where it is.** `db/footprintQueries.ts`
+~~**Persistence still asks the Player where it is.** `db/footprintQueries.ts`
 reads the Player, fetches chapters, and branches on Queue shape. It goes through
 the adapter now, which changes the colour of the arrow and not its direction.
 Named in place with a rule-shaped comment. ⚠ **That comment names no file
 path** — `seriesProgress.ts`'s explanatory comment already rotted and points at
-the wrong file, which is exactly what a pointer invites.
+the wrong file, which is exactly what a pointer invites.~~
+
+**RESOLVED 2026-09-01 by queue-shape ticket 10.** `db/footprintQueries.ts`
+imports nothing from `@/player/*`, fetches no chapters and holds no branch: it
+is `addFootprint` plus three reads. The derivation moved up into
+`helpers/activeBookFootprints.ts`, which asks `helpers/bookLocation`'s
+`locateInBook` — the module ADR 0004 exists for — and branches on nothing
+itself. Two things about the resolution matter more than the fact of it:
+
+- **The rule-shaped comment was deleted, not relocated.** This ADR worried that
+  a pointer would rot; the answer turned out to be that a comment describing a
+  violation has no correct rewrite once the violation is gone. What replaced it
+  is `addFootprint`'s own contract — it is TOLD the Chapter Position — which
+  cannot rot, because it describes the signature directly above it.
+- **The fix removed two live bugs that had gone unnoticed for as long as the
+  branch existed, and they were opposite**: the read path refused to record when
+  the Queue index was unreadable *even on a one-item Queue, which never reads
+  it*, and the seek path fabricated index `0` *on a multi-item Queue, where the
+  index is the only thing naming the Chapter*. Each was the guard its sibling
+  needed. That is the concrete cost of a decision taken twice, in the layer that
+  should have been told the answer.
 
 ~~**The playback service stays JavaScript**, so the adapter's types do not
 protect its handful of active-Book reads. Verified by device pass instead.

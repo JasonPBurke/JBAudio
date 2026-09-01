@@ -59,7 +59,7 @@ import {
   BookProgressState,
 } from '@/helpers/handleBookPlay';
 import { removeAutoChapters } from '@/helpers/autoChapterGenerator';
-import { recordFootprint } from '@/db/footprintQueries';
+import { recordFootprint } from '@/helpers/activeBookFootprints';
 import { getBookById, stampLastPlayed } from '@/db/bookQueries';
 import MeshGradientBackground from '@/components/MeshGradientBackground';
 import { computeDetailsArtworkSize } from '@/helpers/artworkSizing';

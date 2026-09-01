@@ -6,7 +6,7 @@ import {
 import { Book } from '@/types/Book';
 import { handleBookPlay } from '@/helpers/handleBookPlay';
 import { awaitPlayerReady } from '@/helpers/awaitPlayerReady';
-import { recordFootprint } from '@/db/footprintQueries';
+import { recordFootprint } from '@/helpers/activeBookFootprints';
 
 /**
  * What happens when the user presses play on a Book in the library.

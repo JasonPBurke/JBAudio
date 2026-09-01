@@ -7,7 +7,7 @@ import {
   useAnimatedReaction,
 } from 'react-native-reanimated';
 import { runOnJS } from 'react-native-worklets';
-import { getActiveBookId, getProgress, seekTo } from '@/player/trackPlayer';
+import { seekTo } from '@/player/trackPlayer';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { fontSize } from '@/constants/tokens';
 import { utilsStyles } from '@/styles';
@@ -16,7 +16,7 @@ import { useCurrentChapterLocation } from '@/hooks/useCurrentChapterStable';
 import { useTheme } from '@/hooks/useTheme';
 import { useAppStateStore } from '@/store/appState';
 import { useSettingsStore } from '@/store/settingsStore';
-import { recordSeekFootprint } from '@/db/footprintQueries';
+import { recordActiveBookSeekFootprint } from '@/helpers/activeBookFootprints';
 
 // Pre-defined styles to avoid inline object creation
 const bubbleContainerStyle = {
@@ -195,21 +195,12 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
     async (value: number) => {
       isSliding.value = false;
 
-      // Record footprint with position before the seek
-      // The Player still has the original position since seekTo hasn't been called yet
-      try {
-        const [activeBookId, { position: currentPos }] = await Promise.all([
-          getActiveBookId(),
-          getProgress(),
-        ]);
-        if (activeBookId) {
-          // recordSeekFootprint handles chapter detection for single-file books
-          // currentPos is in seconds, convert to ms
-          await recordSeekFootprint(activeBookId, Math.round(currentPos * 1000));
-        }
-      } catch {
-        // Silently fail if footprint recording fails
-      }
+      // Record the footprint with the position BEFORE the seek — the Player
+      // still holds it, because seekTo has not been called yet. The helper
+      // reads the Active Book, the Position and the Queue index itself; this
+      // scrub is the same press as the notification seek-bar drag and used to
+      // spell out its own copy of it.
+      await recordActiveBookSeekFootprint();
 
       const chapStart = chapterStart.value;
       const chapDur =

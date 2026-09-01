@@ -1,36 +1,114 @@
-import { getActiveBookId, getProgress } from '@/player/trackPlayer';
 import {
-  recordFootprint,
-  recordSeekFootprint,
-} from '@/db/footprintQueries';
+  getActiveBookId,
+  getActiveTrackIndex,
+  getProgress,
+} from '@/player/trackPlayer';
+import { addFootprint } from '@/db/footprintQueries';
 import { stampLastPlayed } from '@/db/bookQueries';
 import { FootprintTrigger } from '@/db/models/Footprint';
+import { locateInBook, type PositionReading } from '@/helpers/bookLocation';
+import { useLibraryStore } from '@/store/library';
 import type { PreviousPressKind } from '@/helpers/chapterSkip';
 
 /**
  * Footprint recording for presses that only know the ACTIVE BOOK — the one
  * the Player currently has loaded — rather than a Book they already hold.
  *
- * That is the whole membership rule. A press site with a `bookId` in hand
- * (titleDetails, chapterList, playBookFromRow) calls `recordFootprint`
- * directly and does not belong here; a site that has to ask the Player which
- * Book is loaded does, whether the press arrived from a remote control
- * (notification player, Android Auto, Bluetooth — the `Remote*` events in the
- * playback service), from the in-app transport controls, or from the sleep
- * timer arming itself.
+ * That is the membership rule for the `recordActiveBook*` family: a site that
+ * has to ask the Player which Book is loaded belongs there, whether the press
+ * arrived from a remote control (notification player, Android Auto, Bluetooth
+ * — the `Remote*` events in the playback service), from the in-app transport
+ * controls, from the progress bar's scrub, or from the sleep timer arming
+ * itself. A press site with a
+ * `bookId` in hand (titleDetails, chapterList, playBookFromRow) calls
+ * `recordFootprint` below and skips the Book read only.
  *
- * Every function here READS the Active Book, GUARDS on it, records, and
- * SWALLOWS failure. The swallow is load-bearing at every call site: a
+ * ⚠ Every one of them, both kinds, goes through the same DERIVATION, which is
+ * why it lives here and not at any of them: a footprint is written at a
+ * CHAPTER POSITION, and turning the Player's raw Position into one is
+ * `locateInBook`'s job. That derivation used to sit under `db/`, where it
+ * asked the Player where it was and decided for itself what Position was
+ * measured against.
+ *
+ * Every `recordActiveBook*` function here READS the Active Book, GUARDS on
+ * it, records, and SWALLOWS failure — `recordFootprint` alone does none of
+ * those, because its callers have already done all three.
+ * The swallow is load-bearing at every call site: a
  * footprint is a breadcrumb back to where the user was, so failing to write
  * one must never block the playback command or the timer activation it was
  * recorded alongside — several callers have already written DB state by the
  * time they get here.
  *
  * The seek/chapter helpers must additionally be AWAITED BEFORE the
- * seek/skip is issued, so the breadcrumb captures the pre-press position
- * (`recordSeekFootprint` reads the current track index for chapter-queue
- * books, `recordFootprint` reads the current position).
+ * seek/skip is issued, so the breadcrumb captures the pre-press position:
+ * every recorder here reads the live Position and Queue index, and after the
+ * transport call those describe where the press LANDED.
  */
+
+/**
+ * What the Player just said, tagged as `locateInBook` wants it. Narrowed to
+ * the `'queue'` arm because that is the only reading this module can ever
+ * hold — every recorder here reads a live Player, never stored progress.
+ */
+type PlayerReading = Extract<PositionReading, { from: 'queue' }>;
+
+/**
+ * The one derivation, shared by every recorder in this module.
+ *
+ * ⚠ It asks `locateInBook` and branches on nothing. Two opposite bugs lived
+ * in the hand-written version this replaces, each of them the guard its
+ * sibling needed: one refused to record when the Queue index was unreadable
+ * even on a ONE-ITEM Queue, where the index can only ever be `0` and is not
+ * read at all; the other fabricated index `0` on a MULTI-ITEM Queue, where
+ * the index is the only thing that says which Chapter is playing — silently
+ * filing the breadcrumb under chapter one. `locateInBook` refuses exactly
+ * when there is nothing to say, on either shape, and a refusal here means no
+ * footprint rather than a wrong one.
+ *
+ * The chapters come from the library store rather than a fresh fetch, so
+ * this lands on the same array the queue builders mapped — already ordered
+ * by ARRAY POSITION, which is the ordering, and already the reference
+ * `queueShapeOf` memoises its verdict against.
+ */
+async function recordFootprintAt(
+  bookId: string,
+  trigger: FootprintTrigger,
+  reading: PlayerReading,
+): Promise<void> {
+  // ⚠ The `?.` is load-bearing and `tsc` cannot see it: `books` is a
+  // `Record<string, Book>` and `noUncheckedIndexedAccess` is off, so a direct
+  // index types a genuine runtime miss out of existence. ADR 0003 records the
+  // same hazard at `service.ts`'s `getBookFromStore`.
+  const location = locateInBook(
+    useLibraryStore.getState().books[bookId]?.chapters,
+    reading,
+  );
+  if (!location?.chapter) return;
+  await addFootprint(bookId, location.chapter, trigger);
+}
+
+/**
+ * Record `trigger` against `bookId` at wherever the Player is right now.
+ *
+ * The entry point for the three surfaces that already hold the Book —
+ * titleDetails, chapterList and playBookFromRow — each of which has proven
+ * it is the loaded one before calling. It does not swallow: all three wrap
+ * the call, and the `recordActiveBook*` family below swallows for the rest.
+ */
+export async function recordFootprint(
+  bookId: string,
+  trigger: FootprintTrigger,
+): Promise<void> {
+  const [queueIndex, { position }] = await Promise.all([
+    getActiveTrackIndex(),
+    getProgress(),
+  ]);
+  await recordFootprintAt(bookId, trigger, {
+    from: 'queue',
+    queueIndex,
+    positionSeconds: position,
+  });
+}
 
 /**
  * The shape itself: resolve the Book, guard, run, never throw. The `try`
@@ -77,26 +155,27 @@ export async function recordActiveBookPlayFootprint(): Promise<void> {
 }
 
 /**
- * The seek press — the notification/Android Auto seek-bar drag, and the
- * breadcrumb a press that leaves the Book entirely writes. Not
- * `tryWithActiveBook`: the position read is issued in
- * parallel with the Book read so the breadcrumb is captured with one round
- * trip of latency in front of the seek, not two.
+ * The seek press — the in-app scrub, the notification/Android Auto seek-bar
+ * drag, and the breadcrumb a press that leaves the Book entirely writes. Not
+ * `tryWithActiveBook`: all three reads are issued in parallel so the
+ * breadcrumb is captured with one round trip of latency in front of the
+ * seek, not three.
  */
 export async function recordActiveBookSeekFootprint(
   bookId?: string,
 ): Promise<void> {
   try {
-    const [activeBookId, { position }] = await Promise.all([
+    const [activeBookId, { position }, queueIndex] = await Promise.all([
       bookId ?? getActiveBookId(),
       getProgress(),
+      getActiveTrackIndex(),
     ]);
     if (activeBookId) {
-      // Position is in seconds — same conversion as PlayerProgressBar
-      await recordSeekFootprint(
-        activeBookId,
-        Math.round(position * 1000),
-      );
+      await recordFootprintAt(activeBookId, 'seek', {
+        from: 'queue',
+        queueIndex,
+        positionSeconds: position,
+      });
     }
   } catch {
     // Silently fail if footprint recording fails

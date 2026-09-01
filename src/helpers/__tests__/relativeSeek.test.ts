@@ -1,7 +1,7 @@
 import TrackPlayer, { State } from 'react-native-track-player';
 import { seekBack, seekForward } from '../relativeSeek';
 import { getBookById } from '@/db/bookQueries';
-import { recordFootprint, recordSeekFootprint } from '@/db/footprintQueries';
+import { addFootprint } from '@/db/footprintQueries';
 import { rewindChapterTracking } from '@/helpers/chapterTracking';
 
 jest.mock('react-native-track-player', () => ({
@@ -52,8 +52,7 @@ jest.mock('@/store/library', () => ({
 // Nothing in this module may write a footprint; see the regression describe
 // at the bottom of this file for why that is asserted rather than assumed.
 jest.mock('@/db/footprintQueries', () => ({
-  recordFootprint: jest.fn(),
-  recordSeekFootprint: jest.fn(),
+  addFootprint: jest.fn(),
 }));
 
 // The rewind is asserted as a CALL, not by its four writes: those belong to
@@ -460,14 +459,13 @@ describe('seekForward finishing a Book', () => {
  * — and it does record, mirroring the in-app scrub. Do not "fix" the jumps
  * into recording by analogy with it.
  *
- * These assert against the DB writers, not against a helper: any route into
- * footprint recording, including `activeBookFootprints`, lands on one of
- * these two calls.
+ * This asserts against the DB WRITER, not against a helper: every route into
+ * footprint recording, `activeBookFootprints` included, lands on that one
+ * call — which is the whole of what `db/footprintQueries` still does.
  */
 describe('the 30-second jumps never record a footprint', () => {
   const noFootprints = () => {
-    expect(recordFootprint).not.toHaveBeenCalled();
-    expect(recordSeekFootprint).not.toHaveBeenCalled();
+    expect(addFootprint).not.toHaveBeenCalled();
   };
 
   it('records nothing on a jump inside the current track', async () => {
