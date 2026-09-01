@@ -1,7 +1,4 @@
-import {
-  resolveCurrentChapterIndex,
-  calculateRemainingBookTime,
-} from '../chapterPlayback';
+import { calculateRemainingBookTime } from '../chapterPlayback';
 import type { Book, Chapter } from '@/types/Book';
 
 jest.mock('@/constants/images', () => ({
@@ -53,44 +50,6 @@ const autoChapters = clippedChapters.map((ch) => ({
 
 const makeBook = (chapters: Chapter[], bookDuration = 220): Book =>
   ({ bookId: 'b1', chapters, bookDuration }) as unknown as Book;
-
-describe('resolveCurrentChapterIndex', () => {
-  it('uses the queue index for clipped books, ignoring position', () => {
-    expect(resolveCurrentChapterIndex(clippedChapters, 2, 0)).toBe(2);
-    expect(resolveCurrentChapterIndex(clippedChapters, 1, 5000)).toBe(1);
-  });
-
-  it('uses the queue index for multi-file books', () => {
-    expect(resolveCurrentChapterIndex(multiFileChapters, 1, 999)).toBe(1);
-  });
-
-  it('clamps an out-of-range queue index to the last chapter', () => {
-    expect(resolveCurrentChapterIndex(clippedChapters, 99, 0)).toBe(2);
-  });
-
-  it('returns undefined when the queue index is not known yet', () => {
-    expect(resolveCurrentChapterIndex(clippedChapters, undefined, 30)).toBe(
-      undefined,
-    );
-    expect(resolveCurrentChapterIndex(clippedChapters, -1, 30)).toBe(
-      undefined,
-    );
-  });
-
-  it('returns undefined without chapters', () => {
-    expect(resolveCurrentChapterIndex(undefined, 0, 0)).toBe(undefined);
-    expect(resolveCurrentChapterIndex([], 0, 0)).toBe(undefined);
-  });
-
-  // Spike ON, but the gate rejects these chapters, so the Queue is ONE item
-  // and the position is absolute. The queue index is 0 throughout and must be
-  // ignored.
-  it('derives the chapter from the position on a one-item Queue', () => {
-    expect(resolveCurrentChapterIndex(autoChapters, 0, 0)).toBe(0);
-    expect(resolveCurrentChapterIndex(autoChapters, 0, 61)).toBe(1);
-    expect(resolveCurrentChapterIndex(autoChapters, 0, 130)).toBe(2);
-  });
-});
 
 describe('calculateRemainingBookTime', () => {
   it('sums prior chapter durations + chapter position for clipped books', () => {
@@ -165,21 +124,9 @@ describe('with CLIPPED_CHAPTERS_SPIKE off (one file → a ONE-ITEM Queue)', () =
     jest.resetModules();
   });
 
-  it('resolves the chapter from the absolute position, ignoring queue index', () => {
-    expect(legacy.resolveCurrentChapterIndex(clippedChapters, 0, 0)).toBe(0);
-    expect(legacy.resolveCurrentChapterIndex(clippedChapters, 0, 61)).toBe(1);
-    expect(legacy.resolveCurrentChapterIndex(clippedChapters, 0, 130)).toBe(2);
-  });
-
   it('remaining time = duration - absolute position, ignoring index', () => {
     expect(
       legacy.calculateRemainingBookTime(makeBook(clippedChapters), 90, 2),
     ).toBe(130);
-  });
-
-  it('multi-file books still use the queue index', () => {
-    expect(legacy.resolveCurrentChapterIndex(multiFileChapters, 1, 999)).toBe(
-      1,
-    );
   });
 });

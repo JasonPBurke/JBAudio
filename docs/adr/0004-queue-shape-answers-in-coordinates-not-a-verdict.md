@@ -295,3 +295,84 @@ restarts the Book, the progress tick declines to write, the pause/stop write
 distinguishes which coordinate survived in order to tell an unreadable INDEX from
 unreadable BOUNDARIES, and the player screen falls back to a whole-Book display.
 Five sites, five different collapses.
+
+## Closing count — ticket `11`, 2026-09-01
+
+The addendum above said *"count again when `11` closes; if any survives as a reader,
+ruling 1 is in trouble and this is where to say so."* This is that count, taken
+after the old conversion pair was deleted. **No reader survives.**
+
+`queueShapeOf` has nine production call sites, in three kinds, and not one of them
+asks what a Position means:
+
+| Caller | Kind | What the verdict picks |
+| ------ | ---- | ---------------------- |
+| `handleBookPlay.ts:177`, `restoreLastActiveBook.ts:54` | builder | how many Queue items to `add()` |
+| `chapterSkip.ts:254`, `nextPress.ts:214`, `chapterJump.ts:70` | transport | a seek inside one track vs a step to another item |
+| `service.ts:265`, `:607`, `:756` | ownership | which subsystem sees a chapter change |
+| `bookLocation.ts:249` | the translator | the conversion itself |
+
+Ruling 1 stands, and the reopen condition it was written against has now been
+tested twice. The persisted readers the addendum still owed —
+`footprintQueries`, `chapterPlayback`, `bookProgressUtils`, `chapterList`,
+`footprintList` — are all on the translator; the first two no longer import
+`queueShapeOf` at all, and `db/footprintQueries.ts` no longer imports the Player
+either.
+
+**What ticket `11` deleted**, which is what makes the earlier tickets permanent
+rather than additive:
+
+- `calculateAbsolutePosition` and `calculateProgressWithinChapter` — the inverse
+  pair this ADR's context section is about. Their last three callers were the two
+  queue BUILDERS, which is why `08`–`10` did not reach them: a builder does not
+  ask where playback is, it places the playhead. Placing it is the same
+  conversion, so they call `locateInBook` now too.
+- `findChapterIndexByPosition` — absorbed into `bookLocation.ts` as an internal
+  step of `chapterIndexAtPosition`, so the unguarded backwards walk can no longer
+  be reached without the two refusals that wrap it.
+- `resolveCurrentChapterIndex` — unreferenced since `08`.
+- `helpers/singleFileBook.ts` itself. What survived it is one predicate,
+  `hasValidChapterData`, now in `helpers/chapterMetadata.ts` — named for what it
+  answers rather than for one of the two shapes it was written beside.
+
+**Ruling 3 recount.** The reopen condition is *"if every site collapses `null` the
+same way"*. **Eight sites, and they still do not**: the five listed in the
+addendum, plus `09`'s whole-Book-duration fallback in the library row and the
+remaining-time label, `10`'s record-no-footprint, and now `11`'s decline-to-seek
+in `restoreLastActiveBook`.
+
+⚠ Count that last one ONCE, not twice. `handleBookPlay` guards the same way, but
+its guard is UNREACHABLE — it clamps the stored index into range before calling,
+and a Book with no chapters cannot reach the one-item arm at all — so it is
+defensive code, not a live collapse. Counting both would inflate the very number
+this recount exists to keep honest.
+
+The live one is still the newest KIND: a `null` that changes where playback
+STARTS rather than what is displayed. It is why the clamp stayed at
+`restoreLastActiveBook`'s call site instead of moving into the translator — the
+track's label and the seek must agree about which chapter this is, and only the
+caller knows that — and why its refusal reports to Sentry under its own message
+rather than folding into the pre-existing out-of-bounds one. A reading that is
+MISSING and a reading that is WRONG are different failures.
+
+**⚠ A NINTH CONVERSION WAS FOUND DURING THIS TICKET'S REVIEW, and it is recorded
+here because the wrong argument for keeping it was persuasive.**
+`resolvePreviousPress`'s one-item arm computed the previous chapter's seek target
+as a hand-rolled `chapters[index - 1].startMs / 1000`. It was first defended — in
+an earlier draft of this very section — as *"not a conversion, because both sides
+are the same coordinate on this shape"*. That is false: the INPUT is a chapter
+index and only the OUTPUT is a Position, which is exactly what
+`calculateAbsolutePosition(chapters, i, 0)` did. It calls `locateInBook` now.
+
+The defence is worth naming because it is the disease's own reasoning — *"correct
+only because every call site branches before calling them"* — restated as a
+justification. **On a one-item Queue the two coordinates coincide, so ANY
+conversion there looks like an identity.** That is the shape on which a
+hand-rolled conversion is hardest to see and easiest to excuse, and it is where
+to look first if a tenth ever appears.
+
+`nextBoundaryAfter` in the same file was checked under the same suspicion and is
+genuinely same-coordinate: a Position in, the next boundary's Position out, no
+index at either end. It stays. If a site ever needs an arbitrary chapter's start
+in QUEUE rather than Book coordinates, the move is a
+`chapterStartInQueueSeconds`-shaped export, not a hand-rolled division by 1000.

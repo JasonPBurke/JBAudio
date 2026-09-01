@@ -12,10 +12,8 @@ import { getBookWithChaptersForRestoration } from '@/db/bookQueries';
 import { getChapterProgressInDB } from '@/db/chapterQueries';
 import { resolveTrackArtwork } from '@/helpers/defaultArtwork';
 import { useQueueStore } from '@/store/queue';
-import {
-  calculateAbsolutePosition,
-  hasValidChapterData,
-} from '@/helpers/singleFileBook';
+import { hasValidChapterData } from '@/helpers/chapterMetadata';
+import { locateInBook } from '@/helpers/bookLocation';
 import { queueShapeOf } from '@/helpers/queueShape';
 import {
   shouldUseClippedChapters,
@@ -79,18 +77,48 @@ export async function restoreLastActiveBook(): Promise<void> {
       };
       await add([track]);
 
-      // Restore position by calculating absolute position from chapter + progress
+      /*
+       * The DB stores a CHAPTER Position; one Queue item spanning the whole
+       * Book means the Player wants a BOOK Position. `helpers/bookLocation` is
+       * the one place in the app that converts between the two — see ADR 0004.
+       *
+       * ⚠ It is handed the index ALREADY CLAMPED, the same
+       * `validChapterIndex` the track above is labelled with, so a stale index
+       * left by a rescan resumes at the last chapter rather than being
+       * refused. Clamping is the CALLER's judgement to make here — the label
+       * and the seek must agree about which chapter this is — and the
+       * translator declining an out-of-range index is what makes that
+       * judgement visible instead of silent.
+       */
       if (progressInfo) {
-        const absolutePosition = calculateAbsolutePosition(
-          chapters,
-          progressInfo.chapterIndex || 0,
-          progressInfo.progress || 0,
-        );
+        const resumeBookPosition = locateInBook(chapters, {
+          from: 'chapter',
+          chapterIndex: validChapterIndex,
+          chapterPositionSeconds: progressInfo.progress || 0,
+        })?.bookPositionSeconds;
 
-        // Validate position is within bounds
-        if (
-          absolutePosition < 0 ||
-          absolutePosition > bookInfo.bookDuration
+        /*
+         * ⚠ TWO DIFFERENT FAILURES, kept in separate branches on purpose.
+         *
+         * `null` is the translator declining — it could not tell where this
+         * is, so there is NO NUMBER TO CLAMP and the Book opens at its start.
+         * Out of bounds is a number it could tell and we do not believe.
+         * Folding them together would report a missing reading as a bad one.
+         */
+        if (resumeBookPosition == null) {
+          Sentry.captureMessage('Position restoration: Unmeasurable', {
+            level: 'warning',
+            extra: {
+              bookId: lastActiveBookId,
+              chapterIndex: progressInfo.chapterIndex,
+              progress: progressInfo.progress,
+              chapterCount: chapters.length,
+            },
+          });
+          await seekTo(0);
+        } else if (
+          resumeBookPosition < 0 ||
+          resumeBookPosition > bookInfo.bookDuration
         ) {
           Sentry.captureMessage('Position restoration: Out of bounds', {
             level: 'warning',
@@ -98,30 +126,31 @@ export async function restoreLastActiveBook(): Promise<void> {
               bookId: lastActiveBookId,
               chapterIndex: progressInfo.chapterIndex,
               progress: progressInfo.progress,
-              calculatedPosition: absolutePosition,
+              calculatedPosition: resumeBookPosition,
               bookDuration: bookInfo.bookDuration,
               chapterCount: chapters.length,
             },
           });
           // Clamp to valid range
-          const clampedPosition = Math.max(
-            0,
-            Math.min(absolutePosition, bookInfo.bookDuration - 1),
+          await seekTo(
+            Math.max(
+              0,
+              Math.min(resumeBookPosition, bookInfo.bookDuration - 1),
+            ),
           );
-          await seekTo(clampedPosition);
         } else {
-          await seekTo(absolutePosition);
+          await seekTo(resumeBookPosition);
         }
 
         Sentry.addBreadcrumb({
           category: 'position-restoration',
-          message: 'Single-file position restored',
+          message: 'One-item queue position restored',
           data: {
             bookId: lastActiveBookId,
             bookTitle: bookInfo.bookTitle,
             chapterIndex: progressInfo.chapterIndex,
             progress: progressInfo.progress,
-            absolutePosition,
+            resumeBookPosition,
             chapterCount: chapters.length,
           },
           level: 'info',

@@ -16,10 +16,8 @@ import {
 } from '@/player/trackPlayer';
 import { updateLastActiveBook } from '@/db/settingsQueries';
 import { awaitPlayerReady } from '@/helpers/awaitPlayerReady';
-import {
-  calculateAbsolutePosition,
-  hasValidChapterData,
-} from '@/helpers/singleFileBook';
+import { hasValidChapterData } from '@/helpers/chapterMetadata';
+import { locateInBook } from '@/helpers/bookLocation';
 import {
   shouldUseClippedChapters,
   buildClippedChapterTracks,
@@ -181,6 +179,29 @@ const handleBookPlayInner = async (
   // gate in, so a Book that clips is already 'multi-item'.
   const useClipped = shouldUseClippedChapters(book.chapters);
 
+  /*
+   * WHERE TO PUT THE PLAYHEAD ON A ONE-ITEM QUEUE, in the coordinate the
+   * Player speaks.
+   *
+   * The DB stores a CHAPTER Position (`current_chapter_progress`, seconds into
+   * the chapter). One Queue item spanning the whole Book means the Player's
+   * coordinate is the BOOK Position instead, so the builder has to translate
+   * before it seeks — and `helpers/bookLocation` is the one place in the app
+   * that may. See ADR 0004.
+   *
+   * ⚠ Every other arm needs NO conversion and must not ask for one: a
+   * multi-item Queue skips to the chapter's own item, where the position
+   * already IS the Chapter Position. That asymmetry is the whole of the
+   * difference between the arms below.
+   */
+  const resumeBookPosition = oneItemQueue
+    ? locateInBook(book.chapters, {
+        from: 'chapter',
+        chapterIndex,
+        chapterPositionSeconds: chapterProgress,
+      })?.bookPositionSeconds
+    : undefined;
+
   if (isChangingBook) {
     await reset();
 
@@ -205,13 +226,9 @@ const handleBookPlayInner = async (
       };
       await add([track]);
 
-      // Seek to absolute position (chapter start + progress within chapter)
-      const absolutePosition = calculateAbsolutePosition(
-        book.chapters,
-        chapterIndex,
-        chapterProgress,
-      );
-      await seekTo(absolutePosition);
+      // `null` means the stored index names no chapter, so there is no honest
+      // Book Position to seek to; the freshly reset Queue is already at 0:00.
+      if (resumeBookPosition != null) await seekTo(resumeBookPosition);
     } else if (useClipped) {
       await add(buildClippedChapterTracks(book));
       if (chapterIndex > 0) await skip(chapterIndex);
@@ -250,12 +267,7 @@ const handleBookPlayInner = async (
     if (oneItemQueue) {
       // One Queue item: the position is absolute, so there is nothing to skip
       // to and the chapter is a seek offset inside the single track.
-      const absolutePosition = calculateAbsolutePosition(
-        book.chapters,
-        chapterIndex,
-        chapterProgress,
-      );
-      await seekTo(absolutePosition);
+      if (resumeBookPosition != null) await seekTo(resumeBookPosition);
     } else {
       // One item per chapter, clipped or one file each: skip to the chapter's
       // item, where the position is chapter-relative.

@@ -40,7 +40,7 @@ import {
 import { restoreLastActiveBook } from '@/helpers/restoreLastActiveBook';
 import { queueShapeOf } from '@/helpers/queueShape';
 import { rewindPlayerToBookStart } from '@/helpers/rewindPlayerToBookStart';
-import { hasValidChapterData } from '@/helpers/singleFileBook';
+import { hasValidChapterData } from '@/helpers/chapterMetadata';
 import { locateInBook } from '@/helpers/bookLocation';
 import { evaluateBookEnd } from '@/helpers/bookEndDetection';
 import type {
@@ -243,9 +243,13 @@ async function handleProgressUpdated({
   const book = getBookFromStore(bookId);
 
   // ⚠ THIS VERDICT IS `evaluateBookEnd`'S PARAMETER, NOT A COORDINATE
-  // DECISION. ADR 0004 leaves `queueShapeOf` three callers — the two queue
-  // builders and book-end detection — and hands every reader the position
-  // translator instead. What it selects below is not "what does this Position
+  // DECISION. ADR 0004 leaves `queueShapeOf` NO READERS at all — every site
+  // that asked "where am I" now asks `locateInBook` — and keeps it only for
+  // three kinds of caller that ACT on shape: the two queue builders, the
+  // transports (both presses and the chapter-list jump), and the three reads
+  // in this file. See that ADR's closing count.
+  //
+  // What it selects below is not "what does this Position
   // mean" (that is `locateInBook`'s job now) but WHICH SUBSYSTEM OWNS CHAPTER
   // CHANGES: on a one-item Queue only the progress tick can see a boundary
   // cross, while a multi-item Queue gets one `PlaybackActiveTrackChanged` per

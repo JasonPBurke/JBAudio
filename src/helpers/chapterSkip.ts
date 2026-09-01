@@ -166,14 +166,33 @@ export function resolvePreviousPress(
 
     if (chapter.index === 0) return restartHere;
 
+    if (!oneItemQueue) return { kind: 'previous', move: { to: 'previous-item' } };
+
+    /*
+     * ⚠ THE PREVIOUS CHAPTER'S START IS A CONVERSION, and it goes through the
+     * translator like every other one. A chapter index in, a Book Position
+     * out — which on a one-item Queue is what `seekTo` wants. This was a hand
+     * -rolled `startMs / 1000` until ticket `11`'s spec review caught that
+     * "both sides are the same coordinate" was wrong: the INPUT is a Chapter
+     * and only the OUTPUT is a Position, which is exactly the conversion the
+     * deleted `calculateAbsolutePosition(chapters, i, 0)` performed.
+     *
+     * `null` is unreachable from here — the index is one below a chapter the
+     * translator itself just resolved, so it is in range — but a restart is
+     * the honest collapse if it ever happens, and it is the collapse this
+     * function already uses for "I cannot place you".
+     */
+    const previousChapterStart = locateInBook(chapters, {
+      from: 'chapter',
+      chapterIndex: chapter.index - 1,
+      chapterPositionSeconds: 0,
+    })?.bookPositionSeconds;
+
+    if (previousChapterStart == null) return restartHere;
+
     return {
       kind: 'previous',
-      move: oneItemQueue
-        ? {
-            to: 'seek',
-            seekSeconds: (chapters?.[chapter.index - 1]?.startMs || 0) / 1000,
-          }
-        : { to: 'previous-item' },
+      move: { to: 'seek', seekSeconds: previousChapterStart },
     };
   }
 

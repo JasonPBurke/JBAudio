@@ -1,45 +1,18 @@
 import type { Book } from '@/types/Book';
-import { queueShapeOf, type ShapeChapter } from '@/helpers/queueShape';
-import { findChapterIndexByPosition } from '@/helpers/singleFileBook';
 import { approximateLocationInBook } from '@/helpers/bookLocation';
 
-/**
- * Chapter identity for playback UIs, for either Queue shape:
+/*
+ * Remaining-time arithmetic for a Book, and nothing else.
  *
- * - MULTI-ITEM: queue index == chapter index and positions are
- *   chapter-relative. That is how a Book with one file per Chapter has always
- *   behaved, and how one file with real Chapter offsets behaves under the
- *   clipped-chapters spike (each Chapter is a clipped queue item).
- * - ONE-ITEM: the whole Book is one queue item and positions are absolute, so
- *   the Chapter must be derived from the position.
- *
- * `resolveCurrentChapterIndex` asks `queueShapeOf` — it does not derive
- * shape. `calculateRemainingBookTime` no longer asks at all: it hands its
- * Player reading to `helpers/bookLocation`, where the two coordinates meet,
- * so there is one branch here where there were two.
+ * This file used to open with a paragraph explaining what a Chapter index
+ * means under each Queue shape, because it held `resolveCurrentChapterIndex`
+ * — a predicate that asked `queueShapeOf` and then branched. Every caller of
+ * it now asks `helpers/bookLocation` instead, so the predicate is gone and so
+ * is the explanation: the one function left here hands its Player reading to
+ * the translator and never learns which shape it is in.
  *
  * Never identify a chapter by URL — clipped queue items all share one URL.
  */
-
-/**
- * Resolves the current chapter index for either shape. Returns undefined when
- * it cannot be determined yet (no chapters, or queue index unknown on a
- * multi-item Queue).
- */
-export function resolveCurrentChapterIndex(
-  chapters: readonly ShapeChapter[] | undefined,
-  queueIndex: number | null | undefined,
-  positionSeconds: number,
-): number | undefined {
-  if (!chapters || chapters.length === 0) return undefined;
-
-  if (queueShapeOf(chapters) === 'multi-item') {
-    if (typeof queueIndex !== 'number' || queueIndex < 0) return undefined;
-    return Math.min(queueIndex, chapters.length - 1);
-  }
-
-  return findChapterIndexByPosition(chapters, positionSeconds);
-}
 
 /**
  * Remaining time in the book, in seconds — or `null` when the location could

@@ -1,4 +1,3 @@
-import { findChapterIndexByPosition } from '@/helpers/singleFileBook';
 import { queueShapeOf, type ShapeChapter } from '@/helpers/queueShape';
 
 /**
@@ -9,14 +8,17 @@ import { queueShapeOf, type ShapeChapter } from '@/helpers/queueShape';
  * removes the branch, because the shape question is nothing but THE
  * CONVERSION BETWEEN THE TWO COORDINATES. Once the conversion happens in one
  * place, the question stops being asked. See
- * `docs/adr/0004-queue-shape-answers-in-coordinates.md`, ruling 1.
+ * `docs/adr/0004-queue-shape-answers-in-coordinates-not-a-verdict.md`,
+ * ruling 1.
  *
- * It replaces an unguarded inverse pair in `helpers/singleFileBook.ts`
+ * It replaced an unguarded inverse pair in `helpers/singleFileBook.ts`
  * (`calculateAbsolutePosition` / `calculateProgressWithinChapter`) which
  * hardcoded the one-item mapping and was correct only because every caller
  * branched on shape first. That is the mechanism that produced nine competing
  * shape mechanisms: a conversion that silently assumes a shape pushes the
- * decision out to every call site, where it multiplies.
+ * decision out to every call site, where it multiplies. Both are now deleted,
+ * along with the module named after one of the two shapes they translated
+ * between; `helpers/chapterMetadata.ts` is the predicate that survived it.
  *
  * ─── Pure, synchronous, and no Player read ──────────────────────────────
  *
@@ -152,11 +154,14 @@ function chapterStartSeconds(
 /**
  * Which chapter contains `seconds`, or `null` when the rows cannot say.
  *
- * ⚠ The two null cases are why this wraps the scan instead of calling it
- * directly. `findChapterIndexByPosition` walks BACKWARDS for the last row
- * starting at or before the position and answers `0` when it finds none, so
- * on its own it manufactures a chapter index in exactly the two situations
- * this module must refuse:
+ * The backwards walk used to be an exported helper of its own
+ * (`findChapterIndexByPosition`), which is how it came to be called from
+ * places that had no guard for either refusal below. It is an internal step of
+ * the translator now: the scan and the two questions it cannot answer are one
+ * function, and the only way to reach it is to ask where a Book is.
+ *
+ * ⚠ The walk answers `0` when it finds no row, so on its own it manufactures a
+ * chapter index in exactly the two situations this module must refuse:
  *
  * - the position precedes every boundary (a Book whose first chapter starts
  *   after a preamble) — row 0 is a guess, not a reading;
@@ -179,7 +184,12 @@ function chapterIndexAtPosition(
   ) {
     return null;
   }
-  return findChapterIndexByPosition(chapters, seconds);
+
+  // The last row starting at or before the position.
+  for (let i = chapters.length - 1; i >= 0; i--) {
+    if (chapterStartSeconds(chapters, i) <= seconds) return i;
+  }
+  return null;
 }
 
 /** An index that genuinely points at a row, rather than defaulting to one. */

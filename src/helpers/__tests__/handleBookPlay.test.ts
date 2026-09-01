@@ -8,7 +8,10 @@ import {
   updateChapterProgressInDB,
 } from '@/db/chapterQueries';
 import { Book } from '@/types/Book';
-import { oneChapterBookChapters } from './support/queueShapeFixtures';
+import {
+  oneChapterBookChapters,
+  oneItemChapters,
+} from './support/queueShapeFixtures';
 
 jest.mock('react-native-track-player', () => ({
   __esModule: true,
@@ -446,5 +449,54 @@ describe('a one-chapter book builds a ONE-ITEM queue', () => {
     await play(oneChapterBook());
 
     expect(TrackPlayer.seekTo).toHaveBeenCalledWith(300);
+  });
+});
+
+/*
+ * THE CONVERSION ITSELF, which no test above reaches: a one-item Queue whose
+ * chapter starts are NON-ZERO. The suite's other one-item Book has a single
+ * chapter starting at `0`, so its resume position is the stored Chapter
+ * Position unchanged and the two coordinates coincide — exactly the
+ * coincidence Finding 2 warns makes a conversion look inert.
+ *
+ * Here the Queue is one item spanning the whole Book, so the Player's
+ * coordinate is the BOOK Position while the DB stores a CHAPTER Position, and
+ * the builder has to translate between them before it seeks. `locateInBook` is
+ * the one place that may.
+ */
+describe('resuming inside a one-item queue with real chapter offsets', () => {
+  const oneItemBook = (): Book =>
+    ({
+      bookId: 'b1',
+      bookTitle: 'Dune',
+      author: 'Frank Herbert',
+      bookProgressValue: BookProgressState.Started,
+      chapters: oneItemChapters([0, 60000, 120000]).map((chapter, i) => ({
+        ...chapter,
+        chapterTitle: `Ch ${i + 1}`,
+      })),
+    }) as unknown as Book;
+
+  beforeEach(() => {
+    // 30s into chapter 2, whose Book Position is 60 + 30.
+    (getChapterProgressInDB as jest.Mock).mockResolvedValue({
+      chapterIndex: 1,
+      progress: 30,
+    });
+  });
+
+  it('seeks to the chapter start plus the stored chapter progress', async () => {
+    await play(oneItemBook());
+
+    expect(TrackPlayer.skip).not.toHaveBeenCalled();
+    expect(TrackPlayer.seekTo).toHaveBeenCalledWith(90);
+  });
+
+  it('translates the same way when the book is already the requested one', async () => {
+    await handleBookPlay(oneItemBook(), false, false, 'b1', jest.fn());
+
+    expect(TrackPlayer.reset).not.toHaveBeenCalled();
+    expect(TrackPlayer.skip).not.toHaveBeenCalled();
+    expect(TrackPlayer.seekTo).toHaveBeenCalledWith(90);
   });
 });

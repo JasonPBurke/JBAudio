@@ -3,7 +3,7 @@ import type { Book, Chapter } from '@/types/Book';
 import { resolveTrackArtwork } from '@/helpers/defaultArtwork';
 import { CLIPPED_CHAPTERS_SPIKE } from '@/constants/featureFlags';
 import { getHeapLimitBytes } from '@/helpers/deviceHeap';
-import { hasValidChapterData } from '@/helpers/singleFileBook';
+import { hasValidChapterData } from '@/helpers/chapterMetadata';
 
 /**
  * The chapter fields the gate reads. Exported because `queueShapeOf` folds
