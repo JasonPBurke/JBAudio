@@ -98,6 +98,28 @@ describe('queueShapeOf — the four authoring shapes', () => {
   });
 });
 
+/**
+ * The gate's remaining exclusion, which the four-shapes block above does not
+ * reach: shape B covers a Book the heap rejects and one the auto-chapter rule
+ * rejects, but not one rejected for having no offsets to cut at. This used to
+ * be pinned through the deleted `usesChapterQueue`; without it, that exclusion
+ * has no test.
+ */
+describe('queueShapeOf — one file with no usable chapter offsets', () => {
+  it('several chapters, one file, every startMs 0 → one-item', () => {
+    // Several chapters, one file, every startMs 0: `hasValidChapterData` is
+    // false, so there is nothing to clip against and the whole Book is one
+    // queue item. ⚠ Not the same case as shape C — this Book HAS several
+    // chapters, it just has no offsets to cut them at.
+    expect(
+      queueShapeOf([
+        chapter({ startMs: 0, duration: 60, url: '/book.m4b' }),
+        chapter({ startMs: 0, duration: 60, url: '/book.m4b' }),
+      ]),
+    ).toBe('one-item');
+  });
+});
+
 describe('queueShapeOf — the one-chapter correction', () => {
   it('answers one-item for a book with exactly one chapter', () => {
     expect(queueShapeOf([chapter({ startMs: 0, duration: 3600, url: '/book.m4b' })])).toBe('one-item');
@@ -115,6 +137,49 @@ describe('queueShapeOf — undecidable inputs fail closed', () => {
 
   it('answers multi-item for an empty chapter array', () => {
     expect(queueShapeOf([])).toBe('multi-item');
+  });
+});
+
+/**
+ * The spike is `queueShapeOf`'s only non-chapter input besides the heap
+ * limit, and flipping it off is the supported way back to the classic
+ * single-track behaviour. This coverage used to live on `usesChapterQueue`
+ * in `chapterPlayback.test.ts`; that predicate is gone, and the question is
+ * this module's.
+ */
+describe('queueShapeOf — with CLIPPED_CHAPTERS_SPIKE off', () => {
+  let legacy: typeof import('../queueShape');
+
+  beforeAll(() => {
+    jest.resetModules();
+    jest.doMock('@/constants/featureFlags', () => ({
+      CLIPPED_CHAPTERS_SPIKE: false,
+    }));
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    legacy = require('../queueShape');
+  });
+
+  afterAll(() => {
+    jest.dontMock('@/constants/featureFlags');
+    jest.resetModules();
+  });
+
+  it('B. one file with real chapters → one-item, whatever the heap allows', () => {
+    expect(
+      legacy.queueShapeOf([
+        chapter({ startMs: 0, duration: 60, url: '/book.m4b' }),
+        chapter({ startMs: 60000, duration: 60, url: '/book.m4b' }),
+      ]),
+    ).toBe('one-item');
+  });
+
+  it('A. one file per chapter → still multi-item', () => {
+    expect(
+      legacy.queueShapeOf([
+        chapter({ startMs: 0, duration: 60, url: '/1.mp3' }),
+        chapter({ startMs: 0, duration: 60, url: '/2.mp3' }),
+      ]),
+    ).toBe('multi-item');
   });
 });
 

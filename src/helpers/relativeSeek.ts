@@ -18,9 +18,9 @@ import { withoutBlockingThePress } from '@/helpers/withoutBlockingThePress';
 /**
  * Relative seek with chapter/track-boundary crossing.
  *
- * Native seekBy() clamps within the CURRENT queue item, so on multi-track
- * queues (multi-file books, and single-file books under clipped chapters —
- * one queue item per chapter) a remote jump-back would stop dead at the
+ * Native seekBy() clamps within the CURRENT queue item, so on a MULTI-ITEM
+ * Queue (one file per Chapter, and one file under clipped chapters — either
+ * way, one queue item per Chapter) a remote jump-back would stop dead at the
  * chapter start. These helpers compute the landing spot in JS and issue an
  * explicit skip + seek instead, so the notification player, Android Auto
  * (RemoteJumpBackward/Forward) and the in-app buttons all behave the same:
@@ -34,7 +34,7 @@ import { withoutBlockingThePress } from '@/helpers/withoutBlockingThePress';
  * file exists to prevent. The walk below is therefore over the WHOLE queue,
  * not just the neighbor.
  *
- * Single-item queues (legacy single-file books) keep absolute positions, so
+ * A ONE-ITEM Queue keeps absolute positions, so
  * an in-track seek already crosses virtual chapters; only the book edges
  * need clamping/finishing. The walker handles that as the degenerate case.
  */
@@ -60,6 +60,9 @@ export interface RelativeSeekInput {
   /** Seconds to move; negative seeks back, positive seeks forward. */
   delta: number;
 }
+
+/** Everything a relative seek walks except the jump itself. */
+export type SeekInputs = Omit<RelativeSeekInput, 'delta'>;
 
 /**
  * Where a relative seek lands, as a queue index plus a position inside it.
@@ -119,19 +122,23 @@ async function restorePlayStateIfNeeded(wasPlaying: boolean): Promise<void> {
 }
 
 /**
- * Reads the queue shape once, in one place, so both helpers walk the same
- * numbers.
+ * Reads the numbers a relative seek walks — every queue item's duration, plus
+ * where playback currently is — once, in one place, so both helpers below
+ * walk the same ones.
+ *
+ * ⚠ This resolves NO Queue shape, despite once being called `readQueueShape`.
+ * That name outlived the design it came from: the walker in
+ * `resolveRelativeSeek` is annotated "correct for BOTH queue shapes" because
+ * a per-item duration list makes the shape question disappear rather than
+ * answer it — a one-item Queue is simply a list of one. `queueShapeOf` owns
+ * the verdict; nothing here asks it.
  *
  * The ACTIVE item's duration comes from the player rather than the queue: it
  * is what the decoder actually found, whereas a queue item's `duration` is
  * the chapter row's tag-derived estimate. Every other item can only be the
  * estimate, which is fine — those are used to measure a jump, not to land it.
  */
-async function readQueueShape(): Promise<{
-  durations: (number | undefined)[];
-  index: number;
-  position: number;
-} | null> {
+async function readSeekInputs(): Promise<SeekInputs | null> {
   const [queue, activeIndex, progress] = await Promise.all([
     getQueue(),
     getActiveTrackIndex(),
@@ -167,13 +174,13 @@ async function applyTarget(
 export async function seekBack(seconds: number): Promise<void> {
   const wasPlaying = await isPlayingNow();
 
-  const shape = await readQueueShape();
-  if (!shape) return;
+  const inputs = await readSeekInputs();
+  if (!inputs) return;
 
-  const target = resolveRelativeSeek({ ...shape, delta: -seconds });
+  const target = resolveRelativeSeek({ ...inputs, delta: -seconds });
   // A backward seek can never finish a book; the walker clamps at index 0.
   if (target.kind === 'seek') {
-    await applyTarget(target, shape.index);
+    await applyTarget(target, inputs.index);
   }
 
   await restorePlayStateIfNeeded(wasPlaying);
@@ -182,10 +189,10 @@ export async function seekBack(seconds: number): Promise<void> {
 export async function seekForward(seconds: number): Promise<void> {
   const wasPlaying = await isPlayingNow();
 
-  const shape = await readQueueShape();
-  if (!shape) return;
+  const inputs = await readSeekInputs();
+  if (!inputs) return;
 
-  const target = resolveRelativeSeek({ ...shape, delta: seconds });
+  const target = resolveRelativeSeek({ ...inputs, delta: seconds });
 
   if (target.kind === 'finished') {
     const activeBookId = await getActiveBookId();
@@ -199,7 +206,7 @@ export async function seekForward(seconds: number): Promise<void> {
         useLibraryStore.getState().books[activeBookId],
       );
     }
-    if (shape.index !== 0) {
+    if (inputs.index !== 0) {
       await skip(0);
     }
     await seekTo(0);
@@ -217,13 +224,13 @@ export async function seekForward(seconds: number): Promise<void> {
     // detector — pointing at the final chapter of a Book sitting at 0.
     //
     // ⚠ Correct for BOTH queue shapes, and idempotent with the multi-item
-    // path rather than a second, conflicting write. On a clipped/multi-file
-    // queue the `skip(0)` above fires `Event.PlaybackActiveTrackChanged`,
-    // whose multi-file branch already writes `setChapterIndex(bookId, 0)` —
+    // path rather than a second, conflicting write. On a multi-item Queue
+    // the `skip(0)` above fires `Event.PlaybackActiveTrackChanged`,
+    // whose multi-item branch already writes `setChapterIndex(bookId, 0)` —
     // this writes the same zero. That accidental correctness is precisely why
-    // the defect only ever showed on legacy single-file Books, and why the
-    // rewind cannot be conditioned on the shape: the single-item queue has no
-    // track change to ride on.
+    // the defect only ever showed on Books that load as ONE queue item, and
+    // why the rewind cannot be conditioned on the shape: a one-item Queue has
+    // no track change to ride on.
     //
     // Last, and deliberately so, for the two reasons `nextPress` states: the
     // press has already been served, so a failure inside the rewind must not
@@ -238,7 +245,7 @@ export async function seekForward(seconds: number): Promise<void> {
     return;
   }
 
-  await applyTarget(target, shape.index);
+  await applyTarget(target, inputs.index);
 
   await restorePlayStateIfNeeded(wasPlaying);
 }

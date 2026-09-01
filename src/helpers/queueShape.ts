@@ -70,13 +70,13 @@ const verdicts = new WeakMap<readonly ShapeChapter[], QueueShape>();
 /**
  * ⚠ `chapters.length > 0`, NOT `> 1`.
  *
- * `isSingleFileBook()` (`> 1`) and the persisted `book.isSingleFile` flag
- * (`> 0`) are the same predicate written twice, with an off-by-one in the
- * copy everything downstream reads. Today a ONE-CHAPTER Book makes
- * `treatAsSingleFile()` and `usesChapterQueue()` BOTH return true — "positions
- * are absolute" and "positions are chapter-relative" asserted about the same
- * Book. It does not bite only because such a Book has `startMs: 0`, so the two
- * coordinate systems coincide.
+ * The deleted predicates disagreed about a ONE-CHAPTER Book. The derived
+ * single-file check counted chapters `> 1`; the persisted `book.isSingleFile`
+ * flag, written at scan time, counted `> 0`. They were the same predicate
+ * written twice with an off-by-one in the copy everything downstream read, so
+ * a one-chapter Book was claimed at once by "positions are absolute" and by
+ * "positions are chapter-relative". It never bit, only because such a Book has
+ * `startMs: 0` and the two coordinate systems coincide there.
  *
  * A one-chapter Book is one Queue item. This function says so.
  */

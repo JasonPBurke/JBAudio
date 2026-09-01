@@ -80,7 +80,7 @@ jest.mock('@/store/library', () => ({
 }));
 
 /*
- * Two chapters with DIFFERENT urls, so `isSingleFileBook` is false and the
+ * Two chapters with DIFFERENT urls, so the Queue is multi-item and the
  * clipped-chapter gate is shut with it. That puts every case below in the
  * plain multi-file branch, where the resume position is readable straight off
  * `skip()` + `seekTo()` instead of through `calculateAbsolutePosition`.
@@ -388,9 +388,10 @@ describe('the restart is fully persisted before playback starts', () => {
  * The builder half of stage 1's one behavioural delta.
  *
  * A Book with exactly ONE chapter — a single audio file with no chapter
- * metadata — used to fall through to the MULTI-FILE arm, because the builders
- * asked `isSingleFileBook`, whose `chapters.length > 1` says a one-chapter
- * Book is not one file. `queueShapeOf` says what it is: one Queue item.
+ * metadata — used to fall through to the MULTI-ITEM arm, because the builders
+ * asked a since-deleted single-file predicate whose `chapters.length > 1` said
+ * a one-chapter Book is not one file. `queueShapeOf` says what it is: one
+ * Queue item.
  *
  * ⚠ The queue LENGTH is 1 either way, which is why this went unnoticed. What
  * changes is the arm that builds it, and with it the track's label: the

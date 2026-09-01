@@ -62,8 +62,8 @@ import { useSleepTimerStore } from '@/setup/sleepTimer';
 
 const { setPlaybackProgress } = useLibraryStore.getState();
 
-// SPIKE (Bug B): with clipped per-chapter queues, single-file books flow
-// through the multi-file code paths below (queue index == chapter index,
+// SPIKE (Bug B): with clipped per-chapter queues, a Book stored as one file
+// flows through the multi-item paths below (queue index == chapter index,
 // positions are chapter-relative inside each clipped window). That bypass is
 // no longer spelled out at each branch: `queueShapeOf` folds the memory gate
 // in and answers 'multi-item' for a clipped Book, so every branch below asks
@@ -95,7 +95,7 @@ const PROGRESS_SAVE_INTERVAL = 30000; // 30 seconds
 let lastProgressSaveTime = 0;
 
 // Saves at most every 30 seconds during playback to limit data loss.
-// Used for both single-file (chapter-relative) and multi-file (track-relative)
+// Used for both one-item (chapter-relative) and multi-item (track-relative)
 // progress — the interval is shared since only one book plays at a time.
 async function savePeriodicProgress(bookId: string, progress: number) {
   const now = Date.now();
@@ -701,8 +701,9 @@ export default module.exports = async function () {
       const trackAtIndex = await getTrack(event.index);
       if (!trackAtIndex?.bookId) return;
 
-      // Skip chapter index updates for single-file books - handled in
-      // PlaybackProgressUpdated.
+      // Skip chapter index updates on a ONE-ITEM Queue — there the index is
+      // always 0 and the Chapter comes from the position, which
+      // PlaybackProgressUpdated handles.
       //
       // Asked of the BOOK, not of `queue.length`: a Queue read answers about
       // whichever Book happens to be loaded, which is the Book this event is
@@ -711,11 +712,11 @@ export default module.exports = async function () {
       const trackBook = getBookFromStore(trackAtIndex.bookId);
       if (queueShapeOf(trackBook?.chapters) === 'one-item') return;
 
-      // Multi-file book: store then DB, as one unit — see
+      // MULTI-ITEM Queue: store then DB, as one unit — see
       // helpers/setChapterIndex.
       await setChapterIndex(trackAtIndex.bookId, event.index);
 
-      // Handle sleep timer chapter countdown (multi-file books only)
+      // Handle sleep timer chapter countdown (multi-item Queues only)
       await sleepTimer.onChapterChanged();
     },
   );

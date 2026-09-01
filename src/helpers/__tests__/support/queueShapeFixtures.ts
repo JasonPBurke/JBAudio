@@ -48,9 +48,9 @@ export const multiItemChapters = (count: number) =>
  *
  * It reaches that verdict by a DIFFERENT ROUTE from `oneItemChapters`, which
  * is why it is worth its own fixture rather than borrowing that one. The
- * clipped-chapters gate short-circuits on `isSingleFileBook`, whose
- * `chapters.length > 1` excludes a one-chapter Book outright, so the
- * auto-chapter exclusion never has to do any work here. That difference is
+ * clipped-chapters gate short-circuits on its own `chapters.length > 1`
+ * check, which excludes a one-chapter Book outright, so the auto-chapter
+ * exclusion never has to do any work here. That difference is
  * the whole of the one-chapter correction — `queueShapeOf` is the first
  * predicate in the app to call this shape what it is — so a test about it
  * should not reach the right answer for the other fixture's reason.

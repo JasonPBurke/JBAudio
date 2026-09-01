@@ -33,8 +33,8 @@ import { Chapter } from '@/types/Book';
  * The threshold compares playback position, so at 2× speed the window
  * passes in half the wall-clock time.
  *
- * At the START of a book — the first chapter of a single-file book, the first
- * QUEUE ITEM of a multi-item one — a within-threshold press restarts the book
+ * At the START of a book — the first chapter on a one-item Queue, the first
+ * QUEUE ITEM on a multi-item one — a within-threshold press restarts the book
  * rather than doing nothing, and reports 'restart' so the footprint names
  * what actually happened.
  *
@@ -70,7 +70,8 @@ export async function skipToPreviousChapter(
   };
 
   if (queueShapeOf(book?.chapters) === 'one-item') {
-    // Legacy single-file book: one track, chapters are absolute seek offsets.
+    // ONE-ITEM Queue: one track for the whole Book, so chapters are absolute
+    // seek offsets inside it.
     if (book?.chapters && book.chapters.length > 1) {
       const { targetSeconds, kind } = getPreviousPressTarget(
         book.chapters,
@@ -87,8 +88,8 @@ export async function skipToPreviousChapter(
     return;
   }
 
-  // Multi-file or clipped-chapter book: one queue item per chapter, so
-  // `position` is already chapter-relative and "restart" is seekTo(0).
+  // MULTI-ITEM Queue: one queue item per Chapter, so `position` is already
+  // chapter-relative and "restart" is seekTo(0).
   if (position > RESTART_CHAPTER_THRESHOLD_SECONDS) {
     await notifyBeforeSkip('restart');
     await seekTo(0);
@@ -96,8 +97,8 @@ export async function skipToPreviousChapter(
   }
 
   // At the first queue item there is no previous chapter, so the press
-  // restarts the book — the same thing the single-file branch above does at
-  // the first chapter.
+  // restarts the book — the same thing the one-item branch above does at the
+  // first chapter.
   //
   // This has to be ASKED, not discovered from a failure: `skipToPrevious()`
   // at index 0 RESOLVES having moved nothing. Native `previous()` is
@@ -142,17 +143,17 @@ export async function skipToPreviousChapter(
  * unreadable index takes the ordinary acting path rather than silently
  * swallowing a press.
  *
- * `'finish'` is the legacy single-file book's last chapter: a deliberate press
+ * `'finish'` is the last chapter on a ONE-ITEM Queue: a deliberate press
  * asking to leave a chapter there has nowhere left to play, so the caller
  * marks the Book finished instead of seeking. It is NOT a chapter change, and
  * its footprint is labeled accordingly by the caller.
  */
 export type NextPressAction =
-  /** Legacy single-file book: seek to the next chapter's absolute start. */
+  /** One-item Queue: seek to the next chapter's absolute start. */
   | { kind: 'chapter'; seekSeconds: number }
   /** Chapter queue: `skipToNext()` will move to the next queue item. */
   | { kind: 'skip' }
-  /** Last chapter of a legacy single-file book: end of the Book. */
+  /** Last chapter on a one-item Queue: end of the Book. */
   | { kind: 'finish' }
   /** Last queue item: the press moves nothing, so nothing should be recorded. */
   | { kind: 'none' };
@@ -165,11 +166,12 @@ export type NextPressBook = { chapters?: Chapter[] } | undefined;
  * verdict is `queueShapeOf`'s (`helpers/queueShape.ts`) and the caller — the
  * composition root in `nextPress.ts` — already holds it.
  *
- * ⚠ NAMED FOR THE QUEUE, NOT FOR THE BOOK ON DISK. It used to be
- * `treatAsSingleFile`, which CONTEXT.md's **Queue shape** entry lists under
- * _Avoid_ for exactly the confusion it caused here: a Book stored as one file
- * that clears the clipped-chapters memory gate is single-file in the DB and a
- * CHAPTER QUEUE at runtime, so the two words are not the same question.
+ * ⚠ NAMED FOR THE QUEUE, NOT FOR THE BOOK ON DISK. It used to carry the name
+ * of a since-deleted "treat as single file" predicate — wording CONTEXT.md's
+ * **Queue shape** entry lists under _Avoid_ for exactly the confusion it
+ * caused here: a Book stored as one file that clears the clipped-chapters
+ * memory gate is single-file in the DB and a MULTI-ITEM Queue at runtime, so
+ * the two words are not the same question.
  */
 export async function resolveNextPress(
   book: NextPressBook,

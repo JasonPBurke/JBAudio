@@ -1,18 +1,6 @@
 import { Chapter } from '@/types/Book';
 
 /**
- * Determines if a book is a single-file book (one audio file with multiple chapters).
- * Single-file books have all chapters pointing to the same URL.
- * Accepts any chapter-shaped rows (e.g. DB projections) that carry `url`.
- */
-export function isSingleFileBook(
-  chapters: readonly Pick<Chapter, 'url'>[] | undefined,
-): boolean {
-  if (!chapters || chapters.length <= 1) return false;
-  return chapters.every((c) => c.url === chapters[0].url);
-}
-
-/**
  * Finds the chapter index based on the current playback position (in seconds).
  * Returns the index of the chapter whose startMs is <= the current position.
  * Returns 0 if no chapter is found.
