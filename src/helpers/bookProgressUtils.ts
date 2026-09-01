@@ -1,6 +1,6 @@
 import { Book } from '@/types/Book';
-import { BookProgressState } from '@/helpers/handleBookPlay';
-import { queueShapeOf } from '@/helpers/queueShape';
+import { BookProgressState } from '@/helpers/bookProgressState';
+import { approximateLocationInBook } from '@/helpers/bookLocation';
 import { formatSecondsToHoursMinutes } from '@/helpers/miscellaneous';
 
 export type BookProgressInfo = {
@@ -23,6 +23,17 @@ type LiveOverrides = {
  * To get up-to-date values, callers can pass `liveProgress` / `liveIndex`
  * from `playbackProgress[bookId]` / `playbackIndex[bookId]` in the store,
  * which the playback service updates in real-time.
+ *
+ * ⚠ BOTH INPUTS ARE CHAPTER POSITIONS, persisted or live — never a Player
+ * Position. `current_chapter_progress` is seconds into the CHAPTER, and the
+ * service writes the store the same way (`setPlaybackProgress` is fed
+ * `chapter.positionSeconds` on a one-item Queue). That is why the reading
+ * below is tagged `'chapter'`, and why this file used to add `startMs` back
+ * by hand on one Queue shape and sum durations on the other.
+ *
+ * No Player read, directly or transitively: `BookDurationRow` calls this once
+ * per visible library row and is deliberately unmemoized, so an async bridge
+ * call here would be a scroll regression.
  */
 export function computeBookProgress(
   book: Book,
@@ -53,29 +64,43 @@ export function computeBookProgress(
     };
   }
 
-  // Started: prefer live overrides, fall back to persisted bookProgress
-  const chapterProgress =
-    overrides?.liveProgress ?? book.bookProgress.currentChapterProgress ?? 0;
-  const chapterIndex =
-    overrides?.liveIndex ?? book.bookProgress.currentChapterIndex;
-  const chapters = book.chapters;
-  const idx = Math.max(0, Math.min(chapterIndex, chapters.length - 1));
+  // Started: prefer live overrides, fall back to persisted bookProgress.
+  //
+  // ⚠ THE BEST-EFFORT VARIANT, ASKED FOR BY NAME. A chapter whose duration
+  // failed to extract (`scanLibrary`'s `makeErrorChapter` stores `0`) counts
+  // as zero here, which reads the capsule a little LOW — cosmetic, and the
+  // exact trade-off the spec's decision 3 names for this surface. The same
+  // undercount in `evaluateBookEnd` marks a Book Finished hours early, which
+  // is why that caller gets the exact function and this one has to say the
+  // approximate name out loud.
+  //
+  // ⚠ The trailing `?? 0` is NOT the conversion ADR 0004 forbids — it stays
+  // inside ONE coordinate. `current_chapter_progress` is a nullable column,
+  // and a Book whose chapter index is known but whose progress was never
+  // written is at the START of that chapter; treating it as the chapter start
+  // is a floor, not a fabricated Book Position. Passing the `null` through
+  // instead would make every such Book render as unmeasurable.
+  const location = approximateLocationInBook(book.chapters, {
+    from: 'chapter',
+    chapterIndex:
+      overrides?.liveIndex ?? book.bookProgress.currentChapterIndex,
+    chapterPositionSeconds:
+      overrides?.liveProgress ?? book.bookProgress.currentChapterProgress ?? 0,
+  });
 
-  let totalPlayed: number;
-
-  if (queueShapeOf(chapters) === 'one-item') {
-    // Legacy single-file books: chapterProgress is relative to the current
-    // chapter's start. Add the chapter's startMs offset to get the absolute
-    // position in the file.
-    const chapterStartSec = (chapters[idx]?.startMs ?? 0) / 1000;
-    totalPlayed = chapterStartSec + chapterProgress;
-  } else {
-    // Chapter-queue books (multi-file, and clipped single-file under the
-    // spike): sum previous chapter durations + current chapter progress
-    totalPlayed = chapterProgress;
-    for (let i = 0; i < idx; i++) {
-      totalPlayed += chapters[i]?.chapterDuration ?? 0;
-    }
+  // A Book we cannot place — the stored chapter index points at no row, where
+  // the deleted arithmetic silently CLAMPED it to the last chapter and read
+  // the Book as nearly finished. Showing the whole duration as remaining is
+  // the honest floor: never blank, never NaN, and never a progress capsule
+  // full of a position we did not measure.
+  const totalPlayed = location?.bookPositionSeconds;
+  if (totalPlayed == null) {
+    return {
+      progressFraction: 0,
+      remainingText: totalDurationText,
+      totalDurationText,
+      progressState,
+    };
   }
 
   const duration = book.bookDuration || 0;

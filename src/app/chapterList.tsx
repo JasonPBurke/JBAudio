@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { PressableScale } from 'pressto';
-import { play, seekTo, setVolume, skip } from '@/player/trackPlayer';
+import { play, setVolume } from '@/player/trackPlayer';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CircleX } from 'lucide-react-native';
@@ -15,7 +15,11 @@ import { useBookById, useLibraryStore } from '@/store/library';
 import { useActiveBookId } from '@/store/playerState';
 import { useTheme } from '@/hooks/useTheme';
 import { withOpacity, ensureReadable } from '@/helpers/colorUtils';
-import { queueShapeOf } from '@/helpers/queueShape';
+import { locateInBook } from '@/helpers/bookLocation';
+import {
+  performChapterJump,
+  resolveChapterJump,
+} from '@/helpers/chapterJump';
 import { Chapter } from '@/types/Book';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { FlashList } from '@shopify/flash-list';
@@ -41,6 +45,11 @@ const ChapterListScreen = () => {
 
   // Chapter identity is the queue/store index (see helpers/chapterPlayback):
   // never match by URL — clipped queue items all share one URL.
+  //
+  // ⚠ BOTH STORE VALUES ARE CHAPTER COORDINATES, not Player ones. The service
+  // writes `playbackIndex` through `setChapterIndex` and feeds
+  // `setPlaybackProgress` a chapter-relative position on either Queue shape,
+  // which is why the reading below is tagged `'chapter'`.
   const storeIndex = useLibraryStore(
     useCallback(
       (state) =>
@@ -48,15 +57,30 @@ const ChapterListScreen = () => {
       [book?.bookId],
     ),
   );
-
-  // Calculate active chapter index (only when this book is the loaded one)
+  // Which row to highlight (only when this book is the loaded one).
+  //
+  // ⚠ THE TRANSLATOR VALIDATES THE INDEX WHERE THIS USED TO CLAMP IT. A
+  // stored index pointing at no row used to highlight the LAST chapter —
+  // the most misleading row it could pick, since it reads as "you are at the
+  // end". A location we cannot tell now highlights NOTHING, which is the
+  // same thing this screen already renders in read-only mode and for a Book
+  // that is not the loaded one.
   const activeIndex = useMemo(() => {
     if (isReadOnly || !book?.chapters?.length) return -1;
     if (activeBookId !== book.bookId) return -1;
-    const index =
-      storeIndex ?? book.bookProgress?.currentChapterIndex ?? -1;
-    if (index < 0) return -1;
-    return Math.min(index, book.chapters.length - 1);
+    // ⚠ THE HIGHLIGHT NAMES A CHAPTER, NOT A POSITION WITHIN ONE, so it reads
+    // the Chapter coordinate and nothing else. The Chapter Position passed in
+    // is `0` deliberately: feeding the stored progress here would make a
+    // corrupt `current_chapter_progress` VOID a perfectly good chapter index
+    // and un-highlight the row (`locateInBook` declines the whole reading
+    // when the position is unusable), and no coordinate derived from it is
+    // read back.
+    const location = locateInBook(book.chapters, {
+      from: 'chapter',
+      chapterIndex: storeIndex ?? book.bookProgress?.currentChapterIndex,
+      chapterPositionSeconds: 0,
+    });
+    return location?.chapter?.index ?? -1;
   }, [isReadOnly, book, activeBookId, storeIndex]);
 
   // Calculate initial scroll index to position active chapter at 3rd slot
@@ -79,6 +103,20 @@ const ChapterListScreen = () => {
         return;
       }
 
+      // ⚠ Resolved BEFORE the footprint write below, so a row that cannot
+      // be placed changes nothing at all rather than recording a departure
+      // from a position we never reached. In practice the index comes from
+      // the rendered list and is always in range.
+      //
+      // The start of the chapter is the target, so the Chapter Position is
+      // genuinely zero here — this is a press that means "take me to the
+      // beginning of that chapter", not a resumed position.
+      const jump = resolveChapterJump(book.chapters, {
+        index: chapterIndex,
+        positionSeconds: 0,
+      });
+      if (!jump) return;
+
       // Record footprint before chapter change
       try {
         void stampLastPlayed(book.bookId);
@@ -87,15 +125,7 @@ const ChapterListScreen = () => {
         // Silently fail if footprint recording fails
       }
 
-      if (queueShapeOf(book.chapters) === 'multi-item') {
-        // Multi-file and clipped single-file books: one queue item per chapter
-        await skip(chapterIndex);
-      } else {
-        // Legacy single-file book: one queue item, absolute positions
-        const selectedChapter = book.chapters[chapterIndex];
-        const seekTime = (selectedChapter.startMs || 0) / 1000;
-        await seekTo(seekTime);
-      }
+      await performChapterJump(jump);
 
       await play();
       await setVolume(1);

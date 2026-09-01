@@ -106,10 +106,33 @@ describe('calculateRemainingBookTime', () => {
     ).toBe(130);
   });
 
-  it('treats a missing index as chapter 0 on a multi-item Queue', () => {
+  // ⚠ MIGRATION DELTA. This used to fabricate chapter 0 and answer 190. On a
+  // multi-item Queue the Queue index is the only thing that says which
+  // Chapter is playing, so an unreadable one cannot be converted — and `null`
+  // says so rather than reporting a Book that is barely started.
+  it('declines to answer without an index on a multi-item Queue', () => {
     expect(
       calculateRemainingBookTime(makeBook(clippedChapters), 30, undefined),
-    ).toBe(190);
+    ).toBeNull();
+  });
+
+  // Best-effort by name: the unreadable chapter counts as zero, so the label
+  // OVERSTATES what is left rather than going blank.
+  it('counts an unusable chapter duration as zero', () => {
+    const damaged = [
+      chapter('Ch 1', 0, 0),
+      chapter('Ch 2', 60000, 60),
+      chapter('Ch 3', 120000, 100),
+    ];
+    expect(calculateRemainingBookTime(makeBook(damaged), 30, 2)).toBe(130);
+  });
+
+  // A one-item Queue ignores the index entirely — it can only ever be 0 —
+  // so an unreadable one must NOT refuse the answer.
+  it('still answers without an index on a one-item Queue', () => {
+    expect(
+      calculateRemainingBookTime(makeBook(autoChapters), 90, undefined),
+    ).toBe(130);
   });
 
   it('never returns a negative remaining time', () => {

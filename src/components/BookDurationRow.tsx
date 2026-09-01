@@ -4,7 +4,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { withOpacity } from '@/helpers/colorUtils';
 import { ProgressCapsule } from '@/components/ProgressCapsule';
 import { computeBookProgress } from '@/helpers/bookProgressUtils';
-import { BookProgressState } from '@/helpers/handleBookPlay';
+import { BookProgressState } from '@/helpers/bookProgressState';
 import { useLibraryStore } from '@/store/library';
 import { Book } from '@/types/Book';
 

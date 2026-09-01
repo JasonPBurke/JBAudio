@@ -7,14 +7,17 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { PressableScale } from 'pressto';
-import { play, seekTo, skip } from '@/player/trackPlayer';
+import { play } from '@/player/trackPlayer';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CircleX } from 'lucide-react-native';
 import { useBookById } from '@/store/library';
 import { useActiveBookId } from '@/store/playerState';
 import { useTheme } from '@/hooks/useTheme';
-import { queueShapeOf } from '@/helpers/queueShape';
+import {
+  performChapterJump,
+  resolveChapterJump,
+} from '@/helpers/chapterJump';
 import { withOpacity } from '@/helpers/colorUtils';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { FlashList } from '@shopify/flash-list';
@@ -86,20 +89,18 @@ const FootprintListScreen = () => {
 
       if (!book?.chapters) return;
 
-      const targetChapter = book.chapters[footprint.chapterIndex];
-      if (!targetChapter) return;
+      // ⚠ A FOOTPRINT IS A CHAPTER POSITION, both columns of it — which is
+      // why this screen can hand the stored row straight to the translator
+      // and never touches the Player to find out where the Book is. The
+      // `startMs` arithmetic that used to live here was the deleted
+      // conversion pair's one-item mapping, written out by hand.
+      const jump = resolveChapterJump(book.chapters, {
+        index: footprint.chapterIndex,
+        positionSeconds: footprint.positionMs / 1000,
+      });
+      if (!jump) return;
 
-      if (queueShapeOf(book.chapters) === 'multi-item') {
-        // Multi-file and clipped single-file books: skip to the chapter's
-        // queue item, then seek within it (positions are chapter-relative)
-        await skip(footprint.chapterIndex);
-        await seekTo(footprint.positionMs / 1000);
-      } else {
-        // Legacy single-file book: seek to chapter start + footprint position
-        const seekTime =
-          ((targetChapter.startMs || 0) + footprint.positionMs) / 1000;
-        await seekTo(seekTime);
-      }
+      await performChapterJump(jump);
 
       await play();
       router.back();

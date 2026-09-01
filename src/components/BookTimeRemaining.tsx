@@ -45,8 +45,6 @@ const BookTimeRemainingInner = React.memo(
     size?: number;
     color?: string;
   }) => {
-    const [remainingText, setRemainingText] = useState('');
-    const lastUpdateRef = useRef(0);
     const rate = useSettingsStore((s) => s.playbackRate);
 
     const calculateRemaining = useCallback(
@@ -56,11 +54,25 @@ const BookTimeRemainingInner = React.memo(
           position,
           currentIndex,
         );
+        // ⚠ `null` is "I could not tell", never "nothing is left" — the Queue
+        // index has not arrived yet, or could not be read on a multi-item
+        // Queue. Falling back to the WHOLE Book is the only number that is
+        // certainly true of it, and it is never blank and never NaN. The
+        // opposite fallback (a bare `?? 0`) would announce "0m left" over a
+        // Book that has not been started.
+        const seconds = remaining ?? book.bookDuration;
         // Wall-clock listening time at the current playback speed
-        return formatSecondsToHoursMinutes(remaining / rate);
+        return formatSecondsToHoursMinutes(seconds / rate);
       },
       [book, currentIndex, rate],
     );
+
+    // Seeded rather than empty: the first paint happens before the initial
+    // getProgress() resolves, and an empty string renders a bare " left".
+    const [remainingText, setRemainingText] = useState(() =>
+      formatSecondsToHoursMinutes(book.bookDuration / rate),
+    );
+    const lastUpdateRef = useRef(0);
 
     // Initial calculation and event-based updates
     useEffect(() => {
