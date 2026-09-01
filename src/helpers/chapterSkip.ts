@@ -2,17 +2,15 @@ import {
   getActiveBookId,
   getActiveTrackIndex,
   getProgress,
-  getQueue,
   seekTo,
   skipToPrevious,
 } from '@/player/trackPlayer';
 import { useLibraryStore } from '@/store/library';
-import {
-  getNextChapterStartSeconds,
-  getPreviousPressTarget,
-  PreviousPressKind,
-} from '@/helpers/singleFileBook';
 import { queueShapeOf } from '@/helpers/queueShape';
+import {
+  chapterStartInQueueSeconds,
+  locateInBook,
+} from '@/helpers/bookLocation';
 import { Chapter } from '@/types/Book';
 
 /**
@@ -42,63 +40,157 @@ import { Chapter } from '@/types/Book';
  * awaited BEFORE the seek/skip — footprint recording needs the pre-press
  * position, but only this helper knows which action the press resolves to.
  * A callback failure never blocks the playback action.
+ *
+ * ── Both decisions are pure; only the wiring touches the Player ──
+ *
+ * `resolvePreviousPress` and `resolveNextPress` take a `PressReading` and
+ * return an action. Neither reads the Player, and neither works out where the
+ * playhead is: `locateInBook` has already answered that in both coordinates,
+ * which is what removed the Queue-shape branch from the middle of each. What
+ * survives of the shape is `oneItemQueue`, used only to choose between a seek
+ * and a step to another Queue item — see `PressReading` for why that one
+ * cannot be dissolved.
  */
 const RESTART_CHAPTER_THRESHOLD_SECONDS = 15;
 
-export async function skipToPreviousChapter(
-  onBeforeSkip?: (kind: PreviousPressKind) => void | Promise<void>,
-): Promise<void> {
-  // The shape comes from the BOOK, not from `queue.length`. A Queue read
-  // answers about whichever Book happens to be loaded — which disagrees with
-  // the Book this press is about for the length of every Book switch — and it
-  // marshals the whole track list across the bridge to learn one boolean.
-  const [activeBookId, { position }] = await Promise.all([
-    getActiveBookId(),
-    getProgress(),
-  ]);
-  const book = activeBookId
-    ? useLibraryStore.getState().books[activeBookId]
-    : undefined;
+/**
+ * Everything a transport press needs to decide, read from the Player ONCE.
+ *
+ * ⚠ THE PRESS DECISIONS BELOW DO NO IO AND ASK NO "WHERE AM I?" QUESTION OF
+ * THEIR OWN. Both used to fetch their own numbers halfway through — the
+ * previous press reached for `getActiveTrackIndex()` inside one arm of one
+ * branch, the next press for `getProgress()` inside another — so what a press
+ * saw depended on which arm it took, and neither could be exercised without a
+ * player. The composition root reads once and hands the numbers down.
+ *
+ * ⚠ THE NUMBERS ONLY — no pre-computed location. Each decision calls
+ * `locateInBook` on this reading itself, which is free of IO and so no
+ * exception to the rule above. Handing one in would let a caller pass a
+ * location computed from a DIFFERENT position or index than the ones beside
+ * it — an invalid state the type would happily describe. `locateInBook`
+ * returns Book Position and Chapter Position together, so neither decision
+ * converts between them and neither asks which Queue shape it is looking at.
+ * See `docs/adr/0004-queue-shape-answers-in-coordinates.md`.
+ */
+export type PressReading = {
+  /** The Book's chapter rows, as the library store holds them. */
+  chapters: readonly Chapter[] | undefined;
+  /** Position: seconds into the playing QUEUE ITEM, straight from the Player. */
+  positionSeconds: number;
+  /** Index of the playing Queue item; `undefined` when it could not be read. */
+  queueIndex: number | undefined;
+  /**
+   * Whether the Book loads as ONE Queue item.
+   *
+   * ⚠ TRANSPORT ONLY, AND PASSED IN RATHER THAN DERIVED. Nothing below asks
+   * it to work out where the playhead is — that is the translator's job.
+   * It survives because the two shapes genuinely MOVE differently: a one-item
+   * Queue reaches another Chapter by seeking inside its single track, a
+   * multi-item Queue by stepping to another track. No arithmetic can dissolve
+   * that, so it stays a parameter — the arrangement `resolveNextPress` has
+   * carried since the skip-next parity work, now shared by both ends.
+   *
+   * ⚠ NAMED FOR THE QUEUE, NOT FOR THE BOOK ON DISK. It once carried the name
+   * of a since-deleted "treat as single file" predicate — wording CONTEXT.md's
+   * **Queue shape** entry lists under _Avoid_ for exactly the confusion it
+   * caused here: a Book stored as one file that clears the clipped-chapters
+   * memory gate is single-file in the DB and a MULTI-ITEM Queue at runtime.
+   */
+  oneItemQueue: boolean;
+};
 
-  const notifyBeforeSkip = async (kind: PreviousPressKind) => {
-    if (!onBeforeSkip) return;
-    try {
-      await onBeforeSkip(kind);
-    } catch {
-      // Footprint/bookkeeping failures must not block the seek.
-    }
+/** How a resolved press actually moves the playhead. */
+export type PressMove =
+  /** Seek to this many seconds inside the playing Queue item. */
+  | { to: 'seek'; seekSeconds: number }
+  /** Step to the previous Queue item — `skipToPrevious()`. */
+  | { to: 'previous-item' };
+
+export type PreviousPressKind = 'restart' | 'previous';
+
+/**
+ * What a skip-to-PREVIOUS press resolves to.
+ *
+ * `kind` is what HAPPENED and drives the footprint label ('Chapter restart'
+ * vs 'Chapter changed'); `move` is how to make it happen. They are separate
+ * because only the second one still knows about Queue shape.
+ */
+export type PreviousPressAction = {
+  kind: PreviousPressKind;
+  move: PressMove;
+};
+
+/**
+ * More than `thresholdSeconds` into a Chapter, the press restarts that
+ * Chapter; at or under the threshold it goes to the previous Chapter. At the
+ * START of the Book — the first Chapter, whichever shape the Queue is — a
+ * within-threshold press restarts the Book rather than doing nothing, and
+ * reports 'restart' so the footprint names what actually happened.
+ *
+ * The threshold compares playback position, so at 2× speed the window passes
+ * in half the wall-clock time.
+ *
+ * ⚠ HOW THE SHAPE BRANCH DISSOLVED, since it looks like sleight of hand: a
+ * Chapter's start expressed in QUEUE coordinates is
+ * `positionSeconds - chapter.positionSeconds`. On a one-item Queue the
+ * Position IS the Book Position, so that difference is the Chapter's absolute
+ * `startMs`; on a multi-item Queue the Position ALREADY IS the Chapter
+ * Position, so the difference is 0 — which is where a "restart this chapter"
+ * seek has always had to land. One expression, both shapes, no verdict.
+ */
+export function resolvePreviousPress(
+  { chapters, positionSeconds, queueIndex, oneItemQueue }: PressReading,
+  thresholdSeconds: number,
+): PreviousPressAction {
+  const restartHere: PreviousPressAction = {
+    kind: 'restart',
+    move: { to: 'seek', seekSeconds: 0 },
   };
 
-  if (queueShapeOf(book?.chapters) === 'one-item') {
-    // ONE-ITEM Queue: one track for the whole Book, so chapters are absolute
-    // seek offsets inside it.
-    if (book?.chapters && book.chapters.length > 1) {
-      const { targetSeconds, kind } = getPreviousPressTarget(
-        book.chapters,
-        position,
-        RESTART_CHAPTER_THRESHOLD_SECONDS,
-      );
-      await notifyBeforeSkip(kind);
-      await seekTo(targetSeconds);
-    } else {
-      // Single-chapter book (or chapters not loaded): restart the track.
-      await notifyBeforeSkip('restart');
-      await seekTo(0);
+  const chapter = locateInBook(chapters, {
+    from: 'queue',
+    queueIndex,
+    positionSeconds,
+  })?.chapter;
+
+  if (chapter) {
+    if (chapter.positionSeconds > thresholdSeconds) {
+      return {
+        kind: 'restart',
+        move: {
+          to: 'seek',
+          seekSeconds: chapterStartInQueueSeconds(positionSeconds, chapter),
+        },
+      };
     }
-    return;
+
+    if (chapter.index === 0) return restartHere;
+
+    return {
+      kind: 'previous',
+      move: oneItemQueue
+        ? {
+            to: 'seek',
+            seekSeconds: (chapters?.[chapter.index - 1]?.startMs || 0) / 1000,
+          }
+        : { to: 'previous-item' },
+    };
   }
 
-  // MULTI-ITEM Queue: one queue item per Chapter, so `position` is already
-  // chapter-relative and "restart" is seekTo(0).
-  if (position > RESTART_CHAPTER_THRESHOLD_SECONDS) {
-    await notifyBeforeSkip('restart');
-    await seekTo(0);
-    return;
-  }
+  // ── The Chapter could not be told ──────────────────────────────────────
+  //
+  // No chapter rows at all, or rows with no usable boundaries. `null` is "I
+  // could not tell", never "chapter 0", so nothing below reads an index off
+  // the location — the raw Position and the Queue index are all there is.
 
-  // At the first queue item there is no previous chapter, so the press
-  // restarts the book — the same thing the one-item branch above does at the
-  // first chapter.
+  // One Queue item with nothing to navigate WITHIN: the only move that means
+  // anything is back to the start, and that is a restart.
+  if (oneItemQueue) return restartHere;
+
+  if (positionSeconds > thresholdSeconds) return restartHere;
+
+  // At the first Queue item there is no previous Chapter, so the press
+  // restarts the Book.
   //
   // This has to be ASKED, not discovered from a failure: `skipToPrevious()`
   // at index 0 RESOLVES having moved nothing. Native `previous()` is
@@ -106,21 +198,60 @@ export async function skipToPreviousChapter(
   // there is no previous item", and `MusicModule` resolves the promise
   // unconditionally — there is no rejection to catch.
   //
-  // `undefined` means the index could not be read, NOT index 0: treating it
+  // `undefined` means the index could not be READ, NOT index 0: treating it
   // as 0 would turn a transient read failure into a spurious restart, so an
   // unknown index takes the ordinary previous-chapter path. That path is
-  // deliberately unguarded — after this fix it always acts, so a "did
-  // anything move?" check would be dead code — which leaves one accepted
-  // residual: an unreadable index that was really 0 still records a
-  // `chapter_change` for a press that went nowhere.
-  const activeIndex = await getActiveTrackIndex();
-  if (activeIndex === 0) {
-    await notifyBeforeSkip('restart');
-    await seekTo(0);
-    return;
+  // deliberately unguarded — it always acts, so a "did anything move?" check
+  // would be dead code — which leaves one accepted residual: an unreadable
+  // index that was really 0 still records a `chapter_change` for a press that
+  // went nowhere.
+  if (queueIndex === 0) return restartHere;
+
+  return { kind: 'previous', move: { to: 'previous-item' } };
+}
+
+export async function skipToPreviousChapter(
+  onBeforeSkip?: (kind: PreviousPressKind) => void | Promise<void>,
+): Promise<void> {
+  // ONE read, three numbers, and the shape comes from the BOOK rather than
+  // from `queue.length`. A Queue read answers about whichever Book happens to
+  // be loaded — which disagrees with the Book this press is about for the
+  // length of every Book switch — and it marshals the whole track list across
+  // the bridge to learn one boolean.
+  const [activeBookId, { position }, queueIndex] = await Promise.all([
+    getActiveBookId(),
+    getProgress(),
+    getActiveTrackIndex(),
+  ]);
+  const chapters = activeBookId
+    ? useLibraryStore.getState().books[activeBookId]?.chapters
+    : undefined;
+
+  const action = resolvePreviousPress(
+    {
+      chapters,
+      positionSeconds: position,
+      queueIndex,
+      oneItemQueue: queueShapeOf(chapters) === 'one-item',
+    },
+    RESTART_CHAPTER_THRESHOLD_SECONDS,
+  );
+
+  // Awaited BEFORE the seek/skip — footprint recording needs the pre-press
+  // position, but only the decision above knows which action the press
+  // resolved to. A callback failure never blocks the playback action.
+  if (onBeforeSkip) {
+    try {
+      await onBeforeSkip(action.kind);
+    } catch {
+      // Footprint/bookkeeping failures must not block the seek.
+    }
   }
 
-  await notifyBeforeSkip('previous');
+  if (action.move.to === 'seek') {
+    await seekTo(action.move.seekSeconds);
+    return;
+  }
   await skipToPrevious();
 }
 
@@ -158,47 +289,79 @@ export type NextPressAction =
   /** Last queue item: the press moves nothing, so nothing should be recorded. */
   | { kind: 'none' };
 
-/** The only thing this decision needs from the Book. */
-export type NextPressBook = { chapters?: Chapter[] } | undefined;
+/** A `PressReading` plus the one number only the forward end needs. */
+export type NextPressReading = PressReading & {
+  /** How many items the Queue holds; `0` when the read failed. */
+  queueLength: number;
+};
 
 /**
- * `oneItemQueue` is passed in rather than derived here: the Queue shape
- * verdict is `queueShapeOf`'s (`helpers/queueShape.ts`) and the caller — the
- * composition root in `nextPress.ts` — already holds it.
+ * Pure and synchronous, like its mirror above. It used to fetch its own
+ * progress inside the one-item arm and its own index and queue inside the
+ * other, which meant the two arms of one decision saw the Player at two
+ * different moments; the composition root in `nextPress.ts` now reads once
+ * and hands the numbers down.
  *
- * ⚠ NAMED FOR THE QUEUE, NOT FOR THE BOOK ON DISK. It used to carry the name
- * of a since-deleted "treat as single file" predicate — wording CONTEXT.md's
- * **Queue shape** entry lists under _Avoid_ for exactly the confusion it
- * caused here: a Book stored as one file that clears the clipped-chapters
- * memory gate is single-file in the DB and a MULTI-ITEM Queue at runtime, so
- * the two words are not the same question.
+ * ⚠ THE NEXT BOUNDARY IS FOUND FROM BOOK POSITION, NOT FROM A CHAPTER INDEX.
+ * The deleted `getNextChapterStartSeconds` re-derived the current chapter and
+ * took the row after it, which answered row 0 when the playhead preceded
+ * every boundary — so a press inside a Book's preamble skipped PAST the first
+ * chapter to the second. Scanning for the first boundary after the exact Book
+ * Position is the same answer everywhere else and the right one there.
  */
-export async function resolveNextPress(
-  book: NextPressBook,
-  oneItemQueue: boolean,
-): Promise<NextPressAction> {
-  if (oneItemQueue && book?.chapters && book.chapters.length > 1) {
-    const { position } = await getProgress();
-    const nextStart = getNextChapterStartSeconds(book.chapters, position);
+export function resolveNextPress({
+  chapters,
+  positionSeconds,
+  queueIndex,
+  queueLength,
+  oneItemQueue,
+}: NextPressReading): NextPressAction {
+  if (oneItemQueue && chapters && chapters.length > 1) {
+    const bookPositionSeconds = locateInBook(chapters, {
+      from: 'queue',
+      queueIndex,
+      positionSeconds,
+    })?.bookPositionSeconds;
+
+    // ⚠ NOTHING, rather than the acting path the other arm takes for an
+    // unreadable index. Acting here means deciding between a seek we cannot
+    // compute and FINISHING THE BOOK, and marking a Book finished by accident
+    // costs the user their position — nothing moves a Book off Finished
+    // except a play press, which restarts it from 0:00. The asymmetry is
+    // deliberate: the destructive direction never gets the benefit of the
+    // doubt.
+    if (bookPositionSeconds == null) return { kind: 'none' };
+
+    const nextStart = nextBoundaryAfter(chapters, bookPositionSeconds);
     return nextStart !== null
       ? { kind: 'chapter', seekSeconds: nextStart }
       : { kind: 'finish' };
   }
 
-  const [activeIndex, queue] = await Promise.all([
-    getActiveTrackIndex(),
-    getQueue(),
-  ]);
-
   // An unreadable index or an empty queue read is not evidence that the press
   // is a no-op — act, exactly as the previous side does.
   if (
-    activeIndex !== undefined &&
-    queue.length > 0 &&
-    activeIndex >= queue.length - 1
+    queueIndex !== undefined &&
+    queueLength > 0 &&
+    queueIndex >= queueLength - 1
   ) {
     return { kind: 'none' };
   }
 
   return { kind: 'skip' };
+}
+
+/**
+ * The start of the first Chapter that begins strictly after `seconds`, in
+ * seconds, or `null` when the playhead is already past the last boundary.
+ */
+function nextBoundaryAfter(
+  chapters: readonly Chapter[],
+  seconds: number,
+): number | null {
+  for (const chapter of chapters) {
+    const startSeconds = (chapter.startMs || 0) / 1000;
+    if (startSeconds > seconds) return startSeconds;
+  }
+  return null;
 }

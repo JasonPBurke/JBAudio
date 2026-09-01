@@ -77,7 +77,14 @@ describe('remainingChapterCount — multi-file book', () => {
     expect(await remainingChapterCount()).toBe(0);
   });
 
-  it('is 0 when the active queue index cannot be read', async () => {
+  /*
+   * ⚠ THIS USED TO ANSWER `0`. An unreadable Queue index is a Player read
+   * that failed, which this function's own header already documents as a
+   * `null` case — the `0` was a fabricated ceiling claiming "no boundaries
+   * left". Since the position translator landed, the chapter simply does not
+   * resolve and the "not known" answer is the honest one.
+   */
+  it('is null when the active queue index cannot be read', async () => {
     mockPlayer = createFakePlayer({
       durations: [600, 600, 600],
       index: 0,
@@ -86,7 +93,7 @@ describe('remainingChapterCount — multi-file book', () => {
     mockPlayer.api.getActiveTrackIndex.mockResolvedValue(undefined);
     mockGetState.mockReturnValue(storeWith(multiItemChapters(3)));
 
-    expect(await remainingChapterCount()).toBe(0);
+    expect(await remainingChapterCount()).toBeNull();
   });
 });
 

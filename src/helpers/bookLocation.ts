@@ -290,6 +290,27 @@ function locate(
 }
 
 /**
+ * Where a Chapter starts, expressed in the coordinates the PLAYER reports —
+ * what has to come off a raw Position to leave a Chapter Position.
+ *
+ * ⚠ QUEUE COORDINATES, NOT BOOK ONES. On a one-item Queue the Position is the
+ * Book Position, so this is the Chapter's absolute `startMs`; on a multi-item
+ * Queue the Position ALREADY IS the Chapter Position, so this is `0`. One
+ * expression, both shapes, no verdict — which is why three live surfaces
+ * (the progress bar's per-frame worklet, the chapter hook, and the
+ * restart-this-chapter seek) can share it instead of each keeping a branch.
+ *
+ * It lives here rather than at those three call sites because they had each
+ * written it out by hand and had already drifted on whether to clamp.
+ */
+export function chapterStartInQueueSeconds(
+  positionSeconds: number,
+  chapter: ChapterPosition,
+): number {
+  return Math.max(0, positionSeconds - chapter.positionSeconds);
+}
+
+/**
  * Where playback has reached, in both coordinates — exact, or `null` where it
  * cannot be told. `null` for the whole result means there is no Book.
  *

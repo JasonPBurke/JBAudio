@@ -4,8 +4,7 @@ import {
   getProgress,
 } from '@/player/trackPlayer';
 import { useLibraryStore } from '@/store/library';
-import { findChapterIndexByPosition } from '@/helpers/singleFileBook';
-import { queueShapeOf } from '@/helpers/queueShape';
+import { locateInBook } from '@/helpers/bookLocation';
 
 /**
  * How many chapter boundaries are left in the Active Book — the ceiling the
@@ -54,30 +53,41 @@ export async function remainingChapterCount(): Promise<number | null> {
     // reserved for its own question: is a Book loaded at all?
     if (!chapters || chapters.length === 0) return 0;
 
-    // ⚠ ASKED OF THE BOOK, NOT OF `queue.length`. A Queue read answers about
+    // ⚠ ONE PLAYER READ, THEN ARITHMETIC. Both numbers are fetched together
+    // and handed to the translator; nothing below asks the Player again, and
+    // nothing below asks which shape the Queue is. Which coordinate the
+    // Player just reported — a Chapter's worth of seconds or the whole
+    // Book's — is exactly what `locateInBook` exists to absorb.
+    //
+    // The Queue itself is still never read: a Queue read answers about
     // whichever Book happens to be loaded, and it marshals the whole track
-    // list across the bridge — hundreds of items on a clipped Book — to learn
-    // one boolean. `queueShapeOf` is the app's one Queue-shape verdict; see
-    // `helpers/queueShape.ts` and `.scratch/queue-shape/spec.md`.
-    if (queueShapeOf(chapters) === 'one-item') {
-      // One Queue item, absolute positions: the boundaries left are the
-      // chapters after the one the playhead is in.
-      const { position } = await getProgress();
-      return (
-        chapters.length - 1 - findChapterIndexByPosition(chapters, position)
-      );
-    }
-
-    // One Queue item per chapter, so the chapter count and the Queue length
-    // are the same number — both builders map chapters in order and neither
-    // filters nor sorts.
+    // list across the bridge — hundreds of items on a clipped Book — to
+    // learn one number.
     //
     // Named for the Queue, not for RNTP's "track" — CONTEXT.md lists that
     // under Chapter's _Avoid_. The adapter keeps RNTP's name; above it, the
     // index is a position in the Queue.
-    const activeQueueIndex = await getActiveTrackIndex();
-    if (activeQueueIndex === undefined) return 0;
-    return chapters.length - 1 - activeQueueIndex;
+    const [activeQueueIndex, { position }] = await Promise.all([
+      getActiveTrackIndex(),
+      getProgress(),
+    ]);
+
+    const chapter = locateInBook(chapters, {
+      from: 'queue',
+      queueIndex: activeQueueIndex,
+      positionSeconds: position,
+    })?.chapter;
+
+    // ⚠ `null` HERE IS "NOT KNOWN", AND IT USED TO BE A FABRICATED `0`.
+    // An unreadable Queue index answered `0` — "no boundaries left" — which
+    // is a claim, not a reading, and it contradicted this function's own
+    // header two screens up: `null` is documented as covering "a Player read
+    // that failed". The stepper's surfaces already handle `null` (the
+    // settings screen seeds 20, the modal shows 0); a fabricated `0` instead
+    // pinned the stepper to its floor and looked like a fact about the Book.
+    if (!chapter) return null;
+
+    return chapters.length - 1 - chapter.index;
   } catch {
     return null;
   }

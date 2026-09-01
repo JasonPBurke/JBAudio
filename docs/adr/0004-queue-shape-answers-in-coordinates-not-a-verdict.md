@@ -243,3 +243,55 @@ Three conditions, each of which should reopen exactly one ruling:
 
 Note what is **not** on this list: "the translator turned out to be more code than
 a shared predicate." It is, by design.
+
+## Addendum — the transport verdict (ticket `08`, 2026-08-31)
+
+Ruling 1's reopen condition above says to count the callers before adding one and
+not to add one quietly. Ticket `08` added one. This is that count, and the
+argument for why ruling 1 survives it.
+
+**A fourth audience exists, and it is not a reader: the TRANSPORT.**
+`skipToPreviousChapter` and `pressNext` each hold the verdict, and each uses it
+for exactly one thing — choosing between a seek inside a single track and a step
+to another Queue item. That is the reopen condition's own test, *"they act on
+shape rather than convert with it"*, answered in the affirmative.
+
+It does **not** unseat the translator, and the distinction is worth being exact
+about because it is the whole of why:
+
+- Every consumer that asked *where am I* now asks the translator, and none of them
+  branches. `chapterSkip.ts`'s two press decisions are the sharpest case: both
+  compute where the playhead is with no verdict at all, and the verdict enters
+  only at the last step, to pick a transport.
+- No caller converts between Book Position and Chapter Position outside
+  `bookLocation.ts`. That was the claim ruling 1 rests on, and it holds.
+- The two shapes genuinely MOVE differently. No arithmetic dissolves that — unlike
+  the coordinate question, which dissolved into one subtraction
+  (`chapterStartInQueueSeconds`).
+
+So the shape question really was merely the conversion **for readers**, and the
+primary export is named right. What the original ruling got wrong is smaller: it
+said "three callers" when it meant "three callers that are not simply choosing a
+transport". Read it that way.
+
+⚠ **`setup/service.ts`'s three verdict reads are a third category again**, and
+they look like readers. They are not: what they select is not what a Position
+means but WHICH SUBSYSTEM OWNS CHAPTER CHANGES — on a one-item Queue only the
+progress tick can see a boundary cross, while a multi-item Queue gets one
+`PlaybackActiveTrackChanged` per boundary and must not count it twice. Collapsing
+them would make a chapter-mode sleep timer count every boundary twice. One of the
+three is also `evaluateBookEnd`'s parameter, which ruling 1 already blesses.
+
+**Still owed, and not evidence against ruling 1:** the verdict is read by
+`footprintQueries`, `chapterPlayback`, `bookProgressUtils`, `chapterList` and
+`footprintList`. Those are the persisted READ consumers, and tickets `09`–`11`
+migrate them to the translator. Count again when `11` closes; if any survives as a
+reader, ruling 1 is in trouble and this is where to say so.
+
+**Ruling 3 was tested by the migration and held.** Its reopen condition is *"if,
+after tickets `08`–`09`'s migration, every site collapses `null` the same way."*
+They do not: the sleep-timer ceiling answers "not known", a previous press
+restarts the Book, the progress tick declines to write, the pause/stop write
+distinguishes which coordinate survived in order to tell an unreadable INDEX from
+unreadable BOUNDARIES, and the player screen falls back to a whole-Book display.
+Five sites, five different collapses.

@@ -12,13 +12,10 @@ import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { fontSize } from '@/constants/tokens';
 import { utilsStyles } from '@/styles';
 import { useProgressReanimated } from '@/hooks/useProgressReanimated';
-import { useCurrentChapter } from '@/hooks/useCurrentChapterStable';
+import { useCurrentChapterLocation } from '@/hooks/useCurrentChapterStable';
 import { useTheme } from '@/hooks/useTheme';
-import { useBookById } from '@/store/library';
-import { useActiveBookId } from '@/store/playerState';
 import { useAppStateStore } from '@/store/appState';
 import { useSettingsStore } from '@/store/settingsStore';
-import { queueShapeOf } from '@/helpers/queueShape';
 import { recordSeekFootprint } from '@/db/footprintQueries';
 
 // Pre-defined styles to avoid inline object creation
@@ -71,19 +68,25 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
 
   // Get current chapter info from screen-level Context. Single shared
   // subscription instead of one per consumer.
-  const currentChapter = useCurrentChapter();
-
-  // On a MULTI-ITEM Queue each chapter is its own queue item, so the native
-  // position is ALREADY chapter-relative — the chapter's absolute startMs must
-  // not be subtracted (that pinned the bar at 0 and made seeks land outside
-  // the clip window). Only a ONE-ITEM Queue reports absolute positions.
+  // What has to come off the raw Position to get a Chapter Position, in the
+  // Player's own coordinates: 0 on a multi-item Queue, where each chapter is
+  // its own queue item and the Position is ALREADY chapter-relative (that
+  // subtraction pinned the bar at 0 and made seeks land outside the clip
+  // window), and the chapter's absolute start on a one-item Queue.
   //
-  // This used to name the clipped-chapters gate directly, which is a narrower
-  // question than the one being asked: the gate is only one of the ways a
-  // Queue comes out multi-item.
-  const activeBookId = useActiveBookId();
-  const book = useBookById(activeBookId ?? '');
-  const isChapterRelative = queueShapeOf(book?.chapters) === 'multi-item';
+  // ⚠ THE ONCE-PER-CHAPTER SPLIT IS LOAD-BEARING. The number is resolved on
+  // the JS thread when the chapter changes and parked in a shared value; the
+  // worklet below does nothing but subtract it, every frame. `locateInBook`
+  // returns a fresh object per call, so calling it per frame would put
+  // allocation pressure on the UI thread — never move it into the worklet.
+  //
+  // This used to branch on the Queue shape here, and before that named the
+  // clipped-chapters gate directly — a narrower question still, since the
+  // gate is only one of the ways a Queue comes out multi-item.
+  // ⚠ ONE VALUE, not a chapter plus a nullable offset: they are known
+  // together or not at all, so there is no state where this reads a start of
+  // `0` for a chapter that never resolved.
+  const chapterLocation = useCurrentChapterLocation();
 
   // Use shared values instead of refs for chapter info (worklet-compatible)
   const chapterStart = useSharedValue(0);
@@ -91,11 +94,9 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
 
   // Update shared values when chapter changes (on JS thread)
   useEffect(() => {
-    if (currentChapter) {
-      const start = isChapterRelative
-        ? 0
-        : (currentChapter.startMs ?? 0) / 1000;
-      const dur = currentChapter.chapterDuration ?? 0;
+    if (chapterLocation) {
+      const start = chapterLocation.chapterStartSeconds;
+      const dur = chapterLocation.chapter.chapterDuration ?? 0;
 
       chapterStart.value = start;
       chapterDuration.value = dur;
@@ -114,7 +115,13 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
       chapterStart.value = 0;
       chapterDuration.value = 0;
     }
-  }, [currentChapter, isChapterRelative, chapterStart, chapterDuration, position, playbackRate]);
+  }, [
+    chapterLocation,
+    chapterStart,
+    chapterDuration,
+    position,
+    playbackRate,
+  ]);
 
 
   // State for time text displays - updated at reduced frequency

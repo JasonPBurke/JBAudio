@@ -1,6 +1,7 @@
 import {
   Event,
   getActiveBookId,
+  getActiveTrackIndex,
   getPlaybackState,
   getProgress,
   getQueue,
@@ -39,11 +40,8 @@ import {
 import { restoreLastActiveBook } from '@/helpers/restoreLastActiveBook';
 import { queueShapeOf } from '@/helpers/queueShape';
 import { rewindPlayerToBookStart } from '@/helpers/rewindPlayerToBookStart';
-import {
-  findChapterIndexByPosition,
-  calculateProgressWithinChapter,
-  hasValidChapterData,
-} from '@/helpers/singleFileBook';
+import { hasValidChapterData } from '@/helpers/singleFileBook';
+import { locateInBook } from '@/helpers/bookLocation';
 import { evaluateBookEnd } from '@/helpers/bookEndDetection';
 import type {
   BookEndDecision,
@@ -244,12 +242,14 @@ async function handleProgressUpdated({
 
   const book = getBookFromStore(bookId);
 
-  // ⚠ A READ CONSUMER HOLDING A VERDICT IS A STAGE-1 ARRANGEMENT. ADR 0004
-  // demotes `queueShapeOf` to three callers — the two queue builders and
-  // `evaluateBookEnd` — and hands everyone else a position translator that
-  // returns both coordinates so no consumer branches on shape at all. This
-  // site and its two siblings below still branch; they are what the
-  // translator absorbs. See `.scratch/queue-shape/spec.md`, decision 3.
+  // ⚠ THIS VERDICT IS `evaluateBookEnd`'S PARAMETER, NOT A COORDINATE
+  // DECISION. ADR 0004 leaves `queueShapeOf` three callers — the two queue
+  // builders and book-end detection — and hands every reader the position
+  // translator instead. What it selects below is not "what does this Position
+  // mean" (that is `locateInBook`'s job now) but WHICH SUBSYSTEM OWNS CHAPTER
+  // CHANGES: on a one-item Queue only the progress tick can see a boundary
+  // cross, while a multi-item Queue gets one `PlaybackActiveTrackChanged` per
+  // boundary and must not be counted twice.
   //
   // Asked of the BOOK's own chapters — not of `queue.length`, and no longer of
   // the persisted scan-time flag. The comment this replaces defended that flag
@@ -270,80 +270,98 @@ async function handleProgressUpdated({
 
   if (oneItemQueue && book && book.chapters && book.chapters.length > 1) {
     const chapters = book.chapters;
-    const currentChapterIndex = findChapterIndexByPosition(
-      chapters,
-      position,
-    );
-    const progressWithinChapter = calculateProgressWithinChapter(
-      chapters,
-      position,
-    );
-
-    // Update progress in store using progress within chapter
-    setPlaybackProgress(bookId, progressWithinChapter);
-
-    // Check if chapter changed
-    if (
-      singleFileChapterTracking.bookId !== bookId ||
-      singleFileChapterTracking.lastChapterIndex !== currentChapterIndex
-    ) {
-      const previousChapterIndex =
-        singleFileChapterTracking.bookId === bookId
-          ? singleFileChapterTracking.lastChapterIndex
-          : -1;
-      const wasChapterChange =
-        previousChapterIndex !== -1 &&
-        previousChapterIndex !== currentChapterIndex;
-
-      // Update state
-      singleFileChapterTracking.bookId = bookId;
-      singleFileChapterTracking.lastChapterIndex = currentChapterIndex;
-
-      // Store then DB, as one unit — see helpers/setChapterIndex. This is
-      // guarded by the chapter-change check above, which is what stops the
-      // 1 Hz tick from rewriting an unchanged index to the DB every second.
-      await setChapterIndex(bookId, currentChapterIndex);
-      // Progress is written alongside it so the two persist together, even if
-      // the app is force-closed.
-      await updateChapterProgressInDB(bookId, progressWithinChapter);
-
-      // Update track metadata for lock screen/notification
-      if (hasValidChapterData(chapters)) {
-        const currentChapter = chapters[currentChapterIndex];
-        if (currentChapter) {
-          await updateMetadataForTrack(track, {
-            title: currentChapter.chapterTitle,
-            duration: currentChapter.chapterDuration,
-            // Preserve existing metadata that shouldn't change
-            artwork: book.artwork ?? undefined,
-            artist: book.author,
-            album: book.bookTitle,
-          });
-        }
-      }
-
-      // Handle sleep timer chapter countdown on chapter change
-      if (wasChapterChange) {
-        // Under burst coalescing one handler run can span several chapter
-        // boundaries; a chapter-mode sleep timer must count each of them.
-        // Backward jumps keep the single-call semantics (a backward seek
-        // counted as one change before coalescing too). Capped defensively.
-        const forwardBoundaries = Math.min(
-          Math.max(currentChapterIndex - previousChapterIndex, 1),
-          50,
-        );
-        for (let i = 0; i < forwardBoundaries; i++) {
-          await sleepTimer.onChapterChanged();
-        }
-      }
-    }
-
-    // Periodic progress save (defense in depth for force-close scenarios)
-    await savePeriodicProgress(bookId, progressWithinChapter);
 
     // This book is ONE queue item spanning the whole book, so the payload's
-    // `duration` is the book's duration and `position` is absolute.
+    // `duration` is the book's duration and `position` is absolute. Recorded
+    // before the writes below, which the translator can decline to authorise.
     queueShape = 'one-item';
+
+    // ⚠ ONE TRANSLATOR CALL WHERE THERE WERE TWO SCANS. Both numbers below
+    // came from separate walks of the same chapter array, each assuming the
+    // Position was a Book Position — correct only because the branch above
+    // had already established the shape. `locateInBook` answers in both
+    // coordinates from the one Player reading this handler was given.
+    const chapter = locateInBook(chapters, {
+      from: 'queue',
+      queueIndex: track,
+      positionSeconds: position,
+    })?.chapter;
+
+    // ⚠ NO CHAPTER, NO WRITE — AND THIS TICK USED TO WRITE ANYWAY. The two
+    // deleted scans fabricated an answer for the two Books that have no
+    // boundaries to scan: rows that all sit at `startMs: 0` made the
+    // backwards walk return the LAST chapter for every position, so a Book
+    // reported itself in its final chapter from the first second; a playhead
+    // inside a preamble before the first boundary was reported as chapter 0.
+    // Both wrote a chapter index and a progress to the store AND the DB every
+    // second. Declining is the honest tick: the Book keeps the last position
+    // it could account for, and end detection below still runs.
+    if (chapter) {
+      const currentChapterIndex = chapter.index;
+      const progressWithinChapter = chapter.positionSeconds;
+
+      // Update progress in store using progress within chapter
+      setPlaybackProgress(bookId, progressWithinChapter);
+
+      // Check if chapter changed
+      if (
+        singleFileChapterTracking.bookId !== bookId ||
+        singleFileChapterTracking.lastChapterIndex !== currentChapterIndex
+      ) {
+        const previousChapterIndex =
+          singleFileChapterTracking.bookId === bookId
+            ? singleFileChapterTracking.lastChapterIndex
+            : -1;
+        const wasChapterChange =
+          previousChapterIndex !== -1 &&
+          previousChapterIndex !== currentChapterIndex;
+
+        // Update state
+        singleFileChapterTracking.bookId = bookId;
+        singleFileChapterTracking.lastChapterIndex = currentChapterIndex;
+
+        // Store then DB, as one unit — see helpers/setChapterIndex. This is
+        // guarded by the chapter-change check above, which is what stops the
+        // 1 Hz tick from rewriting an unchanged index to the DB every second.
+        await setChapterIndex(bookId, currentChapterIndex);
+        // Progress is written alongside it so the two persist together, even if
+        // the app is force-closed.
+        await updateChapterProgressInDB(bookId, progressWithinChapter);
+
+        // Update track metadata for lock screen/notification
+        if (hasValidChapterData(chapters)) {
+          const currentChapter = chapters[currentChapterIndex];
+          if (currentChapter) {
+            await updateMetadataForTrack(track, {
+              title: currentChapter.chapterTitle,
+              duration: currentChapter.chapterDuration,
+              // Preserve existing metadata that shouldn't change
+              artwork: book.artwork ?? undefined,
+              artist: book.author,
+              album: book.bookTitle,
+            });
+          }
+        }
+
+        // Handle sleep timer chapter countdown on chapter change
+        if (wasChapterChange) {
+          // Under burst coalescing one handler run can span several chapter
+          // boundaries; a chapter-mode sleep timer must count each of them.
+          // Backward jumps keep the single-call semantics (a backward seek
+          // counted as one change before coalescing too). Capped defensively.
+          const forwardBoundaries = Math.min(
+            Math.max(currentChapterIndex - previousChapterIndex, 1),
+            50,
+          );
+          for (let i = 0; i < forwardBoundaries; i++) {
+            await sleepTimer.onChapterChanged();
+          }
+        }
+      }
+
+      // Periodic progress save (defense in depth for force-close scenarios)
+      await savePeriodicProgress(bookId, progressWithinChapter);
+    }
 
     // There used to be a 0.2s "book end" block here that marked the book
     // finished AND zeroed the stored progress AND seeked to 0 AND paused.
@@ -642,32 +660,53 @@ export default module.exports = async function () {
       const bookId = await getActiveBookId();
       if (!bookId) return;
 
-      const { position } = await getProgress();
+      // ⚠ ONE PLAYER READ, BOTH NUMBERS. The Queue index used to be absent
+      // here and the handler branched on Queue shape to decide what the
+      // Position meant. The translator needs both to answer, and answers for
+      // either shape — so this pause/stop path no longer knows what shape it
+      // is looking at.
+      const [{ position }, queueIndex] = await Promise.all([
+        getProgress(),
+        getActiveTrackIndex(),
+      ]);
 
       const book = getBookFromStore(bookId);
+      if (!book) return; // Not in Zustand yet — skip saving to avoid corruption
 
-      // Same verdict, same reason — see `handleProgressUpdated`.
-      const oneItemQueue = queueShapeOf(book?.chapters) === 'one-item';
+      const location = locateInBook(book.chapters, {
+        from: 'queue',
+        queueIndex,
+        positionSeconds: position,
+      });
 
-      if (
-        oneItemQueue &&
-        book &&
-        book.chapters &&
-        book.chapters.length > 1
-      ) {
-        // A one-item Queue with real Chapters: the Player reports a Book
-        // Position, so convert before storing the Chapter Position.
-        const progressWithinChapter = calculateProgressWithinChapter(
-          book.chapters,
-          position,
+      if (location?.chapter) {
+        await updateChapterProgressInDB(
+          bookId,
+          location.chapter.positionSeconds,
         );
-        await updateChapterProgressInDB(bookId, progressWithinChapter);
-      } else if (book) {
-        // One item per Chapter, or a Book with only one: the Player's
-        // Position already IS the Chapter Position.
+      } else if (location?.bookPositionSeconds == null) {
+        // ⚠ WHICH COORDINATE SURVIVED TELLS YOU WHICH READ FAILED, and this
+        // is the site that needs the distinction. Reaching here means no
+        // Chapter AND no exact Book Position, which is the shape where the
+        // Position IS the Chapter Position already: one Queue item per
+        // Chapter, with an index the Player could not report. Nothing is
+        // fabricated by writing it — the column means "seconds into the
+        // Chapter" and that is exactly the number the Player just gave.
+        //
+        // ⚠ DO NOT "SIMPLIFY" THIS INTO THE BRANCH ABOVE. Requiring a Chapter
+        // here is what silently DROPPED the pause write on a chapter Queue
+        // whose index read failed, costing the user their position on pause —
+        // a write the old shape-branching code never needed an index for.
+        // A `null` result (no chapter rows at all) lands here too, and always
+        // stored the raw Position.
         await updateChapterProgressInDB(bookId, position);
       }
-      // If book not in Zustand yet, skip saving to avoid corruption
+      // The remaining case is an exact Book Position with no Chapter: ONE
+      // Queue item whose rows carry no usable boundaries. That is the only
+      // arm where writing `position` would store a BOOK Position in a column
+      // meaning seconds into a Chapter — the mix-up the deleted conversion
+      // pair invited — so it declines, and the Book keeps the last position
+      // it could account for.
     }
 
     if (event.state === State.Paused) {

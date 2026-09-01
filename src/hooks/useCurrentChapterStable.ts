@@ -17,8 +17,27 @@ import { useBookById, useLibraryStore } from '@/store/library';
 import { useAppStateStore } from '@/store/appState';
 import { useActiveBookId } from '@/store/playerState';
 import { Chapter } from '@/types/Book';
-import { resolveCurrentChapterIndex } from '@/helpers/chapterPlayback';
-import { queueShapeOf } from '@/helpers/queueShape';
+import {
+  chapterStartInQueueSeconds,
+  locateInBook,
+} from '@/helpers/bookLocation';
+
+/**
+ * Where the player screen thinks the playhead is: which Chapter, and where
+ * that Chapter STARTS in the coordinates the Player reports.
+ *
+ * ⚠ `chapterStartSeconds` IS IN QUEUE COORDINATES, not Book ones — it is what
+ * has to be subtracted from a raw Position to get a Chapter Position, which
+ * is `0` on a multi-item Queue (where the Position already is one) and the
+ * Chapter's absolute `startMs` on a one-item Queue. Handing the screen that
+ * one number is what let the progress bar stop asking which shape it is
+ * looking at: see `PlayerProgressBar`, whose animation worklet subtracts it
+ * every frame and must never call the translator itself.
+ */
+export type CurrentChapterLocation = {
+  chapter: Chapter;
+  chapterStartSeconds: number;
+};
 
 /**
  * Context for sharing a single useCurrentChapterStable subscription across
@@ -30,11 +49,21 @@ import { queueShapeOf } from '@/helpers/queueShape';
  * Value of `null` means "no provider above" — consumers should treat that as
  * an error path or fall back to calling the hook directly.
  */
-export const CurrentChapterContext = createContext<Chapter | undefined | null>(
-  null,
-);
+export const CurrentChapterContext = createContext<
+  CurrentChapterLocation | undefined | null
+>(null);
 
-export const useCurrentChapter = (): Chapter | undefined => {
+/**
+ * ⚠ THE CHAPTER AND ITS START ARE ONE VALUE, never two nullable fields. They
+ * are known together or not at all, and a pair of independently-optional
+ * fields would let a caller read a start of `0` for a chapter that was never
+ * resolved — the fabricated zero ADR 0004 ruling 3 exists to refuse.
+ * `undefined` here is "no Chapter"; `null` is the context's own "no provider
+ * above".
+ */
+export const useCurrentChapterLocation = ():
+  | CurrentChapterLocation
+  | undefined => {
   const value = useContext(CurrentChapterContext);
   if (value === null) {
     throw new Error(
@@ -44,30 +73,39 @@ export const useCurrentChapter = (): Chapter | undefined => {
   return value;
 };
 
+export const useCurrentChapter = (): Chapter | undefined =>
+  useCurrentChapterLocation()?.chapter;
+
 /**
  * Returns the current chapter, re-rendering only when it actually changes.
  *
- * Chapter identity (see helpers/chapterPlayback.ts):
- * - Chapter-queue mode (multi-file books, and clipped single-file books under
- *   the spike): current chapter = chapters[queue index]. The queue index
- *   comes from the library store's playbackIndex, which service.ts keeps
- *   current via PlaybackActiveTrackChanged; on mount, before the store has an
- *   entry, the adapter's getActiveTrackIndex() fills the gap.
- * - Legacy single-file mode (spike off / no chapter offsets): the book is one
- *   queue item with absolute positions, so the chapter is derived from
- *   progress/seek events. Never match chapters by URL — clipped queue items
- *   all share one URL.
+ * ⚠ ONE PATH FOR BOTH QUEUE SHAPES. This hook used to run two: a chapter-queue
+ * mode that read the index out of the store and ignored the position, and a
+ * legacy single-file mode that derived the chapter from the position and
+ * ignored the index — with `queueShapeOf` choosing between them and each mode
+ * keeping its own effect, its own state and its own idea of what a Position
+ * meant. `locateInBook` takes BOTH numbers and answers for either shape, so
+ * there is one subscription and one piece of state. See
+ * `docs/adr/0004-queue-shape-answers-in-coordinates.md`.
+ *
+ * Where the two numbers come from:
+ * - the Queue index from the library store's `playbackIndex`, which
+ *   `service.ts` keeps current via PlaybackActiveTrackChanged; on mount,
+ *   before the store has an entry, `getActiveTrackIndex()` fills the gap. It
+ *   is ignored on a one-item Queue, where it can only ever be 0;
+ * - the Position from progress and seek events.
+ *
+ * Never match chapters by URL — clipped queue items all share one URL.
  */
-export const useCurrentChapterStable = () => {
+type ChapterPlacement = { index: number; startSeconds: number };
+
+export const useCurrentChapterStable = ():
+  | CurrentChapterLocation
+  | undefined => {
   const bookId = useActiveBookId() ?? '';
   const book = useBookById(bookId);
   const chapters = book?.chapters;
 
-  // No `useMemo`: `queueShapeOf` memoises on the chapters array reference
-  // itself, so a second wrapper would cache the same answer twice.
-  const chapterQueue = queueShapeOf(chapters) === 'multi-item';
-
-  // --- Chapter-queue mode: index straight from the store ---
   const storeIndex = useLibraryStore(
     useCallback(
       (state) => (bookId ? state.playbackIndex[bookId] : undefined),
@@ -81,8 +119,12 @@ export const useCurrentChapterStable = () => {
     number | undefined
   >(undefined);
 
+  // ⚠ THE ONLY PLAYER READ THAT IS NOT PART OF A DECISION. It fires only when
+  // the store has no index yet, and its answer is stored rather than combined
+  // with a position — the steady-state index comes from the store, so the
+  // hook makes no per-tick index read at all.
   useEffect(() => {
-    if (!chapterQueue || typeof storeIndex === 'number') return;
+    if (typeof storeIndex === 'number') return;
 
     let mounted = true;
     getActiveTrackIndex()
@@ -97,29 +139,56 @@ export const useCurrentChapterStable = () => {
     return () => {
       mounted = false;
     };
-  }, [chapterQueue, storeIndex, bookId]);
+  }, [storeIndex, bookId]);
 
-  // --- Legacy single-file mode: index derived from playback position ---
-  const [positionIndex, setPositionIndex] = useState<number | undefined>(
+  const queueIndex =
+    typeof storeIndex === 'number' ? storeIndex : queueIndexFallback;
+
+  const [placement, setPlacement] = useState<ChapterPlacement | undefined>(
     undefined,
   );
-  const positionIndexRef = useRef<number | undefined>(undefined);
+  const placementRef = useRef<ChapterPlacement | undefined>(undefined);
 
   useEffect(() => {
-    if (chapterQueue || !chapters?.length) {
-      positionIndexRef.current = undefined;
-      setPositionIndex(undefined);
+    if (!chapters?.length) {
+      placementRef.current = undefined;
+      setPlacement(undefined);
       return;
     }
 
     const applyPosition = (position: number) => {
       // Dormant while backgrounded — no chapter re-derivation / re-render for
       // an invisible screen. Self-heals on the next event after resume.
+      //
+      // ⚠ THIS GATE NOW COVERS BOTH SHAPES. A chapter Queue used to read its
+      // index straight out of the store in a `useMemo`, so it updated while
+      // backgrounded and updated synchronously. It now waits for a position,
+      // like the one-item path always did, which costs a bounded staleness:
+      // the chapter can only change while PLAYING, and playing means 1 Hz
+      // progress events, so a resumed screen corrects within a second.
       if (!useAppStateStore.getState().isActive) return;
-      const index = resolveCurrentChapterIndex(chapters, undefined, position);
-      if (index !== positionIndexRef.current) {
-        positionIndexRef.current = index;
-        setPositionIndex(index);
+
+      const located = locateInBook(chapters, {
+        from: 'queue',
+        queueIndex,
+        positionSeconds: position,
+      })?.chapter;
+
+      // The Chapter's start in the Player's own coordinates — one shared
+      // expression, right on both shapes without asking which one this is.
+      const next: ChapterPlacement | undefined = located
+        ? {
+            index: located.index,
+            startSeconds: chapterStartInQueueSeconds(position, located),
+          }
+        : undefined;
+
+      if (
+        next?.index !== placementRef.current?.index ||
+        next?.startSeconds !== placementRef.current?.startSeconds
+      ) {
+        placementRef.current = next;
+        setPlacement(next);
       }
     };
 
@@ -133,14 +202,13 @@ export const useCurrentChapterStable = () => {
       }
     };
 
-    // Initialize on mount
+    // Initialize on mount, and again whenever the Queue index moves.
     updateFromProgress();
 
     const subscriptions = [
       // Chapter boundary detection while playing
-      subscribe(
-        Event.PlaybackProgressUpdated,
-        ({ position }) => applyPosition(position),
+      subscribe(Event.PlaybackProgressUpdated, ({ position }) =>
+        applyPosition(position),
       ),
       // Seeks and play/pause: refresh immediately
       subscribe(Event.PlaybackState, updateFromProgress),
@@ -149,18 +217,11 @@ export const useCurrentChapterStable = () => {
     ];
 
     return () => subscriptions.forEach((sub) => sub.remove());
-  }, [chapterQueue, chapters]);
+  }, [chapters, queueIndex]);
 
   return useMemo(() => {
-    if (!chapters?.length) return undefined;
-
-    const index = chapterQueue
-      ? typeof storeIndex === 'number'
-        ? storeIndex
-        : queueIndexFallback
-      : positionIndex;
-
-    if (typeof index !== 'number' || index < 0) return undefined;
-    return chapters[Math.min(index, chapters.length - 1)];
-  }, [chapters, chapterQueue, storeIndex, queueIndexFallback, positionIndex]);
+    const chapter = placement ? chapters?.[placement.index] : undefined;
+    if (!chapter || !placement) return undefined;
+    return { chapter, chapterStartSeconds: placement.startSeconds };
+  }, [chapters, placement]);
 };

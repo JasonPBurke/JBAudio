@@ -1,9 +1,16 @@
-import { seekTo, skipToNext, stop } from '@/player/trackPlayer';
+import {
+  getActiveTrackIndex,
+  getProgress,
+  getQueue,
+  seekTo,
+  skipToNext,
+  stop,
+} from '@/player/trackPlayer';
 import {
   markBookFinishedOnce,
   type BookProgressReading,
 } from '@/helpers/markBookFinishedOnce';
-import { resolveNextPress, type NextPressBook } from '@/helpers/chapterSkip';
+import { resolveNextPress } from '@/helpers/chapterSkip';
 import {
   resetBookToStart,
   type SingleFileChapterTracking,
@@ -15,7 +22,7 @@ import {
   recordActiveBookChapterChangeFootprint,
   recordActiveBookSeekFootprint,
 } from '@/helpers/activeBookFootprints';
-import type { Book } from '@/types/Book';
+import type { Book, Chapter } from '@/types/Book';
 
 /**
  * The skip-forward press, for every surface that can make one: the
@@ -50,6 +57,13 @@ import type { Book } from '@/types/Book';
  * Both recorder callbacks run before their action and neither may block it:
  * a footprint failure must never cost the user their press.
  */
+/**
+ * The only thing this decision needs from the Book. It lives here rather than
+ * beside the decision because the decision itself takes chapter rows and
+ * numbers; this is the shape of the STORE ENTRY the press site holds.
+ */
+export type NextPressBook = { chapters?: Chapter[] } | undefined;
+
 export type NextPress = {
   bookId: string;
   /**
@@ -91,7 +105,31 @@ export async function handleNextPress({
   onBeforeChapterChange,
   onBeforeLeaveBook,
 }: NextPress): Promise<void> {
-  const action = await resolveNextPress(book, oneItemQueue);
+  // ⚠ ONE PLAYER READ FOR THE WHOLE PRESS. `resolveNextPress` used to fetch
+  // its own numbers, and which ones it fetched depended on the arm it took —
+  // so the two arms of one decision could see the Player at two different
+  // moments. Reading here also means the decision is pure, which is what lets
+  // the ordering property below be asserted without a player.
+  //
+  // ⚠ ON THE QUEUE READ, which this repo elsewhere warns costs "the whole
+  // track list across the bridge — hundreds of items on a clipped Book". The
+  // arm that pays that price is the multi-item one, which has always read it.
+  // The arm where the read is NEW is the one-item arm — where the Queue is,
+  // by definition of the verdict, a single item. The cost is where it always
+  // was; what moved is the branch.
+  const [{ position }, queueIndex, queue] = await Promise.all([
+    getProgress(),
+    getActiveTrackIndex(),
+    getQueue(),
+  ]);
+
+  const action = resolveNextPress({
+    chapters: book?.chapters,
+    positionSeconds: position,
+    queueIndex,
+    queueLength: queue.length,
+    oneItemQueue,
+  });
 
   switch (action.kind) {
     // The press moves nothing, so there is nothing to leave a breadcrumb to.

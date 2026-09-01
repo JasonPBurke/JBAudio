@@ -5,7 +5,7 @@ import {
 } from '@/db/footprintQueries';
 import { stampLastPlayed } from '@/db/bookQueries';
 import { FootprintTrigger } from '@/db/models/Footprint';
-import type { PreviousPressKind } from '@/helpers/singleFileBook';
+import type { PreviousPressKind } from '@/helpers/chapterSkip';
 
 /**
  * Footprint recording for presses that only know the ACTIVE BOOK — the one
