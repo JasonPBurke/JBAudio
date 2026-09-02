@@ -244,10 +244,12 @@ async function handleProgressUpdated({
 
   // ⚠ THIS VERDICT IS `evaluateBookEnd`'S PARAMETER, NOT A COORDINATE
   // DECISION. ADR 0004 leaves `queueShapeOf` NO READERS at all — every site
-  // that asked "where am I" now asks `locateInBook` — and keeps it only for
-  // three kinds of caller that ACT on shape: the two queue builders, the
-  // transports (both presses and the chapter-list jump), and the three reads
-  // in this file. See that ADR's closing count.
+  // that asked "where am I" now asks `locateInBook`. ⚠ "Reader" there means a
+  // site that asks what a Position MEANS, NOT a call site: there are nine call
+  // sites, the line below among them. The verdict is kept only for three kinds
+  // of caller that ACT on shape: the two queue builders, the transports (both
+  // presses and the chapter-list jump), and the three reads in this file. See
+  // that ADR's closing count.
   //
   // What it selects below is not "what does this Position
   // mean" (that is `locateInBook`'s job now) but WHICH SUBSYSTEM OWNS CHAPTER
@@ -264,21 +266,24 @@ async function handleProgressUpdated({
   // cannot go stale against a rescan the way a persisted boolean can.
   const oneItemQueue = queueShapeOf(book?.chapters) === 'one-item';
 
-  // Which of the two RUNTIME QUEUE SHAPES this tick is in, set by whichever
-  // branch below runs and consumed by the shared end-detection call after
-  // them. The branch IS the shape: this one is the Book loaded as a single
-  // queue item, so `duration` spans the whole Book. Everything else — one file
-  // per Chapter, clipped per-chapter queues, and one-Chapter Books — is one
-  // item per Chapter with a chapter-relative `duration`.
-  let queueShape: BookEndInput['queueShape'] = 'multi-item';
+  // Which of the two RUNTIME QUEUE SHAPES this tick is in. It FOLLOWS THE
+  // VERDICT, and ⚠ MUST NOT BE FOLDED BACK INTO THE BRANCH BELOW: that guard
+  // includes `chapters.length > 1`, which would label a one-Chapter Book
+  // 'multi-item' and hand it to `measureQueue`, which returns `null` for any
+  // row whose `chapterDuration` is missing or non-positive — and `null` is
+  // 'none' on every tick, so such a Book could never be marked Finished. The
+  // 'one-item' arm reads `duration`, which `measureBook` already guards `> 0`.
+  const queueShape: BookEndInput['queueShape'] = oneItemQueue
+    ? 'one-item'
+    : 'multi-item';
 
   if (oneItemQueue && book && book.chapters && book.chapters.length > 1) {
     const chapters = book.chapters;
 
     // This book is ONE queue item spanning the whole book, so the payload's
-    // `duration` is the book's duration and `position` is absolute. Recorded
-    // before the writes below, which the translator can decline to authorise.
-    queueShape = 'one-item';
+    // `duration` is the book's duration and `position` is absolute. ⚠ The
+    // `length > 1` above is about the WRITES here, not about the shape — a
+    // one-Chapter Book has no boundary to record a crossing for.
 
     // ⚠ ONE TRANSLATOR CALL WHERE THERE WERE TWO SCANS. Both numbers below
     // came from separate walks of the same chapter array, each assuming the
