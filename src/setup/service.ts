@@ -9,7 +9,6 @@ import {
   pause,
   play,
   seekBy,
-  seekTo,
   skipToNext,
   State,
   stop,
@@ -31,6 +30,7 @@ import {
 } from '@/helpers/remotePlayBook';
 import { ensurePlayerSetup } from '@/helpers/playerSetup';
 import { pressNext } from '@/helpers/nextPress';
+import { pressRemoteSeek } from '@/helpers/remoteSeekPress';
 import { markBookFinishedOnce } from '@/helpers/markBookFinishedOnce';
 import { setChapterIndex } from '@/helpers/setChapterIndex';
 import {
@@ -51,7 +51,6 @@ import { seekBack, seekForward } from '@/helpers/relativeSeek';
 import { skipToPreviousChapter } from '@/helpers/chapterSkip';
 import {
   recordActiveBookPlayFootprint,
-  recordActiveBookSeekFootprint,
   recordPreviousPressFootprint,
 } from '@/helpers/activeBookFootprints';
 import type { Book } from '@/types/Book';
@@ -517,10 +516,12 @@ export default module.exports = async function () {
     stop();
   });
   subscribe(Event.RemoteSeek, async ({ position }) => {
-    // Notification / AA seek-bar drag: mirror the in-app seek bar's
-    // footprint. Awaited first so it captures the pre-seek position.
-    await recordActiveBookSeekFootprint();
-    seekTo(position);
+    // The press itself lives in helpers/remoteSeekPress.ts, where it can be
+    // tested. ⚠ The platform delivers ONE seek-bar tap as TWO events at the
+    // same target, so the footprint must be written BEFORE the seek and only
+    // ONCE per press — and neither property is visible from a "was it
+    // recorded?" assertion.
+    await pressRemoteSeek(position);
   });
   // seekBack/seekForward (not native seekBy, which clamps within the current
   // queue item) so jumps from the notification / Android Auto cross chapter
