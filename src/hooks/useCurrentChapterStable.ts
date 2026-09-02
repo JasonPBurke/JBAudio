@@ -149,23 +149,32 @@ export const useCurrentChapterStable = ():
   );
   const placementRef = useRef<ChapterPlacement | undefined>(undefined);
 
+  /**
+   * The live effect's `updateFromProgress`, reachable from the resume
+   * subscription below. Held in a ref so the foreground flag never enters the
+   * main effect's deps — it would tear down and re-register all three player
+   * subscriptions on every background transition.
+   */
+  const refreshRef = useRef<(() => void) | undefined>(undefined);
+
   useEffect(() => {
     if (!chapters?.length) {
       placementRef.current = undefined;
+      refreshRef.current = undefined;
       setPlacement(undefined);
       return;
     }
 
     const applyPosition = (position: number) => {
       // Dormant while backgrounded — no chapter re-derivation / re-render for
-      // an invisible screen. Self-heals on the next event after resume.
+      // an invisible screen.
       //
       // ⚠ THIS GATE NOW COVERS BOTH SHAPES. A chapter Queue used to read its
       // index straight out of the store in a `useMemo`, so it updated while
       // backgrounded and updated synchronously. It now waits for a position,
-      // like the one-item path always did, which costs a bounded staleness:
-      // the chapter can only change while PLAYING, and playing means 1 Hz
-      // progress events, so a resumed screen corrects within a second.
+      // like the one-item path always did — and a PAUSED player emits no
+      // position, so the resume effect below supplies the event a playing one
+      // would have supplied at 1 Hz.
       if (!useAppStateStore.getState().isActive) return;
 
       const located = locateInBook(chapters, {
@@ -201,6 +210,7 @@ export const useCurrentChapterStable = ():
         // Player might not be initialized yet
       }
     };
+    refreshRef.current = updateFromProgress;
 
     // Initialize on mount, and again whenever the Queue index moves.
     updateFromProgress();
@@ -216,8 +226,32 @@ export const useCurrentChapterStable = ():
       subscribe(Event.PlaybackActiveTrackChanged, updateFromProgress),
     ];
 
-    return () => subscriptions.forEach((sub) => sub.remove());
+    return () => {
+      refreshRef.current = undefined;
+      subscriptions.forEach((sub) => sub.remove());
+    };
   }, [chapters, queueIndex]);
+
+  /**
+   * ⚠ THE RESUME IS THE EVENT. `applyPosition` drops every position while
+   * backgrounded and self-heals only if another one follows: a PLAYING player
+   * supplies that at 1 Hz, a PAUSED one never does. Without this, a Book whose
+   * Chapter advanced while backgrounded and was then paused from the
+   * notification shows the PREVIOUS Chapter — title, chapters modal and
+   * progress bar alike — until the next play or seek. Device-verified on a
+   * multi-item Book.
+   *
+   * The transition guard is load-bearing: `_layout.tsx` calls `setActive` on
+   * EVERY AppState change, including `inactive -> active`, where the flag has
+   * not moved and nothing needs re-deriving.
+   */
+  useEffect(
+    () =>
+      useAppStateStore.subscribe((state, prev) => {
+        if (state.isActive && !prev.isActive) refreshRef.current?.();
+      }),
+    [],
+  );
 
   return useMemo(() => {
     const chapter = placement ? chapters?.[placement.index] : undefined;
