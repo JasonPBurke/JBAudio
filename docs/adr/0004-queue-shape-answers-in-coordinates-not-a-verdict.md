@@ -302,8 +302,8 @@ The addendum above said *"count again when `11` closes; if any survives as a rea
 ruling 1 is in trouble and this is where to say so."* This is that count, taken
 after the old conversion pair was deleted. **No reader survives.**
 
-`queueShapeOf` has nine production call sites, in three kinds, and not one of them
-asks what a Position means:
+`queueShapeOf` has nine production call sites, in four kinds — three audiences plus
+the translator's own use of it — and not one of them asks what a Position means:
 
 | Caller | Kind | What the verdict picks |
 | ------ | ---- | ---------------------- |

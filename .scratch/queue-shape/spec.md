@@ -72,11 +72,26 @@ See `## Out of scope`.
 
 Two exports with very different audiences:
 
-1. **`queueShapeOf(chapters) → 'one-item' | 'multi-item'`** — the verdict. Three callers
-   only: the two queue builders (`handleBookPlay`, `restoreLastActiveBook`), which ask in
-   order to *build*, and `evaluateBookEnd`, which already takes it as a parameter.
+1. **`queueShapeOf(chapters) → 'one-item' | 'multi-item'`** — the verdict, demoted to a
+   narrow audience. Three KINDS of caller, not three callers: the two queue **builders**
+   (`handleBookPlay`, `restoreLastActiveBook`), which ask in order to *build*; the
+   **transports**, which ask whether a move is a seek inside one Queue item or a step to
+   another; and the **ownership** reads, which ask which subsystem sees a chapter change.
+   `evaluateBookEnd` is one of the third kind, and already takes the shape as a parameter.
 2. **A position translator** — everyone else (~13 sites). It returns both coordinates at
-   once, computed once, so **no consumer branches on shape again**.
+   once, computed once, so **no consumer branches on shape again** — meaning no consumer
+   re-derives what a Position *means*.
+
+⚠ **THIS ITEM ORIGINALLY READ "Three callers only", AND THAT NUMBER WAS NEVER REACHABLE.**
+It was a design assertion wearing a measurement's clothes. Driving the count of
+*coordinate* consumers to zero is what the translator does and it succeeded; but the
+verdict has two further audiences that coordinates cannot serve, and the proof sits in this
+file's own problem statement — mechanisms `4`, `5` and `6` were at those exact sites when
+this was written. `queueShapeOf` closed at nine call sites, and every one descends from a
+shape question that already existed on `main`; `chapterJump.ts` even folded two of them
+(`chapterList`, `footprintList`) into one, so the audience SHRANK. Keep the tripwire
+pointed at the right thing: a tenth caller in a NEW kind means ruling 1 is in trouble, a
+tenth in an existing kind does not. ADR 0004's closing count has the tabulation.
 
 The verdict is demoted because it was never the right primary export. Every consumer is
 asking for one of two coordinates — Book Position, or Chapter Position — and the shape
