@@ -50,8 +50,9 @@ export const useProgressReanimated = (): ProgressReanimated => {
       (event) => {
         // Dormant while backgrounded: the screen is invisible, and freezing
         // the shared values here also stops PlayerProgressBar's per-second
-        // useAnimatedReaction cascade. Self-heals on the next tick after
-        // resume. See src/store/appState.ts.
+        // useAnimatedReaction cascade. Healed by the resume subscription
+        // below, NOT by the next tick — a paused player has no next tick.
+        // See src/store/appState.ts.
         if (!useAppStateStore.getState().isActive) return;
         position.value = event.position;
         duration.value = event.duration;
@@ -91,10 +92,27 @@ export const useProgressReanimated = (): ProgressReanimated => {
       }
     );
 
+    // ⚠ THE RESUME IS THE EVENT. All three subscriptions above go dormant
+    // while backgrounded and recover only if another event follows, which a
+    // PLAYING player supplies at 1 Hz and a PAUSED one never does. Returning
+    // to a paused player would otherwise leave `position` frozen at the value
+    // it held when the app backgrounded — and `useCurrentChapterStable` DOES
+    // refresh its chapter on resume, so PlayerProgressBar would subtract a
+    // fresh `chapterStart` from a stale `position`, clamp the negative result
+    // to zero, and park the slider at the wrong place.
+    //
+    // `BookTimeRemaining` never showed this because its pause/stop handler is
+    // ungated and recomputes while backgrounded; it is the exception, not the
+    // pattern.
+    const appStateUnsubscribe = useAppStateStore.subscribe((state, prev) => {
+      if (state.isActive && !prev.isActive) getInitialProgress();
+    });
+
     return () => {
       progressSubscription.remove();
       trackChangedSubscription.remove();
       seekSubscription.remove();
+      appStateUnsubscribe();
     };
   }, [position, duration, buffered]);
 
