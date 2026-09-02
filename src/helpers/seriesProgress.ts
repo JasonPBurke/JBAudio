@@ -9,7 +9,7 @@ export type SeriesProgressState = 'unplayed' | 'playing' | 'finished';
  *   - anything in between       → 'playing'
  *
  * bookProgressValue: 0 NotStarted, 1 Started, 2 Finished
- * (BookProgressState in handleBookPlay.ts). Empty series → 'unplayed'.
+ * (BookProgressState in helpers/bookProgressState.ts). Empty series → 'unplayed'.
  */
 export function deriveSeriesProgressState(
   books: Pick<Book, 'bookProgressValue'>[],

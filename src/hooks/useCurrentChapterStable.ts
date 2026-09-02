@@ -86,7 +86,7 @@ export const useCurrentChapter = (): Chapter | undefined =>
  * keeping its own effect, its own state and its own idea of what a Position
  * meant. `locateInBook` takes BOTH numbers and answers for either shape, so
  * there is one subscription and one piece of state. See
- * `docs/adr/0004-queue-shape-answers-in-coordinates.md`.
+ * `docs/adr/0004-queue-shape-answers-in-coordinates-not-a-verdict.md`.
  *
  * Where the two numbers come from:
  * - the Queue index from the library store's `playbackIndex`, which

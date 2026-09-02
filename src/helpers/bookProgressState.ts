@@ -4,8 +4,8 @@
  *
  * Lives in its own dependency-free module so pure helpers (and their jest
  * tests) can compare against it without dragging in handleBookPlay.ts, which
- * imports the Player adapter and the database. handleBookPlay re-exports it, so the
- * long-standing `from '@/helpers/handleBookPlay'` import sites still work.
+ * imports the Player adapter and the database. Every site imports it from
+ * here; the `handleBookPlay` re-export that carried the migration is gone.
  */
 export enum BookProgressState {
   NotStarted = 0,

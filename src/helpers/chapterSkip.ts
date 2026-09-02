@@ -70,7 +70,7 @@ const RESTART_CHAPTER_THRESHOLD_SECONDS = 15;
  * it — an invalid state the type would happily describe. `locateInBook`
  * returns Book Position and Chapter Position together, so neither decision
  * converts between them and neither asks which Queue shape it is looking at.
- * See `docs/adr/0004-queue-shape-answers-in-coordinates.md`.
+ * See `docs/adr/0004-queue-shape-answers-in-coordinates-not-a-verdict.md`.
  */
 export type PressReading = {
   /** The Book's chapter rows, as the library store holds them. */

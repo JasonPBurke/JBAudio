@@ -89,8 +89,9 @@ export default class Book extends Model {
   }
 
   @writer async updateBookProgress(progress: number) {
-    // 2 = Finished (BookProgressState lives in handleBookPlay.ts; importing
-    // it here would create a model -> helper -> model import cycle)
+    // 2 = Finished (BookProgressState lives in helpers/bookProgressState.ts,
+    // which is dependency-free; kept as a literal so the model layer pulls in
+    // no helpers at all)
     const FINISHED = 2;
     await this.update((book) => {
       book.finishedAt = progress === FINISHED ? new Date() : null;

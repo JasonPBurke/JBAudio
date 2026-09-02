@@ -27,10 +27,6 @@ import { applyPersistedPlaybackRate } from '@/helpers/applyPlaybackRate';
 import { setChapterIndex } from '@/helpers/setChapterIndex';
 import { BookProgressState } from '@/helpers/bookProgressState';
 
-// The enum itself lives in a dependency-free module so pure helpers can use
-// it; re-exported here because most of the app imports it from this file.
-export { BookProgressState };
-
 /**
  * Move a book onto `Started`, reporting whether the write actually LANDED.
  *

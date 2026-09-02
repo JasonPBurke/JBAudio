@@ -23,7 +23,7 @@ import { useLibraryStore } from '@/store/library';
 import { useSettingsStore } from '@/store/settingsStore';
 import { updateChapterProgressInDB } from '@/db/chapterQueries';
 import { getBookById } from '@/db/bookQueries';
-import { BookProgressState } from '@/helpers/handleBookPlay';
+import { BookProgressState } from '@/helpers/bookProgressState';
 import { handleRemotePlayPause } from '@/helpers/remotePlayPause';
 import {
   handleRemotePlayBook,

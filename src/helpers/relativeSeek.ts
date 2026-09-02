@@ -62,7 +62,7 @@ export interface RelativeSeekInput {
 }
 
 /** Everything a relative seek walks except the jump itself. */
-export type SeekInputs = Omit<RelativeSeekInput, 'delta'>;
+type SeekInputs = Omit<RelativeSeekInput, 'delta'>;
 
 /**
  * Where a relative seek lands, as a queue index plus a position inside it.

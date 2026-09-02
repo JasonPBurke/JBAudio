@@ -1,6 +1,7 @@
 import TrackPlayer from 'react-native-track-player';
 
-import { handleBookPlay, BookProgressState } from '../handleBookPlay';
+import { handleBookPlay } from '../handleBookPlay';
+import { BookProgressState } from '@/helpers/bookProgressState';
 import { getBookById } from '@/db/bookQueries';
 import {
   getChapterProgressInDB,

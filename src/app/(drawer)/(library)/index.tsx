@@ -21,7 +21,7 @@ import { useUIReadyStore } from '@/store/uiReadyStore';
 import { FloatingPlayer } from '@/components/FloatingPlayer';
 import CreateSeriesFab from '@/components/CreateSeriesFab';
 import { CustomTabs } from '@/types/CustomTabs';
-import { BookProgressState } from '@/helpers/handleBookPlay';
+import { BookProgressState } from '@/helpers/bookProgressState';
 import { LibraryRecencyMode } from '@/helpers/bookRecency';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useScrollDirection } from '@/hooks/useScrollDirection';

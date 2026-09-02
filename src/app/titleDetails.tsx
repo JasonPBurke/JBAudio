@@ -54,10 +54,8 @@ import { useTheme } from '@/hooks/useTheme';
 import { useRerenderOnChapterTurn } from '@/hooks/useRerenderOnChapterTurn';
 import { formatSecondsToMinutes } from '@/helpers/miscellaneous';
 import { BookDurationRow } from '@/components/BookDurationRow';
-import {
-  handleBookPlay,
-  BookProgressState,
-} from '@/helpers/handleBookPlay';
+import { handleBookPlay } from '@/helpers/handleBookPlay';
+import { BookProgressState } from '@/helpers/bookProgressState';
 import { removeAutoChapters } from '@/helpers/autoChapterGenerator';
 import { recordFootprint } from '@/helpers/activeBookFootprints';
 import { getBookById, stampLastPlayed } from '@/db/bookQueries';
