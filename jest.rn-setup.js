@@ -32,10 +32,13 @@ jest.mock('react-native-reanimated', () =>
 // A suite that wants to assert on a report can still read the mock:
 //   jest.mocked(Sentry.captureException)
 // Forced by: useBackToTopLadder.rn.test.tsx (the ladder's throw containment).
-// ⚠ `captureException` ONLY. `Sentry.wrap` is not here on purpose: nothing in
-// the `rn` lane mounts the screen that uses it, so adding it would be exactly
-// the speculative mock this file forbids. The suite that first mounts that
-// screen will fail loudly and can add it then.
+// `wrap` was added when the suite this file predicted finally arrived:
+// (library)/__tests__/librarySearchAndSearchBar.rn.test.tsx mounts LibraryScreen,
+// whose default export is `Sentry.wrap(LibraryScreen)`, and failed loudly with
+// "Sentry.wrap is not a function". It is IDENTITY here -- the real one returns a
+// wrapper adding error boundary and profiling, neither of which any test asserts
+// on, and a wrapper would only put a component between the test and the screen.
 jest.mock('@sentry/react-native', () => ({
   captureException: jest.fn(),
+  wrap: (component) => component,
 }));

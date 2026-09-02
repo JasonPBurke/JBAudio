@@ -121,8 +121,16 @@ timers real, and assert on the queue's contents. See `useResetScrollOnTabChange.
 that turns "no call happened" (which a race can satisfy for the wrong reason) into "one frame in,
 zero frames out", which nothing but real cancellation can satisfy.
 
-**2. `renderHook`, `rerender` and `unmount` are all ASYNC in RNTL 14.** A missing `await` does not
-throw — the assertion just runs before the render it meant to observe.
+**2. `render`, `renderHook`, `rerender`, `unmount` AND `fireEvent` are all ASYNC in RNTL 14.** A
+missing `await` does not throw — the assertion just runs before the render it meant to observe.
+
+⚠ **`render` and `fireEvent` are easy to miss**, because the DOM Testing Library everyone has muscle
+memory for returns neither as a promise. Check `dist/render.d.ts` if in doubt: it returns
+`Promise<{...}>`, and `fireEvent.press` returns `Promise<void>`. Skipping the `await` interleaves act
+scopes, and React reports it as *"You seem to have overlapping act() calls"* from inside
+`react.development.js`, naming **no line in your test**. The visible symptom is captured props
+reading `null` — which looks like a broken mock and sends you to rewrite the wrong thing. Found
+2026-09-02 while writing `librarySearchAndSearchBar.rn.test.tsx`.
 
 **3. Reanimated needs the `/mock` entry point, not `setUpTests()`.** On reanimated 4.2.1 /
 worklets 0.7.2, merely *importing* `react-native-reanimated` pulls in `react-native-worklets`, whose
@@ -173,6 +181,16 @@ library list in this app is therefore behind a **cascade**, not behind one confi
 while trying to add a single assertion to `BooksHome`; the attempt was backed out rather than widen
 the shared lane's transform for one test. Know that cost before promising a component test that
 renders a list — and prefer a hook-level seam, which is what the back ladder does throughout.
+
+**There is a third option, and it is cheap: mock the lists at their MODULE boundary.** A
+`jest.mock('@/components/BooksHome', ...)` is applied before the module is resolved, so FlashList is
+never reached and the cascade never starts. That buys a screen mounted for real — its state, its
+effects, its wiring — with a stub apiece for the parts that cannot render.
+`src/app/(drawer)/(library)/__tests__/librarySearchAndSearchBar.rn.test.tsx` does this for
+`LibraryScreen`: the three lists, the header and the search bar are stubs that record the props they
+were handed, while `useScrollDirection` and both search filters run for real. Use it when the thing
+under test is the SCREEN'S OWN wiring — state that has to survive a swap, a value threaded from a
+hook into a child — which is precisely what a hook-level seam cannot reach.
 
 **8. A COLOCATED `*.rn.test.tsx` used to run in neither project, and the run still said green.**
 The `rn` lane originally matched `**/__tests__/**/*.rn.test.[jt]s?(x)` — suffix *and* directory —

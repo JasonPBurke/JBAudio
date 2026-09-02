@@ -57,7 +57,7 @@ const LibraryScreen = ({ navigation }: any) => {
   const [toggleView, setToggleView] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
-  const { onScroll, isVisible } = useScrollDirection();
+  const { onScroll, isVisible } = useScrollDirection({ surface: toggleView });
   // Default tab: land on Started when a book is in progress so a returning
   // listener sees their current book without a tab tap. Decided once per app
   // launch — never auto-switched after the user picks a tab themselves.
