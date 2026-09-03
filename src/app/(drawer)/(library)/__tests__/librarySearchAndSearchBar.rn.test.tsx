@@ -12,7 +12,7 @@ import { BookProgressState } from '@/helpers/bookProgressState';
  *  2. The search bar's visibility is actually WIRED to the view. The hook that
  *     owns that decision is covered exhaustively in
  *     `src/hooks/__tests__/useScrollDirection.rn.test.tsx`; what cannot be
- *     asserted there is that this screen hands it `toggleView` rather than
+ *     asserted there is that this screen hands it `shelf` rather than
  *     something that never changes. A perfect hook that is not wired up is
  *     still a broken search bar.
  *
@@ -163,7 +163,7 @@ jest.mock('@/components/SearchBar', () => ({
 /** Stands in for the header's view toggle, which is all this suite drives. */
 jest.mock('@/components/Header', () => ({
   __esModule: true,
-  default: ({ setToggleView }: any) => {
+  default: ({ setShelf }: any) => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const React = require('react');
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -173,7 +173,7 @@ jest.mock('@/components/Header', () => ({
       {
         testID: 'cycle-view',
         // The real header cycles the same way -- Header.tsx:92.
-        onPress: () => setToggleView((v: number) => (v + 1) % 3),
+        onPress: () => setShelf((v: number) => (v + 1) % 3),
       },
       'Header',
     );
@@ -363,7 +363,7 @@ describe('library screen: search and the search bar across a view switch', () =>
      * to reach it on a list too short to scroll.
      *
      * This is also the assertion that pins the WIRING: the hook only resets
-     * because this screen passes `toggleView` as its `surface`. A correct hook
+     * because this screen passes `shelf` as its `surface`. A correct hook
      * that nothing hands a changing value to is still a broken search bar.
      */
     expect(isVisible.get()).toBe(1);

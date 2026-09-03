@@ -21,8 +21,8 @@ import Reanimated, {
 } from 'react-native-reanimated';
 
 type headerProps = {
-  setToggleView: React.Dispatch<React.SetStateAction<number>>;
-  toggleView: number;
+  setShelf: React.Dispatch<React.SetStateAction<number>>;
+  shelf: number;
   selectedTab: CustomTabs;
   setSelectedTab: (tab: CustomTabs) => void;
   bookCounts: {
@@ -74,8 +74,8 @@ const PulsingText = ({
 
 const Header = (props: headerProps) => {
   const {
-    toggleView,
-    setToggleView,
+    shelf,
+    setShelf,
     selectedTab,
     setSelectedTab,
     bookCounts,
@@ -88,8 +88,8 @@ const Header = (props: headerProps) => {
   const openSettingsDrawer = () => {
     navigation.dispatch(DrawerActions.toggleDrawer());
   };
-  const handleToggleView = () => {
-    setToggleView((prevState) => (prevState + 1) % 3);
+  const cycleShelf = () => {
+    setShelf((prevState) => (prevState + 1) % 3);
   };
   return (
     <View
@@ -184,8 +184,8 @@ const Header = (props: headerProps) => {
           </View>
         </View>
         <View style={styles.headerGroup}>
-          <Pressable hitSlop={15} onPress={handleToggleView}>
-            {toggleView === 0 && (
+          <Pressable hitSlop={15} onPress={cycleShelf}>
+            {shelf === 0 && (
               <View style={{ transform: [{ rotateY: '180deg' }] }}>
                 <Library
                   size={24}
@@ -195,7 +195,7 @@ const Header = (props: headerProps) => {
                 />
               </View>
             )}
-            {toggleView === 1 && (
+            {shelf === 1 && (
               <Layers
                 size={24}
                 color={themeColors.icon}
@@ -203,7 +203,7 @@ const Header = (props: headerProps) => {
                 absoluteStrokeWidth
               />
             )}
-            {toggleView === 2 && (
+            {shelf === 2 && (
               <Grip
                 size={24}
                 color={themeColors.icon}

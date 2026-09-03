@@ -15,7 +15,7 @@ import { useScrollDirection } from '@/hooks/useScrollDirection';
  * `useScrollDirection` is the ONLY writer of that shared value anywhere in the
  * app (verified by grep: `isVisible.set` appears twice, both in the hook). The
  * screen owns one instance of it and hands the value to `SearchBar` and
- * `CreateSeriesFab`, both of which sit OUTSIDE the `toggleView` conditionals.
+ * `CreateSeriesFab`, both of which sit OUTSIDE the `shelf` conditionals.
  * The lists remount on a view switch; the shared value does not.
  *
  * That asymmetry is the whole bug, and it is why these cases live here rather
@@ -90,7 +90,7 @@ function settle() {
 
 /**
  * Mount on one surface and settle. `surface` stands for whatever identifies
- * the mounted surface -- the screen passes `toggleView`.
+ * the mounted surface -- the screen passes `shelf`.
  */
 async function renderOnFirstView() {
   const view = await renderHook(

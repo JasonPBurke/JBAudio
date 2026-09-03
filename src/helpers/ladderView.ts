@@ -1,7 +1,7 @@
 import type { LadderView } from '@/helpers/ladderDecisions';
 
 /**
- * §H1 -- the mount site's mapping from the view toggle's ORDINAL to the ladder's
+ * §H1 -- the mount site's mapping from the SHELF's ordinal to the ladder's
  * NAMED view. The ladder never learns the ordinal; this is the one place the
  * two vocabularies meet, and `LadderView`'s own docblock in `ladderDecisions.ts`
  * carries the reason.
@@ -24,5 +24,5 @@ import type { LadderView } from '@/helpers/ladderDecisions';
  * two-rung view, where the worst case is a missing rung rather than a
  * destructive one.
  */
-export const ladderViewFor = (toggleView: number): LadderView =>
-  toggleView === 0 ? 'booksHome' : toggleView === 1 ? 'seriesHome' : 'booksGrid';
+export const ladderViewFor = (shelf: number): LadderView =>
+  shelf === 0 ? 'booksHome' : shelf === 1 ? 'seriesHome' : 'booksGrid';

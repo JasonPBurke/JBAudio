@@ -14,7 +14,7 @@ type ScrollDirection = 'up' | 'down' | 'idle';
 interface UseScrollDirectionOptions {
   /**
    * Identifies the scrollable surface currently mounted -- the library screen
-   * passes its `toggleView`. Its VALUE is never read; only a CHANGE matters,
+   * passes its `shelf`. Its VALUE is never read; only a CHANGE matters,
    * and a change means the list this hook was tracking has been replaced.
    *
    * Pass a constant from a screen that only ever mounts one list.
@@ -96,7 +96,7 @@ export function useScrollDirection({
    * at 0 -- so no scroll event is ever emitted. Worse, that hook's own
    * first-render guard is back to `true` on the fresh mount, so it does not
    * scroll either. Meanwhile `isVisible` lives on the screen, outside the
-   * `toggleView` conditionals, and survives with the outgoing list's hidden
+   * `shelf` conditionals, and survives with the outgoing list's hidden
    * state intact. The bar stays translated off-screen above a spacer that
    * still reserves its height: a blank gap, and on a list too short to scroll,
    * no gesture that can bring it back.

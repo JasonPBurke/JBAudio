@@ -54,10 +54,10 @@ const NO_RANGES: readonly SectionRange[] = [];
 const LibraryScreen = ({ navigation }: any) => {
   const { colors: themeColors } = useTheme();
   const insets = useSafeAreaInsets();
-  const [toggleView, setToggleView] = useState(0);
+  const [shelf, setShelf] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
-  const { onScroll, isVisible } = useScrollDirection({ surface: toggleView });
+  const { onScroll, isVisible } = useScrollDirection({ surface: shelf });
   // Default tab: land on Started when a book is in progress so a returning
   // listener sees their current book without a tab tap. Decided once per app
   // launch — never auto-switched after the user picks a tab themselves.
@@ -150,7 +150,7 @@ const LibraryScreen = ({ navigation }: any) => {
    */
   const { onMomentumScrollEnd, onScrollEndDrag } = useBackToTopLadder({
     listRef,
-    view: ladderViewFor(toggleView),
+    view: ladderViewFor(shelf),
     sectionRangesRef,
     expanded: activeGridSections,
     setExpanded: setActiveGridSections,
@@ -268,7 +268,7 @@ const LibraryScreen = ({ navigation }: any) => {
     );
   }, [selectedTab, searchFilteredAuthors]);
 
-  // --- Series view data (toggleView === 1) ---
+  // --- Series view data (shelf === 1) ---
   const allSeries = useDerivedSeries();
 
   // Search filters series by name OR contained book title.
@@ -349,16 +349,16 @@ const LibraryScreen = ({ navigation }: any) => {
       >
         {/* MOVE HEADER ABOVE SCROLL VIEW TO DOCK IT AT TOP OF SCREEN */}
         <Header
-          setToggleView={setToggleView}
-          toggleView={toggleView}
+          setShelf={setShelf}
+          shelf={shelf}
           selectedTab={selectedTab}
           setSelectedTab={setSelectedTab}
-          bookCounts={toggleView === 1 ? seriesCounts : bookCounts}
+          bookCounts={shelf === 1 ? seriesCounts : bookCounts}
         />
 
         {/* Container for list + overlay search bar - overflow hidden clips the search bar */}
         <View style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-          {toggleView === 0 && (
+          {shelf === 0 && (
             <BooksHome
               authors={tabFilteredLibrary}
               recencyMode={recencyMode}
@@ -373,7 +373,7 @@ const LibraryScreen = ({ navigation }: any) => {
               onSectionRangesChange={handleSectionRangesChange}
             />
           )}
-          {toggleView === 1 && (
+          {shelf === 1 && (
             <SeriesHome
               series={tabFilteredSeries}
               onScroll={onScroll}
@@ -385,7 +385,7 @@ const LibraryScreen = ({ navigation }: any) => {
               onScrollEndDrag={onScrollEndDrag}
             />
           )}
-          {toggleView === 2 && (
+          {shelf === 2 && (
             <BooksGrid
               authors={tabFilteredLibrary}
               recencyMode={recencyMode}
@@ -409,7 +409,7 @@ const LibraryScreen = ({ navigation }: any) => {
           />
         </View>
       </View>
-      {toggleView === 1 && (
+      {shelf === 1 && (
         <CreateSeriesFab isVisible={isVisible} onPress={handleCreateSeries} />
       )}
       <FloatingPlayer />
