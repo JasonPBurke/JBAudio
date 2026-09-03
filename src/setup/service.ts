@@ -41,6 +41,7 @@ import { restoreLastActiveBook } from '@/helpers/restoreLastActiveBook';
 import { queueShapeOf } from '@/helpers/queueShape';
 import { rewindPlayerToBookStart } from '@/helpers/rewindPlayerToBookStart';
 import { hasValidChapterData } from '@/helpers/chapterMetadata';
+import { chapterPresentationWindow } from '@/helpers/chapterWindow';
 import { locateInBook } from '@/helpers/bookLocation';
 import { evaluateBookEnd } from '@/helpers/bookEndDetection';
 import type {
@@ -340,9 +341,18 @@ async function handleProgressUpdated({
         if (hasValidChapterData(chapters)) {
           const currentChapter = chapters[currentChapterIndex];
           if (currentChapter) {
+            // ⚠ `duration` HERE HAS NEVER REACHED THE SEEK BAR and is kept
+            // only because controllers may read the metadata field directly.
+            // media3 publishes the session's duration from the PLAYER, and
+            // falls back to this one only when the player's is `TIME_UNSET`
+            // — which it never is on a one-item Queue holding the whole
+            // file. The window below is what actually scopes the remote seek
+            // bar to the chapter; see `helpers/chapterWindow.ts`.
             await updateMetadataForTrack(track, {
               title: currentChapter.chapterTitle,
               duration: currentChapter.chapterDuration,
+              ...(chapterPresentationWindow(chapters, currentChapterIndex) ??
+                {}),
               // Preserve existing metadata that shouldn't change
               artwork: book.artwork ?? undefined,
               artist: book.author,

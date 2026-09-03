@@ -311,10 +311,32 @@ export async function add(tracks: AddTrack[]): Promise<number | void> {
   return TrackPlayer.add(tracks);
 }
 
+/**
+ * RNTP's track metadata plus the two keys OUR PATCH adds.
+ *
+ * `TrackMetadataBase` is a closed interface — unlike `Track`, which carries an
+ * `[key: string]: any` index signature — so the window keys would be rejected
+ * as excess properties without this. Widening it here rather than at the call
+ * site is the same reason the rest of this module exists: a divergence
+ * between our patched RNTP and the published types is an RNTP fact, and RNTP
+ * facts live in this file.
+ *
+ * ⚠ These are consumed ONLY by the MediaSession's view of the player
+ * (`InnerForwardingPlayer`), never by ExoPlayer. They change what the
+ * notification and Android Auto display; they cannot change what is played.
+ * `helpers/chapterWindow.ts` is the only thing that decides their values.
+ */
+export type TrackMetadataUpdate = TrackMetadataBase & {
+  /** Milliseconds into the file where the presented slice starts. */
+  windowStartMs?: number;
+  /** Milliseconds into the file where it ends. Never send one without the other. */
+  windowEndMs?: number;
+};
+
 /** Replace one queue item's metadata in place. */
 export async function updateMetadataForTrack(
   index: number,
-  metadata: TrackMetadataBase,
+  metadata: TrackMetadataUpdate,
 ): Promise<void> {
   return TrackPlayer.updateMetadataForTrack(index, metadata);
 }

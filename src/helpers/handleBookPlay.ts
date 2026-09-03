@@ -23,6 +23,7 @@ import {
   buildClippedChapterTracks,
 } from '@/helpers/clippedChapters';
 import { queueShapeOf } from '@/helpers/queueShape';
+import { chapterPresentationWindow } from '@/helpers/chapterWindow';
 import { applyPersistedPlaybackRate } from '@/helpers/applyPlaybackRate';
 import { setChapterIndex } from '@/helpers/setChapterIndex';
 import { BookProgressState } from '@/helpers/bookProgressState';
@@ -219,6 +220,16 @@ const handleBookPlayInner = async (
         album: book.bookTitle,
         bookId: book.bookId,
         duration: initialChapter?.chapterDuration,
+        // ⚠ THE WINDOW BELONGS ON THE FIRST TRACK TOO, not only on the
+        // chapter-change update in `service.ts`. That update fires when the
+        // playing chapter CHANGES, so a Book resumed in the middle of
+        // chapter five would open the notification showing the whole Book and
+        // only narrow to the chapter half an hour later, at the next
+        // boundary. Gated on `hasChapterData` alongside the title and
+        // duration above: a Book with no boundaries has no window to show.
+        ...(hasChapterData
+          ? (chapterPresentationWindow(book.chapters, chapterIndex) ?? {})
+          : {}),
       };
       await add([track]);
 

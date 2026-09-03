@@ -1,5 +1,5 @@
 diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/kotlinaudio/models/AudioItem.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/kotlinaudio/models/AudioItem.kt
-index 5a1b2bf..55ce15b 100644
+index 5a1b2bf..63f2944 100644
 --- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/kotlinaudio/models/AudioItem.kt
 +++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/kotlinaudio/models/AudioItem.kt
 @@ -4,6 +4,7 @@ import android.net.Uri
@@ -10,7 +10,7 @@ index 5a1b2bf..55ce15b 100644
  
  open class AudioItem(
      open var audioUrl: String,
-@@ -14,8 +15,14 @@ open class AudioItem(
+@@ -14,8 +15,32 @@ open class AudioItem(
      open val artwork: String? = null,
      open val duration: Long? = null,
      open val options: AudioItemOptions? = null,
@@ -20,13 +20,31 @@ index 5a1b2bf..55ce15b 100644
 +    // its own timeline item. Applied via MediaItem.ClippingConfiguration
 +    // (MediaFactory wraps the source in ClippingMediaSource).
 +    open val clipStartMs: Long? = null,
-+    open val clipEndMs: Long? = null
++    open val clipEndMs: Long? = null,
++    // Optional PRESENTATION window (ms) — the slice of this item that remote
++    // controllers should be shown as if it were the whole thing.
++    //
++    // ⚠ UNLIKE THE CLIP WINDOW ABOVE, THIS DOES NOT CHANGE WHAT IS PLAYED.
++    // `toMediaItem()` deliberately builds no ClippingConfiguration from it;
++    // the source stays one continuous file. Only `InnerForwardingPlayer` —
++    // the Player the MediaSession is driven by, and its ONLY consumer —
++    // subtracts it, so the notification and Android Auto get a chapter-scoped
++    // seek bar while ExoPlayer, and every in-app read, keep whole-file
++    // coordinates.
++    //
++    // This exists because a single-file audiobook whose chapters are
++    // auto-generated cannot be clipped: synthetic 30-minute boundaries have
++    // no seek point in an MP3, so clipping them audibly skips or repeats
++    // seconds of audio at every boundary. Those books load as ONE queue item,
++    // and without a window the session advertises the whole eight-hour book.
++    open val windowStartMs: Long? = null,
++    open val windowEndMs: Long? = null
  ) {
 +    @androidx.annotation.OptIn(UnstableApi::class)
      fun toMediaItem(): MediaItem {
          val extras = Bundle().apply {
              options?.headers?.let {
-@@ -35,13 +42,27 @@ open class AudioItem(
+@@ -35,13 +60,27 @@ open class AudioItem(
              .setArtist(artist)
              .setArtworkUri(Uri.parse(artwork))
              .setExtras(extras)
@@ -56,6 +74,228 @@ index 5a1b2bf..55ce15b 100644
      }
  
      companion object {
+diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/kotlinaudio/players/BaseAudioPlayer.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/kotlinaudio/players/BaseAudioPlayer.kt
+index a0f995c..8ea9abc 100644
+--- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/kotlinaudio/players/BaseAudioPlayer.kt
++++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/kotlinaudio/players/BaseAudioPlayer.kt
+@@ -443,8 +443,178 @@ abstract class BaseAudioPlayer internal constructor(
+         }
+     }
+ 
++    /**
++     * A slice of the playing item that remote controllers are shown as if it
++     * were the whole thing, and the two conversions between that view and the
++     * real one.
++     *
++     * Both conversions clamp, and that is load-bearing rather than defensive:
++     * a position read can legitimately sit outside the window for a tick
++     * after a boundary is crossed (the window is republished by the JS
++     * progress tick, which runs at 1 Hz), and an unclamped negative or
++     * over-long value reaches the notification as a seek bar that jumps to
++     * the far end. Clamping makes the worst case "stuck at a boundary for one
++     * tick" instead.
++     */
++    private class PresentationWindow(val startMs: Long, val endMs: Long) {
++        val durationMs: Long get() = endMs - startMs
++
++        /** A real, whole-file position as the window sees it. */
++        fun toWindow(realPositionMs: Long): Long =
++            (realPositionMs - startMs).coerceIn(0L, durationMs)
++
++        /** A window position back in whole-file coordinates. */
++        fun toReal(windowPositionMs: Long): Long =
++            (startMs + windowPositionMs).coerceIn(startMs, endMs)
++    }
++
+     @UnstableApi
+     inner class InnerForwardingPlayer(player: ExoPlayer): ForwardingPlayer(player) {
++        /**
++         * The window the active item asks to be presented through, or `null`
++         * to be published exactly as ExoPlayer sees it.
++         *
++         * ⚠ `null` IS THE ANSWER FOR EVERY SHAPE BUT ONE, and every override
++         * below falls straight through to the delegate when it gets one. A
++         * multi-file Book and a clipped single-file Book are ALREADY
++         * chapter-scoped — the Chapter is the Player's current item — so
++         * applying a window there would subtract a chapter offset twice.
++         * Only a one-item Queue with real chapter boundaries sets one, and
++         * only `helpers/chapterWindow.ts` decides what it is.
++         *
++         * Read off the active MediaItem's tag rather than held as state, so
++         * it cannot go stale against the item actually playing.
++         */
++        private fun presentationWindow(): PresentationWindow? {
++            val item = super.getCurrentMediaItem() ?: return null
++            val audioItem = item.localConfiguration?.tag as? AudioItem ?: return null
++            val startMs = audioItem.windowStartMs ?: return null
++
++            val realDurationMs = super.getDuration()
++            var endMs = audioItem.windowEndMs ?: realDurationMs
++            // The final chapter's end is arithmetic from a duration tag and
++            // can overshoot the file by a rounding error; the file is the
++            // authority whenever it is known.
++            if (realDurationMs != C.TIME_UNSET && realDurationMs > 0) {
++                endMs = minOf(endMs, realDurationMs)
++            }
++
++            if (startMs < 0 || endMs == C.TIME_UNSET || endMs <= startMs) return null
++            return PresentationWindow(startMs, endMs)
++        }
++
++        // ── The reads the MediaSession publishes ────────────────────────
++        //
++        // ⚠ THESE ARE WHY THIS CLASS NOW OVERRIDES READS AT ALL. media3
++        // builds the notification's and Android Auto's seek bar from the
++        // SESSION PLAYER's duration and position -- `MediaSessionLegacyStub`
++        // takes duration from `getDurationWithCommandCheck()`, and
++        // `LegacyConversions.convertToMediaMetadataCompat` falls back to the
++        // track metadata's own `durationMs` ONLY when that is `TIME_UNSET`.
++        // Sending a chapter `duration` through `updateMetadataForTrack`
++        // therefore does nothing, which is why it has silently done nothing
++        // for as long as it has been sent.
++        //
++        // ⚠ THE MEDIA SESSION IS THE ONLY CONSUMER OF THIS PLAYER
++        // (`MusicService.onStartCommand`: `mediaSession.player =
++        // player.forwardingPlayer`). Every in-app read -- `getProgress`, the
++        // 1 Hz progress event, every seek RNTP performs -- goes to
++        // `exoPlayer` directly through `BaseAudioPlayer.position`/`duration`,
++        // so nothing here can move the app's own coordinates.
++
++        override fun getDuration(): Long {
++            val window = presentationWindow() ?: return super.getDuration()
++            return window.durationMs
++        }
++
++        override fun getContentDuration(): Long {
++            val window = presentationWindow() ?: return super.getContentDuration()
++            return window.durationMs
++        }
++
++        override fun getCurrentPosition(): Long {
++            val window = presentationWindow() ?: return super.getCurrentPosition()
++            return window.toWindow(super.getCurrentPosition())
++        }
++
++        override fun getContentPosition(): Long {
++            val window = presentationWindow() ?: return super.getContentPosition()
++            return window.toWindow(super.getContentPosition())
++        }
++
++        override fun getBufferedPosition(): Long {
++            val window = presentationWindow() ?: return super.getBufferedPosition()
++            return window.toWindow(super.getBufferedPosition())
++        }
++
++        override fun getContentBufferedPosition(): Long {
++            val window = presentationWindow() ?: return super.getContentBufferedPosition()
++            return window.toWindow(super.getContentBufferedPosition())
++        }
++
++        // ── Making a window change actually reach the controllers ───────
++        //
++        // ⚠ CHANGING WHAT WE REPORT IS NOT ENOUGH; SOMETHING HAS TO PUSH.
++        // Legacy controllers do not poll — they EXTRAPOLATE position from the
++        // last `PlaybackStateCompat` (position + speed x elapsed), and this
++        // session sets `setPeriodicPositionUpdateEnabled(false)` (the Android
++        // Auto queue-scroll fix), so the only refreshes are event-driven.
++        //
++        // A chapter boundary on a one-item Queue produces NO player event:
++        // no transition, no discontinuity, no timeline change — just the
++        // metadata replace we make ourselves. And in media3 1.8.0
++        // `MediaSessionLegacyStub$ControllerLegacyCbForBroadcast`,
++        // `onMediaMetadataChanged` calls ONLY `updateMetadataIfChanged()`,
++        // while `updateLegacySessionPlaybackState()` is reached from
++        // `onPositionDiscontinuity`, `onPlayWhenReadyChanged`,
++        // `onPlaybackStateChanged` and `onPlaybackParametersChanged`.
++        //
++        // So the duration re-published at a boundary but the POSITION did
++        // not: controllers kept extrapolating in the OLD chapter's
++        // coordinates, ran past the new chapter's length and pinned the
++        // scrubber at the end of the bar until the next play/pause. Measured
++        // on device 2026-09-02.
++        private val externalListeners = mutableSetOf<Player.Listener>()
++
++        override fun addListener(listener: Player.Listener) {
++            externalListeners.add(listener)
++            super.addListener(listener)
++        }
++
++        override fun removeListener(listener: Player.Listener) {
++            externalListeners.remove(listener)
++            super.removeListener(listener)
++        }
++
++        /**
++         * Ask the MediaSession to re-read and re-broadcast position, after
++         * the presentation window has moved under it.
++         *
++         * `onPlaybackParametersChanged` is chosen deliberately over
++         * `onPositionDiscontinuity`: it is the cheapest callback that reaches
++         * `updateLegacySessionPlaybackState`, and it is TRUE — we hand it the
++         * parameters the player really has. A synthetic discontinuity would
++         * assert a jump that did not happen, which controllers are entitled
++         * to act on.
++         *
++         * ⚠ GATED ON THERE BEING A WINDOW, and that gate is what keeps the
++         * Android Auto queue-scroll fix intact. Every re-broadcast makes
++         * gearhead re-render its queue template and lose scroll position,
++         * which is why the 3-second periodic sync was turned off. This fires
++         * only on a Book that HAS a window — a one-item Queue, whose Android
++         * Auto queue is a single row with nothing to scroll — and then only
++         * once per chapter boundary rather than every three seconds. A
++         * multi-item Queue never sets a window and is never nudged.
++         */
++        fun refreshSessionPosition() {
++            if (presentationWindow() == null) return
++            val parameters = super.getPlaybackParameters()
++            // Copied before iterating: a listener may remove itself.
++            externalListeners.toList().forEach {
++                it.onPlaybackParametersChanged(parameters)
++            }
++        }
++
+         override fun setMediaItems(mediaItems: MutableList<MediaItem>, resetPosition: Boolean) {
+             // override setMediaItem handling to RNTP
+             return
+@@ -511,17 +681,32 @@ abstract class BaseAudioPlayer internal constructor(
+         }
+ 
+         override fun seekTo(mediaItemIndex: Int, positionMs: Long) {
+-            playerEventHolder.updateOnPlayerActionTriggeredExternally(
+-                MediaSessionCallback.SEEK(
+-                    positionMs
+-                )
+-            )
++            emitSeek(positionMs)
+         }
+ 
+         override fun seekTo(positionMs: Long) {
++            emitSeek(positionMs)
++        }
++
++        /**
++         * A seek arriving FROM a controller, translated back out of the
++         * window before JS ever sees it.
++         *
++         * ⚠ THE TRANSLATION HAS TO HAPPEN HERE, not in JS. This emits
++         * `remote-seek`, and `helpers/remoteSeekPress.ts` treats that payload
++         * as a position in the SAME coordinates every other shape sends --
++         * whole-file for a one-item Queue. Leaving the window subtracted
++         * would make a scrub to the middle of chapter five land in the middle
++         * of chapter one, and would also break that module's duplicate-press
++         * suppression, which compares consecutive targets within 10ms.
++         *
++         * Without a window this is exactly what it always was.
++         */
++        private fun emitSeek(positionMs: Long) {
++            val absoluteMs = presentationWindow()?.toReal(positionMs) ?: positionMs
+             playerEventHolder.updateOnPlayerActionTriggeredExternally(
+                 MediaSessionCallback.SEEK(
+-                    positionMs
++                    absoluteMs
+                 )
+             )
+         }
 diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/kotlinaudio/players/components/MediaFactory.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/kotlinaudio/players/components/MediaFactory.kt
 index f8b9ca1..62298cb 100644
 --- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/kotlinaudio/players/components/MediaFactory.kt
@@ -107,7 +347,7 @@ index f8b9ca1..62298cb 100644
  
      private fun createDashSource(mediaItem: MediaItem, factory: DataSource.Factory?): MediaSource {
 diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/HeadlessJsMediaService.java b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/HeadlessJsMediaService.java
-index f2fd560..97dd261 100644
+index f2fd560..3fd55fe 100644
 --- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/HeadlessJsMediaService.java
 +++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/HeadlessJsMediaService.java
 @@ -28,8 +28,12 @@
@@ -196,7 +436,7 @@ index f2fd560..97dd261 100644
 +       reconcileHeadlessTask();
         return START_NOT_STICKY;
     }
- 
+  
 +   /**
 +    * True when the headless JS task has run in the current React context AND
 +    * JS has confirmed it (task promise resolved). Before confirmation, events
@@ -345,7 +585,7 @@ index f2fd560..97dd261 100644
 @@ -150,8 +322,13 @@
     @Override
     public void onHeadlessJsTaskStart(int taskId) {}
- 
+  
 +   // The task promise resolving is the only trustworthy signal that the JS
 +   // bundle was actually loaded when we dispatched. NOTE: MusicService
 +   // overrides this without calling super (to keep RN from stopping the
@@ -394,10 +634,10 @@ index f2fd560..97dd261 100644
                              reactInstanceManager.removeReactInstanceEventListener(this);
                          }
 diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/Track.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/Track.kt
-index 6527258..718d728 100644
+index 6527258..353b233 100644
 --- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/Track.kt
 +++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/Track.kt
-@@ -26,8 +26,21 @@ class Track
+@@ -26,8 +26,39 @@ class Track
      var headers: HashMap<String, String>? = null
      val queueId: Long
  
@@ -408,6 +648,18 @@ index 6527258..718d728 100644
 +    var clipStartMs: Long? = null
 +    var clipEndMs: Long? = null
 +
++    // Optional PRESENTATION window (ms) — what remote controllers are shown,
++    // with no effect on what is played. See AudioItem's field docs. Same
++    // "only when the bundle carries the key" rule as the clip window, so a
++    // partial updateMetadataForTrack cannot wipe a window already set.
++    //
++    // ⚠ THAT RULE IS WHY THE JS SIDE ALWAYS SENDS AN EXPLICIT windowEndMs.
++    // An omitted end does not mean "to the end of the file" here — it means
++    // "keep the previous chapter's end", which on the final chapter would
++    // leave end BEHIND start. `helpers/chapterWindow.ts` never omits it.
++    var windowStartMs: Long? = null
++    var windowEndMs: Long? = null
++
      override fun setMetadata(context: Context, bundle: Bundle?, ratingType: Int) {
          super.setMetadata(context, bundle, ratingType)
 +        if (bundle?.containsKey("clipStartMs") == true) {
@@ -416,25 +668,33 @@ index 6527258..718d728 100644
 +        if (bundle?.containsKey("clipEndMs") == true) {
 +            clipEndMs = bundle.getDouble("clipEndMs").toLong()
 +        }
++        if (bundle?.containsKey("windowStartMs") == true) {
++            windowStartMs = bundle.getDouble("windowStartMs").toLong()
++        }
++        if (bundle?.containsKey("windowEndMs") == true) {
++            windowEndMs = bundle.getDouble("windowEndMs").toLong()
++        }
          originalItem.putAll(bundle)
      }
  
-@@ -42,7 +55,9 @@ class Track
+@@ -42,7 +73,11 @@ class Track
              artwork = artwork.toString(),
              duration = duration,
              options = AudioItemOptions(headers, userAgent, resourceId),
 -            mediaId = mediaId
 +            mediaId = mediaId,
 +            clipStartMs = clipStartMs,
-+            clipEndMs = clipEndMs
++            clipEndMs = clipEndMs,
++            windowStartMs = windowStartMs,
++            windowEndMs = windowEndMs
          )
      }
  
 diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/TrackAudioItem.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/TrackAudioItem.kt
-index d6e3483..bd02ddb 100644
+index d6e3483..857578c 100644
 --- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/TrackAudioItem.kt
 +++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/TrackAudioItem.kt
-@@ -14,5 +14,10 @@ data class TrackAudioItem(
+@@ -14,5 +14,12 @@ data class TrackAudioItem(
      override val artwork: String? = null,
      override val duration: Long? = null,
      override val options: AudioItemOptions? = null,
@@ -443,10 +703,12 @@ index d6e3483..bd02ddb 100644
 \ No newline at end of file
 +    override val mediaId: String? = null,
 +    override val clipStartMs: Long? = null,
-+    override val clipEndMs: Long? = null
++    override val clipEndMs: Long? = null,
++    override val windowStartMs: Long? = null,
++    override val windowEndMs: Long? = null
 +): AudioItem(
 +    audioUrl, type, artist, title, albumTitle, artwork, duration, options, mediaId,
-+    clipStartMs, clipEndMs
++    clipStartMs, clipEndMs, windowStartMs, windowEndMs
 +)
 \ No newline at end of file
 diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt
@@ -480,7 +742,7 @@ index 13a6c60..4c529be 100644
  
      override fun removeListeners(count: Double) {
 diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
-index b495b5a..ee51b8c 100644
+index b495b5a..64d0845 100644
 --- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
 +++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
 @@ -46,14 +46,21 @@ import com.doublesymmetry.trackplayer.utils.BundleUtils.setRating
@@ -688,7 +950,7 @@ index b495b5a..ee51b8c 100644
          player.load(track.toAudioItem())
      }
  
-@@ -490,6 +606,8 @@ class MusicService : HeadlessJsMediaService() {
+@@ -490,8 +606,19 @@ class MusicService : HeadlessJsMediaService() {
      fun updateMetadataForTrack(index: Int, bundle: Bundle) {
          tracks[index].let { currentTrack ->
              currentTrack.setMetadata(reactContext, bundle, 0)
@@ -696,8 +958,19 @@ index b495b5a..ee51b8c 100644
 +            makeArtworkCarReadable(currentTrack)
  
              player.replaceItem(index, currentTrack.toAudioItem())
++
++            // ⚠ MUST COME AFTER replaceItem, and is not optional when the
++            // bundle moved a presentation window. The replace publishes the
++            // new title and duration but NOT a new position, so without this
++            // the notification's scrubber keeps extrapolating in the previous
++            // chapter's coordinates and pins itself at the end of the bar.
++            // No-ops for every track that has no window. See
++            // `InnerForwardingPlayer.refreshSessionPosition`.
++            player.forwardingPlayer.refreshSessionPosition()
          }
-@@ -671,15 +789,55 @@ class MusicService : HeadlessJsMediaService() {
+     }
+ 
+@@ -671,15 +798,55 @@ class MusicService : HeadlessJsMediaService() {
          return bundle
      }
  
@@ -753,7 +1026,7 @@ index b495b5a..ee51b8c 100644
          val payload = Arguments.createArray()
          data.forEach { payload.pushMap(Arguments.fromBundle(it)) }
  
-@@ -694,6 +852,12 @@ class MusicService : HeadlessJsMediaService() {
+@@ -694,6 +861,12 @@ class MusicService : HeadlessJsMediaService() {
      override fun onBind(intent: Intent?): IBinder? {
          val intentAction = intent?.action
          Timber.d("intentAction = $intentAction")
@@ -766,7 +1039,7 @@ index b495b5a..ee51b8c 100644
          return if (intentAction != null) {
              super.onBind(intent)
          } else {
-@@ -708,8 +872,12 @@ class MusicService : HeadlessJsMediaService() {
+@@ -708,8 +881,12 @@ class MusicService : HeadlessJsMediaService() {
      }
  
      override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
@@ -781,7 +1054,7 @@ index b495b5a..ee51b8c 100644
      }
  
      @MainThread
-@@ -787,14 +955,20 @@ class MusicService : HeadlessJsMediaService() {
+@@ -787,14 +964,20 @@ class MusicService : HeadlessJsMediaService() {
  
      @MainThread
      override fun onHeadlessJsTaskFinish(taskId: Int) {
@@ -805,7 +1078,7 @@ index b495b5a..ee51b8c 100644
              player.destroy()
          }
  
-@@ -862,6 +1036,201 @@ class MusicService : HeadlessJsMediaService() {
+@@ -862,6 +1045,201 @@ class MusicService : HeadlessJsMediaService() {
          val service = this@MusicService
      }
  
@@ -1007,7 +1280,7 @@ index b495b5a..ee51b8c 100644
      private inner class InnerMediaSessionCallback : MediaLibrarySession.Callback {
          // HACK: I'm sure most of the callbacks were not implemented correctly.
          // ATM I only care that andorid auto still functions.
-@@ -925,12 +1294,107 @@ class MusicService : HeadlessJsMediaService() {
+@@ -925,12 +1303,107 @@ class MusicService : HeadlessJsMediaService() {
              }
          }
  
@@ -1115,7 +1388,7 @@ index b495b5a..ee51b8c 100644
              player.forwardingPlayer.let {
                  when (command.customAction) {
                      CustomCommandButton.JUMP_BACKWARD.customAction -> { it.seekBack() }
-@@ -955,14 +1419,43 @@ class MusicService : HeadlessJsMediaService() {
+@@ -955,14 +1428,43 @@ class MusicService : HeadlessJsMediaService() {
              )
          }
  
@@ -1162,7 +1435,7 @@ index b495b5a..ee51b8c 100644
          }
  
          override fun onSetRating(
-@@ -1029,5 +1522,16 @@ class MusicService : HeadlessJsMediaService() {
+@@ -1029,5 +1531,16 @@ class MusicService : HeadlessJsMediaService() {
  
          const val DEFAULT_JUMP_INTERVAL = 15.0
          const val DEFAULT_STOP_FOREGROUND_GRACE_PERIOD = 5
