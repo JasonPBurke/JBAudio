@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Header from '@/components/Header';
 import { useScanExternalFileSystem } from '@/hooks/useScanExternalFileSystem';
 import { useLibraryStore } from '@/store/library';
+import { useSettingsStore } from '@/store/settingsStore';
 import SeriesHome from '@/components/SeriesHome';
 import { useDerivedSeries } from '@/store/seriesStore';
 import {
@@ -30,7 +31,6 @@ import { useScrollDirection } from '@/hooks/useScrollDirection';
 import type { LadderList } from '@/types/ladderList';
 import type { SectionRange } from '@/helpers/ladderDecisions';
 import { ladderViewFor } from '@/helpers/ladderView';
-import type { BooksLayout } from '@/types/booksLayout';
 import { useBackToTopLadder } from '@/hooks/useBackToTopLadder';
 import * as Sentry from '@sentry/react-native';
 
@@ -60,14 +60,24 @@ const LibraryScreen = ({ navigation }: any) => {
   const [shelf, setShelf] = useState(0);
   /*
    * ADR 0006's SECOND AXIS. The header cycles the SHELF; the Books shelf --
-   * alone -- also has a LAYOUT, and this is where it lives. Session state for
-   * now; persisting it is the next ticket.
+   * alone -- also has a LAYOUT.
+   *
+   * From the SETTINGS STORE, not from this screen: the choice is the reader's
+   * and outlives the mount, the navigation and the process (D4). The column
+   * behind it is nullable and is read through `resolveBooksLayout`, so a reader
+   * who has never touched the control gets the grid they already had.
+   *
+   * No hydration gate goes with it, deliberately: settings hydrate during
+   * launch and `shelf` always starts at the sectioned home, so the Books shelf
+   * cannot be on screen before the store has its stored value. The seed is
+   * never rendered.
    *
    * ⚠ Not a fourth shelf ordinal. `LadderView` has a `booksList` member and
    * three comments in this tree read as an unfinished intention to add one;
    * ADR 0006 records that as the REJECTED design, not the next step.
    */
-  const [booksLayout, setBooksLayout] = useState<BooksLayout>('grid');
+  const booksLayout = useSettingsStore((state) => state.booksLayout);
+  const setBooksLayout = useSettingsStore((state) => state.setBooksLayout);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
 
@@ -358,8 +368,10 @@ const LibraryScreen = ({ navigation }: any) => {
    * in this list library before.
    */
   const toggleBooksLayout = useCallback(() => {
-    setBooksLayout((current) => (current === 'list' ? 'grid' : 'list'));
-  }, []);
+    // The store sets optimistically and persists after, so the shelf redraws on
+    // this commit and the write follows; nothing here waits on the database.
+    void setBooksLayout(booksLayout === 'list' ? 'grid' : 'list');
+  }, [booksLayout, setBooksLayout]);
 
   // Spacer to offset list content below the absolute-positioned search bar
   const ListSpacer = useMemo(

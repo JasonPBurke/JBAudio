@@ -260,6 +260,23 @@ jest.mock('@/store/library', () => ({
     { getState: () => mockLibraryState },
   ),
 }));
+/*
+ * The layout is a PERSISTED setting, so the screen reads it from the settings
+ * store rather than from its own state. A real zustand store stands in for it:
+ * the store's own suite owns the DB half (the seed, the getter, the write), and
+ * what this suite needs is the half the screen can observe -- a value that
+ * outlives a mount, and a setter that re-renders.
+ */
+jest.mock('@/store/settingsStore', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { create } = require('zustand');
+  return {
+    useSettingsStore: create((set: any) => ({
+      booksLayout: 'grid',
+      setBooksLayout: async (layout: string) => set({ booksLayout: layout }),
+    })),
+  };
+});
 jest.mock('@/store/seriesStore', () => ({
   useDerivedSeries: () => mockSeries,
 }));
@@ -298,6 +315,8 @@ jest.mock('react-native-safe-area-context', () => ({
 // Imported after the mocks so the screen resolves the stubs above.
 // eslint-disable-next-line import/first
 import LibraryScreen from '@/app/(drawer)/(library)/index';
+// eslint-disable-next-line import/first
+import { useSettingsStore } from '@/store/settingsStore';
 
 /** Let React commit and effects run. Real timers -- fake ones break RNTL 14. */
 function settle() {
@@ -391,6 +410,8 @@ async function flipLayout() {
 const scrollListUp = (list: any) => scrollList(list, 0);
 
 beforeEach(() => {
+  // Module state, so it survives between tests exactly as the real store does.
+  useSettingsStore.setState({ booksLayout: 'grid' });
   mockSeen.searchBar = null;
   mockSeen.booksHome = null;
   mockSeen.seriesHome = null;
@@ -620,6 +641,39 @@ describe('library screen: the Books shelf layout toggle', () => {
     expect(screen.getByText('BooksList')).toBeTruthy();
     expect(isVisible.get()).toBe(1);
     expect(layoutControl()).not.toBeNull();
+  });
+
+  it('mounts the layout the reader already chose', async () => {
+    // A returning reader, mid-launch: settings have hydrated and the store
+    // already holds `list` before the screen mounts. Reaching the Books shelf
+    // must land them on the list, with no flip.
+    useSettingsStore.setState({ booksLayout: 'list' });
+
+    await mountLibrary();
+    await goToBooksShelf();
+
+    expect(screen.getByText('BooksList')).toBeTruthy();
+    expect(screen.queryByText('BooksGrid')).toBeNull();
+  });
+
+  it('remembers the flip after the screen unmounts and mounts again', async () => {
+    await mountLibrary();
+    await goToBooksShelf();
+    await flipLayout();
+    expect(screen.getByText('BooksList')).toBeTruthy();
+
+    // Navigating away and back. The choice belongs to the reader, not to this
+    // mount -- which is the whole of user stories 3 and 29, and is exactly what
+    // screen-local state cannot do.
+    // ⚠ AWAITED. `unmount` returns a promise in RNTL 14 just as `render` does,
+    // and dropping this await does not fail here -- it interleaves act scopes
+    // and the NEXT test in the file reads its captured props as null.
+    await screen.unmount();
+    await mountLibrary();
+    await goToBooksShelf();
+
+    expect(screen.getByText('BooksList')).toBeTruthy();
+    expect(screen.queryByText('BooksGrid')).toBeNull();
   });
 
   it('leaves the sectioned home\'s expanded sections alone', async () => {

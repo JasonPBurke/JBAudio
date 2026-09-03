@@ -14,7 +14,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
 // migration cannot backfill a value (see the v33 block in migrations.ts).
 // src/db/seriesProvenance.ts is the single place that null is resolved.
 export default appSchema({
-  version: 35,
+  version: 36,
   tables: [
     tableSchema({
       name: 'authors',
@@ -330,6 +330,22 @@ export default appSchema({
           type: 'boolean',
           isOptional: true,
         }, // default OFF
+        // WHICH layout the Books shelf is drawn in: 'grid' | 'list'.
+        // ADR 0006's second axis -- the header picks a SHELF, and the Books
+        // shelf alone also has a LAYOUT.
+        //
+        // A string, not a boolean, because the question the key answers is
+        // WHICH layout rather than "is it the list one" -- and a boolean could
+        // not grow a third layout without another migration.
+        //
+        // isOptional, so every pre-v36 row reads null; resolveBooksLayout() in
+        // helpers/resolveBooksLayout.ts is the one place that decides what null
+        // means, and it means the grid -- the shelf those readers already have.
+        {
+          name: 'books_layout',
+          type: 'string',
+          isOptional: true,
+        },
       ],
     }),
     tableSchema({

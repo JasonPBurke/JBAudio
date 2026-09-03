@@ -14,6 +14,8 @@ import {
 } from '@/db/seriesOrphanPrune';
 import { deleteArtworkFiles } from '@/helpers/artworkFiles';
 import { normalizeChapterCount } from '@/helpers/chapterTimerStepper';
+import { resolveBooksLayout } from '@/helpers/resolveBooksLayout';
+import type { BooksLayout } from '@/types/booksLayout';
 import {
   resolveTimerMode,
   type TimerSelection,
@@ -656,6 +658,29 @@ export async function getSeriesBackgroundsEnabled(): Promise<boolean> {
     return settingsRecord[0].seriesBackgroundsEnabled !== false;
   }
   return true;
+}
+
+/**
+ * D4 -- the Books shelf's remembered layout.
+ *
+ * Returns a `BooksLayout`, never the raw column, and the no-record case goes
+ * through the same resolver as a null column so there is exactly one answer to
+ * "what does a reader who has never chosen see". That answer is the grid, and
+ * `helpers/resolveBooksLayout.ts` carries why.
+ */
+export async function getBooksLayout(): Promise<BooksLayout> {
+  const settingsCollection = database.collections.get<Settings>('settings');
+  const settingsRecord = await settingsCollection.query().fetch();
+
+  return resolveBooksLayout(
+    settingsRecord.length > 0 ? settingsRecord[0].booksLayout : null,
+  );
+}
+
+export async function setBooksLayout(layout: BooksLayout): Promise<void> {
+  return updateSetting((record) => {
+    record.booksLayout = layout;
+  });
 }
 
 export async function setSeriesBackgroundsEnabled(

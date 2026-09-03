@@ -61,6 +61,13 @@ export default class Settings extends Model {
     | boolean
     | null; // default OFF
 
+  /**
+   * Which layout the Books shelf is drawn in. Read through
+   * `resolveBooksLayout`, never raw -- null is the normal state of a reader who
+   * has never touched the control, not a broken row.
+   */
+  @text('books_layout') booksLayout!: string | null;
+
   // Canonical accessor: returns the full library folder entries (path + SAF tree URI).
   // Performs a one-shot migration from the legacy `string[]` shape — if detected, the
   // entries are treated as empty and the user must re-add folders to grant SAF access.

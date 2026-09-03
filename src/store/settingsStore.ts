@@ -17,7 +17,10 @@ import {
   updateLastNonDefaultRate,
   getSeriesBackgroundsEnabled,
   setSeriesBackgroundsEnabled as setSeriesBackgroundsEnabledInDB,
+  getBooksLayout,
+  setBooksLayout as setBooksLayoutInDB,
 } from '@/db/settingsQueries';
+import type { BooksLayout } from '@/types/booksLayout';
 
 interface SettingsState {
   numColumns: number;
@@ -29,6 +32,8 @@ interface SettingsState {
   lastNonDefaultRate: number | null;
   /** Cover backdrop behind the Series browse row. Default ON — see below. */
   seriesBackgroundsEnabled: boolean;
+  /** Which layout the Books shelf is drawn in. Default GRID — see below. */
+  booksLayout: BooksLayout;
   isInitialized: boolean;
   initializeSettings: () => Promise<void>;
   setNumColumns: (newNumColumns: number) => Promise<void>;
@@ -37,6 +42,7 @@ interface SettingsState {
   setShakeToResetEnabled: (enabled: boolean) => Promise<void>;
   setPlaybackRate: (value: number) => Promise<void>;
   setSeriesBackgroundsEnabled: (enabled: boolean) => Promise<void>;
+  setBooksLayout: (layout: BooksLayout) => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -51,6 +57,14 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   // switch OFF and pops the backdrop in a frame later for a user who never
   // turned it off — the same silent default-OFF trap the DB getter avoids.
   seriesBackgroundsEnabled: true,
+  // Must be 'grid'. Anything reading the store before `initializeSettings`
+  // resolves sees this, and 'grid' is what `resolveBooksLayout` gives a reader
+  // who has never chosen — so the seed and the DB default cannot disagree.
+  //
+  // No hydration gate goes with it (D4): settings hydrate during launch and the
+  // shelf always starts on the sectioned home, so the Books shelf cannot be on
+  // screen before this resolves and the seed is never rendered.
+  booksLayout: 'grid',
   isInitialized: false,
   initializeSettings: async () => {
     if (get().isInitialized) return;
@@ -62,6 +76,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       rate,
       lastRate,
       seriesBackgrounds,
+      booksLayout,
     ] = await Promise.all([
       getNumColumns(),
       getSkipBackDuration(),
@@ -70,6 +85,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       getPlaybackRate(),
       getLastNonDefaultRate(),
       getSeriesBackgroundsEnabled(),
+      getBooksLayout(),
     ]);
     set({
       numColumns: numColumnsFromDB ?? 2,
@@ -79,6 +95,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       playbackRate: quantizeRate(rate),
       lastNonDefaultRate: lastRate !== null ? quantizeRate(lastRate) : null,
       seriesBackgroundsEnabled: seriesBackgrounds,
+      booksLayout,
       isInitialized: true,
     });
   },
@@ -103,6 +120,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setSeriesBackgroundsEnabled: async (enabled: boolean) => {
     set({ seriesBackgroundsEnabled: enabled });
     await setSeriesBackgroundsEnabledInDB(enabled);
+  },
+  setBooksLayout: async (layout: BooksLayout) => {
+    set({ booksLayout: layout });
+    await setBooksLayoutInDB(layout);
   },
   setPlaybackRate: async (value: number) => {
     const rate = quantizeRate(value);

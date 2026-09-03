@@ -8,6 +8,41 @@ import {
 export default schemaMigrations({
   migrations: [
     {
+      // The Books shelf remembers its LAYOUT (ADR 0006, D4).
+      //
+      // `books_layout` answers WHICH layout the Books shelf is drawn in --
+      // 'grid' or 'list'. A string rather than a boolean because that is the
+      // question being asked; a boolean would name it "is it the list one" and
+      // could not grow a third layout without another migration.
+      //
+      // isOptional, per the standing rule in this file: addColumns cannot
+      // backfill, so a non-optional string column would land '' on every
+      // existing row -- a value the BooksLayout union says cannot exist.
+      //
+      // ⚠ NO `defaultValue` HERE, AND ONE WOULD BE INERT IF THERE WERE.
+      // addColumns destructures only { table, columns, unsafeSql }; a
+      // defaultValue is SILENTLY DROPPED and every existing row takes
+      // nullValue() instead. The v3 entry at the bottom of this file carries
+      // that correction twice, against both of its steps -- a third step
+      // written as if the default worked would make the rule look negotiable.
+      //
+      // The default lives in resolveBooksLayout() instead, which resolves null
+      // to the grid: the shelf every reader already has, so an update
+      // rearranges nobody's library.
+      //
+      // No SQL backfill, and nothing is lost by leaving it out. Pre-v36 rows
+      // mean "this reader has never touched the control", which is exactly what
+      // null resolves to. unsafeExecuteSql fails silently in release
+      // (db/seriesProvenance.ts), and there is nothing here worth that risk.
+      toVersion: 36,
+      steps: [
+        addColumns({
+          table: 'settings',
+          columns: [{ name: 'books_layout', type: 'string', isOptional: true }],
+        }),
+      ],
+    },
+    {
       // Sleep timer: give the SELECTION its own field, and stop the countdown
       // eating the user's setting.
       //
