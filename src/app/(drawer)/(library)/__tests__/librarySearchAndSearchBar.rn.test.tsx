@@ -12,16 +12,19 @@ import { BookProgressState } from '@/helpers/bookProgressState';
  *  2. The search bar's visibility is actually WIRED to the view. The hook that
  *     owns that decision is covered exhaustively in
  *     `src/hooks/__tests__/useScrollDirection.rn.test.tsx`; what cannot be
- *     asserted there is that this screen hands it `shelf` rather than
- *     something that never changes. A perfect hook that is not wired up is
+ *     asserted there is that this screen hands it a value that CHANGES rather
+ *     than something that never does. A perfect hook that is not wired up is
  *     still a broken search bar.
+ *  3. The Books shelf's LAYOUT (ADR 0006). Which of the two lists is mounted,
+ *     what the incoming one is handed, and whether the control is offered at
+ *     all are all properties of this screen and of nothing smaller.
  *
  * ── Why the mock list is this long ──
  *
  * Trap 7 in docs/testing/jest-projects-and-rn-tests.md: every library list in
  * this app sits behind a transform cascade (FlashList, then `pressto`, then
  * the next one), and widening the shared lane's `transformIgnorePatterns` for
- * one suite was already tried and backed out once. Mocking the three lists at
+ * one suite was already tried and backed out once. Mocking the four lists at
  * their module boundary sidesteps the cascade entirely -- jest replaces them
  * before FlashList is ever resolved -- and costs a stub apiece.
  *
@@ -41,7 +44,14 @@ const mockSeen: {
   booksHome: any;
   seriesHome: any;
   booksGrid: any;
-} = { searchBar: null, booksHome: null, seriesHome: null, booksGrid: null };
+  booksList: any;
+} = {
+  searchBar: null,
+  booksHome: null,
+  seriesHome: null,
+  booksGrid: null,
+  booksList: null,
+};
 
 const mockAuthors = [
   {
@@ -55,6 +65,25 @@ const mockAuthors = [
     name: 'Zoe Writer',
     books: [
       { bookTitle: 'Unrelated Story', bookProgressValue: BookProgressState.NotStarted },
+    ],
+  },
+  /*
+   * ADDITIVE, for the layout suite's recency-mode case, which needs the Started
+   * tab to hold something. A third author rather than flipping one of the two
+   * above to `Started`: those two are the input to six pre-existing tests, and
+   * changing what one of THEIR books is would make this suite's older
+   * assertions depend on a fixture edit made for a newer one.
+   *
+   * Invisible to every one of those tests, which all run on the default
+   * `Unplayed` tab: this author's only book is `Started`, so the tab filter
+   * drops the author entirely and the counts they assert do not move. It
+   * matches the "Bob" search by NAME, which is what puts it on the Started tab
+   * with a query applied.
+   */
+  {
+    name: 'Bob Reader',
+    books: [
+      { bookTitle: 'Bob In Progress', bookProgressValue: BookProgressState.Started },
     ],
   },
 ];
@@ -140,6 +169,13 @@ jest.mock('@/components/BooksGrid', () => ({
   __esModule: true,
   default: mockListComponent('booksGrid', 'BooksGrid'),
 }));
+// The Books shelf's OTHER layout. Same treatment as the grid: it is a
+// FlashList behind the same transform cascade (trap 7), and what this suite
+// asserts is which of the two the screen mounted and what it handed it.
+jest.mock('@/components/BooksList', () => ({
+  __esModule: true,
+  default: mockListComponent('booksList', 'BooksList'),
+}));
 
 /*
  * The real SearchBar is a reanimated overlay whose position is only readable
@@ -155,27 +191,56 @@ jest.mock('@/components/SearchBar', () => ({
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const React = require('react');
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { Text } = require('react-native');
-    return React.createElement(Text, { testID: 'search-bar' }, props.value);
+    const { Text, View } = require('react-native');
+    /*
+     * ⚠ The stub MUST render `props.trailing`. The layout control is passed
+     * into the bar as a node, so a stub that only records its props would
+     * never MOUNT it -- there would be nothing to find and nothing to press,
+     * and every assertion below would fail for a reason that has nothing to
+     * do with the screen.
+     */
+    return React.createElement(
+      View,
+      null,
+      React.createElement(Text, { testID: 'search-bar' }, props.value),
+      props.trailing,
+    );
   },
 }));
 
 /** Stands in for the header's view toggle, which is all this suite drives. */
 jest.mock('@/components/Header', () => ({
   __esModule: true,
-  default: ({ setShelf }: any) => {
+  default: ({ setShelf, setSelectedTab }: any) => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const React = require('react');
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { Text } = require('react-native');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { CustomTabs } = require('@/types/CustomTabs');
     return React.createElement(
       Text,
-      {
-        testID: 'cycle-view',
-        // The real header cycles the same way -- Header.tsx:92.
-        onPress: () => setShelf((v: number) => (v + 1) % 3),
-      },
-      'Header',
+      null,
+      React.createElement(
+        Text,
+        {
+          testID: 'cycle-view',
+          // The real header cycles the same way -- Header.tsx:92.
+          onPress: () => setShelf((v: number) => (v + 1) % 3),
+        },
+        'Header',
+      ),
+      // The real header's progress tabs live in `TabScreen`; only the Started
+      // one is driven here, because it is the tab that turns the recency mode
+      // into a value worth comparing between the two Books layouts.
+      React.createElement(
+        Text,
+        {
+          testID: 'select-started-tab',
+          onPress: () => setSelectedTab(CustomTabs.Started),
+        },
+        'Started',
+      ),
     );
   },
 }));
@@ -218,6 +283,8 @@ jest.mock('@/hooks/useTheme', () => ({
       text: '#fff',
       textMuted: '#888',
       primary: '#0af',
+      // The layout control renders for real in this suite and reads this one.
+      icon: '#fff',
     },
   }),
 }));
@@ -281,18 +348,54 @@ async function cycleView() {
   await settle();
 }
 
-/** Scroll the mounted list down far enough to hide the bar. */
-async function scrollListDown(list: any) {
+/** Drive a mounted list's `onScroll` to a given offset. */
+async function scrollList(list: any, y: number) {
   await act(async () => {
-    list.onScroll(scrollTo(100));
+    list.onScroll(scrollTo(y));
   });
 }
+
+/** Scroll the mounted list down far enough to hide the bar. */
+const scrollListDown = (list: any) => scrollList(list, 100);
+
+/** Press the header's Started tab, the one tab that turns recency mode on. */
+async function selectStartedTab() {
+  await fireEvent.press(screen.getByTestId('select-started-tab'));
+  await settle();
+}
+
+/** BooksHome -> SeriesHome -> BooksGrid, the reader's route to the Books shelf. */
+async function goToBooksShelf() {
+  await cycleView();
+  await cycleView();
+}
+
+/**
+ * How TalkBack finds the layout control, and therefore how this suite does.
+ * One spelling, because a test that looks it up by a DIFFERENT string than the
+ * component publishes would fail for a reason that is not the screen's.
+ */
+const LAYOUT_CONTROL = 'Book layout';
+
+/** The layout control, or null when the shelf does not offer one. */
+const layoutControl = () =>
+  screen.queryByRole('button', { name: LAYOUT_CONTROL });
+
+/** Press it. Only reachable on the Books shelf, and only while the bar shows. */
+async function flipLayout() {
+  await fireEvent.press(screen.getByRole('button', { name: LAYOUT_CONTROL }));
+  await settle();
+}
+
+/** Scroll back to the top of the mounted list, which brings the bar back. */
+const scrollListUp = (list: any) => scrollList(list, 0);
 
 beforeEach(() => {
   mockSeen.searchBar = null;
   mockSeen.booksHome = null;
   mockSeen.seriesHome = null;
   mockSeen.booksGrid = null;
+  mockSeen.booksList = null;
 });
 
 describe('library screen: search and the search bar across a view switch', () => {
@@ -402,5 +505,144 @@ describe('library screen: search and the search bar across a view switch', () =>
     expect(mockSeen.seriesHome.series).toHaveLength(1);
     expect(mockSeen.searchBar.value).toBe('Bob');
     expect(isVisible.get()).toBe(1);
+  });
+});
+
+describe('library screen: the Books shelf layout toggle', () => {
+  it('offers the layout control on the Books shelf and NOWHERE else', async () => {
+    await mountLibrary();
+    // The sectioned home has sections and horizontal rows; there is no second
+    // way to draw it, so there is nothing to offer.
+    expect(layoutControl()).toBeNull();
+
+    await cycleView();
+    expect(screen.getByText('SeriesHome')).toBeTruthy();
+    expect(layoutControl()).toBeNull();
+
+    await cycleView();
+    expect(screen.getByText('BooksGrid')).toBeTruthy();
+    expect(layoutControl()).not.toBeNull();
+  });
+
+  it('swaps WHICH LIST is mounted, and swaps back', async () => {
+    await mountLibrary();
+    await goToBooksShelf();
+
+    expect(screen.getByText('BooksGrid')).toBeTruthy();
+    expect(screen.queryByText('BooksList')).toBeNull();
+
+    await flipLayout();
+
+    // Exactly one list at a time -- the property the screen's shared `listRef`
+    // docblock is built on, asserted rather than assumed.
+    expect(screen.getByText('BooksList')).toBeTruthy();
+    expect(screen.queryByText('BooksGrid')).toBeNull();
+
+    await flipLayout();
+
+    expect(screen.getByText('BooksGrid')).toBeTruthy();
+    expect(screen.queryByText('BooksList')).toBeNull();
+  });
+
+  it('names the layout the reader is IN, not the one a press would give', async () => {
+    await mountLibrary();
+    await goToBooksShelf();
+
+    /*
+     * D8. The header's control shows the shelf you are ON, and these two sit a
+     * hundred points apart -- a control that named its destination instead
+     * would have the two obeying opposite rules. The ambiguity a single icon
+     * carries is paid off here, in what TalkBack reads out: a role, a label
+     * naming the control, a value naming where you are, and a hint naming what
+     * a press does.
+     */
+    const grid = screen.getByRole('button', { name: LAYOUT_CONTROL });
+    expect(grid.props.accessibilityValue).toEqual({ text: 'Cover grid' });
+    expect(grid.props.accessibilityHint).toBe('Switches to the compact list');
+
+    await flipLayout();
+
+    const list = screen.getByRole('button', { name: LAYOUT_CONTROL });
+    expect(list.props.accessibilityValue).toEqual({ text: 'Compact list' });
+    expect(list.props.accessibilityHint).toBe('Switches to the cover grid');
+  });
+
+  it('hands the incoming layout the SAME books, recency mode and spacer', async () => {
+    await mountLibrary();
+    await selectStartedTab();
+    await typeSearch('Bob');
+    await goToBooksShelf();
+
+    const grid = mockSeen.booksGrid;
+    // Search then tab: "Bob" keeps both Bob authors, Started then keeps only
+    // Bob Reader. A layout that filtered differently would show a different
+    // shelf, which is the whole of user story 12.
+    expect(grid.authors).toHaveLength(1);
+    expect(grid.authors[0].books).toHaveLength(1);
+    expect(grid.authors[0].books[0].bookTitle).toBe('Bob In Progress');
+    expect(grid.recencyMode).toBe('played');
+
+    await flipLayout();
+
+    const list = mockSeen.booksList;
+    expect(list.authors).toEqual(grid.authors);
+    expect(list.recencyMode).toBe('played');
+    // The same spacer ELEMENT, not merely an equal one: the overlay's height is
+    // reserved once and both layouts re-reserve exactly it.
+    expect(list.ListHeaderComponent).toBe(grid.ListHeaderComponent);
+  });
+
+  it('keeps the bar on screen across a flip -- the REACHABLE sequence', async () => {
+    await mountLibrary();
+    await goToBooksShelf();
+    const { isVisible } = mockSeen.searchBar;
+
+    await scrollListDown(mockSeen.booksGrid);
+    expect(isVisible.get()).toBe(0);
+
+    /*
+     * ⚠ THE TEMPTING SEQUENCE IS FICTION. The obvious test is "hide the bar,
+     * then flip, then assert the bar came back" -- but the control lives INSIDE
+     * the bar, and the bar translates out of an `overflow: 'hidden'` parent
+     * when hidden, so a reader cannot press it from there. The stub renders
+     * regardless of visibility, so that test would pass while guarding a state
+     * that does not exist.
+     *
+     * The reachable path is this one: scroll back up to reach the control, then
+     * flip. What matters afterwards is that the control the reader just pressed
+     * has not vanished from under their finger.
+     */
+    await scrollListUp(mockSeen.booksGrid);
+    expect(isVisible.get()).toBe(1);
+
+    await flipLayout();
+
+    expect(screen.getByText('BooksList')).toBeTruthy();
+    expect(isVisible.get()).toBe(1);
+    expect(layoutControl()).not.toBeNull();
+  });
+
+  it('leaves the sectioned home\'s expanded sections alone', async () => {
+    await mountLibrary();
+
+    // Expand a section on the sectioned home, as a reader would.
+    await act(async () => {
+      mockSeen.booksHome.setActiveGridSections(new Set(['Recently added']));
+    });
+
+    await goToBooksShelf();
+    await flipLayout();
+    await cycleView(); // BooksGrid/BooksList -> back round to the sectioned home
+
+    /*
+     * A change on one shelf must never silently alter another. The collapse
+     * sweep is armed only on the sectioned view (`SECTIONED_VIEWS` is a
+     * CAPABILITY test, not a change-of-view one), which is what makes
+     * `booksList` safe to add as a live view without touching the ladder.
+     */
+    expect(screen.getByText('BooksHome')).toBeTruthy();
+    expect([...mockSeen.booksHome.activeGridSections]).toEqual([
+      'Recently added',
+    ]);
   });
 });

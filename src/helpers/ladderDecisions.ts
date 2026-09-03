@@ -21,10 +21,16 @@ import { computeRemainingOpen } from './collapseOffscreenSections';
 /**
  * Which library list the ladder is acting on.
  *
- * A NAME, never the view toggle's 0/1/2. That ordinal is a UI toggle position
- * rather than a view identity — it is local state, persisted nowhere, and the
- * two plausible futures for `booksList` (replacing the grid, or joining it as a
- * fourth option) are exactly the changes that renumber it.
+ * A NAME, never the shelf's 0/1/2. That ordinal is a control position rather
+ * than a view identity — it is local state, persisted nowhere, and it does not
+ * even distinguish the views one-for-one any more.
+ *
+ * `booksList` settled that argument in a way this comment did not foresee. It
+ * arrived as NEITHER of the two futures once sketched here (replacing the grid,
+ * or joining it as a fourth ordinal): ADR 0006 made Layout a second axis, so
+ * `booksGrid` and `booksList` are two drawings of the SAME ordinal and a flip
+ * between them renumbers nothing. `helpers/ladderView.ts` is where the two
+ * axes meet to produce one of these names.
  */
 export type LadderView = 'booksHome' | 'seriesHome' | 'booksGrid' | 'booksList';
 

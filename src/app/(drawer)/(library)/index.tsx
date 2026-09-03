@@ -1,5 +1,7 @@
 import BooksHome from '@/components/BooksHome';
 import BooksGrid from '@/components/BooksGrid';
+import BooksList from '@/components/BooksList';
+import BooksLayoutToggle from '@/components/BooksLayoutToggle';
 import SearchBar, { SEARCH_BAR_HEIGHT } from '@/components/SearchBar';
 import { defaultStyles } from '@/styles';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -28,6 +30,7 @@ import { useScrollDirection } from '@/hooks/useScrollDirection';
 import type { LadderList } from '@/types/ladderList';
 import type { SectionRange } from '@/helpers/ladderDecisions';
 import { ladderViewFor } from '@/helpers/ladderView';
+import type { BooksLayout } from '@/types/booksLayout';
 import { useBackToTopLadder } from '@/hooks/useBackToTopLadder';
 import * as Sentry from '@sentry/react-native';
 
@@ -55,9 +58,32 @@ const LibraryScreen = ({ navigation }: any) => {
   const { colors: themeColors } = useTheme();
   const insets = useSafeAreaInsets();
   const [shelf, setShelf] = useState(0);
+  /*
+   * ADR 0006's SECOND AXIS. The header cycles the SHELF; the Books shelf --
+   * alone -- also has a LAYOUT, and this is where it lives. Session state for
+   * now; persisting it is the next ticket.
+   *
+   * ⚠ Not a fourth shelf ordinal. `LadderView` has a `booksList` member and
+   * three comments in this tree read as an unfinished intention to add one;
+   * ADR 0006 records that as the REJECTED design, not the next step.
+   */
+  const [booksLayout, setBooksLayout] = useState<BooksLayout>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
-  const { onScroll, isVisible } = useScrollDirection({ surface: shelf });
+
+  /*
+   * §H1 -- the ONLY place the two axes are collapsed into one named view, and
+   * both consumers below take this rather than the raw ordinal (ADR 0006).
+   *
+   * ⚠ `useScrollDirection`'s `surface` looks like an over-reach here and is
+   * not: a layout flip replaces the mounted list while `shelf` is UNCHANGED,
+   * so an ordinal-keyed surface would perform no reset and the hook's
+   * remembered offset -- belonging to the outgoing list -- would make the
+   * incoming list's first scroll event compute a delta against a position it
+   * was never at.
+   */
+  const ladderView = ladderViewFor(shelf, booksLayout);
+  const { onScroll, isVisible } = useScrollDirection({ surface: ladderView });
   // Default tab: land on Started when a book is in progress so a returning
   // listener sees their current book without a tab tap. Decided once per app
   // launch — never auto-switched after the user picks a tab themselves.
@@ -94,7 +120,7 @@ const LibraryScreen = ({ navigation }: any) => {
 
   /*
    * §H6/§I1 -- ONE list ref, owned here, threaded into whichever list is
-   * mounted. Exactly one of the three views below is mounted at a time and
+   * mounted. Exactly one of the four views below is mounted at a time and
    * they are mutually exclusive, which is what makes a single shared ref
    * safe: React detaches the outgoing list's ref in the mutation phase and
    * attaches the incoming one in the layout phase, so `current` goes
@@ -150,7 +176,7 @@ const LibraryScreen = ({ navigation }: any) => {
    */
   const { onMomentumScrollEnd, onScrollEndDrag } = useBackToTopLadder({
     listRef,
-    view: ladderViewFor(shelf),
+    view: ladderView,
     sectionRangesRef,
     expanded: activeGridSections,
     setExpanded: setActiveGridSections,
@@ -321,6 +347,20 @@ const LibraryScreen = ({ navigation }: any) => {
     setSearchQuery('');
   }, []);
 
+  /*
+   * D11 -- a flip is a VIEW SWITCH. It unmounts one list and mounts the other
+   * at the top; the outgoing scroll position is discarded and the scroll
+   * bookkeeping resets, because `ladderView` above changes with it.
+   *
+   * Carrying the reading position across a flip is a deliberate follow-up, not
+   * an omission: masonry-to-linear has no clean offset correspondence, only an
+   * item one, and this repo has been bitten by index-versus-offset differences
+   * in this list library before.
+   */
+  const toggleBooksLayout = useCallback(() => {
+    setBooksLayout((current) => (current === 'list' ? 'grid' : 'list'));
+  }, []);
+
   // Spacer to offset list content below the absolute-positioned search bar
   const ListSpacer = useMemo(
     () => <View style={{ height: SEARCH_BAR_HEIGHT }} />,
@@ -385,12 +425,28 @@ const LibraryScreen = ({ navigation }: any) => {
               onScrollEndDrag={onScrollEndDrag}
             />
           )}
-          {shelf === 2 && (
+          {shelf === 2 && booksLayout === 'grid' && (
             <BooksGrid
               authors={tabFilteredLibrary}
               recencyMode={recencyMode}
               standAlone={true}
               flowDirection='column'
+              onScroll={onScroll}
+              ListHeaderComponent={ListSpacer}
+              listRef={listRef}
+              selectedTab={selectedTab}
+              onMomentumScrollEnd={onMomentumScrollEnd}
+              onScrollEndDrag={onScrollEndDrag}
+            />
+          )}
+          {/* The same shelf drawn the other way: the SAME search-filtered and
+              tab-filtered Books, the same recency mode, the same spacer. Only
+              the presentation differs, which is the whole of ADR 0006's case
+              for Layout being an axis rather than a fourth stop. */}
+          {shelf === 2 && booksLayout === 'list' && (
+            <BooksList
+              authors={tabFilteredLibrary}
+              recencyMode={recencyMode}
               onScroll={onScroll}
               ListHeaderComponent={ListSpacer}
               listRef={listRef}
@@ -406,6 +462,18 @@ const LibraryScreen = ({ navigation }: any) => {
             onChangeText={setSearchQuery}
             onClear={handleClearSearch}
             isVisible={isVisible}
+            /* D6/D7 -- the control rides the overlay's existing transform, so
+               it travels with the bar for free. The bar takes a GENERIC node
+               and learns nothing about layouts; the shelf conditional stays
+               here, with the other two. */
+            trailing={
+              shelf === 2 ? (
+                <BooksLayoutToggle
+                  layout={booksLayout}
+                  onPress={toggleBooksLayout}
+                />
+              ) : undefined
+            }
           />
         </View>
       </View>

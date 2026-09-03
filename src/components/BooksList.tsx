@@ -69,8 +69,12 @@ const BooksList = ({
      * `bookIds.length > 0`, which satisfied the ladder's arm predicate by the
      * accident of a null ref rather than by the same path every other view
      * takes. Dropping the guard is what makes `ListEmptyComponent` below live
-     * code instead of dead code, and it is why this list can be revived with a
-     * zero-line diff.
+     * code instead of dead code, and it is why reviving this list cost this
+     * FILE nothing.
+     *
+     * It has now been revived, and not in the shape this comment assumed: not
+     * as a fourth stop on the header's cycle, but as the Books shelf's second
+     * LAYOUT (ADR 0006). The whole diff landed at the mount site.
      */
     <View style={{ flex: 1, paddingHorizontal: screenPadding.horizontal }}>
       <View style={{ flex: 1 }}>

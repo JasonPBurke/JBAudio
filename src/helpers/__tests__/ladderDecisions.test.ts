@@ -474,16 +474,21 @@ describe('decideSweep — the capability gate (R5)', () => {
   });
 
   /*
-   * The gate joined to the mount site's ordinal mapping. `ladderView.test.ts`
+   * The gate joined to the mount site's view mapping. `ladderView.test.ts`
    * pins the mapping alone; this pins the CONSEQUENCE, which is the thing that
-   * matters: a fourth view added to the toggle and not mapped here cannot reach
-   * the sweep at all. Those stale ranges and live expansions in the fixture are
-   * exactly what it would otherwise destroy.
+   * matters: a view the mapping does not know cannot reach the sweep at all.
+   * Those stale ranges and live expansions in the fixture are exactly what it
+   * would otherwise destroy.
+   *
+   * Both layouts, because ADR 0006's two axes give the unrecognised case two
+   * ways to arrive rather than one.
    */
-  it('declines for a view an UNMAPPED toggle ordinal resolves to', () => {
-    expect(
-      decideSweep(sweepSnapshot({ view: ladderViewFor(3) }), 'momentum'),
-    ).toEqual({ kind: 'none', reason: 'not-sectioned' });
+  it('declines for a view an UNMAPPED shelf ordinal resolves to', () => {
+    for (const layout of ['grid', 'list'] as const) {
+      expect(
+        decideSweep(sweepSnapshot({ view: ladderViewFor(3, layout) }), 'momentum'),
+      ).toEqual({ kind: 'none', reason: 'not-sectioned' });
+    }
   });
 });
 

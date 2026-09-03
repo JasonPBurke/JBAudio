@@ -22,6 +22,22 @@ interface SearchBarProps extends Omit<TextInputProps, 'style'> {
   onChangeText: (text: string) => void;
   onClear: () => void;
   isVisible: SharedValue<number>;
+  /**
+   * Rendered after the field, at the trailing edge of the overlay row.
+   *
+   * A GENERIC SLOT on purpose (D7): this component is the one truly reusable
+   * seam on the library screen and it knows nothing about shelves, layouts or
+   * the library. Whatever goes here is owned by the screen, where the shelf
+   * conditionals already live.
+   *
+   * ⚠ Whatever is passed must be no taller than `SEARCH_BAR_HEIGHT`.
+   * That constant is published, and every list re-reserves it as a header
+   * spacer while the back-to-top ladder resolves offsets against it -- so a
+   * trailing node that grew the overlay would silently move the screen's
+   * load-bearing geometry. Enlarge a tap target here with HIT-SLOP, never
+   * padding, which also keeps the field from being pushed inward.
+   */
+  trailing?: React.ReactNode;
 }
 
 function SearchBar({
@@ -29,6 +45,7 @@ function SearchBar({
   onChangeText,
   onClear,
   isVisible,
+  trailing,
   ...textInputProps
 }: SearchBarProps) {
   const { colors: themeColors } = useTheme();
@@ -82,6 +99,7 @@ function SearchBar({
           </TouchableOpacity>
         )}
       </View>
+      {trailing}
     </Animated.View>
   );
 }
@@ -95,8 +113,16 @@ const styles = StyleSheet.create({
     zIndex: 10,
     paddingHorizontal: screenPadding.horizontal,
     paddingBottom: 8,
+    // A ROW so `trailing` sits beside the field rather than under it. With no
+    // trailing node the single child still fills the width and `gap` spaces
+    // nothing, so the overlay renders exactly as it did before the slot
+    // existed -- including its height.
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
   },
   container: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 4,

@@ -34,5 +34,16 @@ Read the spec's D9, D10 and D12 before starting.
 - [ ] The list layout's first row sits a few points lower than the grid's, because the two
       components reserve their top padding differently. Observe it and decide — fix it or
       accept it. **Do not fix it blind.**
+- [ ] The control's upper hit-slop is partly clipped, and it needs a finger rather than an
+      argument. It carries `hitSlop={15}` around a 24-point icon centred in the 38-point
+      overlay row, so roughly the top 8 points of that slop fall outside the overlay — and
+      the overlay's parent is `overflow: 'hidden'`, which on Android does not deliver
+      touches outside a parent's bounds. The horizontal slop is bounded the same way by
+      `screenPadding.horizontal`. This is the house style rather than a regression — the
+      header's own controls are `hitSlop={15}` on the same icon size — so the question is
+      whether the reachable target is comfortable at the edge of the screen, not whether
+      the number matches. Raised by the ticket 02 spec review. **Do not enlarge the control
+      with padding to fix it**: D6 pins the overlay's published height, which every list
+      re-reserves as a spacer and the ladder resolves offsets against.
 - [ ] Anything found here that changes what should ship is written back into the spec or a
       follow-up ticket, not left in this checklist.
