@@ -1,44 +1,42 @@
 import { Pressable } from 'react-native';
-import {
-  LayoutGrid,
-  List,
-  ListChevronsDownUp,
-  ListChevronsUpDown,
-} from 'lucide-react-native';
+import { ListChevronsDownUp, ListChevronsUpDown } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
 import type { BooksLayout } from '@/types/booksLayout';
 
 /**
- * D9 -- the two candidate icon pairs, held in ONE constant so that choosing
- * between them on device is a one-line edit under Fast Refresh.
+ * D9 -- the icon pair, settled by eye on a device (ticket 04).
  *
- * `shapes`: two unrelated glyphs, each naming its layout directly.
- * `chevrons`: one list motif twice, chevrons apart on the grid (expanded) and
- *   together on the list (condensed).
+ * ONE list motif twice: chevrons apart on the grid, which the pair encodes as
+ * the expanded state, and together on the list, the condensed one. The rival
+ * pair -- two unrelated shapes, each naming its layout directly -- lost the
+ * side-by-side comparison, and its imports are gone rather than parked. That
+ * deletion is what keeps the generated lucide shim at the two icons this
+ * feature actually costs instead of the four the comparison needed (D10).
  *
- * Three findings were recorded against `chevrons` during scoping and are the
- * device pass's job to settle, not this file's to pre-judge:
- *   1. both its glyphs contain the SAME list motif, so in the grid layout the
- *      control shows a list -- which reads as "switch to list" and works
- *      against D8's current-state rule;
- *   2. the density claim REVERSES at three columns (~75 points per Book in a
- *      three-column grid against ~99 for a list row), and Number of Columns is
- *      a setting the reader owns (D5);
- *   3. the chevrons are a small modifier on a busy glyph and may need a larger
- *      size than the header's icons to read at all.
+ * Two findings recorded against this pair during scoping were WEIGHED AND
+ * ACCEPTED, not answered. They are written down because they are the reason a
+ * later reader might take this file for a mistake:
+ *   1. both glyphs carry the same list motif, so in the GRID layout the control
+ *      shows a list. It is the chevrons that name the current state, and D8's
+ *      announcement carries that meaning in words -- but a reader who takes the
+ *      motif first will read the grid's icon as "switch to list".
+ *   2. the density claim reverses at three columns (~75 points per Book in a
+ *      three-column grid against ~99 for a list row), so at a Number of Columns
+ *      the reader owns (D5) the "expanded" glyph can sit on the denser layout.
  *
- * ⚠ All four are imported ON PURPOSE and the lucide shim is generated from
- * these imports (D10). This transient four-icon shim must NOT reach a release:
- * ticket 04 deletes the losing pair's imports and regenerates, taking the net
- * production cost to two icons.
+ * The icon stays at the header's 24 points: the chevrons were legible at that
+ * size in the comparison, so the third scoping finding -- that they might need
+ * to be drawn larger, and so heavier than their neighbour -- did not land.
+ *
+ * ⚠ Changing this pair means changing the imports above AND running
+ * `npm run generate:lucide-shim`. The shim's drift test fails in both
+ * directions, so a stale shim surfaces in the suite rather than as an undefined
+ * component at render time.
  */
-const ICON_PAIRS = {
-  shapes: { grid: LayoutGrid, list: List },
-  chevrons: { grid: ListChevronsUpDown, list: ListChevronsDownUp },
+const ICONS = {
+  grid: ListChevronsUpDown,
+  list: ListChevronsDownUp,
 } as const;
-
-/** ⚠ D9's one-line swap. Flip to `chevrons` on device to compare. */
-const ICONS = ICON_PAIRS.shapes;
 
 /**
  * D8 -- what TalkBack reads out, keyed by the layout the reader is IN.

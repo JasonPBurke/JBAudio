@@ -279,6 +279,23 @@ on device rather than forgotten:
    header's icons to read at all, which would make the control visually heavier than its
    neighbour.
 
+**RESOLVED on device, 2026-09-03 (ticket 04): the chevron pair wins.** The `shapes` pair is
+deleted — imports and all — and `ICON_PAIRS` has collapsed to a single `ICONS` constant, so
+the swappable-constant scaffolding described above is history rather than shipped code. What
+survives of the three findings:
+
+- Findings 1 and 2 are **accepted, not answered**. The chevrons carry the current state and
+  D8's announcement carries the same meaning in words, but a reader who reads the list motif
+  before the chevrons can still take the grid's icon for "switch to list", and at three
+  columns the "expanded" glyph does sit on the denser layout. Both are recorded in
+  `BooksLayoutToggle`'s D9 docblock so a later reader does not take the file for a defect and
+  "fix" it.
+- Finding 3 **did not land**: the chevrons read at the header's 24 points, so `size={24}`
+  stands and the control is no heavier than its neighbour.
+
+D8's fallback — a two-icon segmented control, held in reserve if the single icon tested
+badly — was not needed, and stays a fallback.
+
 ### D10. The icon shim must be regenerated, and the order matters
 
 Icons are not imported from the icon package at runtime. The bundler aliases that package to
@@ -299,6 +316,11 @@ Therefore D9's comparison follows a specific order:
 3. Delete the losing pair's imports and regenerate **again** before committing.
 
 The transient four-icon shim never reaches a commit. Net production cost: two icons.
+
+⚠ In practice step 1's four-icon shim **did** land in a commit (ticket 02's), because the
+device comparison needed a build and the branch is where builds come from. The rule's real
+teeth are that it must never reach `main`, and it does not: ticket 04's second regeneration
+took the shim from 67 icons to 69 against `main`, which is the two-icon budget above.
 
 All four candidates were verified to be plain value exports with literal module paths — none
 is one of the renamed aliases whose filename does not follow from its exported name, which

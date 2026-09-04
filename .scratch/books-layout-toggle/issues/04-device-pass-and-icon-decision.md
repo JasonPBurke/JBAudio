@@ -15,18 +15,32 @@ Read the spec's D9, D10 and D12 before starting.
 
 **Status:** ready-for-human
 
-- [ ] Both icon pairs compared on the dev build. Flipping between them is a single-line edit
-      under Fast Refresh, because all four icons are already in the shim.
-- [ ] The three findings recorded against the chevron pair are checked rather than assumed:
-      that both its glyphs contain the same list motif, so the control shows a list while in
-      the grid layout; that its density claim reverses at three columns, where the grid is
-      measurably more compact than the list; and that its chevrons may need a larger size
-      than the header's icons to read at all.
-- [ ] A pair is chosen. The losing pair's imports are deleted and the icon shim is
-      regenerated a second time, so exactly two icons are added to what ships.
-- [ ] The shim's drift test is green after that second regeneration. It fails in both
-      directions — after an import is added and after one is removed — so a stale shim is
-      caught here rather than as an undefined component at render time.
+### Settled — the icon decision (2026-09-03)
+
+- [x] Both icon pairs compared on the dev build. Flipping between them was a single-line edit
+      under Fast Refresh, because all four icons were already in the shim.
+- [x] The three findings recorded against the chevron pair were carried into the comparison
+      rather than assumed away. Their disposition:
+      - the shared list motif (finding 1) and the density reversal at three columns
+        (finding 2) are **accepted, not answered** — the chevrons carry the state and D8's
+        announcement carries it in words, but a reader who takes the motif first can still
+        read the grid's icon as "switch to list". Both are written into
+        `BooksLayoutToggle`'s D9 docblock so a later reader does not take the file for a bug.
+      - the size worry (finding 3) **did not land**: the chevrons read at the header's 24
+        points, so the control is not visually heavier than its neighbour and `size={24}`
+        stands.
+- [x] **`chevrons` won.** The `shapes` pair's imports (`LayoutGrid`, `List`) are deleted,
+      `ICON_PAIRS` has collapsed to a single `ICONS` constant, and the shim was regenerated a
+      second time. Neither losing icon is imported anywhere else in `src/`, so the net
+      production cost is exactly the two chevron icons D10 budgeted: 69 icons in the shim
+      against 67 on `main`.
+- [x] The shim's drift test is green after that second regeneration
+      (`src/helpers/__tests__/lucideShim.test.ts`, both cases). `tsc --noEmit` is clean.
+
+### Still open — needs a device and a person
+
+These rows are not agent-grabbable and are why this ticket stays `ready-for-human`.
+
 - [ ] On device: the control hides when scrolling down and returns when scrolling up, with
       the search bar, and cannot be pressed while hidden.
 - [ ] On device: the chosen layout survives the app being killed from recents.
