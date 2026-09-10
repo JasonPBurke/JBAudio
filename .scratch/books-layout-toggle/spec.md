@@ -354,6 +354,17 @@ only an item one. It should be judged after the flip has been felt on device.
   reserve their top padding differently. This is **not** to be fixed blind; it is a device
   observation to make and then decide about.
 
+  **Observed and FIXED, 2026-09-10 (ticket 04).** Measured over adb rather than eyeballed,
+  and bigger than "a few points": both Books layouts sat far below the other two shelves,
+  which give their first row a plain 8-point inset. The grid's first cover was at 20 points
+  below the search bar (6 list-level + 14 inside `BookGridItem`), the list's row box at 12.
+  Both now land at 8 — the grid via `marginTop: -6` on its scroll view (the 14 points of
+  item-internal slack are inter-row rhythm the home shelf needs and the first row does not;
+  Yoga drops negative padding, and the lifted points are the shared spacer, which D6 keeps
+  intact), the list via `paddingTop` 12 → 8. The list's *cover* is left centred in its row
+  and so sits at 18, exactly as the Series cover sits at 28 inside its 8-point box: a
+  cover pinned to 8 would hold at one font scale only. Numbers in ticket 04.
+
 ## Testing decisions
 
 A good test here asserts what a reader can observe — which list is mounted, what the search

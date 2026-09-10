@@ -24,8 +24,18 @@ import { useResetScrollOnTabChange } from '@/hooks/useResetScrollOnTabChange';
 import type { LadderListProps } from '@/types/ladderList';
 
 const styles = StyleSheet.create({
+  /*
+   * The first row's top edge is pinned to the SAME 8-point inset the sectioned
+   * home and the Series shelf give theirs (device pass, ticket 04). Each
+   * `BookGridItem` carries 14 points of slack above its cover (4 pressable + 10
+   * image box) as inter-row rhythm, which the first row has no use for, so the
+   * list-level number that lands the cover at 8 is 8 - 14. Yoga drops negative
+   * padding; a negative margin on the scroll view does the same job, and the
+   * six points it lifts are the shared search-bar spacer, already hidden under
+   * the bar. The spacer itself is untouched -- D6 pins it.
+   */
   container: {
-    paddingTop: 6,
+    marginTop: -6,
   },
   separator: {
     height: 12,

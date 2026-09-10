@@ -90,7 +90,12 @@ const BooksList = ({
           onScrollEndDrag={onScrollEndDrag}
           scrollEventThrottle={16}
           ListHeaderComponent={ListHeaderComponent}
-          contentContainerStyle={{ paddingTop: 12, paddingBottom: 82 }}
+          /* 8 matches the sectioned home's and the Series shelf's top inset:
+             the ROW box lands at 8, as the Series row's does. The cover sits
+             lower than that because it is centred in a row whose height follows
+             the text, so pinning the cover instead would hold at one font scale
+             only. Device pass, ticket 04. */
+          contentContainerStyle={{ paddingTop: 8, paddingBottom: 82 }}
           ListFooterComponent={
             bookIds.length > 0 ? (
               <ItemDivider themeColors={themeColors} />

@@ -1,38 +1,11 @@
 import { Pressable } from 'react-native';
-import { ListChevronsDownUp, ListChevronsUpDown } from 'lucide-react-native';
+import {
+  ListChevronsDownUp,
+  ListChevronsUpDown,
+} from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
 import type { BooksLayout } from '@/types/booksLayout';
 
-/**
- * D9 -- the icon pair, settled by eye on a device (ticket 04).
- *
- * ONE list motif twice: chevrons apart on the grid, which the pair encodes as
- * the expanded state, and together on the list, the condensed one. The rival
- * pair -- two unrelated shapes, each naming its layout directly -- lost the
- * side-by-side comparison, and its imports are gone rather than parked. That
- * deletion is what keeps the generated lucide shim at the two icons this
- * feature actually costs instead of the four the comparison needed (D10).
- *
- * Two findings recorded against this pair during scoping were WEIGHED AND
- * ACCEPTED, not answered. They are written down because they are the reason a
- * later reader might take this file for a mistake:
- *   1. both glyphs carry the same list motif, so in the GRID layout the control
- *      shows a list. It is the chevrons that name the current state, and D8's
- *      announcement carries that meaning in words -- but a reader who takes the
- *      motif first will read the grid's icon as "switch to list".
- *   2. the density claim reverses at three columns (~75 points per Book in a
- *      three-column grid against ~99 for a list row), so at a Number of Columns
- *      the reader owns (D5) the "expanded" glyph can sit on the denser layout.
- *
- * The icon stays at the header's 24 points: the chevrons were legible at that
- * size in the comparison, so the third scoping finding -- that they might need
- * to be drawn larger, and so heavier than their neighbour -- did not land.
- *
- * ⚠ Changing this pair means changing the imports above AND running
- * `npm run generate:lucide-shim`. The shim's drift test fails in both
- * directions, so a stale shim surfaces in the suite rather than as an undefined
- * component at render time.
- */
 const ICONS = {
   grid: ListChevronsUpDown,
   list: ListChevronsDownUp,
