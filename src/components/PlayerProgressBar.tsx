@@ -92,38 +92,6 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
   const chapterStart = useSharedValue(0);
   const chapterDuration = useSharedValue(0);
 
-  // Update shared values when chapter changes (on JS thread)
-  useEffect(() => {
-    if (chapterLocation) {
-      const start = chapterLocation.chapterStartSeconds;
-      const dur = chapterLocation.chapter.chapterDuration ?? 0;
-
-      chapterStart.value = start;
-      chapterDuration.value = dur;
-
-      // Immediately update time display when chapter data arrives
-      // This handles mount case where position is set but chapter wasn't loaded yet
-      if (dur > 0) {
-        const chapterPos = Math.max(0, position.value - start);
-        const remaining = Math.max(0, dur - chapterPos);
-        setTrackElapsedTime(formatSecondsToMinutes(chapterPos / playbackRate));
-        setTrackRemainingTime(
-          '-' + formatSecondsToMinutes(remaining / playbackRate),
-        );
-      }
-    } else {
-      chapterStart.value = 0;
-      chapterDuration.value = 0;
-    }
-  }, [
-    chapterLocation,
-    chapterStart,
-    chapterDuration,
-    position,
-    playbackRate,
-  ]);
-
-
   // State for time text displays - updated at reduced frequency
   const [trackElapsedTime, setTrackElapsedTime] = useState('0:00');
   const [trackRemainingTime, setTrackRemainingTime] = useState('-0:00');
@@ -157,34 +125,63 @@ export const PlayerProgressBar = React.memo(({ style }: ViewProps) => {
   }, []);
 
   // Callback to update time display text (runs on JS thread)
-  const updateTimeDisplay = useCallback(
-    (pos: number, chapStart: number, chapDur: number, totalDur: number) => {
-      // Dormant while backgrounded — belt-and-suspenders with the
-      // useProgressReanimated guard (position.value freezes there, so this
-      // reaction usually won't fire anyway). Self-heals on resume.
-      if (!useAppStateStore.getState().isActive) return;
-      const rate = useSettingsStore.getState().playbackRate;
-      const effectiveDur = chapDur > 0 ? chapDur : totalDur;
-      const chapterPos = Math.max(0, pos - chapStart);
-      const remaining = Math.max(0, effectiveDur - chapterPos);
+  //
+  // ⚠ IT TAKES NO ARGUMENTS ON PURPOSE. It used to be handed the position,
+  // the chapter start and the two durations, evaluated on the UI thread at the
+  // moment the reaction fired — and `runOnJS` delivers what it captured,
+  // however much later that lands. Resuming to a PAUSED player writes the
+  // position and the chapter from two independent refreshes, so the reaction
+  // could capture a NEW position beside the OLD chapter's start and deliver
+  // that pair after the effect below had already painted the right answer.
+  // 7860 - 3600 read as "01:11:00" and stuck, because a paused player has no
+  // next tick to correct it. Reading the shared values HERE means a late
+  // delivery always paints the current pair.
+  const updateTimeDisplay = useCallback(() => {
+    // Dormant while backgrounded — belt-and-suspenders with the
+    // useProgressReanimated guard (position.value freezes there, so this
+    // reaction usually won't fire anyway). Self-heals on resume.
+    if (!useAppStateStore.getState().isActive) return;
+    const rate = useSettingsStore.getState().playbackRate;
+    const effectiveDur =
+      chapterDuration.value > 0 ? chapterDuration.value : duration.value;
+    const chapterPos = Math.max(0, position.value - chapterStart.value);
+    const remaining = Math.max(0, effectiveDur - chapterPos);
 
-      setTrackElapsedTime(formatSecondsToMinutes(chapterPos / rate));
-      setTrackRemainingTime('-' + formatSecondsToMinutes(remaining / rate));
-    },
-    [],
-  );
+    setTrackElapsedTime(formatSecondsToMinutes(chapterPos / rate));
+    setTrackRemainingTime('-' + formatSecondsToMinutes(remaining / rate));
+  }, [chapterDuration, chapterStart, duration, position]);
+
+  // Update shared values when chapter changes (on JS thread)
+  useEffect(() => {
+    chapterStart.value = chapterLocation?.chapterStartSeconds ?? 0;
+    chapterDuration.value = chapterLocation?.chapter.chapterDuration ?? 0;
+
+    // Paint straight away rather than waiting for the reaction's next frame:
+    // on mount the position is known before the chapter is, and a rate change
+    // while paused has no tick coming at all.
+    updateTimeDisplay();
+  }, [
+    chapterLocation,
+    chapterStart,
+    chapterDuration,
+    playbackRate,
+    updateTimeDisplay,
+  ]);
 
   // Update time text only every second (not every 250ms)
+  //
+  // ⚠ THIS WATCHES THE POSITION AND NOTHING ELSE, AND THAT IS ONLY SAFE
+  // BECAUSE THE CALLBACK TAKES NO ARGUMENTS. A mapper re-runs only when a
+  // shared value read in its PREPARE function changes, so a chapter change
+  // cannot fire this one — the effect above is what repaints on that. What
+  // must never come back is a prepare that watches the position while the
+  // BODY hands the chapter values across: the body runs on the UI thread,
+  // where a shared value written from JS is still a frame behind.
   useAnimatedReaction(
     () => Math.floor(position.value),
     (currentSecond, previousSecond) => {
       if (currentSecond !== previousSecond && !isSliding.value) {
-        runOnJS(updateTimeDisplay)(
-          position.value,
-          chapterStart.value,
-          chapterDuration.value,
-          duration.value,
-        );
+        runOnJS(updateTimeDisplay)();
       }
     },
     [],
